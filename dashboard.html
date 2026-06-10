@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>8888 · 봇 통합 관제</title>
 <style>
-:root{--bg:#0f1115;--card:#181b22;--card2:#1f232c;--border:#2a2f3a;--text:#e8eaf0;--muted:#8b93a5;--green:#2dbd85;--amber:#efa027;--red-dot:#e24b4a;--profit:#ff5a5a;--loss:#4d9fff}
+:root{--bg:#0f1115;--card:#181b22;--card2:#252b36;--border:#2a2f3a;--text:#e8eaf0;--muted:#8b93a5;--green:#2dbd85;--amber:#efa027;--red-dot:#e24b4a;--profit:#ff5a5a;--loss:#4d9fff}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;padding:20px;max-width:1280px;margin:0 auto;zoom:1.525}
 header{display:flex;align-items:baseline;gap:12px;margin-bottom:18px}
@@ -99,12 +99,12 @@ function render(d){
    <table>
     <tr style="background:#181b22;"><td>총 잔고${exwarn}</td><td>${usd(b.ex_balance)}</td></tr>
     <tr style="background:#181b22;"><td>미실현 손익</td><td>${ex?fmt(b.ex_upnl,1):'—'}</td></tr>
-    <tr style="background:#1f232c;" title="trade_history 청산 합산, 경계 max(오늘 00:00, ${b.perf_start||'—'})"><td>금일 실현 손익</td><td>${fmt(b.today_pnl,1)}</td></tr>
-    <tr style="background:#1f232c;"><td>사용 중 증거금</td><td>${usd(b.ex_used)}</td></tr>
+    <tr style="background:#252b36;" title="trade_history 청산 합산, 경계 max(오늘 00:00, ${b.perf_start||'—'})"><td>금일 실현 손익</td><td>${fmt(b.today_pnl,1)}</td></tr>
+    <tr style="background:#252b36;"><td>사용 중 증거금</td><td>${usd(b.ex_used)}</td></tr>
     <tr style="background:#181b22;"><td>가용 증거금</td><td>${usd(b.ex_free)}</td></tr>
     <tr style="background:#181b22;" title="${cumtip}"><td>누적 수익률${b.cum_basis==='pnl'?' <span class="warn">~</span>':''}</td><td>${fmt(b.cum_ret,1)}% <span style="color:var(--muted)">(${fmt(b.cum_delta,1)} U)</span></td></tr>
-    <tr style="background:#1f232c;" title="누적 수익률 ÷ 경과일수 ${b.days}일"><td>일 평균 수익률</td><td>${fmt(b.daily_ret,1)}%</td></tr>
-    <tr style="background:#1f232c;" title="order_id 그룹, SINCE ${b.perf_start||'—'}"><td>누적 주문·승률</td><td>${b.since_orders}건 · ${wr(b.since_w,b.since_l)}</td></tr>
+    <tr style="background:#252b36;" title="누적 수익률 ÷ 경과일수 ${b.days}일"><td>일 평균 수익률</td><td>${fmt(b.daily_ret,1)}%</td></tr>
+    <tr style="background:#252b36;" title="order_id 그룹, SINCE ${b.perf_start||'—'}"><td>누적 주문·승률</td><td>${b.since_orders}건 · ${wr(b.since_w,b.since_l)}</td></tr>
     <tr style="background:#181b22;"><td>당일 주문·승률</td><td>${b.orders_today}건 · ${wr(b.today_w,b.today_l)}</td></tr>
     <tr style="background:#181b22;" title="초기화(perf_start): ${b.perf_start||'—'}"><td>초기화 후 경과</td><td>${elapsed(b.perf_start)}</td></tr>
    </table></div>`}).join('');
