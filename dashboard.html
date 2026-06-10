@@ -68,8 +68,8 @@ function render(d){
  const s=d.summary;
  document.getElementById('updated').textContent='갱신 '+s.updated;
  document.getElementById('summary').innerHTML=`
-  <div class="metric"><div class="lbl">총 자산</div><div class="val">${s.assets===null?'—':s.assets.toFixed(2)} <span style="font-size:13px;color:var(--muted)">USDT</span></div></div>
-  <div class="metric"><div class="lbl">누적수익률</div><div class="val">${fmt(s.cum_ret,1)}<span style="font-size:13px;color:var(--muted)">%</span></div></div>
+  <div class="metric"><div class="lbl">총 자산 <span style="font-weight:400;color:var(--muted)">(현재 총잔고 합산)</span></div><div class="val">${s.assets===null?'—':s.assets.toFixed(2)} <span style="font-size:13px;color:var(--muted)">USDT</span></div></div>
+  <div class="metric" title="(Σ현재 총잔고 − Σ초기화 잔고) ÷ Σ초기화 잔고"><div class="lbl">누적수익률</div><div class="val">${fmt(s.cum_ret,1)}<span style="font-size:13px;color:var(--muted)">%</span></div><div style="font-size:12px;color:var(--muted);margin-top:2px">기준금 대비 ${fmt(s.cum_delta,1)} USDT</div></div>
   <div class="metric"><div class="lbl">일 평균수익률 <span style="font-weight:400">(${s.days}일)</span></div><div class="val">${fmt(s.daily_ret,1)}<span style="font-size:13px;color:var(--muted)">%/일</span></div></div>
   <div class="metric"><div class="lbl">가동 중</div><div class="val" style="color:${s.alive===s.count?'var(--green)':'var(--red-dot)'}">${s.alive} / ${s.count}</div></div>`;
  document.getElementById('cards').innerHTML=d.bots.map(b=>{
@@ -79,6 +79,9 @@ function render(d){
   const wr=(w,l)=>(w+l)>0?(w/(w+l)*100).toFixed(1)+'% ('+w+'W/'+l+'L)':'0.0% (0W/0L)';
   const ex=b.ex_ok;
   const exwarn=ex?'':' <span class="warn" title="'+(b.ex_err||'')+'">!</span>';
+  const seed=(b.seed===null||b.seed===undefined)?'—':(+b.seed).toFixed(2);
+  const cumtip='기준: '+(b.perf_start||'—')+' 초기화 잔고 '+seed+' USDT 대비 현재 총잔고 증감률'
+   +(b.cum_basis==='pnl'?' (거래소 조회 실패 → 실현손익 기준 추정)':'');
   return `<div class="card${b.alive?'':' offline'}" onclick="window.open('http://localhost:${b.port}','_blank')">
    <div class="head"><span class="dot" style="background:${dot}"></span><span class="name">${b.name}</span>
    <span class="badge ${b.ex.toLowerCase()}">${b.ex}</span></div>
@@ -88,8 +91,8 @@ function render(d){
     <tr><td>금일 실현 손익</td><td>${fmt(b.daily,1)}</td></tr>
     <tr><td>사용 중 증거금</td><td>${usd(b.ex_used)}</td></tr>
     <tr><td>가용 증거금</td><td>${usd(b.ex_free)}</td></tr>
-    <tr><td>누적 수익률</td><td>${fmt(b.cum_ret,1)}% <span style="color:var(--muted)">(${fmt(b.total,1)} U)</span></td></tr>
-    <tr><td>일 평균 수익률</td><td>${fmt(b.daily_ret,1)}%</td></tr>
+    <tr title="${cumtip}"><td>누적 수익률${b.cum_basis==='pnl'?' <span class="warn">~</span>':''}</td><td>${fmt(b.cum_ret,1)}% <span style="color:var(--muted)">(${fmt(b.cum_delta,1)} U)</span></td></tr>
+    <tr title="누적 수익률 ÷ 경과일수 ${b.days}일"><td>일 평균 수익률</td><td>${fmt(b.daily_ret,1)}%</td></tr>
     <tr><td>누적 주문·승률</td><td>${b.total_trades}건 · ${wr(b.wins,b.losses)}</td></tr>
     <tr><td>당일 주문·승률</td><td>${b.orders_today}건 · ${wr(b.today_w,b.today_l)}</td></tr>
    </table></div>`}).join('');

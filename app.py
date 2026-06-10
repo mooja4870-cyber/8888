@@ -191,15 +191,25 @@ def bot_status(folder, port, ex):
     hist = os.path.join(d, "trade_history.csv")
     r["trades"] = tail_trades(hist)
     r["today_w"], r["today_l"] = today_wl(hist)
+    r.update({"ex_" + k: v for k, v in EX_CACHE.get(folder, {"ok": False, "err": "조회 전"}).items()})
 
-    # 파생 지표: 누적/일평균 수익률 (기준금 = perf_start 시점 잔고)
+    # 누적 수익률 = (현재 총잔고 - 초기화 잔고) / 초기화 잔고  ← 봇 대시보드 툴팁과 동일
+    #   일시   = perf_start_time(stats.json),  초기화 잔고 = seed_money(stats.json)
+    #   현재 총잔고 = 거래소 실시간 잔고. 조회 실패 시 실현손익 기준으로 폴백.
     days = bot_days(r["perf_start"])
+    r["days"] = round(days, 2)
     if r["seed"]:
-        r["cum_ret"] = round((r["total"] or 0) / r["seed"] * 100, 2)
+        if r.get("ex_ok") and r.get("ex_balance") is not None:
+            r["cum_delta"] = round(r["ex_balance"] - r["seed"], 4)
+            r["cum_basis"] = "balance"
+        else:
+            r["cum_delta"] = round(r["total"] or 0, 4)   # 폴백: 실현손익
+            r["cum_basis"] = "pnl"
+        r["cum_ret"] = round(r["cum_delta"] / r["seed"] * 100, 2)
         r["daily_ret"] = round(r["cum_ret"] / days, 2)
     else:
-        r["cum_ret"] = r["daily_ret"] = None
-    r.update({"ex_" + k: v for k, v in EX_CACHE.get(folder, {"ok": False, "err": "조회 전"}).items()})
+        r["cum_ret"] = r["daily_ret"] = r["cum_delta"] = None
+        r["cum_basis"] = None
     return r
 
 
@@ -215,13 +225,21 @@ def collect():
     bots = [bot_status(*b) for b in BOTS]
     feed = sorted((dict(t, bot=b["name"]) for b in bots for t in b["trades"]),
                   key=lambda t: t["time"], reverse=True)[:FEED_LIMIT]
-    total = sum(b["total"] or 0 for b in bots)
+    # 합산 누적 수익률 = (Σ현재 총잔고 - Σ초기화 잔고) / Σ초기화 잔고  ← 티커별과 동일 기준
+    #   현재 총잔고는 거래소 실시간 잔고, 조회 실패 봇은 seed+실현손익으로 폴백.
     seed = sum(b["seed"] or 0 for b in bots)
+    assets = 0.0
+    for b in bots:
+        if b.get("ex_ok") and b.get("ex_balance") is not None:
+            assets += b["ex_balance"]
+        else:
+            assets += (b["seed"] or 0) + (b["total"] or 0)
     days = max([bot_days(b["perf_start"]) for b in bots] or [1.0])
-    cum_ret = round(total / seed * 100, 2) if seed else None
+    cum_ret = round((assets - seed) / seed * 100, 2) if seed else None
     summary = {
-        "assets": round(seed + total, 2),
+        "assets": round(assets, 2),
         "cum_ret": cum_ret,
+        "cum_delta": round(assets - seed, 2),
         "daily_ret": round(cum_ret / days, 2) if cum_ret is not None else None,
         "days": round(days, 1),
         "alive": sum(1 for b in bots if b["alive"]),
