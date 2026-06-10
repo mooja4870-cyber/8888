@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8888 · 봇 통합 관제</title>
+<style>
+:root{--bg:#0f1115;--card:#181b22;--card2:#1f232c;--border:#2a2f3a;--text:#e8eaf0;--muted:#8b93a5;--green:#2dbd85;--amber:#efa027;--red-dot:#e24b4a;--profit:#ff5a5a;--loss:#4d9fff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;padding:20px;max-width:1280px;margin:0 auto}
+header{display:flex;align-items:baseline;gap:12px;margin-bottom:18px}
+h1{font-size:20px;font-weight:600}
+#updated{font-size:12px;color:var(--muted);margin-left:auto}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
+.metric{background:var(--card);border-radius:10px;padding:14px 16px}
+.metric .lbl{font-size:12px;color:var(--muted);margin-bottom:4px}
+.metric .val{font-size:22px;font-weight:600}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--muted);margin-bottom:10px;align-items:center;flex-wrap:wrap}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:22px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color .15s}
+.card:hover{border-color:#4a5364}
+.card .head{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.card .name{font-weight:600;font-size:15px}
+.badge{margin-left:auto;font-size:11px;padding:2px 8px;border-radius:7px;font-weight:600}
+.badge.okx{background:#2e2a55;color:#b9b3f5}
+.badge.bnc{background:#4a3a14;color:#f5cd6e}
+.card table{width:100%;font-size:12.5px;border-collapse:collapse}
+.card td{padding:2px 0}
+.card td:first-child{color:var(--muted)}
+.card td:last-child{text-align:right}
+.profit{color:var(--profit);font-weight:600}
+.loss{color:var(--loss);font-weight:600}
+.flat{color:var(--muted)}
+.warn{color:var(--amber)}
+h2{font-size:14px;font-weight:600;margin:0 0 8px}
+#chartwrap{position:relative;height:240px;background:var(--card);border-radius:12px;padding:12px;margin-bottom:22px}
+#feed{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:22px}
+.row{display:flex;gap:10px;align-items:center;padding:8px 14px;font-size:13px;border-top:1px solid var(--border)}
+.row:first-child{border-top:none}
+.row .t{color:var(--muted);font-family:ui-monospace,monospace;font-size:12px;white-space:nowrap}
+.row .b{font-weight:600}
+.row .pnl{margin-left:auto;white-space:nowrap}
+.offline{opacity:.55}
+</style>
+</head>
+<body>
+<header><h1>봇 통합 관제</h1><span style="font-size:12px;color:var(--muted)">수익 <span style="color:var(--profit)">빨강</span> · 손실 <span style="color:var(--loss)">파랑</span></span><span id="updated">불러오는 중…</span></header>
+<div class="summary" id="summary"></div>
+<div class="legend">
+<span><span class="dot" style="background:var(--green)"></span>정상</span>
+<span><span class="dot" style="background:var(--amber)"></span>데이터 갱신 지연 (60분+)</span>
+<span><span class="dot" style="background:var(--red-dot)"></span>다운 (포트 무응답)</span>
+<span style="margin-left:auto">카드 클릭 → 해당 봇 대시보드 열기</span>
+</div>
+<div class="cards" id="cards"></div>
+<h2>봇별 오늘 손익 (USDT)</h2>
+<div id="chartwrap"><canvas id="pnlChart"></canvas></div>
+<h2>최근 체결 (전 봇 통합)</h2>
+<div id="feed"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+let chart=null;
+const fmt=(v,sign)=>{if(v===null||v===undefined)return'<span class="flat">—</span>';
+ const c=v>0?'profit':(v<0?'loss':'flat');const s=v>0&&sign?'+':'';
+ return `<span class="${c}">${s}${(+v).toFixed(2)}</span>`};
+function render(d){
+ const s=d.summary;
+ document.getElementById('updated').textContent='갱신 '+s.updated;
+ const roi=s.seed?((s.total/s.seed)*100).toFixed(1):'—';
+ document.getElementById('summary').innerHTML=`
+  <div class="metric"><div class="lbl">오늘 합산 손익</div><div class="val">${fmt(s.daily,1)} <span style="font-size:13px;color:var(--muted)">USDT</span></div></div>
+  <div class="metric"><div class="lbl">누적 합산 손익</div><div class="val">${fmt(s.total,1)} <span style="font-size:13px;color:var(--muted)">USDT</span></div></div>
+  <div class="metric"><div class="lbl">시드 대비 수익률</div><div class="val">${fmt(parseFloat(roi),1)}<span style="font-size:13px;color:var(--muted)">%</span></div></div>
+  <div class="metric"><div class="lbl">가동 중</div><div class="val" style="color:${s.alive===s.count?'var(--green)':'var(--red-dot)'}">${s.alive} / ${s.count}</div></div>
+  <div class="metric"><div class="lbl">보유 포지션</div><div class="val">${s.positions}건</div></div>`;
+ document.getElementById('cards').innerHTML=d.bots.map(b=>{
+  const stale=b.age_min!==null&&b.age_min>d.stale_min;
+  const dot=!b.alive?'var(--red-dot)':(stale?'var(--amber)':'var(--green)');
+  const wr=(b.wins+b.losses)>0?Math.round(b.wins/(b.wins+b.losses)*100)+'%':'—';
+  const age=b.age_min===null?'—':(b.age_min>=60?Math.round(b.age_min/60)+'시간 전':Math.round(b.age_min)+'분 전');
+  return `<div class="card${b.alive?'':' offline'}" onclick="window.open('http://localhost:${b.port}','_blank')">
+   <div class="head"><span class="dot" style="background:${dot}"></span><span class="name">${b.name}</span>
+   <span class="badge ${b.ex.toLowerCase()}">${b.ex}</span></div>
+   <table>
+    <tr><td>오늘</td><td>${fmt(b.daily,1)}</td></tr>
+    <tr><td>누적</td><td>${fmt(b.total,1)}</td></tr>
+    <tr><td>승률</td><td>${wr}</td></tr>
+    <tr><td>포지션</td><td>${b.positions.length?b.positions.join('·'):'—'}</td></tr>
+    <tr><td>갱신</td><td class="${stale?'warn':''}">${age}</td></tr>
+   </table></div>`}).join('');
+ document.getElementById('feed').innerHTML=d.feed.map(t=>
+  `<div class="row"><span class="t">${t.time.slice(5,16)}</span><span class="b">${t.bot}</span>
+   <span>${t.symbol}</span><span style="color:var(--muted)">${t.type} ${t.side}</span>
+   <span class="pnl">${t.type.includes('청산')?fmt(t.pnl,1)+' USDT':''}</span></div>`).join('')
+  ||'<div class="row" style="color:var(--muted)">체결 내역 없음</div>';
+ const labels=d.bots.map(b=>b.name),vals=d.bots.map(b=>+(b.daily||0).toFixed(2));
+ const colors=vals.map(v=>v>0?'#ff5a5a':'#4d9fff');
+ if(chart){chart.data.labels=labels;chart.data.datasets[0].data=vals;
+  chart.data.datasets[0].backgroundColor=colors;chart.update('none');}
+ else chart=new Chart(document.getElementById('pnlChart'),{type:'bar',
+  data:{labels,datasets:[{data:vals,backgroundColor:colors,borderRadius:3}]},
+  options:{responsive:true,maintainAspectRatio:false,animation:false,
+   plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>(c.raw>0?'+':'')+c.raw+' USDT'}}},
+   scales:{x:{ticks:{color:'#8b93a5',autoSkip:false},grid:{display:false}},
+    y:{ticks:{color:'#8b93a5'},grid:{color:'#2a2f3a'}}}}});
+}
+async function tick(){
+ try{const r=await fetch('/api/status');render(await r.json());}
+ catch(e){document.getElementById('updated').textContent='서버 연결 끊김';}
+}
+tick();setInterval(tick,5000);
+</script>
+</body>
+</html>
