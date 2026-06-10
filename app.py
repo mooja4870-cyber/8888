@@ -68,18 +68,62 @@ def tail_trades(path, n=5):
             for r in read_csv_tail(path, TAIL_BYTES)[-n:]]
 
 
-def today_wl(path):
-    """오늘자 청산 행에서 (승, 패) 집계."""
-    today = time.strftime("%Y-%m-%d")
-    w = l = 0
-    for r in read_csv_tail(path, WL_TAIL_BYTES):
-        if r[0].startswith(today) and "청산" in r[2]:
-            p = _pnl(r)
-            if p > 0:
-                w += 1
-            elif p < 0:
-                l += 1
-    return w, l
+_HIST_CACHE = {}   # path -> (mtime, size, exits[])  ;  exits = [(ts19, pnl, oid), ...]
+
+
+def _load_exits(path):
+    """trade_history.csv의 청산 행 전체를 (시각, 수익, 주문ID)로 파싱. mtime 캐시."""
+    try:
+        mt = os.path.getmtime(path)
+        sz = os.path.getsize(path)
+    except OSError:
+        return []
+    c = _HIST_CACHE.get(path)
+    if c and c[0] == mt and c[1] == sz:
+        return c[2]
+    exits = []
+    try:
+        with open(path, encoding="utf-8-sig", errors="replace") as f:
+            for r in csv.reader(f):
+                if len(r) < 7 or r[2] != "청산":
+                    continue
+                ts = r[0].strip()[:19]
+                if not ts[:4].isdigit():
+                    continue
+                oid = r[10].strip() if len(r) > 10 else ""
+                exits.append((ts, _pnl(r), oid))
+    except OSError:
+        return []
+    _HIST_CACHE[path] = (mt, sz, exits)
+    return exits
+
+
+def hist_metrics(path, perf_start):
+    """봇 대시보드와 동일하게 trade_history.csv에서 당일/누적 지표 재계산.
+    - 금일 실현 손익 = Σ(청산 수익), 경계 = max(오늘 00:00 KST, perf_start). 행 단위 합산.
+    - 당일/누적 주문·승률 = order_id별로 묶어 합산 > 0 승 / < 0 패 (봇 방식).
+    """
+    today0 = time.strftime("%Y-%m-%d 00:00:00")
+    ps = (perf_start or "")[:19]
+    b_today = max(today0, ps) if ps else today0
+    b_since = ps or today0
+    exits = _load_exits(path)
+    today_pnl = 0.0
+    today_grp, since_grp = {}, {}
+    for ts, pnl, oid in exits:
+        if ts >= b_since:
+            if oid:
+                since_grp[oid] = since_grp.get(oid, 0.0) + pnl
+            if ts >= b_today:
+                today_pnl += pnl
+                if oid:
+                    today_grp[oid] = today_grp.get(oid, 0.0) + pnl
+    tw = sum(1 for v in today_grp.values() if v > 0)
+    tl = sum(1 for v in today_grp.values() if v < 0)
+    sw = sum(1 for v in since_grp.values() if v > 0)
+    sl = sum(1 for v in since_grp.values() if v < 0)
+    return {"today_pnl": round(today_pnl, 4), "today_w": tw, "today_l": tl,
+            "since_w": sw, "since_l": sl, "since_orders": sw + sl}
 
 
 # ── 거래소 조회 전용 클라이언트 (15초 캐시, 백그라운드 갱신) ──────────────
@@ -190,7 +234,13 @@ def bot_status(folder, port, ex):
         pass
     hist = os.path.join(d, "trade_history.csv")
     r["trades"] = tail_trades(hist)
-    r["today_w"], r["today_l"] = today_wl(hist)
+    # 금일 실현 손익·당일/누적 주문·승률을 봇 화면과 동일하게 trade_history에서 재계산
+    m = hist_metrics(hist, r["perf_start"])
+    r["today_pnl"] = m["today_pnl"]            # 금일 실현 손익 (봇 화면값)
+    r["today_w"], r["today_l"] = m["today_w"], m["today_l"]
+    r["orders_today"] = m["today_w"] + m["today_l"]
+    r["since_w"], r["since_l"] = m["since_w"], m["since_l"]
+    r["since_orders"] = m["since_orders"]
     r.update({"ex_" + k: v for k, v in EX_CACHE.get(folder, {"ok": False, "err": "조회 전"}).items()})
 
     # 누적 수익률 = (현재 총잔고 - 초기화 잔고) / 초기화 잔고  ← 봇 대시보드 툴팁과 동일
