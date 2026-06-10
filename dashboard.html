@@ -12,9 +12,13 @@ header{display:flex;align-items:baseline;gap:12px;margin-bottom:18px}
 h1{font-size:20px;font-weight:600}
 #updated{font-size:12px;color:var(--muted);margin-left:auto}
 .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
-.metric{background:var(--card);border-radius:10px;padding:14px 16px}
+.metric{background:var(--card);border-radius:10px;padding:14px 16px;position:relative}
 .metric .lbl{font-size:12px;color:var(--muted);margin-bottom:4px}
 .metric .val{font-size:22px;font-weight:600}
+.tip{position:relative;display:inline-block;margin-left:4px;color:#6b7280;cursor:help;font-style:normal}
+.tip .tiptext{visibility:hidden;opacity:0;transition:opacity .15s;position:absolute;z-index:20;left:0;top:18px;width:240px;background:#0b0d11;border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:12px;line-height:1.55;color:var(--text);font-weight:400;box-shadow:0 6px 20px rgba(0,0,0,.5);white-space:normal}
+.tip:hover .tiptext{visibility:visible;opacity:1}
+.metric:nth-child(n+3) .tip .tiptext{left:auto;right:0}
 .legend{display:flex;gap:16px;font-size:12px;color:var(--muted);margin-bottom:10px;align-items:center;flex-wrap:wrap}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-bottom:22px}
@@ -67,11 +71,15 @@ const fmt=(v,sign)=>{if(v===null||v===undefined)return'<span class="flat">—</s
 function render(d){
  const s=d.summary;
  document.getElementById('updated').textContent='갱신 '+s.updated;
+ const seedSum=(s.assets!==null&&s.cum_delta!==null)?(s.assets-s.cum_delta):null;
+ const f2=v=>(v===null||v===undefined)?'—':(+v).toFixed(2);
+ const tip=t=>`<span class="tip">ℹ<span class="tiptext">${t}</span></span>`;
+ const staleTxt=(s.stale&&s.stale.length)?('갱신 지연: '+s.stale.join(', ')):'전 봇 정상';
  document.getElementById('summary').innerHTML=`
-  <div class="metric"><div class="lbl">총 자산 <span style="font-weight:400;color:var(--muted)">(현재 총잔고 합산)</span></div><div class="val">${s.assets===null?'—':s.assets.toFixed(2)} <span style="font-size:13px;color:var(--muted)">USDT</span></div></div>
-  <div class="metric" title="(Σ현재 총잔고 − Σ초기화 잔고) ÷ Σ초기화 잔고"><div class="lbl">누적수익률</div><div class="val">${fmt(s.cum_ret,1)}<span style="font-size:13px;color:var(--muted)">%</span></div><div style="font-size:12px;color:var(--muted);margin-top:2px">기준금 대비 ${fmt(s.cum_delta,1)} USDT</div></div>
-  <div class="metric"><div class="lbl">일 평균수익률 <span style="font-weight:400">(${s.days}일)</span></div><div class="val">${fmt(s.daily_ret,1)}<span style="font-size:13px;color:var(--muted)">%/일</span></div></div>
-  <div class="metric"><div class="lbl">가동 중</div><div class="val" style="color:${s.alive===s.count?'var(--green)':'var(--red-dot)'}">${s.alive} / ${s.count}</div></div>`;
+  <div class="metric"><div class="lbl">총 자산 <span style="font-weight:400;color:var(--muted)">(현재 총잔고 합산)</span>${tip('Σ(각 봇 거래소 실시간 총잔고). 거래소 조회 실패 봇은 초기화잔고+실현손익으로 추정.<br>현재 합산: '+f2(s.assets)+' USDT')}</div><div class="val">${s.assets===null?'—':s.assets.toFixed(2)} <span style="font-size:13px;color:var(--muted)">USDT</span></div></div>
+  <div class="metric"><div class="lbl">누적수익률${tip('(Σ현재 총잔고 − Σ초기화 잔고) ÷ Σ초기화 잔고.<br>기준금(Σseed) '+f2(seedSum)+' → 현재 '+f2(s.assets)+'<br>증감 '+fmt(s.cum_delta,1)+' USDT')}</div><div class="val">${fmt(s.cum_ret,1)}<span style="font-size:13px;color:var(--muted)">%</span></div><div style="font-size:12px;color:var(--muted);margin-top:2px">기준금 대비 ${fmt(s.cum_delta,1)} USDT</div></div>
+  <div class="metric"><div class="lbl">일 평균수익률 <span style="font-weight:400">(${s.days}일)</span>${tip('누적수익률 ÷ 경과일수.<br>경과: '+s.days+'일 (가장 이른 perf_start 기준, 최소 1일)')}</div><div class="val">${fmt(s.daily_ret,1)}<span style="font-size:13px;color:var(--muted)">%/일</span></div></div>
+  <div class="metric"><div class="lbl">가동 중${tip('포트 응답 봇 수 / 전체.<br>🟢 정상 · 🟡 데이터 갱신 지연(60분+) · 🔴 다운<br>'+staleTxt)}</div><div class="val" style="color:${s.alive===s.count?'var(--green)':'var(--red-dot)'}">${s.alive} / ${s.count}</div></div>`;
  document.getElementById('cards').innerHTML=d.bots.map(b=>{
   const stale=b.age_min!==null&&b.age_min>d.stale_min;
   const dot=!b.alive?'var(--red-dot)':(stale?'var(--amber)':'var(--green)');
