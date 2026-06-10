@@ -67,13 +67,11 @@ const fmt=(v,sign)=>{if(v===null||v===undefined)return'<span class="flat">—</s
 function render(d){
  const s=d.summary;
  document.getElementById('updated').textContent='갱신 '+s.updated;
- const roi=s.seed?((s.total/s.seed)*100).toFixed(1):'—';
  document.getElementById('summary').innerHTML=`
-  <div class="metric"><div class="lbl">오늘 합산 손익</div><div class="val">${fmt(s.daily,1)} <span style="font-size:13px;color:var(--muted)">USDT</span></div></div>
-  <div class="metric"><div class="lbl">누적 합산 손익</div><div class="val">${fmt(s.total,1)} <span style="font-size:13px;color:var(--muted)">USDT</span></div></div>
-  <div class="metric"><div class="lbl">시드 대비 수익률</div><div class="val">${fmt(parseFloat(roi),1)}<span style="font-size:13px;color:var(--muted)">%</span></div></div>
-  <div class="metric"><div class="lbl">가동 중</div><div class="val" style="color:${s.alive===s.count?'var(--green)':'var(--red-dot)'}">${s.alive} / ${s.count}</div></div>
-  <div class="metric"><div class="lbl">보유 포지션</div><div class="val">${s.positions}건</div></div>`;
+  <div class="metric"><div class="lbl">총 자산</div><div class="val">${s.assets===null?'—':s.assets.toFixed(2)} <span style="font-size:13px;color:var(--muted)">USDT</span></div></div>
+  <div class="metric"><div class="lbl">누적수익률</div><div class="val">${fmt(s.cum_ret,1)}<span style="font-size:13px;color:var(--muted)">%</span></div></div>
+  <div class="metric"><div class="lbl">일 평균수익률 <span style="font-weight:400">(${s.days}일)</span></div><div class="val">${fmt(s.daily_ret,1)}<span style="font-size:13px;color:var(--muted)">%/일</span></div></div>
+  <div class="metric"><div class="lbl">가동 중</div><div class="val" style="color:${s.alive===s.count?'var(--green)':'var(--red-dot)'}">${s.alive} / ${s.count}</div></div>`;
  document.getElementById('cards').innerHTML=d.bots.map(b=>{
   const stale=b.age_min!==null&&b.age_min>d.stale_min;
   const dot=!b.alive?'var(--red-dot)':(stale?'var(--amber)':'var(--green)');

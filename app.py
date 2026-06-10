@@ -73,6 +73,7 @@ def bot_status(folder, port, ex):
         r["wins"] = s.get("total_wins") or 0
         r["losses"] = s.get("total_losses") or 0
         r["seed"] = s.get("seed_money")
+        r["perf_start"] = s.get("perf_start_time")
         r["age_min"] = round((time.time() - os.path.getmtime(sp)) / 60, 1)
     except (OSError, ValueError):
         pass
@@ -85,17 +86,34 @@ def bot_status(folder, port, ex):
     return r
 
 
+def run_days(bots):
+    """가장 이른 perf_start_time부터의 경과일수 (최소 1일, 단순평균용)."""
+    ts = []
+    for b in bots:
+        try:
+            ts.append(time.mktime(time.strptime(b.get("perf_start"), "%Y-%m-%d %H:%M:%S")))
+        except (TypeError, ValueError):
+            pass
+    if not ts:
+        return 1.0
+    return max(1.0, (time.time() - min(ts)) / 86400)
+
+
 def collect():
     bots = [bot_status(*b) for b in BOTS]
     feed = sorted((dict(t, bot=b["name"]) for b in bots for t in b["trades"]),
                   key=lambda t: t["time"], reverse=True)[:FEED_LIMIT]
+    total = sum(b["total"] or 0 for b in bots)
+    seed = sum(b["seed"] or 0 for b in bots)
+    days = run_days(bots)
+    cum_ret = round(total / seed * 100, 2) if seed else None
     summary = {
-        "daily": round(sum(b["daily"] or 0 for b in bots), 2),
-        "total": round(sum(b["total"] or 0 for b in bots), 2),
-        "seed": round(sum(b["seed"] or 0 for b in bots), 2),
+        "assets": round(seed + total, 2),          # 총 자산 = 시작잔고 + 실현손익
+        "cum_ret": cum_ret,                        # 누적수익률 %
+        "daily_ret": round(cum_ret / days, 2) if cum_ret is not None else None,
+        "days": round(days, 1),
         "alive": sum(1 for b in bots if b["alive"]),
         "count": len(bots),
-        "positions": sum(len(b["positions"]) for b in bots),
         "stale": [b["name"] for b in bots
                   if b["age_min"] is not None and b["age_min"] > STALE_MIN],
         "updated": time.strftime("%Y-%m-%d %H:%M:%S"),
