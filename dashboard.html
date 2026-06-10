@@ -7,7 +7,7 @@
 <style>
 :root{--bg:#0f1115;--card:#181b22;--card2:#1f232c;--border:#2a2f3a;--text:#e8eaf0;--muted:#8b93a5;--green:#2dbd85;--amber:#efa027;--red-dot:#e24b4a;--profit:#ff5a5a;--loss:#4d9fff}
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;padding:20px;max-width:1280px;margin:0 auto}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;padding:20px;max-width:1280px;margin:0 auto;zoom:1.25}
 header{display:flex;align-items:baseline;gap:12px;margin-bottom:18px}
 h1{font-size:20px;font-weight:600}
 #updated{font-size:12px;color:var(--muted);margin-left:auto}
@@ -65,6 +65,9 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 let chart=null;
+const elapsed=ps=>{if(!ps)return'—';const t0=new Date(ps.replace(' ','T'));
+ const m=Math.floor((Date.now()-t0.getTime())/60000);if(isNaN(m)||m<0)return'—';
+ return Math.floor(m/1440)+'일 '+Math.floor(m%1440/60)+'시간 '+(m%60)+'분'};
 const fmt=(v,sign)=>{if(v===null||v===undefined)return'<span class="flat">—</span>';
  const c=v>0?'profit':(v<0?'loss':'flat');const s=v>0&&sign?'+':'';
  return `<span class="${c}">${s}${(+v).toFixed(2)}</span>`};
@@ -103,11 +106,14 @@ function render(d){
     <tr title="누적 수익률 ÷ 경과일수 ${b.days}일"><td>일 평균 수익률</td><td>${fmt(b.daily_ret,1)}%</td></tr>
     <tr title="order_id 그룹, SINCE ${b.perf_start||'—'}"><td>누적 주문·승률</td><td>${b.since_orders}건 · ${wr(b.since_w,b.since_l)}</td></tr>
     <tr><td>당일 주문·승률</td><td>${b.orders_today}건 · ${wr(b.today_w,b.today_l)}</td></tr>
+    <tr title="초기화(perf_start): ${b.perf_start||'—'}"><td>초기화 후 경과</td><td>${elapsed(b.perf_start)}</td></tr>
    </table></div>`}).join('');
- document.getElementById('feed').innerHTML=d.feed.map(t=>
-  `<div class="row"><span class="t">${t.time.slice(5,16)}</span><span class="b">${t.bot}</span>
-   <span>${t.symbol}</span><span style="color:var(--muted)">${t.type} ${t.side}</span>
-   <span class="pnl">${t.type.includes('청산')?fmt(t.pnl,1)+' USDT':''}</span></div>`).join('')
+ document.getElementById('feed').innerHTML=d.feed.map(t=>{
+  const isExit=t.type.includes('청산');
+  const col=isExit?(t.pnl>0?'var(--profit)':(t.pnl<0?'var(--loss)':'var(--muted)')):'var(--text)';
+  return `<div class="row"><span class="t">${t.time.slice(5,16)}</span><span class="b">${t.bot}</span>
+   <span style="color:${col}">${t.symbol}</span><span style="color:${col}">${t.type} ${t.side}</span>
+   <span class="pnl">${isExit?fmt(t.pnl,1)+' USDT':''}</span></div>`}).join('')
   ||'<div class="row" style="color:var(--muted)">체결 내역 없음</div>';
  const labels=d.bots.map(b=>b.name),vals=d.bots.map(b=>+(b.today_pnl||0).toFixed(2));
  const colors=vals.map(v=>v>0?'#ff5a5a':'#4d9fff');
