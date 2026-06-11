@@ -342,8 +342,8 @@ def collect():
     return {"summary": summary, "bots": bots, "stale_min": STALE_MIN}
 
 
-with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard.html"), encoding="utf-8") as f:
-    HTML = f.read()
+# dashboard.html은 요청마다 새로 읽는다(파일 수정 시 서버 재시작 없이 반영)
+HTML_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard.html")
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -352,7 +352,8 @@ class Handler(BaseHTTPRequestHandler):
             body = json.dumps(collect(), ensure_ascii=False).encode()
             ctype = "application/json; charset=utf-8"
         elif self.path == "/" or self.path.startswith("/index"):
-            body = HTML.encode()
+            with open(HTML_PATH, encoding="utf-8") as f:
+                body = f.read().encode()
             ctype = "text/html; charset=utf-8"
         else:
             self.send_error(404)
