@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.15 | 2026-06-12 01:50 | [8409 config 스키마 드리프트 정정] 8409 core/config.py의 TradingConfig 데이터클래스에 ROTATION_* 4개 필드 누락 → core/engine.py:827 `self.cfg.ROTATION_ENABLED` 참조가 AttributeError → '청산 감지 오류' 약 15초마다 폭주(385건/90분). load_settings는 hasattr(inst,k) 가드(config.py:119)라 config.json 추가만으론 안 됨이 원인. 정상 형제봉(8407·8408·8501)과 동일하게 데이터클래스에 ROTATION_ENABLED=False/MIN_SIGNALS=3/STALE_HOURS=1.5/FLOW_CHECK="momentum" 추가(가산·기본값 False=로테이션 비활성=손실중립). 백업 후 venv 로드검증 OK. ※반영엔 8409 프로세스 재시작 필요(에러는 catch되어 비치명적이라 워치독/mooja에 일임). |
 | v0.9.14 | 2026-06-12 01:14 | [봇 자격증명] 8402·8405 OKX_API_KEY/SECRET를 mooja 제공값으로 교체(각 폴더 .env, 백업 .bak 후). 결과: 8405가 8402와 동일계정으로 충돌하던 상태 해소 → 두 봇 서로 다른 OKX 계정으로 분리. 30초 안정 확인. ※키 값은 미기록(보안), .env는 본 repo 미추적. |
 | v0.9.13 | 2026-06-12 01:28 | 강조 카드 노랑 테두리 0.1mm로 지정 (mooja 지시). 0.5mm → 0.1mm. 대상 봇(8401·8402·8403·8405·8406·8409) 동일. v0.9.12 덕에 서버 재시작 없이 즉시 반영(서버 서빙값 0.1mm 확인). |
 | v0.9.12 | 2026-06-12 01:24 | [근본원인 수정] 테두리가 계속 굵게 보이던 진짜 이유 = app.py가 dashboard.html을 시작 시 1회만 메모리에 읽어(HTML=f.read()) v0.9.8~0.9.11 HTML 수정이 서버에 반영 안 됨(옛 1.5mm 서빙). → 요청마다 파일을 새로 읽도록 변경(HTML_PATH per-request read). 이후 HTML 수정은 서버 재시작 없이 브라우저 새로고침만으로 반영. 서버 재시작 후 디스크=서버 0.5mm 일치 검증. |
