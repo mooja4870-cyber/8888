@@ -60,8 +60,8 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
 <div class="cards" id="cards"></div>
 <h2>봇별 오늘 손익 (USDT)</h2>
 <div id="chartwrap"><canvas id="pnlChart"></canvas></div>
-<h2>최근 체결 (전 봇 통합)</h2>
-<div id="feed"></div>
+<h2>매매기법 비교</h2>
+<div id="comparisonTable" style="overflow-x:auto;margin-bottom:22px"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 let chart=null;
@@ -108,13 +108,24 @@ function render(d){
     <tr style="background:#181b22;"><td>당일 주문·승률</td><td>${b.orders_today}건 · ${wr(b.today_w,b.today_l)}</td></tr>
     <tr style="background:#181b22;" title="초기화(perf_start): ${b.perf_start||'—'}"><td>초기화 후 경과</td><td>${elapsed(b.perf_start)}</td></tr>
    </table></div>`}).join('');
- document.getElementById('feed').innerHTML=d.feed.map(t=>{
-  const isExit=t.type.includes('청산');
-  const col=isExit?(t.pnl>0?'var(--profit)':(t.pnl<0?'var(--loss)':'var(--muted)')):'var(--text)';
-  return `<div class="row"><span class="t">${t.time.slice(5,16)}</span><span class="b">${t.bot}</span>
-   <span style="color:${col}">${t.symbol}</span><span style="color:${col}">${t.type} ${t.side}</span>
-   <span class="pnl">${isExit?fmt(t.pnl,1)+' USDT':''}</span></div>`}).join('')
-  ||'<div class="row" style="color:var(--muted)">체결 내역 없음</div>';
+ const compTable=`<table style="width:100%;border-collapse:collapse;font-size:12px">
+  <thead><tr style="background:var(--card2);border-bottom:1px solid var(--border)">
+   <th style="padding:8px;text-align:left;font-weight:600">봇</th>
+   <th style="padding:8px;text-align:center">거래소</th><th style="padding:8px;text-align:center">레버리지</th>
+   <th style="padding:8px;text-align:center">마진$</th><th style="padding:8px;text-align:center">최대포지션</th>
+   <th style="padding:8px;text-align:center">손절률</th><th style="padding:8px;text-align:center">수익목표</th>
+   <th style="padding:8px;text-align:center">타임프레임</th><th style="padding:8px;text-align:center">EMA</th>
+   <th style="padding:8px;text-align:center">RSI</th><th style="padding:8px;text-align:center">전략</th>
+   <th style="padding:8px;text-align:center">최대보유시간</th></tr></thead>
+  <tbody>${d.bots.map((b,i)=>`<tr style="background:${i%2?'var(--card)':'var(--card2)'};border-top:1px solid var(--border)">
+   <td style="padding:8px;font-weight:600">${b.name}</td>
+   <td style="padding:8px;text-align:center">${b.ex}</td><td style="padding:8px;text-align:center">${b.config.leverage}</td>
+   <td style="padding:8px;text-align:center">${b.config.margin_usdt}</td><td style="padding:8px;text-align:center">${b.config.max_positions}</td>
+   <td style="padding:8px;text-align:center">${b.config.stop_loss_pct}</td><td style="padding:8px;text-align:center">${b.config.take_profit_pct}</td>
+   <td style="padding:8px;text-align:center">${b.config.timeframe}</td><td style="padding:8px;text-align:center">${b.config.ema_period}</td>
+   <td style="padding:8px;text-align:center">${b.config.rsi_period}</td><td style="padding:8px;text-align:center">${b.config.strategy}</td>
+   <td style="padding:8px;text-align:center">${b.config.max_holding_hours}</td></tr>`).join('')}</tbody></table>`;
+ document.getElementById('comparisonTable').innerHTML=compTable;
  const labels=d.bots.map(b=>b.name),vals=d.bots.map(b=>+(b.today_pnl||0).toFixed(2));
  const colors=vals.map(v=>v>0?'#ff5a5a':'#4d9fff');
  if(chart){chart.data.labels=labels;chart.data.datasets[0].data=vals;

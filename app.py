@@ -143,6 +143,30 @@ def parse_env(path):
     return env
 
 
+def read_bot_config(folder):
+    """각 봇의 config.json 읽기 → 비교표용 핵심변수 추출"""
+    cfg_path = os.path.join(BASE, folder, "config.json")
+    try:
+        with open(cfg_path, encoding="utf-8") as f:
+            cfg = json.load(f)
+        return {
+            "leverage": cfg.get("LEVERAGE", "—"),
+            "margin_usdt": cfg.get("MARGIN_USDT", "—"),
+            "max_positions": cfg.get("MAX_POSITIONS", "—"),
+            "stop_loss_pct": f"{cfg.get('STOP_LOSS_PCT', 0)*100:.2f}%",
+            "take_profit_pct": f"{cfg.get('TAKE_PROFIT_PCT', 0)*100:.2f}%",
+            "timeframe": cfg.get("TIMEFRAME", "—"),
+            "ema_period": cfg.get("EMA_PERIOD", "—"),
+            "rsi_period": cfg.get("RSI_PERIOD", "—"),
+            "strategy": cfg.get("STRATEGY_TYPE", "—"),
+            "max_holding_hours": cfg.get("MAX_HOLDING_HOURS", "—"),
+        }
+    except (OSError, json.JSONDecodeError, ValueError):
+        return {k: "—" for k in ["leverage", "margin_usdt", "max_positions", "stop_loss_pct",
+                                  "take_profit_pct", "timeframe", "ema_period", "rsi_period",
+                                  "strategy", "max_holding_hours"]}
+
+
 def bot_creds(folder, ex):
     e = parse_env(os.path.join(BASE, folder, ".env"))
     if ex == "OKX":
@@ -234,6 +258,7 @@ def bot_status(folder, port, ex):
         pass
     hist = os.path.join(d, "trade_history.csv")
     r["trades"] = tail_trades(hist)
+    r["config"] = read_bot_config(folder)
     # 금일 실현 손익·당일/누적 주문·승률을 봇 화면과 동일하게 trade_history에서 재계산
     m = hist_metrics(hist, r["perf_start"])
     r["today_pnl"] = m["today_pnl"]            # 금일 실현 손익 (봇 화면값)
@@ -273,8 +298,6 @@ def bot_days(perf_start):
 
 def collect():
     bots = [bot_status(*b) for b in BOTS]
-    feed = sorted((dict(t, bot=b["name"]) for b in bots for t in b["trades"]),
-                  key=lambda t: t["time"], reverse=True)[:FEED_LIMIT]
     # 합산 누적 수익률 = (Σ현재 총잔고 - Σ초기화 잔고) / Σ초기화 잔고  ← 티커별과 동일 기준
     #   현재 총잔고는 거래소 실시간 잔고, 조회 실패 봇은 seed+실현손익으로 폴백.
     seed = sum(b["seed"] or 0 for b in bots)
@@ -300,7 +323,7 @@ def collect():
                   if b["age_min"] is not None and b["age_min"] > STALE_MIN],
         "updated": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
-    return {"summary": summary, "bots": bots, "feed": feed, "stale_min": STALE_MIN}
+    return {"summary": summary, "bots": bots, "stale_min": STALE_MIN}
 
 
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard.html"), encoding="utf-8") as f:
