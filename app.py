@@ -294,6 +294,7 @@ def collect():
         "days": round(days, 1),
         "alive": sum(1 for b in bots if b["alive"]),
         "count": len(bots),
+        "with_positions": sum(1 for b in bots if b["positions"]),
         "stale": [b["name"] for b in bots
                   if b["age_min"] is not None and b["age_min"] > STALE_MIN],
         "updated": time.strftime("%Y-%m-%d %H:%M:%S"),
