@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.8 | 2026-06-12 00:46 | 특정 봇 카드 강조 (mooja 지시). 8401·8402·8403·8405·8406·8409 카드에 1.5mm 노랑(#ffe000) 테두리. dashboard.html 카드 렌더에 하이라이트 집합 조건부 인라인 스타일. 정적파일이라 브라우저 새로고침만으로 반영. |
 | v0.9.7 | 2026-06-12 00:40 | 매매기법 표시를 실거래 우선으로 역전 (mooja 자율위임). 라이브 봇이 config.json을 런타임에 자가수정함을 발견(8409 EVWAP·1h·레버5 → 무전략·5m·레버10으로 변경, 8403 MLKernel→더블BB). config 기반 전략라벨이 불안정 → active_positions의 strategy_type를 1순위, config 선언/정적매핑을 폴백으로. app.py read_bot_config 수정. 8401이 DualBB로 정상 표시 확인. ※app.py 서버 재시작 반영. ※이 작업 중 pkill -f app.py 오발동으로 10개 봇(streamlit app.py) 동반 종료 사고 → 워치독+수동 재기동으로 10/10 전원 복구. |
 | v0.9.6 | 2026-06-11 21:15 | 매매기법 비교 전략명 정정 (mooja 갓잇). 10개 봇 config(STRATEGY_MODE/TYPE) + 실거래 active_positions의 strategy_type 교차검증. 8404 'FVG Breakout'→'Breakout', 8406 'Swing Breakout'→'BoxRange'(실제 포지션 전략과 불일치 정정), 8405 사문화된 'Squeeze Momentum' 매핑 제거(STRATEGY_MODE=더블BB로 표시). app.py read_bot_config: 선언 없을 때 active_positions strategy_type로 보강하는 폴백 추가. 나머지 8401 더블BB/8402 Axiom/8403 MLKernel/8407·8408·8409 EVWAP/8501 VictoriaDuke 확인. ※반영하려면 app.py 서버 재시작 필요. |
 | v0.9.5 | 2026-06-11 21:07 | 봇 자동 진단 엔진 신설 (mooja 지시, 전면 자동 조치 승인). bot_monitor.py 추가 — 무포지션·임계초과 무진입 봇의 진입차단 원인 진단(공통파일 결정적 1차 + 로그 best-effort 2차, 분류: DOWN/ERROR/BLOCKED/NORMAL_HALT/NO_SIGNAL). 첫 실행 결과: 8409 TradFi-Perps 5종(QQQ/INTC/MRVL/SOXL + 회귀복원 BZ) 주문 1047회 실패 → SYMBOL_BLACKLIST 자동수정(백업 후, 안전·가역). 8401(ccxt load_markets 버그)·8403/8404(OKX 웹소켓 단절)은 엔진/연결 이슈로 보고만. 탐지기 정밀화: '강도' 단독매칭 과다카운트 → 타임스탬프+주문실패 동반 시에만 BLOCKED(8404 오탐 제거). 안전선: 레버리지·손절·일일한도·주문·자금은 자동변경 제외. |
