@@ -146,9 +146,16 @@ def parse_env(path):
 def read_bot_config(folder):
     """각 봇의 config.json 읽기 → 비교표용 핵심변수 추출"""
     cfg_path = os.path.join(BASE, folder, "config.json")
+    # STRATEGY_MODE/TYPE 없는 봇의 매매기법 (분석 기반)
+    strategy_map = {
+        "8404_okx": "FVG Breakout",
+        "8405_okx": "Squeeze Momentum",
+        "8406_okx": "Swing Breakout",
+    }
     try:
         with open(cfg_path, encoding="utf-8") as f:
             cfg = json.load(f)
+        strategy = cfg.get("STRATEGY_MODE") or cfg.get("STRATEGY_TYPE") or strategy_map.get(folder, "—")
         return {
             "leverage": cfg.get("LEVERAGE", "—"),
             "margin_usdt": cfg.get("MARGIN_USDT", "—"),
@@ -158,7 +165,7 @@ def read_bot_config(folder):
             "timeframe": cfg.get("TIMEFRAME", "—"),
             "ema_period": cfg.get("EMA_PERIOD", "—"),
             "rsi_period": cfg.get("RSI_PERIOD", "—"),
-            "strategy": cfg.get("STRATEGY_MODE") or cfg.get("STRATEGY_TYPE") or "—",
+            "strategy": strategy,
             "max_holding_hours": cfg.get("MAX_HOLDING_HOURS", "—"),
         }
     except (OSError, json.JSONDecodeError, ValueError):
