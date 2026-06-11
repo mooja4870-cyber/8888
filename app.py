@@ -154,16 +154,17 @@ def read_bot_config(folder):
     try:
         with open(cfg_path, encoding="utf-8") as f:
             cfg = json.load(f)
-        strategy = cfg.get("STRATEGY_MODE") or cfg.get("STRATEGY_TYPE") or strategy_map.get(folder, "—")
-        # config 선언이 없으면 실제 보유 포지션의 strategy_type로 보강
-        if strategy == "—":
-            try:
-                pos = json.load(open(os.path.join(BASE, folder, "data", "active_positions.json"), encoding="utf-8"))
-                stset = sorted({v.get("strategy_type") for v in pos.values() if isinstance(v, dict) and v.get("strategy_type")})
-                if stset:
-                    strategy = "/".join(stset)
-            except (OSError, json.JSONDecodeError, ValueError, AttributeError):
-                pass
+        # 라이브 봇이 config.json을 런타임에 자가수정 → 실거래 포지션의 strategy_type를
+        # 1순위로 본다(가장 안정적·정직). 무포지션이면 config 선언 → 정적 매핑 순으로 폴백.
+        live = ""
+        try:
+            pos = json.load(open(os.path.join(BASE, folder, "data", "active_positions.json"), encoding="utf-8"))
+            stset = sorted({v.get("strategy_type") for v in pos.values()
+                            if isinstance(v, dict) and v.get("strategy_type")})
+            live = "/".join(stset)
+        except (OSError, json.JSONDecodeError, ValueError, AttributeError):
+            pass
+        strategy = live or cfg.get("STRATEGY_MODE") or cfg.get("STRATEGY_TYPE") or strategy_map.get(folder, "—")
         return {
             "leverage": cfg.get("LEVERAGE", "—"),
             "margin_usdt": cfg.get("MARGIN_USDT", "—"),
