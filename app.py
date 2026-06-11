@@ -158,7 +158,7 @@ def read_bot_config(folder):
             "timeframe": cfg.get("TIMEFRAME", "—"),
             "ema_period": cfg.get("EMA_PERIOD", "—"),
             "rsi_period": cfg.get("RSI_PERIOD", "—"),
-            "strategy": cfg.get("STRATEGY_TYPE", "—"),
+            "strategy": cfg.get("STRATEGY_MODE") or cfg.get("STRATEGY_TYPE") or "—",
             "max_holding_hours": cfg.get("MAX_HOLDING_HOURS", "—"),
         }
     except (OSError, json.JSONDecodeError, ValueError):
