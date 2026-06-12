@@ -106,8 +106,8 @@ function render(d){
     <tr style="background:#252b36;" title="order_id 그룹, SINCE ${b.perf_start||'—'}"><td>누적 주문·승률</td><td>${b.since_orders}건 · ${wr(b.since_w,b.since_l)}</td></tr>
     <tr style="background:#181b22;"><td>당일 주문·승률</td><td>${b.orders_today}건 · ${wr(b.today_w,b.today_l)}</td></tr>
     <tr style="background:#181b22;" title="초기화(perf_start): ${b.perf_start||'—'}"><td>초기화 후 경과</td><td>${elapsed(b.perf_start)}</td></tr>
-    <tr style="background:#252b36;"><td>⏸무진입</td><td>[00일 02시간 50분]</td></tr>
-    <tr style="background:#181b22;"><td>⏸무포지션</td><td>[00일 00시간 49분]</td></tr>
+    <tr style="background:#252b36;" title="마지막 진입(${b.last_entry||'—'}) 이후 경과"><td>⏸무진입</td><td>${b.last_entry?elapsed(b.last_entry):'—'}</td></tr>
+    <tr style="background:#181b22;" title="현재 무포지션 지속(마지막 청산 ${b.last_flat||'—'} 이후)"><td>⏸무포지션</td><td>${(b.positions&&b.positions.length)?'<span class="flat">보유중</span>':(b.last_flat?elapsed(b.last_flat):'—')}</td></tr>
    </table></div>`}).join('');
  const compTable=`<table style="width:100%;border-collapse:collapse;font-size:12px">
   <thead><tr style="background:var(--card2);border-bottom:1px solid var(--border)">

@@ -98,6 +98,40 @@ def _load_exits(path):
     return exits
 
 
+_EVT_CACHE = {}
+
+
+def last_entry_exit(path):
+    """trade_history.csv에서 마지막 진입 시각·마지막 청산 시각 반환(문자열, mtime 캐시)."""
+    try:
+        mt = os.path.getmtime(path)
+        sz = os.path.getsize(path)
+    except OSError:
+        return (None, None)
+    c = _EVT_CACHE.get(path)
+    if c and c[0] == mt and c[1] == sz:
+        return c[2]
+    le = lx = None
+    try:
+        with open(path, encoding="utf-8-sig", errors="replace") as f:
+            for r in csv.reader(f):
+                if len(r) < 3:
+                    continue
+                ts = r[0].strip()[:19]
+                if not ts[:4].isdigit():
+                    continue
+                t = r[2].strip()
+                if t == "진입" and (le is None or ts > le):
+                    le = ts
+                elif t == "청산" and (lx is None or ts > lx):
+                    lx = ts
+    except OSError:
+        return (None, None)
+    res = (le, lx)
+    _EVT_CACHE[path] = (mt, sz, res)
+    return res
+
+
 def hist_metrics(path, perf_start):
     """봇 대시보드와 동일하게 trade_history.csv에서 당일/누적 지표 재계산.
     - 금일 실현 손익 = Σ(청산 수익), 경계 = max(오늘 00:00 KST, perf_start). 행 단위 합산.
@@ -276,6 +310,8 @@ def bot_status(folder, port, ex):
         pass
     hist = os.path.join(d, "trade_history.csv")
     r["trades"] = tail_trades(hist)
+    # ⏸무진입 = 마지막 진입 이후 경과, ⏸무포지션 = 마지막 청산 이후(현재 무포지션일 때) 경과
+    r["last_entry"], r["last_flat"] = last_entry_exit(hist)
     r["config"] = read_bot_config(folder)
     # 금일 실현 손익·당일/누적 주문·승률을 봇 화면과 동일하게 trade_history에서 재계산
     m = hist_metrics(hist, r["perf_start"])
