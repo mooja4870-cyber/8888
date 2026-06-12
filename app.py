@@ -188,7 +188,9 @@ def bot_creds(folder, ex):
     if ex == "OKX":
         return ("okx", e.get("OKX_API_KEY", ""), e.get("OKX_SECRET_KEY", ""),
                 e.get("OKX_PASSPHRASE", ""))
-    return ("binanceusdm", e.get("BINANCE_API_KEY", ""), e.get("BINANCE_SECRET_KEY", ""), "")
+    # 봇마다 시크릿 키 이름 상이(BINANCE_SECRET_KEY 또는 BINANCE_API_SECRET) → 둘 다 허용
+    return ("binanceusdm", e.get("BINANCE_API_KEY", ""),
+            e.get("BINANCE_SECRET_KEY") or e.get("BINANCE_API_SECRET", ""), "")
 
 
 EX_CACHE = {}           # folder -> {balance, free, used, upnl, ok, err}
