@@ -94,8 +94,7 @@ function render(d){
   const cumtip='기준: '+(b.perf_start||'—')+' 초기화 잔고 '+seed+' USDT 대비 현재 총잔고 증감률'
    +(b.cum_basis==='pnl'?' (거래소 조회 실패 → 실현손익 기준 추정)':'');
   const holding=Array.isArray(b.positions)&&b.positions.length>0;
-  const hi=(!holding&&['8401','8402','8403','8405','8406','8409'].includes(b.name))?'border:0.1mm solid #ffe000;':'';
-  return `<div class="card${b.alive?'':' offline'}${holding?' holding':''}" style="${hi}" onclick="window.open('http://localhost:${b.port}','_blank')">
+  return `<div class="card${b.alive?'':' offline'}${holding?' holding':''}" onclick="window.open('http://localhost:${b.port}','_blank')">
    <div class="head"><span class="dot" style="background:${dot}"></span><span class="name">${b.name}</span>
    <span class="badge ${b.ex.toLowerCase()}">${b.ex}</span></div>
    <table>
