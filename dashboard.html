@@ -24,6 +24,8 @@ h1{font-size:20px;font-weight:600}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-bottom:22px}
 .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color .15s}
 .card:hover{border-color:#4a5364}
+@keyframes blinkgreen{0%,100%{border-color:#a3e635}50%{border-color:transparent}}
+.card.holding{border:0.2mm solid #a3e635;animation:blinkgreen 1s ease-in-out infinite}
 .card .head{display:flex;align-items:center;gap:7px;margin-bottom:8px}
 .card .name{font-weight:600;font-size:15px}
 .badge{margin-left:auto;font-size:11px;padding:2px 8px;border-radius:7px;font-weight:600}
@@ -92,8 +94,8 @@ function render(d){
   const cumtip='기준: '+(b.perf_start||'—')+' 초기화 잔고 '+seed+' USDT 대비 현재 총잔고 증감률'
    +(b.cum_basis==='pnl'?' (거래소 조회 실패 → 실현손익 기준 추정)':'');
   const holding=Array.isArray(b.positions)&&b.positions.length>0;
-  const hi=holding?'border:0.1mm solid #a3e635;':(['8401','8402','8403','8405','8406','8409'].includes(b.name)?'border:0.1mm solid #ffe000;':'');
-  return `<div class="card${b.alive?'':' offline'}" style="${hi}" onclick="window.open('http://localhost:${b.port}','_blank')">
+  const hi=(!holding&&['8401','8402','8403','8405','8406','8409'].includes(b.name))?'border:0.1mm solid #ffe000;':'';
+  return `<div class="card${b.alive?'':' offline'}${holding?' holding':''}" style="${hi}" onclick="window.open('http://localhost:${b.port}','_blank')">
    <div class="head"><span class="dot" style="background:${dot}"></span><span class="name">${b.name}</span>
    <span class="badge ${b.ex.toLowerCase()}">${b.ex}</span></div>
    <table>
