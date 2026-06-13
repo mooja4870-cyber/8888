@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.49 | 2026-06-14 07:37 | 배치 형태 드롭다운 추가 (mooja 갓잇). 정렬 드롭다운 왼쪽에 select#layout — '피라미드(1·2·3·4)'(기본) / '5개씩(2줄)' 선택. render 행분할을 [[0,1],[1,3],[3,6],[6,10]] ↔ [[0,5],[5,10]] 전환. onchange 즉시 재배치, 5초갱신 유지. #layout margin-left:auto로 우측 정렬군 좌단 배치. |
 | v0.9.48 | 2026-06-13 20:38 | 보유봇 오집계 수정 (mooja 보고). active_positions.json에 청산된 포지션이 남는 '유령 포지션'(예 8501 BTC)으로 '가동중 (9/10, 8404)'처럼 오집계. 조치: 보유 여부를 거래소 실제 증거금(ex_used>0) 기준으로 판정(조회실패 시에만 파일 폴백)하는 holding 필드 신설(app.py bot_status). summary with_positions/no_positions + 카드 연두깜빡임/빨강 모두 holding 기준 통일(dashboard.html·dashboard_cloud.html). 검증: 8/10, [8404,8501] 정상. |
 | v0.9.47 | 2026-06-13 20:13 | 클라우드 배포 구조 신설 (mooja '재설계'). 키를 클라우드에 안 올리는 안전구조: 로컬이 /api/status 스냅샷을 Gist로 push(publish_snapshot.py, 토큰/ID는 env만) → Streamlit Cloud 앱(streamlit_app.py)이 Gist 읽어 기존 UI(dashboard_cloud.html=dashboard 복제, fetch대상만 스냅샷URL) 렌더. requirements.txt 추가. 로컬 8888(app.py/dashboard.html) 미변경. |
 | v0.9.46 | 2026-06-13 20:03 | 봇 카드 테두리 입체화 (mooja 지시). solid→ridge(엠보싱) + box-shadow(외부 돌출그림자 + 내부 상단 하이라이트/하단 음영)로 3D 효과. ridge 베벨이 보이려면 두께 필요해 0.4→0.8mm로 상향. 순위 메달색 유지. ※얇게 원하면 3D는 약해짐(별도 조정). |

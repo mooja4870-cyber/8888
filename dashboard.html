@@ -11,7 +11,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,"Apple SD 
 header{display:flex;align-items:baseline;gap:12px;margin-bottom:18px}
 h1{font-size:20px;font-weight:600}
 #updated{font-size:12px;color:var(--muted);margin-left:10px}
-#sortby{margin-left:auto;background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:12px;padding:3px 6px;cursor:pointer}
+#sortby,#layout{background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:12px;padding:3px 6px;cursor:pointer}
+#layout{margin-left:auto}
+#sortby{margin-left:6px}
 .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
 .metric{background:var(--card);border-radius:10px;padding:14px 16px;position:relative}
 .metric .lbl{font-size:12px;color:var(--muted);margin-bottom:4px}
@@ -54,7 +56,7 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
 </style>
 </head>
 <body>
-<header><h1>봇 통합 관제</h1><span style="font-size:12px;color:var(--muted)">수익 <span style="color:var(--profit)">빨강</span> · 손실 <span style="color:var(--loss)">파랑</span></span><select id="sortby" onchange="if(_lastData)render(_lastData)" title="정렬 기준(내림차순)"><option value="daily_ret">일평균 수익률</option><option value="cum_ret">누적 수익률</option><option value="ex_balance">총 잔고</option><option value="since_orders">누적 주문수</option><option value="orders_today">당일 주문수</option><option value="elapsed">초기화 후 경과</option><option value="name">봇 번호 순</option></select><span id="updated">불러오는 중…</span></header>
+<header><h1>봇 통합 관제</h1><span style="font-size:12px;color:var(--muted)">수익 <span style="color:var(--profit)">빨강</span> · 손실 <span style="color:var(--loss)">파랑</span></span><select id="layout" onchange="if(_lastData)render(_lastData)" title="배치 형태"><option value="pyramid">피라미드(1·2·3·4)</option><option value="five">5개씩(2줄)</option></select><select id="sortby" onchange="if(_lastData)render(_lastData)" title="정렬 기준(내림차순)"><option value="daily_ret">일평균 수익률</option><option value="cum_ret">누적 수익률</option><option value="ex_balance">총 잔고</option><option value="since_orders">누적 주문수</option><option value="orders_today">당일 주문수</option><option value="elapsed">초기화 후 경과</option><option value="name">봇 번호 순</option></select><span id="updated">불러오는 중…</span></header>
 <div class="summary" id="summary"></div>
 <div class="legend">
 <span><span class="dot" style="background:var(--green)"></span>정상</span>
@@ -128,7 +130,8 @@ function render(d){
     <tr style="background:#181b22;" title="현재 무포지션 지속(마지막 청산 ${b.last_flat||'—'} 이후)"><td>⏸무포지션</td><td>${(b.positions&&b.positions.length)?'<span class="flat">보유중</span>':(b.last_flat?elapsed(b.last_flat):'—')}</td></tr>
    </table></div>`});
  // 피라미드 배치: 1행 1개(1등) / 2행 2개(2·3등) / 3행 3개(4·5·6등) / 4행 4개(나머지)
- const _rows=[[0,1],[1,3],[3,6],[6,10]];
+ const _lay=(document.getElementById('layout')||{}).value||'pyramid';
+ const _rows = _lay==='five' ? [[0,5],[5,10]] : [[0,1],[1,3],[3,6],[6,10]];
  document.getElementById('cards').innerHTML=_rows.map(([s,e])=>'<div class="cardrow">'+_cards.slice(s,e).join('')+'</div>').join('');
  const compTable=`<table style="width:100%;border-collapse:collapse;font-size:12px">
   <thead><tr style="background:var(--card2);border-bottom:1px solid var(--border)">
