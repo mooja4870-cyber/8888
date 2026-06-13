@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.47 | 2026-06-13 20:13 | 클라우드 배포 구조 신설 (mooja '재설계'). 키를 클라우드에 안 올리는 안전구조: 로컬이 /api/status 스냅샷을 Gist로 push(publish_snapshot.py, 토큰/ID는 env만) → Streamlit Cloud 앱(streamlit_app.py)이 Gist 읽어 기존 UI(dashboard_cloud.html=dashboard 복제, fetch대상만 스냅샷URL) 렌더. requirements.txt 추가. 로컬 8888(app.py/dashboard.html) 미변경. |
 | v0.9.46 | 2026-06-13 20:03 | 봇 카드 테두리 입체화 (mooja 지시). solid→ridge(엠보싱) + box-shadow(외부 돌출그림자 + 내부 상단 하이라이트/하단 음영)로 3D 효과. ridge 베벨이 보이려면 두께 필요해 0.4→0.8mm로 상향. 순위 메달색 유지. ※얇게 원하면 3D는 약해짐(별도 조정). |
 | v0.9.45 | 2026-06-13 20:00 | 봇 카드 테두리 굵기 0.6mm→0.4mm (mooja 지시). 전 봇 동일(순위 메달색/무포지션 빨강 모두). dashboard.html 카드 render. |
 | v0.9.44 | 2026-06-13 19:58 | 봇 전략 진화 연표/분석 문서 신설 (mooja 지시). bot_strategy_evolution.md 추가 — 10봇 수정횟수(ver.md 버전·git커밋), OKX/BNC 전략 교체 연표, '왜 계속 바뀌었나' 4대 실패사유(신호희소·버그오인·백테스트추격·비현실적목표) + 진단/처방. 각 봇 ver.md·git 로그 근거. |

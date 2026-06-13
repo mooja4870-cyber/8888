@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8888 · 봇 통합 관제</title>
+<style>
+:root{--bg:#0f1115;--card:#181b22;--card2:#252b36;--border:#2a2f3a;--text:#e8eaf0;--muted:#8b93a5;--green:#2dbd85;--amber:#efa027;--red-dot:#e24b4a;--profit:#ff5a5a;--loss:#4d9fff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;padding:20px;max-width:1280px;margin:0 auto;zoom:1.42}
+header{display:flex;align-items:baseline;gap:12px;margin-bottom:18px}
+h1{font-size:20px;font-weight:600}
+#updated{font-size:12px;color:var(--muted);margin-left:10px}
+#sortby{margin-left:auto;background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:12px;padding:3px 6px;cursor:pointer}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
+.metric{background:var(--card);border-radius:10px;padding:14px 16px;position:relative}
+.metric .lbl{font-size:12px;color:var(--muted);margin-bottom:4px}
+.metric .val{font-size:22px;font-weight:600}
+.tip{position:relative;display:inline-block;margin-left:4px;color:#6b7280;cursor:help;font-style:normal}
+.tip .tiptext{visibility:hidden;opacity:0;transition:opacity .15s;position:absolute;z-index:20;left:0;top:18px;width:240px;background:#0b0d11;border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:12px;line-height:1.55;color:var(--text);font-weight:400;box-shadow:0 6px 20px rgba(0,0,0,.5);white-space:normal}
+.tip:hover .tiptext{visibility:visible;opacity:1}
+.metric:nth-child(n+3) .tip .tiptext{left:auto;right:0}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--muted);margin-bottom:10px;align-items:center;flex-wrap:wrap}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0}
+.cards{display:flex;flex-direction:column;gap:12px;margin-bottom:22px}
+.cardrow{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color .15s;width:250px}
+.card:hover{border-color:#4a5364}
+@keyframes blinkgreen{0%,100%{border-color:#a3e635}50%{border-color:transparent}}
+@keyframes cardblink{0%,100%{opacity:1}50%{opacity:.4}}
+.card.holding{border:0.2mm solid #a3e635;animation:blinkgreen 1s ease-in-out infinite}
+.card .head{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.card .name{font-weight:600;font-size:15px}
+.badge{margin-left:auto;font-size:11px;padding:2px 8px;border-radius:7px;font-weight:600}
+.badge.okx{background:#2e2a55;color:#b9b3f5}
+.badge.bnc{background:#4a3a14;color:#f5cd6e}
+.card table{width:100%;font-size:12.5px;border-collapse:collapse}
+.card td{padding:2px 0}
+.card td:first-child{color:var(--muted)}
+.card td:last-child{text-align:right}
+.profit{color:var(--profit);font-weight:600}
+.loss{color:var(--loss);font-weight:600}
+.flat{color:var(--muted)}
+.warn{color:var(--amber)}
+h2{font-size:14px;font-weight:600;margin:0 0 8px}
+#chartwrap{position:relative;height:240px;background:var(--card);border-radius:12px;padding:12px;margin-bottom:22px}
+#feed{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:22px}
+.row{display:flex;gap:10px;align-items:center;padding:8px 14px;font-size:13px;border-top:1px solid var(--border)}
+.row:first-child{border-top:none}
+.row .t{color:var(--muted);font-family:ui-monospace,monospace;font-size:12px;white-space:nowrap}
+.row .b{font-weight:600}
+.row .pnl{margin-left:auto;white-space:nowrap}
+.offline{opacity:.55}
+</style>
+</head>
+<body>
+<header><h1>봇 통합 관제</h1><span style="font-size:12px;color:var(--muted)">수익 <span style="color:var(--profit)">빨강</span> · 손실 <span style="color:var(--loss)">파랑</span></span><select id="sortby" onchange="if(_lastData)render(_lastData)" title="정렬 기준(내림차순)"><option value="daily_ret">일평균 수익률</option><option value="cum_ret">누적 수익률</option><option value="ex_balance">총 잔고</option><option value="since_orders">누적 주문수</option><option value="orders_today">당일 주문수</option><option value="elapsed">초기화 후 경과</option><option value="name">봇 번호 순</option></select><span id="updated">불러오는 중…</span></header>
+<div class="summary" id="summary"></div>
+<div class="legend">
+<span><span class="dot" style="background:var(--green)"></span>정상</span>
+<span><span class="dot" style="background:var(--amber)"></span>데이터 갱신 지연 (60분+)</span>
+<span><span class="dot" style="background:var(--red-dot)"></span>다운 (포트 무응답)</span>
+<span style="margin-left:auto">카드 클릭 → 해당 봇 대시보드 열기</span>
+</div>
+<div class="cards" id="cards"></div>
+<h2>매매기법 비교</h2>
+<div id="comparisonTable" style="overflow-x:auto;margin-bottom:22px"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+let chart=null;
+let _lastData=null;
+const elapsed=ps=>{if(!ps)return'—';const t0=new Date(ps.replace(' ','T'));
+ const m=Math.floor((Date.now()-t0.getTime())/60000);if(isNaN(m)||m<0)return'—';
+ return Math.floor(m/1440)+'일 '+Math.floor(m%1440/60)+'시간 '+(m%60)+'분'};
+const fmt=(v,sign)=>{if(v===null||v===undefined)return'<span class="flat">—</span>';
+ const c=v>0?'profit':(v<0?'loss':'flat');const s=v>0&&sign?'+':'';
+ return `<span class="${c}">${s}${(+v).toFixed(2)}</span>`};
+function render(d){
+ _lastData=d;
+ const s=d.summary;
+ document.getElementById('updated').textContent='갱신 '+s.updated;
+ const seedSum=(s.assets!==null&&s.cum_delta!==null)?(s.assets-s.cum_delta):null;
+ const f2=v=>(v===null||v===undefined)?'—':(+v).toFixed(2);
+ const tip=t=>`<span class="tip">ℹ<span class="tiptext">${t}</span></span>`;
+ const staleTxt=(s.stale&&s.stale.length)?('갱신 지연: '+s.stale.join(', ')):'전 봇 정상';
+ document.getElementById('summary').innerHTML=`
+  <div class="metric"><div class="lbl">총 자산 <span style="font-weight:400;color:var(--muted)">(현재 총잔고 합산)</span>${tip('Σ(각 봇 거래소 실시간 총잔고). 거래소 조회 실패 봇은 초기화잔고+실현손익으로 추정.<br>현재 합산: '+f2(s.assets)+' USDT')}</div><div class="val">${s.assets===null?'—':s.assets.toFixed(2)} <span style="font-size:13px;color:var(--muted)">USDT</span></div></div>
+  <div class="metric"><div class="lbl">누적수익률${tip('(Σ현재 총잔고 − Σ초기화 잔고) ÷ Σ초기화 잔고.<br>기준금(Σseed) '+f2(seedSum)+' → 현재 '+f2(s.assets)+'<br>증감 '+fmt(s.cum_delta,1)+' USDT')}</div><div class="val">${fmt(s.cum_ret,1)}<span style="font-size:13px;color:var(--muted)">%</span></div><div style="font-size:12px;color:var(--muted);margin-top:2px">기준금 대비 ${fmt(s.cum_delta,1)} USDT</div></div>
+  <div class="metric"><div class="lbl">일 평균수익률 <span style="font-weight:400">(${s.days}일)</span>${tip('누적수익률 ÷ 경과일수.<br>경과: '+s.days+'일 (가장 이른 perf_start 기준, 최소 1일)')}</div><div class="val">${fmt(s.daily_ret,1)}<span style="font-size:13px;color:var(--muted)">%/일</span></div></div>
+  <div class="metric"><div class="lbl">가동 중${tip('포트 응답 봇 수 / 전체.<br>🟢 정상 · 🟡 데이터 갱신 지연(60분+) · 🔴 다운<br>'+staleTxt)}</div><div class="val" style="color:${s.alive===s.count?'var(--green)':'var(--red-dot)'}">${s.alive} / ${s.count}  <span style="color:var(--amber)">(${s.with_positions}/${s.count}${s.no_positions.length > 0 ? ', <span style="font-size:0.77em">' + s.no_positions.join(', ') + '</span>' : ''})</span></div></div>`;
+ // '초기화 후 경과' 최장 봇 = perf_start가 가장 이른(작은) 봇 → 연두 테두리 200%(0.4mm) 강조
+ let _longestBot=null,_minPs=Infinity;
+ d.bots.forEach(b=>{if(b.perf_start){const t=new Date(b.perf_start.replace(' ','T')).getTime();if(!isNaN(t)&&t<_minPs){_minPs=t;_longestBot=b.name;}}});
+ // 카드 정렬: '일 평균수익률' 내림차순(null은 맨 뒤)
+ // 선택한 기준 내림차순 정렬 ('초기화 후 경과'는 perf_start 이를수록 길어 -timestamp로 환산)
+ const _sk=(document.getElementById('sortby')||{}).value||'daily_ret';
+ const _key=b=>{ if(_sk==='name'){return -parseInt(b.name,10);}  /* 봇번호 오름차순 */ if(_sk==='elapsed'){return b.perf_start?-new Date(b.perf_start.replace(' ','T')).getTime():-Infinity;} const v=b[_sk]; return (v==null)?-Infinity:v; };
+ const _sorted=[...d.bots].sort((a,b)=>_key(b)-_key(a));
+ const _cards=_sorted.map((b,i)=>{
+  const stale=b.age_min!==null&&b.age_min>d.stale_min;
+  const dot=!b.alive?'var(--red-dot)':(stale?'var(--amber)':'var(--green)');
+  const usd=v=>(v===null||v===undefined)?'—':'$'+(+v).toFixed(2);
+  const wr=(w,l)=>(w+l)>0?(w/(w+l)*100).toFixed(1)+'% ('+w+'W/'+l+'L)':'0.0% (0W/0L)';
+  const ex=b.ex_ok;
+  const exwarn=ex?'':' <span class="warn" title="'+(b.ex_err||'')+'">!</span>';
+  const seed=(b.seed===null||b.seed===undefined)?'—':(+b.seed).toFixed(2);
+  const cumtip='기준: '+(b.perf_start||'—')+' 초기화 잔고 '+seed+' USDT 대비 현재 총잔고 증감률'
+   +(b.cum_basis==='pnl'?' (거래소 조회 실패 → 실현손익 기준 추정)':'');
+  // 일평균수익률 순위별 메달 테두리: 1등 황금 / 2·3등 은색 / 4·5·6등 동색 / 나머지 회색
+  const _rc=i===0?'#FFD700':(i<=2?'#C0C0C0':(i<=5?'#CD7F32':'#888888'));
+  const _holding=Array.isArray(b.positions)&&b.positions.length>0;
+  const _bc=_holding?_rc:'#e24b4a';   // 무포지션=빨강 테두리, 보유=순위 메달색
+  // 입체 테두리: ridge(엠보싱) + 외부 그림자(돌출감) + 내부 상단 하이라이트
+  const hi='border:0.8mm ridge '+_bc+';box-shadow:0 4px 11px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.12), inset 0 -2px 4px rgba(0,0,0,.35);animation:'+(_holding?'cardblink 2s ease-in-out infinite':'none')+';';
+  return `<div class="card${b.alive?'':' offline'}" style="${hi}" onclick="window.open('http://localhost:${b.port}','_blank')">
+   <div class="head"><span class="dot" style="background:${dot}"></span><span class="name">${b.name}</span>
+   <span class="badge ${b.ex.toLowerCase()}">${b.ex}</span></div>
+   <table>
+    <tr style="background:#181b22;"><td>총 잔고${exwarn}</td><td><span style="font-size:155%;font-weight:bold">${usd(b.ex_balance)}</span></td></tr>
+    <tr style="background:#181b22;"><td>미실현 손익</td><td><span style="font-size:166%">${ex?fmt(b.ex_upnl,1):'—'}</span></td></tr>
+    <tr style="background:#252b36;" title="trade_history 청산 합산, 경계 max(오늘 00:00, ${b.perf_start||'—'})"><td>금일 실현 손익</td><td>${fmt(b.today_pnl,1)}</td></tr>
+    <tr style="background:#181b22;" title="${cumtip}"><td>누적 수익률${b.cum_basis==='pnl'?' <span class="warn">~</span>':''}</td><td><span style="font-size:155%;font-weight:bold">${fmt(b.cum_ret,1)}%</span> <span style="color:var(--muted)">(${fmt(b.cum_delta,1)} U)</span></td></tr>
+    <tr style="background:#252b36;" title="누적 수익률 ÷ 경과일수 ${b.days}일"><td>일 평균 수익률</td><td>${fmt(b.daily_ret,1)}%</td></tr>
+    <tr style="background:#252b36;" title="order_id 그룹, SINCE ${b.perf_start||'—'}"><td>누적 주문·승률</td><td>${b.since_orders}건 · ${wr(b.since_w,b.since_l)}</td></tr>
+    <tr style="background:#181b22;"><td>당일 주문·승률</td><td>${b.orders_today}건 · ${wr(b.today_w,b.today_l)}</td></tr>
+    <tr style="background:#181b22;" title="초기화(perf_start): ${b.perf_start||'—'}"><td>초기화 후 경과</td><td>${elapsed(b.perf_start)}</td></tr>
+    <tr style="background:#252b36;" title="마지막 진입(${b.last_entry||'—'}) 이후 경과"><td>⏸무진입</td><td>${b.last_entry?elapsed(b.last_entry):'—'}</td></tr>
+    <tr style="background:#181b22;" title="현재 무포지션 지속(마지막 청산 ${b.last_flat||'—'} 이후)"><td>⏸무포지션</td><td>${(b.positions&&b.positions.length)?'<span class="flat">보유중</span>':(b.last_flat?elapsed(b.last_flat):'—')}</td></tr>
+   </table></div>`});
+ // 피라미드 배치: 1행 1개(1등) / 2행 2개(2·3등) / 3행 3개(4·5·6등) / 4행 4개(나머지)
+ const _rows=[[0,1],[1,3],[3,6],[6,10]];
+ document.getElementById('cards').innerHTML=_rows.map(([s,e])=>'<div class="cardrow">'+_cards.slice(s,e).join('')+'</div>').join('');
+ const compTable=`<table style="width:100%;border-collapse:collapse;font-size:12px">
+  <thead><tr style="background:var(--card2);border-bottom:1px solid var(--border)">
+   <th style="padding:8px;text-align:left;font-weight:600">봇</th>
+   <th style="padding:8px;text-align:center">거래소</th><th style="padding:8px;text-align:center">레버리지</th>
+   <th style="padding:8px;text-align:center">마진$</th><th style="padding:8px;text-align:center">최대포지션</th>
+   <th style="padding:8px;text-align:center">손절률</th><th style="padding:8px;text-align:center">수익목표</th>
+   <th style="padding:8px;text-align:center">타임프레임</th><th style="padding:8px;text-align:center">EMA</th>
+   <th style="padding:8px;text-align:center">RSI</th><th style="padding:8px;text-align:center">전략</th>
+   <th style="padding:8px;text-align:center">최대보유시간</th></tr></thead>
+  <tbody>${d.bots.map((b,i)=>`<tr style="background:${i%2?'var(--card)':'var(--card2)'};border-top:1px solid var(--border)">
+   <td style="padding:8px;font-weight:600">${b.name}</td>
+   <td style="padding:8px;text-align:center">${b.ex}</td><td style="padding:8px;text-align:center">${b.config.leverage}</td>
+   <td style="padding:8px;text-align:center">${b.config.margin_usdt}</td><td style="padding:8px;text-align:center">${b.config.max_positions}</td>
+   <td style="padding:8px;text-align:center">${b.config.stop_loss_pct}</td><td style="padding:8px;text-align:center">${b.config.take_profit_pct}</td>
+   <td style="padding:8px;text-align:center">${b.config.timeframe}</td><td style="padding:8px;text-align:center">${b.config.ema_period}</td>
+   <td style="padding:8px;text-align:center">${b.config.rsi_period}</td><td style="padding:8px;text-align:center">${b.config.strategy}</td>
+   <td style="padding:8px;text-align:center">${b.config.max_holding_hours}</td></tr>`).join('')}</tbody></table>`;
+ document.getElementById('comparisonTable').innerHTML=compTable;
+ // (v0.8.0에서 손익차트 섹션 제거됨 — 관련 차트 JS도 삭제. 잔존 시 new Chart(null) 예외로 render 크래시→오'끊김')
+}
+let _fails=0;
+async function tick(){
+ try{
+  const r=await fetch('__SNAPSHOT_URL__',{cache:'no-store'});
+  if(!r.ok) throw new Error('http '+r.status);
+  render(await r.json());
+  _fails=0;
+ }catch(e){
+  _fails++;
+  const u=document.getElementById('updated');
+  if(_fails<3){ u.textContent='재연결 중… ('+_fails+')'; setTimeout(tick,1500); }   // 일시 단절은 조용히 빠른 재시도
+  else { u.textContent='서버 연결 끊김 — 자동 재시도 중'; }                          // 데이터는 화면에 유지
+ }
+}
+tick();setInterval(tick,5000);
+</script>
+</body>
+</html>
