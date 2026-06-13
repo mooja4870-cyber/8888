@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.54 | 2026-06-14 08:22 | v0.9.52(카드 박스별 순차 펼침) 취소 — mooja 요청. 카드별 WAAPI 개별 모션 제거하고 v0.9.51 행 단위 휘리릭(rowswoosh CSS, .cards.anim .cardrow 행별 시차 cascade)으로 복원. 디폴트 '5개씩'(v0.9.53)은 유지. |
 | v0.9.53 | 2026-06-14 08:12 | 배치 드롭다운 디폴트를 '5개씩(2줄)'로 변경 (mooja 요청). select#layout의 five option에 selected 부여, render 폴백도 \|\|'five'로 통일(요소 부재 시도 동일). 첫 로딩부터 5개씩 2줄(88% 축소) 배치로 표시, 피라미드는 선택 시 전환. |
 | v0.9.52 | 2026-06-14 08:09 | 휘리릭 모션을 행 단위→'카드 박스별 순차 펼침'으로 변경 (mooja 요청 '좌에서 우로 순서대로'). 행 cascade(rowswoosh CSS) 제거하고, 드롭다운(배치·정렬) 변경 시 render가 querySelectorAll('.card')를 DOM 순서대로 돌며 WAAPI el.animate()로 한 박스씩 60ms 시차 등장(translateX -34→0 + scaleX .35→1, transform-origin:left → 좌측에서 펼쳐짐). WAAPI 개별재생이라 보유봇 인라인 blink(opacity cardblink)와 충돌 없음, fill:'backwards'로 delay 중 미리 숨겨 깜빡임 방지. 자동 새로고침은 anim 미전달→무모션 유지. |
 | v0.9.51 | 2026-06-14 08:04 | 드롭다운(배치·정렬) 변경 시 '휘리릭' 재배치 모션 추가 (mooja 갓잇 승인). 선택을 바꿔도 카드가 툭 바뀌어 변화가 안 보이는 문제 → 좌→우 슬라이드+페이드(약간 오버슈트, scale) @keyframes rowswoosh, 행별 시차 cascade(.07s씩). render(d,anim) 신설: 두 드롭다운 onchange만 anim=true로 .cards에 .anim 부여(offsetWidth 리플로우 강제 후 재생), 5초 자동 새로고침은 render 시작에 .anim 제거→무모션 유지. 카드 인라인 blink와 충돌 피하려 카드 대신 .cardrow 단위 애니. |

@@ -28,6 +28,12 @@ h1{font-size:20px;font-weight:600}
 .cardrow{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
 .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color .15s;width:250px}
 .cards.five .card{zoom:.88}
+/* 배치/정렬 드롭다운 변경 시 '휘리릭' 재배치 모션(좌→우 슬라이드+페이드, 행별 시차 cascade). 자동 새로고침엔 미적용 */
+@keyframes rowswoosh{0%{opacity:0;transform:translateX(-46px) scale(.97)}60%{opacity:1;transform:translateX(7px) scale(1.005)}100%{opacity:1;transform:translateX(0) scale(1)}}
+.cards.anim .cardrow{animation:rowswoosh .46s cubic-bezier(.22,1,.36,1) both}
+.cards.anim .cardrow:nth-child(2){animation-delay:.07s}
+.cards.anim .cardrow:nth-child(3){animation-delay:.14s}
+.cards.anim .cardrow:nth-child(4){animation-delay:.21s}
 .card:hover{border-color:#4a5364}
 @keyframes blinkgreen{0%,100%{border-color:#a3e635}50%{border-color:transparent}}
 @keyframes cardblink{0%,100%{opacity:1}50%{opacity:.4}}
@@ -134,10 +140,9 @@ function render(d,anim){
  const _lay=(document.getElementById('layout')||{}).value||'five';  // 디폴트 '5개씩(2줄)'
  const _rows = _lay==='five' ? [[0,5],[5,10]] : [[0,1],[1,3],[3,6],[6,10]];
  var _cw=document.getElementById('cards');_cw.classList.toggle('five',_lay==='five');
+ _cw.classList.remove('anim');  // 자동 새로고침은 조용히(모션 없음) — 먼저 제거 후 재구성
  _cw.innerHTML=_rows.map(([s,e])=>'<div class="cardrow">'+_cards.slice(s,e).join('')+'</div>').join('');
- // 드롭다운(배치·정렬) 조작 시에만: 각 카드를 DOM 순서(좌→우, 위→아래)대로 한 박스씩 펼치며 등장. 자동 새로고침은 무모션.
- // WAAPI 개별 재생이라 카드 인라인 blink(opacity)와 충돌 없음. fill:'backwards'로 delay 동안 미리 숨겨 깜빡임 방지.
- if(anim){_cw.querySelectorAll('.card').forEach((el,i)=>{el.style.transformOrigin='left center';el.animate([{opacity:0,transform:'translateX(-34px) scaleX(.35)'},{opacity:1,transform:'translateX(6px) scaleX(1.02)',offset:.7},{opacity:1,transform:'translateX(0) scaleX(1)'}],{duration:430,delay:i*60,easing:'cubic-bezier(.22,1,.36,1)',fill:'backwards'});});}
+ if(anim){void _cw.offsetWidth;_cw.classList.add('anim');}  // 드롭다운 조작 시에만: 리플로우 강제 후 휘리릭 재생
  const compTable=`<table style="width:100%;border-collapse:collapse;font-size:12px">
   <thead><tr style="background:var(--card2);border-bottom:1px solid var(--border)">
    <th style="padding:8px;text-align:left;font-weight:600">봇</th>
