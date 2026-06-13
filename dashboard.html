@@ -110,7 +110,7 @@ function render(d){
   const _rc=i===0?'#FFD700':(i<=2?'#C0C0C0':(i<=5?'#CD7F32':'#888888'));
   const _holding=Array.isArray(b.positions)&&b.positions.length>0;
   const _bc=_holding?_rc:'#e24b4a';   // 무포지션=빨강 테두리, 보유=순위 메달색
-  const hi='border:0.6mm solid '+_bc+';animation:'+(_holding?'cardblink 3s ease-in-out infinite':'none')+';';
+  const hi='border:0.6mm solid '+_bc+';animation:'+(_holding?'cardblink 2s ease-in-out infinite':'none')+';';
   return `<div class="card${b.alive?'':' offline'}" style="${hi}" onclick="window.open('http://localhost:${b.port}','_blank')">
    <div class="head"><span class="dot" style="background:${dot}"></span><span class="name">${b.name}</span>
    <span class="badge ${b.ex.toLowerCase()}">${b.ex}</span></div>
