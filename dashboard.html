@@ -138,20 +138,21 @@ function render(d){
    <td style="padding:8px;text-align:center">${b.config.rsi_period}</td><td style="padding:8px;text-align:center">${b.config.strategy}</td>
    <td style="padding:8px;text-align:center">${b.config.max_holding_hours}</td></tr>`).join('')}</tbody></table>`;
  document.getElementById('comparisonTable').innerHTML=compTable;
- const labels=d.bots.map(b=>b.name),vals=d.bots.map(b=>+(b.today_pnl||0).toFixed(2));
- const colors=vals.map(v=>v>0?'#ff5a5a':'#4d9fff');
- if(chart){chart.data.labels=labels;chart.data.datasets[0].data=vals;
-  chart.data.datasets[0].backgroundColor=colors;chart.update('none');}
- else chart=new Chart(document.getElementById('pnlChart'),{type:'bar',
-  data:{labels,datasets:[{data:vals,backgroundColor:colors,borderRadius:3}]},
-  options:{responsive:true,maintainAspectRatio:false,animation:false,
-   plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>(c.raw>0?'+':'')+c.raw+' USDT'}}},
-   scales:{x:{ticks:{color:'#8b93a5',autoSkip:false},grid:{display:false}},
-    y:{ticks:{color:'#8b93a5'},grid:{color:'#2a2f3a'}}}}});
+ // (v0.8.0에서 손익차트 섹션 제거됨 — 관련 차트 JS도 삭제. 잔존 시 new Chart(null) 예외로 render 크래시→오'끊김')
 }
+let _fails=0;
 async function tick(){
- try{const r=await fetch('/api/status');render(await r.json());}
- catch(e){document.getElementById('updated').textContent='서버 연결 끊김';}
+ try{
+  const r=await fetch('/api/status',{cache:'no-store'});
+  if(!r.ok) throw new Error('http '+r.status);
+  render(await r.json());
+  _fails=0;
+ }catch(e){
+  _fails++;
+  const u=document.getElementById('updated');
+  if(_fails<3){ u.textContent='재연결 중… ('+_fails+')'; setTimeout(tick,1500); }   // 일시 단절은 조용히 빠른 재시도
+  else { u.textContent='서버 연결 끊김 — 자동 재시도 중'; }                          // 데이터는 화면에 유지
+ }
 }
 tick();setInterval(tick,5000);
 </script>
