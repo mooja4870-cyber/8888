@@ -339,6 +339,9 @@ def bot_status(folder, port, ex):
     else:
         r["cum_ret"] = r["daily_ret"] = r["cum_delta"] = None
         r["cum_basis"] = None
+    # 보유 여부 = 거래소 실제 증거금 사용(ex_used>0) 기준. 조회 실패 시에만 active_positions 파일 폴백.
+    # (봇이 청산 후 active_positions.json을 안 지워 생기는 '유령 포지션' 오집계 방지 — 예: 8501)
+    r["holding"] = ((r.get("ex_used") or 0) > 0) if r.get("ex_ok") else bool(r.get("positions"))
     return r
 
 
@@ -371,8 +374,8 @@ def collect():
         "days": round(days, 1),
         "alive": sum(1 for b in bots if b["alive"]),
         "count": len(bots),
-        "with_positions": sum(1 for b in bots if b["positions"]),
-        "no_positions": [b["name"] for b in bots if not b["positions"]],
+        "with_positions": sum(1 for b in bots if b["holding"]),
+        "no_positions": [b["name"] for b in bots if not b["holding"]],
         "stale": [b["name"] for b in bots
                   if b["age_min"] is not None and b["age_min"] > STALE_MIN],
         "updated": time.strftime("%Y-%m-%d %H:%M:%S"),
