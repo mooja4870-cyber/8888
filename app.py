@@ -282,6 +282,26 @@ def exchange_loop():
 
 # ── 봇별 파일 기반 지표 ──────────────────────────────────────────────
 
+def app_debug_time(folder):
+    """봇 폴더의 app.py + core/*.py 중 가장 최근 수정시각(KST 문자열). '앱 최종 디버깅 후 경과' 표시용. 읽기(stat)만 수행."""
+    base = os.path.join(BASE, folder)
+    paths = [os.path.join(base, "app.py")]
+    core = os.path.join(base, "core")
+    try:
+        paths += [os.path.join(core, f) for f in os.listdir(core) if f.endswith(".py")]
+    except OSError:
+        pass
+    latest = 0.0
+    for p in paths:
+        try:
+            mt = os.path.getmtime(p)
+            if mt > latest:
+                latest = mt
+        except OSError:
+            pass
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(latest)) if latest else None
+
+
 def bot_status(folder, port, ex):
     d = os.path.join(BASE, folder, "data")
     r = {"name": folder.split("_")[0], "folder": folder, "port": port, "ex": ex,
@@ -313,6 +333,7 @@ def bot_status(folder, port, ex):
     # ⏸무진입 = 마지막 진입 이후 경과, ⏸무포지션 = 마지막 청산 이후(현재 무포지션일 때) 경과
     r["last_entry"], r["last_flat"] = last_entry_exit(hist)
     r["config"] = read_bot_config(folder)
+    r["app_debug"] = app_debug_time(folder)   # 앱 최종 디버깅(app.py+core/*.py 최신 mtime)
     # 금일 실현 손익·당일/누적 주문·승률을 봇 화면과 동일하게 trade_history에서 재계산
     m = hist_metrics(hist, r["perf_start"])
     r["today_pnl"] = m["today_pnl"]            # 금일 실현 손익 (봇 화면값)
