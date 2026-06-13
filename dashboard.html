@@ -21,8 +21,9 @@ h1{font-size:20px;font-weight:600}
 .metric:nth-child(n+3) .tip .tiptext{left:auto;right:0}
 .legend{display:flex;gap:16px;font-size:12px;color:var(--muted);margin-bottom:10px;align-items:center;flex-wrap:wrap}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-bottom:22px}
-.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color .15s}
+.cards{display:flex;flex-direction:column;gap:12px;margin-bottom:22px}
+.cardrow{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color .15s;width:250px}
 .card:hover{border-color:#4a5364}
 @keyframes blinkgreen{0%,100%{border-color:#a3e635}50%{border-color:transparent}}
 .card.holding{border:0.2mm solid #a3e635;animation:blinkgreen 1s ease-in-out infinite}
@@ -88,7 +89,7 @@ function render(d){
  d.bots.forEach(b=>{if(b.perf_start){const t=new Date(b.perf_start.replace(' ','T')).getTime();if(!isNaN(t)&&t<_minPs){_minPs=t;_longestBot=b.name;}}});
  // 카드 정렬: '일 평균수익률' 내림차순(null은 맨 뒤)
  const _sorted=[...d.bots].sort((a,b)=>(b.daily_ret==null?-Infinity:b.daily_ret)-(a.daily_ret==null?-Infinity:a.daily_ret));
- document.getElementById('cards').innerHTML=_sorted.map((b,i)=>{
+ const _cards=_sorted.map((b,i)=>{
   const stale=b.age_min!==null&&b.age_min>d.stale_min;
   const dot=!b.alive?'var(--red-dot)':(stale?'var(--amber)':'var(--green)');
   const usd=v=>(v===null||v===undefined)?'—':'$'+(+v).toFixed(2);
@@ -115,7 +116,10 @@ function render(d){
     <tr style="background:#181b22;" title="초기화(perf_start): ${b.perf_start||'—'}"><td>초기화 후 경과</td><td>${elapsed(b.perf_start)}</td></tr>
     <tr style="background:#252b36;" title="마지막 진입(${b.last_entry||'—'}) 이후 경과"><td>⏸무진입</td><td>${b.last_entry?elapsed(b.last_entry):'—'}</td></tr>
     <tr style="background:#181b22;" title="현재 무포지션 지속(마지막 청산 ${b.last_flat||'—'} 이후)"><td>⏸무포지션</td><td>${(b.positions&&b.positions.length)?'<span class="flat">보유중</span>':(b.last_flat?elapsed(b.last_flat):'—')}</td></tr>
-   </table></div>`}).join('');
+   </table></div>`});
+ // 피라미드 배치: 1행 1개(1등) / 2행 2개(2·3등) / 3행 3개(4·5·6등) / 4행 4개(나머지)
+ const _rows=[[0,1],[1,3],[3,6],[6,10]];
+ document.getElementById('cards').innerHTML=_rows.map(([s,e])=>'<div class="cardrow">'+_cards.slice(s,e).join('')+'</div>').join('');
  const compTable=`<table style="width:100%;border-collapse:collapse;font-size:12px">
   <thead><tr style="background:var(--card2);border-bottom:1px solid var(--border)">
    <th style="padding:8px;text-align:left;font-weight:600">봇</th>
