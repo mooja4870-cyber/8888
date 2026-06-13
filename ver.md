@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.52 | 2026-06-14 08:09 | 휘리릭 모션을 행 단위→'카드 박스별 순차 펼침'으로 변경 (mooja 요청 '좌에서 우로 순서대로'). 행 cascade(rowswoosh CSS) 제거하고, 드롭다운(배치·정렬) 변경 시 render가 querySelectorAll('.card')를 DOM 순서대로 돌며 WAAPI el.animate()로 한 박스씩 60ms 시차 등장(translateX -34→0 + scaleX .35→1, transform-origin:left → 좌측에서 펼쳐짐). WAAPI 개별재생이라 보유봇 인라인 blink(opacity cardblink)와 충돌 없음, fill:'backwards'로 delay 중 미리 숨겨 깜빡임 방지. 자동 새로고침은 anim 미전달→무모션 유지. |
 | v0.9.51 | 2026-06-14 08:04 | 드롭다운(배치·정렬) 변경 시 '휘리릭' 재배치 모션 추가 (mooja 갓잇 승인). 선택을 바꿔도 카드가 툭 바뀌어 변화가 안 보이는 문제 → 좌→우 슬라이드+페이드(약간 오버슈트, scale) @keyframes rowswoosh, 행별 시차 cascade(.07s씩). render(d,anim) 신설: 두 드롭다운 onchange만 anim=true로 .cards에 .anim 부여(offsetWidth 리플로우 강제 후 재생), 5초 자동 새로고침은 render 시작에 .anim 제거→무모션 유지. 카드 인라인 blink와 충돌 피하려 카드 대신 .cardrow 단위 애니. |
 | v0.9.50 | 2026-06-14 07:43 | 5개씩 배치 시 카드 88% 축소 (mooja OK). 라인당 5개면 250px 카드가 넘쳐 깨지는 문제 → 배치='5개씩'일 때만 #cards에 .five 클래스 부여, .cards.five .card{zoom:.88}로 박스+내부 문구 통째 88% 균일 축소(Chrome zoom, 레이아웃 리플로우 정상). 피라미드(기본)는 100% 유지, 복귀 시 원상. |
 | v0.9.49 | 2026-06-14 07:37 | 배치 형태 드롭다운 추가 (mooja 갓잇). 정렬 드롭다운 왼쪽에 select#layout — '피라미드(1·2·3·4)'(기본) / '5개씩(2줄)' 선택. render 행분할을 [[0,1],[1,3],[3,6],[6,10]] ↔ [[0,5],[5,10]] 전환. onchange 즉시 재배치, 5초갱신 유지. #layout margin-left:auto로 우측 정렬군 좌단 배치. |
