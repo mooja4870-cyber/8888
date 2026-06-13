@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.29 | 2026-06-13 01:08 | 미실현 손익 수치 크기 정정 (mooja 지시). 133% → 166%. dashboard.html 102행. |
 | v0.9.28 | 2026-06-13 01:05 | 미실현 손익 수치 확대 (mooja 지시). 각 봇 카드 '미실현 손익' 값을 font-size:133%로. dashboard.html 102행. 정적파일 per-request라 새로고침 반영. |
 | v0.9.27 | 2026-06-13 00:32 | 8407 진입실패 원인=서브계정 레버리지 제한. 8407이 ZEC SHORT 신호(강도100%)를 매 스캔 잡지만 레버리지 10x 설정에서 binanceusdm -4421 'Subaccounts are restricted from using leverage greater than 5x'로 실패→진입 무한반복 미체결. 제공받은 8407/8408 키가 5x 제한 서브계정이었음. 조치: 8407·8408 config.json LEVERAGE 10→5(백업 후). CFG는 시작 시 1회 로드라 재시작 필요. 그런데 가동봇 save_settings가 config.json을 메모리값(10)으로 되돌려 파일수정만으론 안 됨 → 리셋 근원인 core/config.py 데이터클래스 기본값 LEVERAGE 10→5 + config.json=5 둘 다 변경(봇 좀비상태에서, 유지 확인). 브라우저로 8407/8408 부팅 시 5x 로드→ZEC 진입 가능. |
 | v0.9.26 | 2026-06-13 00:18 | [핵심] 8401~8406 진입불가 진짜원인=캔들 동결. scanner._get_ohlcv_cached가 'WS정상이면 REST 우회(캐시만 반환)' 구조인데, OKX 웹소켓이 깨졌어도('<' NoneType) ws_client._running=True로 남아 → 캔들이 startup 시점에 굳음 → 새 신호 영영 미포착(30스캔 연속 API 0회). 즉 '신호 대기'가 아니라 현재 시장을 못 봄. 수정: 6봇 scanner.py에서 WS 패스트패스 비활성(if False and …)→매 스캔 REST 증분갱신. 백업 후 적용·헤드리스 재기동. 검증: 재기동 후 [CACHE] 300봉 풀로드, 증분실패 0, BTC 캔들 last=현재-2분(신선). 이제 라이브 데이터로 정상 스캔→조건충족 시 진입. ※8409(BNC)도 동일 구조·증상이라 동일 패치 필요(확인대기). |
