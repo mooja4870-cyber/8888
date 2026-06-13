@@ -86,7 +86,9 @@ function render(d){
  // '초기화 후 경과' 최장 봇 = perf_start가 가장 이른(작은) 봇 → 연두 테두리 200%(0.4mm) 강조
  let _longestBot=null,_minPs=Infinity;
  d.bots.forEach(b=>{if(b.perf_start){const t=new Date(b.perf_start.replace(' ','T')).getTime();if(!isNaN(t)&&t<_minPs){_minPs=t;_longestBot=b.name;}}});
- document.getElementById('cards').innerHTML=d.bots.map(b=>{
+ // 카드 정렬: '일 평균수익률' 내림차순(null은 맨 뒤)
+ const _sorted=[...d.bots].sort((a,b)=>(b.daily_ret==null?-Infinity:b.daily_ret)-(a.daily_ret==null?-Infinity:a.daily_ret));
+ document.getElementById('cards').innerHTML=_sorted.map(b=>{
   const stale=b.age_min!==null&&b.age_min>d.stale_min;
   const dot=!b.alive?'var(--red-dot)':(stale?'var(--amber)':'var(--green)');
   const usd=v=>(v===null||v===undefined)?'—':'$'+(+v).toFixed(2);
