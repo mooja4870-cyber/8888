@@ -110,7 +110,8 @@ function render(d){
   const _rc=i===0?'#FFD700':(i<=2?'#C0C0C0':(i<=5?'#CD7F32':'#888888'));
   const _holding=Array.isArray(b.positions)&&b.positions.length>0;
   const _bc=_holding?_rc:'#e24b4a';   // 무포지션=빨강 테두리, 보유=순위 메달색
-  const hi='border:0.4mm solid '+_bc+';animation:'+(_holding?'cardblink 2s ease-in-out infinite':'none')+';';
+  // 입체 테두리: ridge(엠보싱) + 외부 그림자(돌출감) + 내부 상단 하이라이트
+  const hi='border:0.8mm ridge '+_bc+';box-shadow:0 4px 11px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.12), inset 0 -2px 4px rgba(0,0,0,.35);animation:'+(_holding?'cardblink 2s ease-in-out infinite':'none')+';';
   return `<div class="card${b.alive?'':' offline'}" style="${hi}" onclick="window.open('http://localhost:${b.port}','_blank')">
    <div class="head"><span class="dot" style="background:${dot}"></span><span class="name">${b.name}</span>
    <span class="badge ${b.ex.toLowerCase()}">${b.ex}</span></div>
