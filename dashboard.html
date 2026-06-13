@@ -83,6 +83,9 @@ function render(d){
   <div class="metric"><div class="lbl">누적수익률${tip('(Σ현재 총잔고 − Σ초기화 잔고) ÷ Σ초기화 잔고.<br>기준금(Σseed) '+f2(seedSum)+' → 현재 '+f2(s.assets)+'<br>증감 '+fmt(s.cum_delta,1)+' USDT')}</div><div class="val">${fmt(s.cum_ret,1)}<span style="font-size:13px;color:var(--muted)">%</span></div><div style="font-size:12px;color:var(--muted);margin-top:2px">기준금 대비 ${fmt(s.cum_delta,1)} USDT</div></div>
   <div class="metric"><div class="lbl">일 평균수익률 <span style="font-weight:400">(${s.days}일)</span>${tip('누적수익률 ÷ 경과일수.<br>경과: '+s.days+'일 (가장 이른 perf_start 기준, 최소 1일)')}</div><div class="val">${fmt(s.daily_ret,1)}<span style="font-size:13px;color:var(--muted)">%/일</span></div></div>
   <div class="metric"><div class="lbl">가동 중${tip('포트 응답 봇 수 / 전체.<br>🟢 정상 · 🟡 데이터 갱신 지연(60분+) · 🔴 다운<br>'+staleTxt)}</div><div class="val" style="color:${s.alive===s.count?'var(--green)':'var(--red-dot)'}">${s.alive} / ${s.count}  <span style="color:var(--amber)">(${s.with_positions}/${s.count}${s.no_positions.length > 0 ? ', <span style="font-size:0.77em">' + s.no_positions.join(', ') + '</span>' : ''})</span></div></div>`;
+ // '초기화 후 경과' 최장 봇 = perf_start가 가장 이른(작은) 봇 → 연두 테두리 200%(0.4mm) 강조
+ let _longestBot=null,_minPs=Infinity;
+ d.bots.forEach(b=>{if(b.perf_start){const t=new Date(b.perf_start.replace(' ','T')).getTime();if(!isNaN(t)&&t<_minPs){_minPs=t;_longestBot=b.name;}}});
  document.getElementById('cards').innerHTML=d.bots.map(b=>{
   const stale=b.age_min!==null&&b.age_min>d.stale_min;
   const dot=!b.alive?'var(--red-dot)':(stale?'var(--amber)':'var(--green)');
@@ -94,7 +97,8 @@ function render(d){
   const cumtip='기준: '+(b.perf_start||'—')+' 초기화 잔고 '+seed+' USDT 대비 현재 총잔고 증감률'
    +(b.cum_basis==='pnl'?' (거래소 조회 실패 → 실현손익 기준 추정)':'');
   const holding=Array.isArray(b.positions)&&b.positions.length>0;
-  return `<div class="card${b.alive?'':' offline'}${holding?' holding':''}" onclick="window.open('http://localhost:${b.port}','_blank')">
+  const hi=(b.name===_longestBot)?'border:0.4mm solid #a3e635;':'';
+  return `<div class="card${b.alive?'':' offline'}${holding?' holding':''}" style="${hi}" onclick="window.open('http://localhost:${b.port}','_blank')">
    <div class="head"><span class="dot" style="background:${dot}"></span><span class="name">${b.name}</span>
    <span class="badge ${b.ex.toLowerCase()}">${b.ex}</span></div>
    <table>
