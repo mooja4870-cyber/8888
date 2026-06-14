@@ -27,7 +27,7 @@ h1{font-size:20px;font-weight:600}
 .cards{display:flex;flex-direction:column;gap:12px;margin-bottom:22px}
 .cardrow{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
 .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color .15s;width:250px}
-.cards.five .card{zoom:.88}
+.cards.five .card{zoom:.98}
 /* 배치/정렬 드롭다운 변경 시 '휘리릭' 재배치 모션(좌→우 슬라이드+페이드, 행별 시차 cascade). 자동 새로고침엔 미적용 */
 @keyframes rowswoosh{0%{opacity:0;transform:translateX(-46px) scale(.97)}60%{opacity:1;transform:translateX(7px) scale(1.005)}100%{opacity:1;transform:translateX(0) scale(1)}}
 .cards.anim .cardrow{animation:rowswoosh .46s cubic-bezier(.22,1,.36,1) both}
