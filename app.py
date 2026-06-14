@@ -185,6 +185,12 @@ def read_bot_config(folder):
         "8404_okx": "Breakout",
         "8406_okx": "BoxRange",
     }
+    # 전략 '표시명' 강제 override (mooja 지정) — config/보유포지션 strategy_type보다 최우선.
+    # 봇이 전략을 바꿨으나 config/잔존 포지션이 옛 이름을 가리킬 때 대시보드 표기 교정용(봇 소스 무수정).
+    strategy_override = {
+        "8402_okx": "가격 다이버전스",
+        "8407_bnc": "Fabio",
+    }
     try:
         with open(cfg_path, encoding="utf-8") as f:
             cfg = json.load(f)
@@ -198,7 +204,8 @@ def read_bot_config(folder):
             live = "/".join(stset)
         except (OSError, json.JSONDecodeError, ValueError, AttributeError):
             pass
-        strategy = live or cfg.get("STRATEGY_MODE") or cfg.get("STRATEGY_TYPE") or strategy_map.get(folder, "—")
+        strategy = (strategy_override.get(folder) or live or cfg.get("STRATEGY_MODE")
+                    or cfg.get("STRATEGY_TYPE") or strategy_map.get(folder, "—"))
         return {
             "leverage": cfg.get("LEVERAGE", "—"),
             "margin_usdt": cfg.get("MARGIN_USDT", "—"),
