@@ -101,7 +101,7 @@ async function renderTimeView(mode){
  const cell=(n,v)=>{const rv=(v==null)?null:Math.round(v*100)/100;  // 2자리 반올림 기준으로 색·부호 결정
   const col=(rv==null)?'var(--muted)':(rv>0?'var(--profit)':(rv<0?'var(--loss)':'var(--muted)'));  // 0.00%=회색(중립)
   const txt=(rv==null)?'—':((rv>0?'+':'')+rv.toFixed(2)+'%');
-  return '<td style="border:1px solid var(--border);padding:4px 6px;text-align:center"><div style="font-weight:600;font-size:13px">'+n+'</div><div style="font-size:12px;color:'+col+'">'+txt+'</div></td>';};
+  return '<td style="border:1px solid var(--border);padding:4px 6px;text-align:center"><div style="font-weight:600;font-size:13px">'+n+'</div><div style="font-size:24px;color:'+col+'">'+txt+'</div></td>';};
  const thS='border:1px solid var(--border);padding:4px 6px;color:var(--muted);font-size:12px;font-weight:500';
  const tdT='border:1px solid var(--border);padding:4px 8px;font-family:ui-monospace,monospace;font-size:12px;color:var(--muted);white-space:nowrap';
  // ord='rank'(일평균수익률순) | 'name'(봇이름순). 시각칸엔 날짜(MM-DD) 포함.
