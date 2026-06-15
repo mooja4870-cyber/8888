@@ -269,19 +269,47 @@ def fetch_account(cred):
             "used": usdt.get("used"), "upnl": round(upnl, 4), "ok": True, "err": None}
 
 
+_ex_cooldown = {}       # cred -> 이 시각(epoch)까지 조회 스킵 (레이트리밋 백오프)
+_ex_backoff = {}        # cred -> 현재 백오프 초
+RL_BACKOFF_START = 300  # 첫 레이트리밋 시 5분 쿨다운
+RL_BACKOFF_MAX = 1800   # 최대 30분
+
+
+def _is_rate_limit(e):
+    """바이낸스 418/-1003 'too many requests' 등 레이트리밋·IP차단 판별."""
+    m = str(e)
+    return ("418" in m or "-1003" in m or "Too many" in m
+            or "Way too many" in m or "ratelimit" in m.lower())
+
+
 def exchange_loop():
     while True:
         creds = {}
         for folder, _port, ex in BOTS:
             creds.setdefault(bot_creds(folder, ex), []).append(folder)
+        now = time.time()
         for cred, folders in creds.items():
             if not cred[1]:
                 r = {"ok": False, "err": "API 키 없음"}
+            elif _ex_cooldown.get(cred, 0) > now:
+                continue   # 레이트리밋 쿨다운 중 → 조회 스킵(직전 값 유지, 더 안 두드림)
             else:
                 try:
                     r = fetch_account(cred)
+                    _ex_backoff[cred] = 0          # 성공 → 백오프 리셋
+                    _ex_cooldown.pop(cred, None)
                 except Exception as e:
-                    r = {"ok": False, "err": str(e)[:120]}
+                    msg = str(e)[:120]
+                    if _is_rate_limit(e):          # 레이트리밋 → 지수 백오프 쿨다운
+                        bo = min(max(_ex_backoff.get(cred, 0) * 2, RL_BACKOFF_START), RL_BACKOFF_MAX)
+                        _ex_backoff[cred] = bo
+                        _ex_cooldown[cred] = now + bo
+                    # 직전 정상 잔고가 있으면 None으로 덮지 않고 '지연(stale)'으로 유지
+                    prev = next((EX_CACHE.get(f) for f in folders if EX_CACHE.get(f)), None)
+                    if prev and prev.get("balance") is not None:
+                        r = {**prev, "ok": True, "stale": True, "err": msg}
+                    else:
+                        r = {"ok": False, "err": msg}
             for f in folders:
                 EX_CACHE[f] = r
         time.sleep(EX_REFRESH_SEC)
