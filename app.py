@@ -180,17 +180,22 @@ def parse_env(path):
 def read_bot_config(folder):
     """각 봇의 config.json 읽기 → 비교표용 핵심변수 추출"""
     cfg_path = os.path.join(BASE, folder, "config.json")
-    # config에 STRATEGY_MODE/TYPE가 없는 봇의 코드상 전략명(strategy.py strategy_type 상수 기준).
-    # 8404는 config·코드 모두 명시 라벨 없음(regime=REVERSION) → '—'로 두고 config 기재 권장.
-    code_strategy = {
-        "8401_okx": "TripleIndicator",
-        "8406_okx": "TripleIndicator",
+    # STRATEGY_MODE/TYPE 없는 봇의 매매기법 (실거래 active_positions strategy_type 기반)
+    strategy_map = {
+        "8404_okx": "Breakout",
+        "8406_okx": "BoxRange",
+    }
+    # 전략 '표시명' 강제 override (mooja 지정) — config/보유포지션 strategy_type보다 최우선.
+    # 봇이 전략을 바꿨으나 config/잔존 포지션이 옛 이름을 가리킬 때 대시보드 표기 교정용(봇 소스 무수정).
+    strategy_override = {
+        "8402_okx": "가격 다이버전스",
+        "8407_bnc": "Fabio",
     }
     try:
         with open(cfg_path, encoding="utf-8") as f:
             cfg = json.load(f)
-        # 표시 기준(mooja 결정): config(STRATEGY_MODE/TYPE) 최우선 → 코드상수 → 보유포지션 태그 → '—'.
-        # 낡은 포지션 strategy_type 태그가 현재 설정을 가리지 않도록 config를 단일 진실로 둔다.
+        # 라이브 봇이 config.json을 런타임에 자가수정 → 실거래 포지션의 strategy_type를
+        # 1순위로 본다(가장 안정적·정직). 무포지션이면 config 선언 → 정적 매핑 순으로 폴백.
         live = ""
         try:
             pos = json.load(open(os.path.join(BASE, folder, "data", "active_positions.json"), encoding="utf-8"))
@@ -199,8 +204,8 @@ def read_bot_config(folder):
             live = "/".join(stset)
         except (OSError, json.JSONDecodeError, ValueError, AttributeError):
             pass
-        strategy = (cfg.get("STRATEGY_MODE") or cfg.get("STRATEGY_TYPE")
-                    or code_strategy.get(folder) or live or "—")
+        strategy = (strategy_override.get(folder) or live or cfg.get("STRATEGY_MODE")
+                    or cfg.get("STRATEGY_TYPE") or strategy_map.get(folder, "—"))
         return {
             "leverage": cfg.get("LEVERAGE", "—"),
             "margin_usdt": cfg.get("MARGIN_USDT", "—"),
