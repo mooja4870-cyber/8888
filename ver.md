@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.63 | 2026-06-15 19:12 | 시간별 표 과거 backfill (mooja 'b'). 기록기는 방금 설치라 과거 데이터 없음 → backfill_snapshots.py 신설: 각 봇 trade_history.csv(청산 r[6] 실현손익)로 최근 24h의 :00·:30 시점 일평균수익률을 근사 복원(실현손익 기준, 미실현 제외), approx=True 표시. 실측 행(record_snapshot)은 보존·우선, off-grid 시드행 정리. dashboard.html renderTimeView: 근사 행에 ≈ 마커(amber)+opacity .82+캡션 범례. 결과 48행(근사46+실측2). 봇 파일 읽기전용(동결 유지), snapshots.json gitignore. 이후 :30부터 라이브 실측이 위에 누적. |
 | v0.9.62 | 2026-06-15 18:23 | 좌측 아코디언(화면 모드) 3종 추가 (mooja 갓잇, 시안 승인). ①기본화면(현 카드뷰) ②시간별 수익율 순 ③시간별 봇 이름 순. app.py: 매시 :00·:30(30분마다) 봇별 일평균수익률 스냅샷 누적(record_snapshot/snapshot_loop, 최근48행=24h, 기동즉시 1행 시드) + /api/snapshots 엔드포인트, snapshots.json(gitignore). dashboard.html: 헤더 좌측 #viewmode select + #timeview 표(행=시각 최신상단, 수익율순=그 시각 내림차순/봇이름순=8401…8501 고정, 셀=봇명+일평균수익률, 수익빨강·손실파랑), 시간별 모드선 배치/정렬 숨김. 봇 소스 무관(동결 유지), 8888만. |
 | v0.9.61 | 2026-06-14 22:5x | 8402·8407 전략 '표시명' 교정 (mooja 지정). 봇이 전략 변경했으나 8402 config는 옛 'VWAP+VPF', 8407은 잔존 포지션 strategy_type(Breakout/Trend)이 표시되던 문제 → 대시보드 app.py read_bot_config에 strategy_override(최우선) 신설: 8402_okx='가격 다이버전스', 8407_bnc='Fabio'. 봇 소스 무수정(동결 유지), 8888만 재기동 반영. |
 | v0.9.60 | 2026-06-14 20:48 | 5개씩(2줄) 배치 카드 크기 108%로 정정 (mooja, 107%→108%). .cards.five .card zoom .94→.95 (원본 .88×1.08≈0.95). |

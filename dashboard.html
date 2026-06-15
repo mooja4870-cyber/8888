@@ -110,9 +110,10 @@ async function renderTimeView(mode){
  [...snaps].reverse().forEach(s=>{   // 최신이 맨 위
   let arr=names.map(n=>({n,v:(s.bots&&s.bots[n]!=null)?s.bots[n]:null}));
   if(mode==='rank')arr=arr.slice().sort((a,b)=>((b.v==null?-1e9:b.v)-(a.v==null?-1e9:a.v)));
-  body+='<tr><td style="border:1px solid var(--border);padding:4px 8px;font-family:ui-monospace,monospace;font-size:12px;color:var(--muted);white-space:nowrap;position:sticky;left:0;background:var(--card)">'+(s.t||s.ts||'—')+'</td>'+arr.map(o=>cell(o.n,o.v)).join('')+'</tr>';
+  const tlab=(s.t||s.ts||'—')+(s.approx?' <span title="과거 실현손익 기준 근사 복원" style="color:var(--amber)">≈</span>':'');
+  body+='<tr style="'+(s.approx?'opacity:.82':'')+'"><td style="border:1px solid var(--border);padding:4px 8px;font-family:ui-monospace,monospace;font-size:12px;color:var(--muted);white-space:nowrap;position:sticky;left:0;background:var(--card)">'+tlab+'</td>'+arr.map(o=>cell(o.n,o.v)).join('')+'</tr>';
  });
- tv.innerHTML='<div style="color:var(--muted);font-size:13px;margin-bottom:8px">'+cap+'</div><div style="overflow-x:auto"><table style="border-collapse:collapse;background:var(--card)">'+head+body+'</table></div>';
+ tv.innerHTML='<div style="color:var(--muted);font-size:13px;margin-bottom:8px">'+cap+' · <span style="color:var(--amber)">≈</span> = 과거 실현손익 기준 근사 복원(미실현 제외)</div><div style="overflow-x:auto"><table style="border-collapse:collapse;background:var(--card)">'+head+body+'</table></div>';
 }
 const elapsed=ps=>{if(!ps)return'—';const t0=new Date(ps.replace(' ','T'));
  const m=Math.floor((Date.now()-t0.getTime())/60000);if(isNaN(m)||m<0)return'—';
