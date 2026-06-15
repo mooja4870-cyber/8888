@@ -1,3 +1,6 @@
 app.log
 nohup.out
 .DS_Store
+
+snapshots.json
+snapshots.json.tmp

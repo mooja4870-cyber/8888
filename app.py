@@ -411,6 +411,56 @@ def collect():
     return {"summary": summary, "bots": bots, "stale_min": STALE_MIN}
 
 
+# ── 시간별 스냅샷 기록 (매시 :00·:30, 봇별 일평균수익률 누적) ──────────────
+SNAP_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "snapshots.json")
+SNAP_KEEP = 48          # 최근 48행(=30분×48=24시간) 보관
+SNAP_LOCK = threading.Lock()
+
+
+def load_snapshots():
+    try:
+        with open(SNAP_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return []
+
+
+def record_snapshot():
+    """현재 봇별 일평균수익률을 1행 스냅샷으로 누적(최근 SNAP_KEEP행 유지)."""
+    data = collect()
+    ts = time.strftime("%Y-%m-%d %H:%M")
+    row = {"ts": ts, "t": time.strftime("%H:%M"),
+           "bots": {b["name"]: b.get("daily_ret") for b in data["bots"]}}
+    with SNAP_LOCK:
+        snaps = load_snapshots()
+        if snaps and snaps[-1].get("ts") == ts:      # 같은 분 중복 → 대체
+            snaps[-1] = row
+        else:
+            snaps.append(row)
+        snaps = snaps[-SNAP_KEEP:]
+        tmp = SNAP_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(snaps, f, ensure_ascii=False)
+        os.replace(tmp, SNAP_PATH)
+    return row
+
+
+def snapshot_loop():
+    try:
+        record_snapshot()        # 기동 즉시 1행 시드
+    except Exception:
+        pass
+    while True:
+        lt = time.localtime()
+        sec_into = lt.tm_min * 60 + lt.tm_sec
+        wait = 1800 - (sec_into % 1800)   # 다음 :00/:30 경계까지(초)
+        time.sleep(wait if wait > 0 else 1800)
+        try:
+            record_snapshot()
+        except Exception:
+            pass
+
+
 # dashboard.html은 요청마다 새로 읽는다(파일 수정 시 서버 재시작 없이 반영)
 HTML_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard.html")
 
@@ -419,6 +469,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith("/api/status"):
             body = json.dumps(collect(), ensure_ascii=False).encode()
+            ctype = "application/json; charset=utf-8"
+        elif self.path.startswith("/api/snapshots"):
+            body = json.dumps(load_snapshots(), ensure_ascii=False).encode()
             ctype = "application/json; charset=utf-8"
         elif self.path == "/" or self.path.startswith("/index"):
             with open(HTML_PATH, encoding="utf-8") as f:
@@ -440,5 +493,6 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     threading.Thread(target=exchange_loop, daemon=True).start()
+    threading.Thread(target=snapshot_loop, daemon=True).start()
     print(f"8888 통합 관제 대시보드: http://localhost:{PORT}")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()

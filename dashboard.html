@@ -11,7 +11,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,"Apple SD 
 header{display:flex;align-items:baseline;gap:12px;margin-bottom:18px}
 h1{font-size:20px;font-weight:600}
 #updated{font-size:12px;color:var(--muted);margin-left:10px}
-#sortby,#layout{background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:12px;padding:3px 6px;cursor:pointer}
+#sortby,#layout,#viewmode{background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:12px;padding:3px 6px;cursor:pointer}
+#viewmode{margin-left:10px;font-weight:600}
 #layout{margin-left:auto}
 #sortby{margin-left:6px}
 .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
@@ -63,7 +64,7 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
 </style>
 </head>
 <body>
-<header><h1>봇 통합 관제</h1><span style="font-size:12px;color:var(--muted)">수익 <span style="color:var(--profit)">빨강</span> · 손실 <span style="color:var(--loss)">파랑</span></span><select id="layout" onchange="if(_lastData)render(_lastData,true)" title="배치 형태"><option value="pyramid">피라미드(1·2·3·4)</option><option value="five" selected>5개씩(2줄)</option></select><select id="sortby" onchange="if(_lastData)render(_lastData,true)" title="정렬 기준(내림차순)"><option value="daily_ret">일평균 수익률</option><option value="cum_ret">누적 수익률</option><option value="ex_balance">총 잔고</option><option value="since_orders">누적 주문수</option><option value="orders_today">당일 주문수</option><option value="elapsed">초기화 후 경과</option><option value="name">봇 번호 순</option></select><span id="updated">불러오는 중…</span></header>
+<header><h1>봇 통합 관제</h1><span style="font-size:12px;color:var(--muted)">수익 <span style="color:var(--profit)">빨강</span> · 손실 <span style="color:var(--loss)">파랑</span></span><select id="viewmode" onchange="applyView()" title="화면 모드"><option value="base" selected>기본화면</option><option value="rank">시간별 수익율 순</option><option value="name">시간별 봇 이름 순</option></select><select id="layout" onchange="if(_lastData)render(_lastData,true)" title="배치 형태"><option value="pyramid">피라미드(1·2·3·4)</option><option value="five" selected>5개씩(2줄)</option></select><select id="sortby" onchange="if(_lastData)render(_lastData,true)" title="정렬 기준(내림차순)"><option value="daily_ret">일평균 수익률</option><option value="cum_ret">누적 수익률</option><option value="ex_balance">총 잔고</option><option value="since_orders">누적 주문수</option><option value="orders_today">당일 주문수</option><option value="elapsed">초기화 후 경과</option><option value="name">봇 번호 순</option></select><span id="updated">불러오는 중…</span></header>
 <div class="summary" id="summary"></div>
 <div class="legend">
 <span><span class="dot" style="background:var(--green)"></span>정상</span>
@@ -72,12 +73,47 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
 <span style="margin-left:auto">카드 클릭 → 해당 봇 대시보드 열기</span>
 </div>
 <div class="cards" id="cards"></div>
+<div id="timeview" style="display:none;margin-bottom:22px"></div>
 <h2>매매기법 비교</h2>
 <div id="comparisonTable" style="overflow-x:auto;margin-bottom:22px"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 let chart=null;
 let _lastData=null;
+// 좌측 아코디언: 기본화면 ↔ 시간별(수익율순/봇이름순). 시간별은 /api/snapshots(매시 :00·:30 누적) 표.
+function applyView(){
+ const mode=(document.getElementById('viewmode')||{}).value||'base';
+ const isBase=mode==='base';
+ const cw=document.getElementById('cards'); if(cw)cw.style.display=isBase?'':'none';
+ const tv=document.getElementById('timeview'); if(tv)tv.style.display=isBase?'none':'';
+ // 배치/정렬은 기본화면에서만 의미 → 시간별에선 숨김
+ const ly=document.getElementById('layout'); if(ly)ly.style.display=isBase?'':'none';
+ const sb=document.getElementById('sortby'); if(sb)sb.style.display=isBase?'':'none';
+ if(!isBase)renderTimeView(mode);
+}
+async function renderTimeView(mode){
+ const tv=document.getElementById('timeview'); if(!tv)return;
+ let snaps=[];
+ try{const r=await fetch('/api/snapshots',{cache:'no-store'});if(r.ok)snaps=await r.json();}catch(e){}
+ if(!snaps.length){tv.innerHTML='<div style="color:var(--muted);padding:16px 4px">아직 기록된 스냅샷이 없습니다 — 매시 :00·:30에 누적됩니다.</div>';return;}
+ const names=[...new Set(snaps.flatMap(s=>Object.keys(s.bots||{})))].sort((a,b)=>(+a)-(+b)); // 봇 오름차순 고정
+ const cap=mode==='rank'
+  ?'각 시각마다 일일평균수익률 높은 봇이 맨 왼쪽 → 오른쪽 내림차순 · 셀 = 봇명+일일평균수익률'
+  :'봇 순서 8401·8402…8501 고정 · 셀 = 봇명+일일평균수익률';
+ const cell=(n,v)=>{const col=(v==null)?'var(--muted)':(v>=0?'var(--profit)':'var(--loss)');
+  const txt=(v==null)?'—':((v>0?'+':'')+v.toFixed(2)+'%');
+  return '<td style="border:1px solid var(--border);padding:4px 6px;text-align:center"><div style="font-weight:600;font-size:13px">'+n+'</div><div style="font-size:12px;color:'+col+'">'+txt+'</div></td>';};
+ let head='<tr><th style="border:1px solid var(--border);padding:4px 8px;color:var(--muted);font-size:12px;font-weight:500;position:sticky;left:0;background:var(--card)">시각</th>';
+ for(let c=0;c<names.length;c++)head+='<th style="border:1px solid var(--border);padding:4px 6px;color:var(--muted);font-size:12px;font-weight:500">'+(mode==='rank'?(c+1)+'위':'#'+(c+1))+'</th>';
+ head+='</tr>';
+ let body='';
+ [...snaps].reverse().forEach(s=>{   // 최신이 맨 위
+  let arr=names.map(n=>({n,v:(s.bots&&s.bots[n]!=null)?s.bots[n]:null}));
+  if(mode==='rank')arr=arr.slice().sort((a,b)=>((b.v==null?-1e9:b.v)-(a.v==null?-1e9:a.v)));
+  body+='<tr><td style="border:1px solid var(--border);padding:4px 8px;font-family:ui-monospace,monospace;font-size:12px;color:var(--muted);white-space:nowrap;position:sticky;left:0;background:var(--card)">'+(s.t||s.ts||'—')+'</td>'+arr.map(o=>cell(o.n,o.v)).join('')+'</tr>';
+ });
+ tv.innerHTML='<div style="color:var(--muted);font-size:13px;margin-bottom:8px">'+cap+'</div><div style="overflow-x:auto"><table style="border-collapse:collapse;background:var(--card)">'+head+body+'</table></div>';
+}
 const elapsed=ps=>{if(!ps)return'—';const t0=new Date(ps.replace(' ','T'));
  const m=Math.floor((Date.now()-t0.getTime())/60000);if(isNaN(m)||m<0)return'—';
  return Math.floor(m/1440)+'일 '+Math.floor(m%1440/60)+'시간 '+(m%60)+'분'};
@@ -162,6 +198,7 @@ function render(d,anim){
    <td style="padding:8px;text-align:center">${b.config.rsi_period}</td><td style="padding:8px;text-align:center">${b.config.strategy}</td>
    <td style="padding:8px;text-align:center">${b.config.max_holding_hours}</td></tr>`).join('')}</tbody></table>`;
  document.getElementById('comparisonTable').innerHTML=compTable;
+ applyView();  // 시간별 모드면 표 갱신, 기본화면이면 카드 표시 유지
  // (v0.8.0에서 손익차트 섹션 제거됨 — 관련 차트 JS도 삭제. 잔존 시 new Chart(null) 예외로 render 크래시→오'끊김')
 }
 let _fails=0;
