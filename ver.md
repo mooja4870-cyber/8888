@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.67 | 2026-06-15 23:20 | '매매기법 비교' 전략 표시 검증·교정 (mooja 검증/조처, config 최우선 결정). read_bot_config 우선순위를 config(STRATEGY_MODE/TYPE) 최우선 → 코드상수 → 보유포지션 태그 → '—'로 변경. 낡은 strategy_override(8402 가격다이버전스·8407 Fabio)·하드코딩맵(8404 Breakout·8406 BoxRange) 제거, code_strategy{8401·8406=TripleIndicator} 신설. 교정결과: 8401 —→TripleIndicator, 8402→CVD+VP, 8405 DualBB→더블BB, 8406 BoxRange→TripleIndicator, 8407 Fabio→Trend, 8409 Breakout(옛포지션)→TTM_Squeeze. 8404는 config·코드 라벨 부재로 '—'(config 기재 필요). 봇 소스 무관(8888만). |
 | v0.9.66 | 2026-06-15 19:18 | 아코디언 '시간별 수익율 순' 항목 삭제 (mooja). #viewmode 옵션 2개로 정리(기본화면/시간별 봇 이름 순). 수익률 순 표는 '봇 이름 순' 모드 우측에 듀얼로 이미 표시돼 정보 손실 없음. renderTimeView는 그대로(name 모드=듀얼표). 봇 무관(8888만). |
 | v0.9.65 | 2026-06-15 19:17 | 시간별 표 0.00% 색 교정 (mooja). cell() 색·부호를 2자리 반올림(rv) 기준으로 판정: rv>0 빨강 / rv<0 파랑 / rv==0(0.00%) 회색(중립). 기존 v>=0이라 0.00%가 빨강이던 문제 해결. 봇 무관(8888만). |
 | v0.9.64 | 2026-06-15 19:16 | 시간별 표 개선 (mooja). ①'봇 이름 순' 모드 우측 공란에 '시간별 일 평균수익률 순' 표를 나란히 표시(buildOne 헬퍼로 좌=봇이름순/우=수익률순 듀얼, flex). '수익율 순' 모드는 단독 유지. ②시각 칸 왼쪽에 날짜 추가(s.ts MM-DD HH:MM). dashboard.html renderTimeView 리팩터, 봇 무관(8888만). |
