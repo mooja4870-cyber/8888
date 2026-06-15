@@ -98,8 +98,9 @@ async function renderTimeView(mode){
  if(!snaps.length){tv.innerHTML='<div style="color:var(--muted);padding:16px 4px">아직 기록된 스냅샷이 없습니다 — 매시 :00·:30에 누적됩니다.</div>';return;}
  const names=[...new Set(snaps.flatMap(s=>Object.keys(s.bots||{})))].sort((a,b)=>(+a)-(+b)); // 봇 오름차순 고정
  const rows=[...snaps].reverse(); // 최신이 맨 위
- const cell=(n,v)=>{const col=(v==null)?'var(--muted)':(v>=0?'var(--profit)':'var(--loss)');
-  const txt=(v==null)?'—':((v>0?'+':'')+v.toFixed(2)+'%');
+ const cell=(n,v)=>{const rv=(v==null)?null:Math.round(v*100)/100;  // 2자리 반올림 기준으로 색·부호 결정
+  const col=(rv==null)?'var(--muted)':(rv>0?'var(--profit)':(rv<0?'var(--loss)':'var(--muted)'));  // 0.00%=회색(중립)
+  const txt=(rv==null)?'—':((rv>0?'+':'')+rv.toFixed(2)+'%');
   return '<td style="border:1px solid var(--border);padding:4px 6px;text-align:center"><div style="font-weight:600;font-size:13px">'+n+'</div><div style="font-size:12px;color:'+col+'">'+txt+'</div></td>';};
  const thS='border:1px solid var(--border);padding:4px 6px;color:var(--muted);font-size:12px;font-weight:500';
  const tdT='border:1px solid var(--border);padding:4px 8px;font-family:ui-monospace,monospace;font-size:12px;color:var(--muted);white-space:nowrap';
