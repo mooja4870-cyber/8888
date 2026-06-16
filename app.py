@@ -189,6 +189,7 @@ def read_bot_config(folder):
     # 봇이 전략을 바꿨으나 config/잔존 포지션이 옛 이름을 가리킬 때 대시보드 표기 교정용(봇 소스 무수정).
     strategy_override = {
         "8402_okx": "가격 다이버전스",
+        "8403_okx": "Dynamic Vol + Symbol",
         "8407_bnc": "Fabio",
     }
     try:
