@@ -74,6 +74,15 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
 </div>
 <div class="cards" id="cards"></div>
 <div id="timeview" style="display:none;margin-bottom:22px"></div>
+<div id="botModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:999;align-items:center;justify-content:center">
+ <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:500px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,0.8)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+   <h3 id="modalTitle" style="font-size:16px;font-weight:600;margin:0"></h3>
+   <button onclick="closeBotModal()" style="background:none;border:none;color:var(--text);cursor:pointer;font-size:24px">×</button>
+  </div>
+  <div id="modalContent" style="display:flex;flex-direction:column;gap:12px"></div>
+ </div>
+</div>
 <h2>매매기법 비교</h2>
 <div id="comparisonTable" style="overflow-x:auto;margin-bottom:22px"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -171,7 +180,7 @@ function render(d,anim){
   const _bc=_holding?_rc:'#e24b4a';   // 무포지션=빨강 테두리, 보유=순위 메달색
   // 입체 테두리: ridge(엠보싱) + 외부 그림자(돌출감) + 내부 상단 하이라이트
   const hi='border:0.8mm ridge '+_bc+';box-shadow:0 4px 11px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.12), inset 0 -2px 4px rgba(0,0,0,.35);animation:'+(_holding?'cardblink 2s ease-in-out infinite':'none')+';';
-  return `<div class="card${b.alive?'':' offline'}" style="${hi}" onclick="window.open('http://localhost:${b.port}','_blank')">
+  return `<div class="card${b.alive?'':' offline'}" style="${hi}" onclick="showBotModal('${b.name}', ${b.port})">
    <div class="head"><span class="dot" style="background:${dot}"></span><span class="name">${b.name}</span>${b.config&&b.config.timeframe?' <span style="font-size:17px;font-weight:600;color:var(--muted)">['+b.config.timeframe+']</span>':''}
    <span class="badge ${b.ex.toLowerCase()}">${b.ex}</span></div>
    <table>
@@ -230,6 +239,98 @@ async function tick(){
  }
 }
 tick();setInterval(tick,5000);
+// ===== 봇 모달 팝업 + 그래프 =====
+let _botGraphChart=null;
+function showBotModal(botName,port){
+ const modal=document.getElementById('botModal');
+ const title=document.getElementById('modalTitle');
+ const content=document.getElementById('modalContent');
+ title.textContent=botName;
+ content.innerHTML=`
+  <button onclick="openBotDashboard(${port})" style="background:var(--green);color:var(--bg);border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600">📊 ${botName} 대시보드로 이동</button>
+  <button onclick="showBotGraph('${botName}')" style="background:var(--card2);color:var(--text);border:1px solid var(--border);padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600">📈 수익률 그래프 보기</button>
+ `;
+ modal.style.display='flex';
+}
+function closeBotModal(){
+ const modal=document.getElementById('botModal');
+ modal.style.display='none';
+ if(_botGraphChart){_botGraphChart.destroy();_botGraphChart=null;}
+}
+function openBotDashboard(port){
+ window.open('http://localhost:'+port,'_blank');
+ closeBotModal();
+}
+async function showBotGraph(botName){
+ const content=document.getElementById('modalContent');
+ content.innerHTML=`
+  <div style="display:flex;gap:10px;margin-bottom:12px">
+   <label style="font-size:12px;color:var(--muted)">시간 범위:</label>
+   <select id="timeRangeSelect" onchange="updateBotGraph('${botName}')" style="background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">
+    <option value="12h">최근 12시간</option>
+    <option value="24h">24시간</option>
+    <option value="48h">48시간</option>
+    <option value="72h">72시간</option>
+    <option value="7d" selected>7일</option>
+    <option value="15d">15일</option>
+    <option value="1m">1개월</option>
+   </select>
+  </div>
+  <canvas id="botGraphCanvas" style="max-height:300px"></canvas>
+ `;
+ updateBotGraph(botName);
+}
+async function updateBotGraph(botName){
+ try{
+  const r=await fetch('/api/snapshots',{cache:'no-store'});
+  if(!r.ok) throw new Error('Snapshots fetch failed');
+  const snaps=await r.json();
+  const range=document.getElementById('timeRangeSelect').value;
+  const now=new Date();
+  const mins={'12h':720,'24h':1440,'48h':2880,'72h':4320,'7d':10080,'15d':21600,'1m':43200}[range]||10080;
+  const cutoff=new Date(now-mins*60000);
+  const data=snaps
+   .filter(s=>new Date(s.ts)>=cutoff)
+   .map(s=>({ts:s.ts.slice(5),val:(s.bots[botName]?.daily_ret??0).toFixed(2)}));
+  if(!data.length){
+   document.getElementById('botGraphCanvas').parentElement.innerHTML='<div style="color:var(--muted);padding:20px;text-align:center">해당 기간에 데이터가 없습니다.</div>';
+   return;
+  }
+  const ctx=document.getElementById('botGraphCanvas').getContext('2d');
+  if(_botGraphChart)_botGraphChart.destroy();
+  _botGraphChart=new Chart(ctx,{
+   type:'line',
+   data:{
+    labels:data.map(d=>d.ts),
+    datasets:[{
+     label:'일평균 수익률 (%)',
+     data:data.map(d=>d.val),
+     borderColor:'var(--green)',
+     backgroundColor:'rgba(45,189,133,0.1)',
+     tension:0.4,
+     fill:true,
+     pointRadius:2,
+     pointBackgroundColor:'var(--green)',
+     pointBorderWidth:0
+    }]
+   },
+   options:{
+    responsive:true,
+    maintainAspectRatio:true,
+    plugins:{legend:{display:true,labels:{color:'var(--text)',font:{size:11}}}},
+    scales:{
+     y:{ticks:{color:'var(--muted)',font:{size:10}},grid:{color:'var(--border)',drawBorder:false}},
+     x:{ticks:{color:'var(--muted)',font:{size:9}},grid:{display:false}}
+    }
+   }
+  });
+ }catch(e){
+  console.error('Graph error:',e);
+  document.getElementById('botGraphCanvas').parentElement.innerHTML='<div style="color:var(--red-dot);padding:20px;text-align:center">그래프 로드 실패: '+e.message+'</div>';
+ }
+}
+window.addEventListener('keydown',e=>{if(e.key==='Escape')closeBotModal();});
+document.getElementById('botModal').addEventListener('click',e=>{if(e.target.id==='botModal')closeBotModal();});
 </script>
 </body>
 </html>
