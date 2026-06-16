@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.83 | 2026-06-16 23:39 | 8403 전략 표시 추가 (mooja 지시). app.py read_bot_config() strategy_override에 '8403_okx': 'Dynamic Vol + Symbol' 추가 → 매매기법 비교 표에 8403 전략 표시. 8888만. |
 | v0.9.82 | 2026-06-16 21:50 | 헤더·요약 메트릭 sticky 고정 (mooja 갓잇). header + .summary를 position:sticky로 설정 → 스크롤해도 제목·드롭다운·총자산·수익률·가동중 메트릭이 화면 상단 고정. header top:0 z-index:100, .summary top:49px z-index:99로 위아래 순서 유지, background:var(--bg) + border-bottom으로 카드 오버래핑 방지. 8888만. |
 | v0.9.81 | 2026-06-16 21:50 | 시간별 테이블 첫 열 조건부 표시 (mooja 갓잇 승인). buildOne(ord) 함수 수정: ord==='name'(봇이름순)일 때 첫 열='총자산'(s.total_assets), ord==='rank'(수익률순)일 때='날짜·시각'(s.ts). 이름순/수익률순 듀얼테이블이 각각 다른 정보 추적 가능. 8888만. |
 | v0.9.80 | 2026-06-16 21:49 | 시간별 테이블 첫 열 복원 — '총 자산' → '날짜·시각' (mooja 지시). v0.9.79 재수정: 첫 열 헤더/셀값 원상복구, snapshots.json의 total_assets 필드는 유지(향후 용도). 8888만. |
