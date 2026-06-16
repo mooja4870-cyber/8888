@@ -116,15 +116,21 @@ async function renderTimeView(mode){
  // ord='rank'(일평균수익률순) | 'name'(봇이름순). 시각칸엔 날짜(MM-DD) 포함.
  function buildOne(ord){
   const title=ord==='rank'?'시간별 일 평균수익률 순':'시간별 봇 이름 순';
-  let head='<tr><th style="'+thS+'">날짜·시각</th>';
+  let head='<tr><th style="'+thS+'">'+(ord==='name'?'총 자산':'날짜·시각')+'</th>';
   for(let c=0;c<names.length;c++)head+='<th style="'+thS+'">'+(ord==='rank'?(c+1)+'위':'#'+(c+1))+'</th>';
   head+='</tr>';
   let body='';
   rows.forEach(s=>{
    let arr=names.map(n=>({n,v:(s.bots&&s.bots[n]!=null)?s.bots[n]:null}));
    if(ord==='rank')arr=arr.slice().sort((a,b)=>((b.v==null?-1e9:b.v)-(a.v==null?-1e9:a.v)));
-   const dt=(s.ts?s.ts.slice(5):(s.t||'—'));  // 'MM-DD HH:MM'
-   const tlab=dt+(s.approx?' <span title="과거 실현손익 기준 근사 복원" style="color:var(--amber)">≈</span>':'');
+   let tlab;
+   if(ord==='name'){
+    tlab=(s.total_assets!=null)?s.total_assets.toFixed(2)+' USDT':'—';
+   }else{
+    const dt=(s.ts?s.ts.slice(5):(s.t||'—'));
+    tlab=dt;
+   }
+   tlab=tlab+(s.approx?' <span title="과거 실현손익 기준 근사 복원" style="color:var(--amber)">≈</span>':'');
    body+='<tr style="'+(s.approx?'opacity:.82':'')+'"><td style="'+tdT+'">'+tlab+'</td>'+arr.map(o=>cell(o.n,o.v)).join('')+'</tr>';
   });
   return '<div><div style="font-weight:600;font-size:13px;margin-bottom:6px">'+title+'</div>'
