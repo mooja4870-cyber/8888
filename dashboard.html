@@ -74,13 +74,13 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
 </div>
 <div class="cards" id="cards"></div>
 <div id="timeview" style="display:none;margin-bottom:22px"></div>
-<div id="botModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:999;align-items:center;justify-content:center">
- <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:500px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,0.8)">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-   <h3 id="modalTitle" style="font-size:16px;font-weight:600;margin:0"></h3>
-   <button onclick="closeBotModal()" style="background:none;border:none;color:var(--text);cursor:pointer;font-size:24px">×</button>
+<div id="botModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:999;align-items:center;justify-content:center;padding:20px">
+ <div style="background:#1a1a1a;border:0.1mm solid #1a1a1a;border-radius:18px;padding:32px;max-width:900px;max-height:85vh;overflow:auto;box-shadow:0 20px 100px rgba(45,189,133,0.5)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+   <h3 id="modalTitle" style="font-size:18px;font-weight:700;margin:0;color:var(--green)"></h3>
+   <button onclick="closeBotModal()" style="background:none;border:none;color:var(--text);cursor:pointer;font-size:28px;opacity:0.6;hover:opacity:1">×</button>
   </div>
-  <div id="modalContent" style="display:flex;flex-direction:column;gap:12px"></div>
+  <div id="modalContent" style="display:flex;flex-direction:column;gap:16px"></div>
  </div>
 </div>
 <h2>매매기법 비교</h2>
@@ -116,15 +116,15 @@ async function renderTimeView(mode){
  // ord='rank'(일평균수익률순) | 'name'(봇이름순). 시각칸엔 날짜(MM-DD) 포함.
  function buildOne(ord){
   const title=ord==='rank'?'시간별 일 평균수익률 순':'시간별 봇 이름 순';
-  let head='<tr><th style="'+thS+'">날짜·시각</th>';
+  let head='<tr><th style="'+thS+'">총 자산</th>';
   for(let c=0;c<names.length;c++)head+='<th style="'+thS+'">'+(ord==='rank'?(c+1)+'위':'#'+(c+1))+'</th>';
   head+='</tr>';
   let body='';
   rows.forEach(s=>{
    let arr=names.map(n=>({n,v:(s.bots&&s.bots[n]!=null)?s.bots[n]:null}));
    if(ord==='rank')arr=arr.slice().sort((a,b)=>((b.v==null?-1e9:b.v)-(a.v==null?-1e9:a.v)));
-   const dt=(s.ts?s.ts.slice(5):(s.t||'—'));  // 'MM-DD HH:MM'
-   const tlab=dt+(s.approx?' <span title="과거 실현손익 기준 근사 복원" style="color:var(--amber)">≈</span>':'');
+   const ta=(s.total_assets!=null)?s.total_assets.toFixed(2)+' USDT':'—';
+   const tlab=ta+(s.approx?' <span title="과거 실현손익 기준 근사 복원" style="color:var(--amber)">≈</span>':'');
    body+='<tr style="'+(s.approx?'opacity:.82':'')+'"><td style="'+tdT+'">'+tlab+'</td>'+arr.map(o=>cell(o.n,o.v)).join('')+'</tr>';
   });
   return '<div><div style="font-weight:600;font-size:13px;margin-bottom:6px">'+title+'</div>'
@@ -247,8 +247,8 @@ function showBotModal(botName,port){
  const content=document.getElementById('modalContent');
  title.textContent=botName;
  content.innerHTML=`
-  <button onclick="openBotDashboard(${port})" style="background:var(--green);color:var(--bg);border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600">📊 ${botName} 대시보드로 이동</button>
-  <button onclick="showBotGraph('${botName}')" style="background:var(--card2);color:var(--text);border:1px solid var(--border);padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600">📈 수익률 그래프 보기</button>
+  <button onclick="openBotDashboard(${port})" style="background:#2dbd85;color:#000;border:none;padding:16px 24px;border-radius:10px;cursor:pointer;font-weight:700;font-size:16px;width:100%;transition:background 0.2s">📊 ${botName} 대시보드로 이동</button>
+  <button onclick="showBotGraph('${botName}')" style="background:#1e40af;color:#fff;border:none;padding:16px 24px;border-radius:10px;cursor:pointer;font-weight:700;font-size:16px;width:100%;transition:all 0.2s">📈 수익률 그래프 보기</button>
  `;
  modal.style.display='flex';
 }
@@ -264,9 +264,9 @@ function openBotDashboard(port){
 async function showBotGraph(botName){
  const content=document.getElementById('modalContent');
  content.innerHTML=`
-  <div style="display:flex;gap:10px;margin-bottom:12px">
-   <label style="font-size:12px;color:var(--muted)">시간 범위:</label>
-   <select id="timeRangeSelect" onchange="updateBotGraph('${botName}')" style="background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">
+  <div style="display:flex;gap:12px;align-items:center;margin-bottom:20px">
+   <label style="font-size:16px;font-weight:700;color:#2dbd85">📊 시간 범위:</label>
+   <select id="timeRangeSelect" onchange="updateBotGraph('${botName}')" style="background:#1e40af;color:#fff;border:2px solid #2dbd85;border-radius:10px;padding:10px 16px;cursor:pointer;font-size:15px;font-weight:600">
     <option value="12h">최근 12시간</option>
     <option value="24h">24시간</option>
     <option value="48h">48시간</option>
@@ -276,7 +276,9 @@ async function showBotGraph(botName){
     <option value="1m">1개월</option>
    </select>
   </div>
-  <canvas id="botGraphCanvas" style="max-height:300px"></canvas>
+  <div style="background:#1a202c;border:2px solid #2dbd85;border-radius:12px;padding:16px">
+   <canvas id="botGraphCanvas" style="width:100%;max-height:930px;display:block"></canvas>
+  </div>
  `;
  updateBotGraph(botName);
 }
@@ -291,13 +293,18 @@ async function updateBotGraph(botName){
   const cutoff=new Date(now-mins*60000);
   const data=snaps
    .filter(s=>new Date(s.ts)>=cutoff)
-   .map(s=>({ts:s.ts.slice(5),val:(s.bots[botName]?.daily_ret??0).toFixed(2)}));
+   .map(s=>({ts:s.ts.slice(5),val:parseFloat((s.bots[botName]??0).toFixed(2))}));
   if(!data.length){
-   document.getElementById('botGraphCanvas').parentElement.innerHTML='<div style="color:var(--muted);padding:20px;text-align:center">해당 기간에 데이터가 없습니다.</div>';
+   document.getElementById('botGraphCanvas').parentElement.innerHTML='<div style="color:#fff;padding:40px;text-align:center;font-size:16px">해당 기간에 데이터가 없습니다</div>';
    return;
   }
-  const ctx=document.getElementById('botGraphCanvas').getContext('2d');
-  if(_botGraphChart)_botGraphChart.destroy();
+  const canvas=document.getElementById('botGraphCanvas');
+  if(!canvas) throw new Error('Canvas not found');
+  const ctx=canvas.getContext('2d');
+  if(_botGraphChart){
+   _botGraphChart.destroy();
+   _botGraphChart=null;
+  }
   _botGraphChart=new Chart(ctx,{
    type:'line',
    data:{
@@ -305,28 +312,42 @@ async function updateBotGraph(botName){
     datasets:[{
      label:'일평균 수익률 (%)',
      data:data.map(d=>d.val),
-     borderColor:'var(--green)',
-     backgroundColor:'rgba(45,189,133,0.1)',
-     tension:0.4,
+     borderColor:'#2dbd85',
+     backgroundColor:'rgba(45,189,133,0.15)',
+     tension:0.3,
      fill:true,
-     pointRadius:2,
-     pointBackgroundColor:'var(--green)',
-     pointBorderWidth:0
+     pointRadius:3,
+     pointBackgroundColor:'#2dbd85',
+     pointBorderColor:'#fff',
+     pointBorderWidth:1,
+     borderWidth:3
     }]
    },
    options:{
     responsive:true,
-    maintainAspectRatio:true,
-    plugins:{legend:{display:true,labels:{color:'var(--text)',font:{size:11}}}},
+    maintainAspectRatio:false,
+    plugins:{
+     tooltip:{enabled:true,backgroundColor:'rgba(0,0,0,0.9)',titleColor:'#2dbd85',bodyColor:'#2dbd85',borderColor:'#2dbd85',borderWidth:2,padding:12,displayColors:false,callbacks:{title:function(t){return t[0].label;},label:function(c){return '일평균 수익률: '+c.parsed.y.toFixed(2)+'%';}}},
+     legend:{display:true,labels:{color:'#fff',font:{size:14,weight:'bold'},padding:20}},
+     filler:{propagate:true}
+    },
     scales:{
-     y:{ticks:{color:'var(--muted)',font:{size:10}},grid:{color:'var(--border)',drawBorder:false}},
-     x:{ticks:{color:'var(--muted)',font:{size:9}},grid:{display:false}}
+     y:{
+      ticks:{color:'#888',font:{size:12,weight:'600'}},
+      grid:{color:'#3a4555',drawBorder:false,lineWidth:1},
+      beginAtZero:false
+     },
+     x:{
+      ticks:{color:'#888',font:{size:11}},
+      grid:{display:false,drawBorder:false}
+     }
     }
    }
   });
  }catch(e){
   console.error('Graph error:',e);
-  document.getElementById('botGraphCanvas').parentElement.innerHTML='<div style="color:var(--red-dot);padding:20px;text-align:center">그래프 로드 실패: '+e.message+'</div>';
+  const wrap=document.getElementById('botGraphCanvas').parentElement;
+  wrap.innerHTML='<div style="color:#ff6b6b;padding:40px;text-align:center;font-size:16px;line-height:1.6">그래프 로드 실패<br><small style="font-size:13px">'+e.message+'</small></div>';
  }
 }
 window.addEventListener('keydown',e=>{if(e.key==='Escape')closeBotModal();});

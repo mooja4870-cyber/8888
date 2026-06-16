@@ -454,10 +454,11 @@ def load_snapshots():
 
 
 def record_snapshot():
-    """현재 봇별 일평균수익률을 1행 스냅샷으로 누적(최근 SNAP_KEEP행 유지)."""
+    """현재 봇별 일평균수익률을 1행 스냅샷으로 누적(최근 SNAP_KEEP행 유지). total_assets 포함."""
     data = collect()
     ts = time.strftime("%Y-%m-%d %H:%M")
     row = {"ts": ts, "t": time.strftime("%H:%M"),
+           "total_assets": data["summary"]["assets"],
            "bots": {b["name"]: b.get("daily_ret") for b in data["bots"]}}
     with SNAP_LOCK:
         snaps = load_snapshots()
