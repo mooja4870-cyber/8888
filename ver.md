@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.106 | 2026-06-17 16:51 | 자산·BTC 그래프 모달 화면 가득 채우기 (mooja). dashboard.html assetModal 내부 박스 width:1100px→97vw, height 94vh로 확대 + flex column 레이아웃, 캔버스 래퍼 height:62vh→flex:1(min-height:0)로 남은 공간 전부 차지(maintainAspectRatio:false라 차트가 컨테이너 가득 채움). node --check 통과. 8888만. |
 | v0.9.105 | 2026-06-17 15:47 | [긴급수정] v0.9.104 자산차트 JS 닫는 괄호 1개 초과 → 전체 스크립트 파싱 실패로 대시보드 멈춤(render 미실행) 핫픽스 (mooja '강력새로고침하니 앱 뻗음'). dashboard.html 492줄 new Chart() 종료 '});' → ');' (options·config는 491줄서 이미 닫힘, 마지막은 paren만). node --check로 문법 검증 통과. dashboard.html은 요청마다 재로드라 서버 재기동 불필요. 8888만. |
 | v0.9.104 | 2026-06-17 15:33 | [B안] '총 자산' 클릭 → BTC가격·총자산 추이 그래프 모달 + 봉 선택 (mooja B안 채택). app.py: ①asset_history.json(별도파일, 기존 snapshots 무영향) 1분 기록 asset_loop(7일 보관, 기동시 30분스냅샷으로 시드 백필, 거래소 워밍업 30초 대기로 폴백값 방지) ②fetch_btc_ohlcv() 공개 ccxt(binance, 키 불필요) BTC/USDT 종가 캔들 30초 캐시 ③/api/assetchart?tf= 엔드포인트(BTC선+총자산막대 동일시간축 정렬, 전방채움). dashboard.html: 총자산 메트릭 클릭가능(📈)→assetModal(Chart.js 복합: 막대=총자산 좌축/꺾은선=BTC 우축)+봉 아코디언(1분·5분·15분·1시간·일·월봉). 검증: 6봉 전부 BTC 60캔들 정상(1M봉 $16.5K~$115.8K 전이력), 총자산막대는 보유데이터만큼(1h 17개·1d 2개, 경과시 누적). asset_history gitignore. 8888만. |
 | v0.9.103 | 2026-06-17 14:31 | [개선3단계] 봇 카드 최상단에 'Expectancy' 강조 행 추가 (mooja, 최강 예측지표 강조). dashboard.html 카드 테이블 총잔고 위에 ⭐Expectancy 행(거래당 평균손익, 양수빨강·음수파랑, font 150% bold, 어두운 배경#11151c+하단보더로 강조), title 툴팁. app.py 무수정(expectancy 기제공). 8888만. |
