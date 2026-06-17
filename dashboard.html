@@ -489,7 +489,7 @@ async function loadAssetChart(tf){
      tooltip:{backgroundColor:'rgba(0,0,0,0.85)',titleColor:'#2dbd85',bodyColor:'#fff',borderColor:'#2dbd85',borderWidth:1,padding:10,
       callbacks:{label:c=>{const v=c.parsed.y;if(v==null)return c.dataset.label+': —';return c.dataset.label+': '+(c.dataset.yAxisID==='yB'?'$'+v.toLocaleString():v.toFixed(2)+' U')}}}}
    }}
-  });
+  );
  }catch(e){
   console.error('asset chart error',e);
   document.getElementById('assetFrom').textContent='그래프 로드 실패: '+e.message;
