@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.101 | 2026-06-17 14:29 | [개선1단계] "봇 효율 지표"에 '누적 승률' 행 추가 (mooja, 평균손익비 맹점 보완). dashboard.html effRows: 평균손익비 아래에 since_w/since_l 기반 승률 행(50%↑녹/미만 빨강, 'NN.N% (xW/yL)'). 중딩용 _wrTip 툴팁(8406 사례 명시). app.py 무수정. 검증: 8406 47W/26L=64.4%(손익비 0.74x인데 고승률→PF 1.33 양수 입증). 8888만. |
 | v0.9.100 | 2026-06-17 14:20 | "봇 효율 지표"·"최대 낙폭" 표에 '일 평균 수익률' 행 추가 (mooja 승인). dashboard.html: effRows에 Expectancy 아래·ddRows에 최대낙폭(누적) 아래 daily_ret 행 추가(수익빨강/손실파랑/0회색, 부호+소수1자리%). effTable 라벨 렌더에 툴팁 조건부(tp 있을때만 ℹ). app.py 무수정(daily_ret 기제공). 8888만. |
 | v0.9.99 | 2026-06-17 14:06 | "봇 효율 지표"·"최대 낙폭" 표 세로 스크롤바 제거 (mooja 승인). 원인: 컨테이너 overflow-x:auto → CSS 규칙상 overflow-y가 auto로 계산돼 미세 넘침에 세로 스크롤바 생성. 수정: #efficiencyTable·#drawdownTable의 overflow-x:auto → overflow:visible. 부수효과: 툴팁(ℹ) 잘림 없이 온전히 표시. 8888만. |
 | v0.9.98 | 2026-06-17 13:58 | [2·3단계] "최대 낙폭(Drawdown)" + "시간대별 성과 히트맵" 섹션 신설 — TradeZella KPI 완결 (mooja '끝까지 진행'). ②app.py drawdown_metrics(): 실현손익 equity curve로 당일/누적 최대낙폭(seed 대비 %) 산출, collect()에서 당일낙폭 -10%↓ 위험·-5%↓ 주의 분류(dd_danger/dd_warn). dashboard: ddBanner 경고배너(위험빨강/주의앰버/안전녹색)+2행 표(-10%↓빨강). ③app.py heatmap_grid(): 최근7일 청산손익을 요일×6시간4구간 집계, collect()서 전봇 합산. dashboard: 4×7 히트맵(수익빨강/손실파랑, 절대값 비례 농도). 둘 다 중딩용 친절 툴팁. 검증: 8405 당일-10.74%위험·8408 -7.15%주의 배너, 히트맵 일12-18시+3.81 강세 정상. 8888만. |
