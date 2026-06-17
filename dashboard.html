@@ -96,6 +96,17 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
   <div style="position:relative;flex:1;min-height:0"><canvas id="assetChartCanvas"></canvas></div>
  </div>
 </div>
+<div id="retModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:999;align-items:center;justify-content:center;padding:20px">
+ <div style="background:#1a1a1a;border:0.1mm solid #1a1a1a;border-radius:18px;padding:24px;width:72vw;height:78vh;max-width:72vw;max-height:78vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 100px rgba(45,189,133,0.5)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+   <h3 style="font-size:18px;font-weight:700;margin:0;color:var(--green)">📊 일평균수익률 · BTC 가격 추이</h3>
+   <button onclick="closeRetModal()" style="background:none;border:none;color:var(--text);cursor:pointer;font-size:28px;opacity:0.6">×</button>
+  </div>
+  <div id="retTfBar" style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap"></div>
+  <div style="font-size:12px;color:var(--muted);margin-bottom:14px"><span style="display:inline-block;width:11px;height:11px;background:var(--profit);border-radius:2px;vertical-align:-1px"></span> 막대 = 일평균수익률(%, 좌축) <span style="color:var(--profit)">이익</span>/<span style="color:var(--loss)">손실</span> &nbsp;·&nbsp; <span style="display:inline-block;width:14px;height:3px;background:#e8eaf0;vertical-align:3px"></span> 꺾은선 = BTC 가격($, 우축) &nbsp;·&nbsp; <span id="retFrom"></span></div>
+  <div style="position:relative;flex:1;min-height:0"><canvas id="retChartCanvas"></canvas></div>
+ </div>
+</div>
 <h2>기간별 내 진입 수</h2>
 <div id="entryCountTable" style="overflow-x:auto;margin-bottom:22px"></div>
 <h2>봇 효율 지표 <span style="font-size:12px;color:var(--muted);font-weight:400">(Profit Factor · 평균손익비 · Expectancy)</span></h2>
@@ -201,7 +212,7 @@ function render(d,anim){
  document.getElementById('summary').innerHTML=`
   <div class="metric" onclick="openAssetModal()" style="cursor:pointer" title="클릭 → 총자산·BTC 추이 그래프"><div class="lbl">📈 총 자산 <span style="font-weight:400;color:var(--muted)">(현재 총잔고 합산)</span>${tip('Σ(각 봇 거래소 실시간 총잔고). 거래소 조회 실패 봇은 초기화잔고+실현손익으로 추정.<br>현재 합산: '+f2(s.assets)+' USDT<br><b>클릭하면 BTC 가격·총자산 추이 그래프</b>')}</div><div class="val">${s.assets===null?'—':s.assets.toFixed(2)} <span style="font-size:13px;color:var(--muted)">USDT</span></div></div>
   <div class="metric"><div class="lbl">누적수익률${tip('(Σ현재 총잔고 − Σ초기화 잔고) ÷ Σ초기화 잔고.<br>기준금(Σseed) '+f2(seedSum)+' → 현재 '+f2(s.assets)+'<br>증감 '+fmt(s.cum_delta,1)+' USDT')}</div><div class="val">${fmt(s.cum_ret,1)}<span style="font-size:13px;color:var(--muted)">%</span></div><div style="font-size:12px;color:var(--muted);margin-top:2px">기준금 대비 ${fmt(s.cum_delta,1)} USDT</div></div>
-  <div class="metric"><div class="lbl">일 평균수익률 <span style="font-weight:400">(${s.days}일)</span>${tip('누적수익률 ÷ 경과일수.<br>경과: '+s.days+'일 (가장 이른 perf_start 기준, 최소 1일)')}</div><div class="val">${fmt(s.daily_ret,1)}<span style="font-size:13px;color:var(--muted)">%/일</span></div></div>
+  <div class="metric" onclick="openRetModal()" style="cursor:pointer" title="클릭 → 일평균수익률·BTC 추이 그래프"><div class="lbl">📊 일 평균수익률 <span style="font-weight:400">(${s.days}일)</span>${tip('누적수익률 ÷ 경과일수.<br>경과: '+s.days+'일 (가장 이른 perf_start 기준, 최소 1일)<br><b>클릭하면 일평균수익률 추이 그래프</b>')}</div><div class="val">${fmt(s.daily_ret,1)}<span style="font-size:13px;color:var(--muted)">%/일</span></div></div>
   <div class="metric"><div class="lbl">가동 중${tip('포트 응답 봇 수 / 전체.<br>🟢 정상 · 🟡 데이터 갱신 지연(60분+) · 🔴 다운<br>'+staleTxt)}</div><div class="val" style="color:${s.alive===s.count?'var(--green)':'var(--red-dot)'}">${s.alive} / ${s.count}<br><span style="color:var(--amber)">(${s.with_positions}/${s.count}${s.no_positions.length > 0 ? ', <span style="font-size:0.77em">' + s.no_positions.join(', ') + '</span>' : ''})</span></div></div>`;
  // '초기화 후 경과' 최장 봇 = perf_start가 가장 이른(작은) 봇 → 연두 테두리 200%(0.4mm) 강조
  let _longestBot=null,_minPs=Infinity;
@@ -540,6 +551,63 @@ async function loadAssetChart(tf){
 }
 window.addEventListener('keydown',e=>{if(e.key==='Escape')closeAssetModal();});
 document.getElementById('assetModal').addEventListener('click',e=>{if(e.target.id==='assetModal')closeAssetModal();});
+// ===== 일평균수익률·BTC 추이 모달 =====
+let _retChart=null, _retTf='5m';
+function openRetModal(){
+ document.getElementById('retModal').style.display='flex';
+ _renderRetTfBar();
+ loadRetChart(_retTf);
+}
+function closeRetModal(){
+ document.getElementById('retModal').style.display='none';
+ if(_retChart){_retChart.destroy();_retChart=null;}
+}
+function _renderRetTfBar(){
+ document.getElementById('retTfBar').innerHTML=_assetTfs.map(([k,lbl])=>
+  '<button onclick="loadRetChart(\''+k+'\')" style="background:'+(k===_retTf?'var(--green)':'var(--card2)')+';color:'+(k===_retTf?'#04342c':'var(--text)')+';border:1px solid var(--border);border-radius:7px;font-size:13px;font-weight:600;padding:6px 14px;cursor:pointer">'+lbl+'</button>'
+ ).join('');
+}
+async function loadRetChart(tf){
+ _retTf=tf;_renderRetTfBar();
+ try{
+  const r=await fetch('/api/assetchart?tf='+tf,{cache:'no-store'});
+  const d=await r.json();
+  const pts=d.points||[];
+  // 기준금·경과일은 현재 요약에서 (seed=assets-cum_delta, days)
+  const sm=(_lastData&&_lastData.summary)||{};
+  const seed=(sm.assets!=null&&sm.cum_delta!=null)?(sm.assets-sm.cum_delta):151;
+  const days=sm.days||1;
+  const CUT=new Date(2026,5,17,22,0,0).getTime();   // 2026-06-17 22:00 입금 경계(+49 보정)
+  const labels=pts.map(p=>_fmtT(p.t,tf));
+  const btc=pts.map(p=>p.btc);
+  const ret=pts.map(p=>{if(p.asset==null)return null;const a=p.asset+(p.t<=CUT?49:0);return +(((a-seed)/seed*100)/days).toFixed(3);});
+  const cols=ret.map(v=>v==null?'rgba(136,136,136,0.4)':(v>0?'rgba(255,90,90,0.85)':(v<0?'rgba(77,159,255,0.85)':'rgba(136,136,136,0.6)')));
+  document.getElementById('retFrom').textContent=d.asset_from?('총자산 기록 시작: '+d.asset_from+'  (기준금 '+seed.toFixed(0)+' · 경과 '+days+'일)'):'';
+  const ctx=document.getElementById('retChartCanvas').getContext('2d');
+  if(_retChart)_retChart.destroy();
+  _retChart=new Chart(ctx,{
+   data:{labels:labels,datasets:[
+    {type:'bar',label:'일평균수익률(%)',data:ret,yAxisID:'yA',backgroundColor:cols,order:2,borderWidth:0},
+    {type:'line',label:'BTC 가격($)',data:btc,yAxisID:'yB',borderColor:'#e8eaf0',borderWidth:2,pointRadius:0,tension:0.25,order:1,spanGaps:true}
+   ]},
+   options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    scales:{
+     yA:{position:'left',grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#9fb0d8'},title:{display:true,text:'일평균수익률(%)',color:'#9fb0d8'}},
+     yB:{position:'right',grid:{display:false},ticks:{color:'#cfcfcf'},title:{display:true,text:'BTC($)',color:'#cfcfcf'}},
+     x:{grid:{display:false},ticks:{color:'#8b93a5',maxTicksLimit:14,autoSkip:true}}
+    },
+    plugins:{legend:{labels:{color:'#e8eaf0',font:{size:13}}},
+     tooltip:{backgroundColor:'rgba(0,0,0,0.85)',titleColor:'#2dbd85',bodyColor:'#fff',borderColor:'#2dbd85',borderWidth:1,padding:10,
+      callbacks:{label:c=>{const v=c.parsed.y;if(v==null)return c.dataset.label+': —';return c.dataset.label+': '+(c.dataset.yAxisID==='yB'?'$'+v.toLocaleString():(v>0?'+':'')+v.toFixed(2)+'%');}}}}
+   }}
+  );
+ }catch(e){
+  console.error('ret chart error',e);
+  document.getElementById('retFrom').textContent='그래프 로드 실패: '+e.message;
+ }
+}
+window.addEventListener('keydown',e=>{if(e.key==='Escape')closeRetModal();});
+document.getElementById('retModal').addEventListener('click',e=>{if(e.target.id==='retModal')closeRetModal();});
 </script>
 </body>
 </html>
