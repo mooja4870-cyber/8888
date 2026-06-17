@@ -83,6 +83,8 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
   <div id="modalContent" style="display:flex;flex-direction:column;gap:16px"></div>
  </div>
 </div>
+<h2>24시간 내 진입 수</h2>
+<div id="entryCountTable" style="overflow-x:auto;margin-bottom:22px"></div>
 <h2>매매기법 비교</h2>
 <div id="comparisonTable" style="overflow-x:auto;margin-bottom:22px"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -226,6 +228,11 @@ function render(d,anim){
    <td style="padding:8px;text-align:center">${b.config.timeframe}</td><td style="padding:8px;text-align:center">${b.config.ema_period}</td>
    <td style="padding:8px;text-align:center">${b.config.rsi_period}</td><td style="padding:8px;text-align:center">${b.config.strategy}</td>
    <td style="padding:8px;text-align:center">${b.config.max_holding_hours}</td></tr>`).join('')}</tbody></table>`;
+ const entryTable=`<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:14px;font-weight:600">
+  <tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);text-align:center">봇</td>${d.bots.map(b=>'<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border)">'+b.name+'</td>').join('')}</tr>
+  <tr><td style="padding:12px 16px;color:var(--muted)">24시간 내<br>진입 수</td>${d.bots.map((b,i)=>{const v=b.orders_today||0;const col=v===0?'#e24b4a':'var(--text)';return '<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border);color:'+col+'">'+v+'</td>'}).join('')}</tr>
+ </table>`;
+ document.getElementById('entryCountTable').innerHTML=entryTable;
  document.getElementById('comparisonTable').innerHTML=compTable;
  applyView();  // 시간별 모드면 표 갱신, 기본화면이면 카드 표시 유지
  // (v0.8.0에서 손익차트 섹션 제거됨 — 관련 차트 JS도 삭제. 잔존 시 new Chart(null) 예외로 render 크래시→오'끊김')
