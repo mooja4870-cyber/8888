@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.97 | 2026-06-17 13:49 | [1단계] "봇 효율 지표" 섹션 신설 — TradeZella 8대 KPI 적용 (mooja 승인). 기간별 진입 수 아래·매매기법 비교 위에 3행 테이블(Profit Factor=총이익÷총손실, 평균손익비=평균이익÷평균손실, Expectancy=누적손익÷거래수) 추가. app.py hist_metrics(): order_id 그룹(perf_start 이후) 기준 profit_factor·avg_wl·expectancy 산출, bot_status 필드 추가. dashboard.html: efficiencyTable 렌더(PF 1.5↑녹/1.0↓빨강, Expectancy 양수빨강·음수파랑), 각 지표에 중딩용 친절 툴팁(설명형+개조식+사례, 300px wtip). 검증: 8408 PF=2.97·손익비=2.97·기대값=0.3614 수동대조 일치. 8888만. |
 | v0.9.96 | 2026-06-17 13:30 | "가동 중" 메트릭 줄바꿈 (mooja). dashboard.html: alive/count 다음 보유봇 괄호 앞에 <br> 삽입 → '10 / 10' 줄바꿈 후 '(7/10, ...)' 표시. 8888만. |
 | v0.9.95 | 2026-06-17 13:27 | 시간별 표 '총 자산' 열 USDT 단위 삭제 (mooja). dashboard.html renderTimeView buildOne: tlab의 total_assets.toFixed(2)+' USDT' → toFixed(2)만 표시. 8888만. |
 | v0.9.94 | 2026-06-17 13:24 | 요약 메트릭 박스 내 문구 중앙정렬 (mooja). dashboard.html .metric에 text-align:center 추가(총자산·누적수익률·일평균·가동중 박스 라벨·값 모두 중앙). 툴팁(.tiptext)은 가독성 위해 text-align:left 유지. 8888만. |

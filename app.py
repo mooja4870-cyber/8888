@@ -189,6 +189,20 @@ def hist_metrics(path, perf_start):
     sw = sum(1 for v in since_grp.values() if v > 0)
     sl = sum(1 for v in since_grp.values() if v < 0)
 
+    # 봇 효율 지표 (누적 perf_start 이후, order_id 그룹 손익 기준) ── TradeZella 8대 KPI 일부
+    #   profit_factor = 총이익 ÷ 총손실(절대값)  [1.5+ 우수]
+    #   avg_wl        = 평균이익 ÷ 평균손실       [1.5x+ 안정]
+    #   expectancy    = 누적 실현손익 ÷ 거래수    [양수면 엣지]
+    wins = [v for v in since_grp.values() if v > 0]
+    losses = [abs(v) for v in since_grp.values() if v < 0]
+    gross_win, gross_loss = sum(wins), sum(losses)
+    profit_factor = round(gross_win / gross_loss, 2) if gross_loss > 0 else None
+    avg_wl = None
+    if wins and losses:
+        avg_wl = round((gross_win / len(wins)) / (gross_loss / len(losses)), 2)
+    n_grp = len(since_grp)
+    expectancy = round(sum(since_grp.values()) / n_grp, 4) if n_grp else None
+
     # 기간별 진입 수 = 현재 시각 기준 직전 N시간 롤링 윈도우 내 진입 기록 수 (청산 무관)
     now = time.time()
     periods = {"1h": 3600, "6h": 21600, "12h": 43200, "24h": 86400,
@@ -200,6 +214,7 @@ def hist_metrics(path, perf_start):
 
     return {"today_pnl": round(today_pnl, 4), "today_w": tw, "today_l": tl,
             "since_w": sw, "since_l": sl, "since_orders": sw + sl,
+            "profit_factor": profit_factor, "avg_wl": avg_wl, "expectancy": expectancy,
             "entries_24h": entries_by_period["24h"], "entries_by_period": entries_by_period}
 
 
@@ -422,6 +437,9 @@ def bot_status(folder, port, ex):
     r["since_orders"] = m["since_orders"]
     r["entries_24h"] = m["entries_24h"]   # 24시간 내 진입 수 (청산 무관, 롤링 윈도우)
     r["entries_by_period"] = m["entries_by_period"]   # 기간별 진입 수(1h~1w 롤링)
+    r["profit_factor"] = m["profit_factor"]   # 봇 효율: 총이익÷총손실 (1.5+ 우수)
+    r["avg_wl"] = m["avg_wl"]                  # 봇 효율: 평균이익÷평균손실 (1.5x+ 안정)
+    r["expectancy"] = m["expectancy"]         # 봇 효율: 거래당 평균 손익 (양수=엣지)
     r.update({"ex_" + k: v for k, v in EX_CACHE.get(folder, {"ok": False, "err": "조회 전"}).items()})
 
     # 누적 수익률 = (현재 총잔고 - 초기화 잔고) / 초기화 잔고  ← 봇 대시보드 툴팁과 동일

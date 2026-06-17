@@ -86,6 +86,8 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
 </div>
 <h2>기간별 내 진입 수</h2>
 <div id="entryCountTable" style="overflow-x:auto;margin-bottom:22px"></div>
+<h2>봇 효율 지표 <span style="font-size:12px;color:var(--muted);font-weight:400">(Profit Factor · 평균손익비 · Expectancy)</span></h2>
+<div id="efficiencyTable" style="overflow-x:auto;margin-bottom:22px"></div>
 <h2>매매기법 비교</h2>
 <div id="comparisonTable" style="overflow-x:auto;margin-bottom:22px"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -235,6 +237,21 @@ function render(d,anim){
   ${_periods.map(([k,lbl],ri)=>'<tr style="background:'+(Math.floor(ri/2)%2?'var(--card)':'var(--card2)')+';border-top:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);white-space:nowrap;text-align:center">'+lbl+' 진입 수</td>'+d.bots.map(b=>{const v=(b.entries_by_period&&b.entries_by_period[k])||0;const col=v===0?'#e24b4a':'var(--text)';return '<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border);color:'+col+'">'+v+'</td>'}).join('')+'</tr>').join('')}
  </table>`;
  document.getElementById('entryCountTable').innerHTML=entryTable;
+ // ── 봇 효율 지표 (Profit Factor / 평균손익비 / Expectancy) + 중딩용 친절 툴팁 ──
+ const wtip=t=>`<span class="tip">ℹ<span class="tiptext" style="width:300px">${t}</span></span>`;
+ const _pfTip='<b>번 돈이 잃은 돈의 몇 배인지</b> 알려주는 숫자예요. 봇이 얻은 모든 이익을 더하고, 잃은 모든 손실을 더한 뒤 나눈 값이에요. 적게 잃고 많이 버는 똑똑한 봇일수록 커져요.<br>• 계산: 총이익 ÷ 총손실<br>• 예: 100달러 벌고 50달러 잃음 → 2.0(2배 효율)<br>• 1.5↑ 우수 / 1.0 본전 / 1.0↓ 손해<br>• 낮으면 자원 빼야 할 봇';
+ const _wlTip='<b>한 번 이길 때 버는 돈</b>이 <b>한 번 질 때 잃는 돈</b>보다 얼마나 큰지 비교해요. 승률이 좀 낮아도 이 값이 크면 돈을 벌 수 있어요. 손절은 짧게, 이익은 길게 가져가는 봇이 높게 나와요.<br>• 계산: 평균이익 ÷ 평균손실<br>• 예: 이길 때 평균 3달러, 질 때 평균 1달러 → 3.0<br>• 1.5배↑ 안정(질 때 적게 잃음)<br>• 낮으면 한 번 크게 물려 위험';
+ const _exTip='거래를 <b>한 번 할 때 평균 얼마를 버는지(잃는지)</b> 나타내요. 미래 수익을 가장 잘 예측하는 지표로 꼽혀요. 양수면 거래할수록 이득, 음수면 거래할수록 손해라는 뜻이에요.<br>• 계산: 누적 실현손익 ÷ 거래 횟수<br>• 예: 10번 거래해 총 +0.5달러 → 거래당 +0.05<br>• 양수(빨강)=실력 있는 봇<br>• 음수(파랑)=멈추거나 점검할 봇';
+ const _effRows=[
+  ['Profit Factor',_pfTip,b=>{const v=b.profit_factor;if(v==null)return['—','var(--muted)'];return[v.toFixed(2),v>=1.5?'var(--green)':(v<1.0?'#e24b4a':'var(--text)')]}],
+  ['평균손익비',_wlTip,b=>{const v=b.avg_wl;if(v==null)return['—','var(--muted)'];return[v.toFixed(2)+'x',v>=1.5?'var(--green)':(v<1.0?'#e24b4a':'var(--text)')]}],
+  ['Expectancy',_exTip,b=>{const v=b.expectancy;if(v==null)return['—','var(--muted)'];const sv=(v>0?'+':'')+v.toFixed(2);return[sv,v>0?'var(--profit)':(v<0?'var(--loss)':'var(--muted)')]}]
+ ];
+ const effTable=`<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:14px;font-weight:600">
+  <tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);text-align:center">봇</td>${d.bots.map(b=>'<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border)">'+b.name+'</td>').join('')}</tr>
+  ${_effRows.map(([lbl,tp,fn],ri)=>'<tr style="background:'+(ri%2?'var(--card)':'var(--card2)')+';border-top:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);white-space:nowrap;text-align:center">'+lbl+' '+wtip(tp)+'</td>'+d.bots.map(b=>{const[v,col]=fn(b);return '<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border);color:'+col+'">'+v+'</td>'}).join('')+'</tr>').join('')}
+ </table>`;
+ document.getElementById('efficiencyTable').innerHTML=effTable;
  document.getElementById('comparisonTable').innerHTML=compTable;
  applyView();  // 시간별 모드면 표 갱신, 기본화면이면 카드 표시 유지
  // (v0.8.0에서 손익차트 섹션 제거됨 — 관련 차트 JS도 삭제. 잔존 시 new Chart(null) 예외로 render 크래시→오'끊김')
