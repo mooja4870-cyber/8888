@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.112 | 2026-06-17 17:35 | 자산·BTC 그래프 기본 봉을 5분봉으로 변경 (mooja). dashboard.html _assetTf 기본값 '1h'→'5m'. node --check 통과. 8888만. |
 | v0.9.111 | 2026-06-17 17:32 | '시간별 봇 이름 순' 표 총자산 100이하 보정 (mooja 승인). 기록 시점 일부 봇 거래소 조회실패로 과소집계된 값(81~93, 24행)을 인접 정상값(≥100) 선형보간으로 교체. dashboard.html renderTimeView: snaps에 _ta(보정값)·_taFix(보정여부) 산출(앞뒤 정상값 보간, 한쪽만 있으면 전/후방채움), buildOne('name')서 _ta 사용+보정행에 회색 '*' 마커·툴팁. 비파괴(snapshots.json 원본 유지). node --check 통과, 28행 보정 확인(예 23:37 81.26→111.74). 8888만. |
 | v0.9.110 | 2026-06-17 17:23 | 자산차트 축범위 라디오버튼에 ±1/2/3/4% 추가, 디폴트 ±1% (mooja 승인). dashboard.html _assetBands=[0.01,0.02,0.03,0.04,0.05,0.10,0.20,0.30] 8단계, _assetBand 기본 0.01. 버튼 라벨 부동소수점 오차 방지 위해 Math.round(p*100) 적용. node --check 통과. 8888만. |
 | v0.9.109 | 2026-06-17 17:13 | 자산차트 총자산 좌축(yA) 범위를 라디오버튼(±5/10/20/30%)으로 선택 (mooja). 0부터 시작이라 변화 안보이던 문제 → 최신 총자산을 기준 100으로 두고 ±N% 범위만 표시(줌인). dashboard.html: assetBandBar 버튼군 신설(_assetBands, setBand/_renderBandBar/_applyBand), loadAssetChart서 baseline=마지막 유효 총자산 산출, yA.min/max=baseline×(1∓band). 기본 ±10%. 버튼 클릭시 _assetChart.update()로 즉시 반영. node --check 통과. 검증: 최신 109.42→±10% 98.48~120.36. 8888만. |
