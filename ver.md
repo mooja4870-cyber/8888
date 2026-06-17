@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.110 | 2026-06-17 17:23 | 자산차트 축범위 라디오버튼에 ±1/2/3/4% 추가, 디폴트 ±1% (mooja 승인). dashboard.html _assetBands=[0.01,0.02,0.03,0.04,0.05,0.10,0.20,0.30] 8단계, _assetBand 기본 0.01. 버튼 라벨 부동소수점 오차 방지 위해 Math.round(p*100) 적용. node --check 통과. 8888만. |
 | v0.9.109 | 2026-06-17 17:13 | 자산차트 총자산 좌축(yA) 범위를 라디오버튼(±5/10/20/30%)으로 선택 (mooja). 0부터 시작이라 변화 안보이던 문제 → 최신 총자산을 기준 100으로 두고 ±N% 범위만 표시(줌인). dashboard.html: assetBandBar 버튼군 신설(_assetBands, setBand/_renderBandBar/_applyBand), loadAssetChart서 baseline=마지막 유효 총자산 산출, yA.min/max=baseline×(1∓band). 기본 ±10%. 버튼 클릭시 _assetChart.update()로 즉시 반영. node --check 통과. 검증: 최신 109.42→±10% 98.48~120.36. 8888만. |
 | v0.9.108 | 2026-06-17 17:05 | 자산·BTC 그래프 모달 여백 두고 중앙 배치 (mooja, 풀스크린이 촌스러움). dashboard.html assetModal 내부 박스 97vw×94vh → 72vw×78vh(외곽 오버레이 flex center라 자동 중앙, 사방 여백 생성). node --check 통과. 8888만. |
 | v0.9.107 | 2026-06-17 17:00 | 봇 카드 ⭐Expectancy 금액 폰트 77%로 축소 (mooja). dashboard.html 카드 Expectancy 값 span font-size 150%→115.5% (150×0.77≈115.5). node --check 통과. 8888만. |

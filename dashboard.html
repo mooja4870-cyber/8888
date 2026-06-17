@@ -440,9 +440,9 @@ async function updateBotGraph(botName){
 window.addEventListener('keydown',e=>{if(e.key==='Escape')closeBotModal();});
 document.getElementById('botModal').addEventListener('click',e=>{if(e.target.id==='botModal')closeBotModal();});
 // ===== 총자산·BTC 추이 모달 =====
-let _assetChart=null, _assetTf='1h', _assetBand=0.10, _assetBaseline=null;
+let _assetChart=null, _assetTf='1h', _assetBand=0.01, _assetBaseline=null;
 const _assetTfs=[['1m','1분봉'],['5m','5분봉'],['15m','15분봉'],['1h','1시간봉'],['1d','일봉'],['1M','월봉']];
-const _assetBands=[0.05,0.10,0.20,0.30];
+const _assetBands=[0.01,0.02,0.03,0.04,0.05,0.10,0.20,0.30];
 function openAssetModal(){
  document.getElementById('assetModal').style.display='flex';
  _renderTfBar();_renderBandBar();
@@ -459,7 +459,7 @@ function _renderTfBar(){
 }
 function _renderBandBar(){
  document.getElementById('assetBandBar').innerHTML=_assetBands.map(p=>
-  '<button onclick="setBand('+p+')" style="background:'+(p===_assetBand?'var(--green)':'var(--card2)')+';color:'+(p===_assetBand?'#04342c':'var(--text)')+';border:1px solid var(--border);border-radius:7px;font-size:12px;font-weight:600;padding:5px 11px;cursor:pointer">±'+(p*100)+'%</button>'
+  '<button onclick="setBand('+p+')" style="background:'+(p===_assetBand?'var(--green)':'var(--card2)')+';color:'+(p===_assetBand?'#04342c':'var(--text)')+';border:1px solid var(--border);border-radius:7px;font-size:12px;font-weight:600;padding:5px 11px;cursor:pointer">±'+Math.round(p*100)+'%</button>'
  ).join('');
 }
 function _applyBand(){
