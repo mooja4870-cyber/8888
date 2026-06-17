@@ -91,6 +91,7 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
    <button onclick="closeAssetModal()" style="background:none;border:none;color:var(--text);cursor:pointer;font-size:28px;opacity:0.6">×</button>
   </div>
   <div id="assetTfBar" style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap"></div>
+  <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center"><span style="font-size:12px;color:var(--muted)">총자산 축 범위(현재값 기준):</span><span id="assetBandBar" style="display:flex;gap:6px;flex-wrap:wrap"></span></div>
   <div style="font-size:12px;color:var(--muted);margin-bottom:14px"><span style="display:inline-block;width:11px;height:11px;background:#4a6bc6;border-radius:2px;vertical-align:-1px"></span> 막대 = 총자산(USDT, 좌축) &nbsp;·&nbsp; <span style="display:inline-block;width:14px;height:3px;background:#e8eaf0;vertical-align:3px"></span> 꺾은선 = BTC 가격($, 우축) &nbsp;·&nbsp; <span id="assetFrom"></span></div>
   <div style="position:relative;flex:1;min-height:0"><canvas id="assetChartCanvas"></canvas></div>
  </div>
@@ -439,11 +440,12 @@ async function updateBotGraph(botName){
 window.addEventListener('keydown',e=>{if(e.key==='Escape')closeBotModal();});
 document.getElementById('botModal').addEventListener('click',e=>{if(e.target.id==='botModal')closeBotModal();});
 // ===== 총자산·BTC 추이 모달 =====
-let _assetChart=null, _assetTf='1h';
+let _assetChart=null, _assetTf='1h', _assetBand=0.10, _assetBaseline=null;
 const _assetTfs=[['1m','1분봉'],['5m','5분봉'],['15m','15분봉'],['1h','1시간봉'],['1d','일봉'],['1M','월봉']];
+const _assetBands=[0.05,0.10,0.20,0.30];
 function openAssetModal(){
  document.getElementById('assetModal').style.display='flex';
- _renderTfBar();
+ _renderTfBar();_renderBandBar();
  loadAssetChart(_assetTf);
 }
 function closeAssetModal(){
@@ -454,6 +456,26 @@ function _renderTfBar(){
  document.getElementById('assetTfBar').innerHTML=_assetTfs.map(([k,lbl])=>
   '<button onclick="loadAssetChart(\''+k+'\')" style="background:'+(k===_assetTf?'var(--green)':'var(--card2)')+';color:'+(k===_assetTf?'#04342c':'var(--text)')+';border:1px solid var(--border);border-radius:7px;font-size:13px;font-weight:600;padding:6px 14px;cursor:pointer">'+lbl+'</button>'
  ).join('');
+}
+function _renderBandBar(){
+ document.getElementById('assetBandBar').innerHTML=_assetBands.map(p=>
+  '<button onclick="setBand('+p+')" style="background:'+(p===_assetBand?'var(--green)':'var(--card2)')+';color:'+(p===_assetBand?'#04342c':'var(--text)')+';border:1px solid var(--border);border-radius:7px;font-size:12px;font-weight:600;padding:5px 11px;cursor:pointer">±'+(p*100)+'%</button>'
+ ).join('');
+}
+function _applyBand(){
+ // 최신 총자산(baseline)을 기준 100으로 두고 ±_assetBand 범위로 yA 축 고정
+ if(!_assetChart)return;
+ if(_assetBaseline){
+  _assetChart.options.scales.yA.min=+(_assetBaseline*(1-_assetBand)).toFixed(2);
+  _assetChart.options.scales.yA.max=+(_assetBaseline*(1+_assetBand)).toFixed(2);
+ }else{
+  _assetChart.options.scales.yA.min=undefined;
+  _assetChart.options.scales.yA.max=undefined;
+ }
+ _assetChart.update();
+}
+function setBand(p){
+ _assetBand=p;_renderBandBar();_applyBand();
 }
 function _fmtT(ms,tf){
  const d=new Date(ms);const p=n=>String(n).padStart(2,'0');
@@ -471,6 +493,8 @@ async function loadAssetChart(tf){
   const labels=pts.map(p=>_fmtT(p.t,tf));
   const btc=pts.map(p=>p.btc);
   const asset=pts.map(p=>p.asset);
+  const _va=asset.filter(v=>v!=null);
+  _assetBaseline=_va.length?_va[_va.length-1]:null;   // 최신(현재) 총자산 = 기준 100
   document.getElementById('assetFrom').textContent=d.asset_from?('총자산 기록 시작: '+d.asset_from):'총자산 기록 없음';
   const ctx=document.getElementById('assetChartCanvas').getContext('2d');
   if(_assetChart)_assetChart.destroy();
@@ -481,7 +505,7 @@ async function loadAssetChart(tf){
    ]},
    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
     scales:{
-     yA:{position:'left',grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#9fb0d8'},title:{display:true,text:'총자산(USDT)',color:'#9fb0d8'}},
+     yA:{position:'left',min:_assetBaseline?+(_assetBaseline*(1-_assetBand)).toFixed(2):undefined,max:_assetBaseline?+(_assetBaseline*(1+_assetBand)).toFixed(2):undefined,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#9fb0d8'},title:{display:true,text:'총자산(USDT)',color:'#9fb0d8'}},
      yB:{position:'right',grid:{display:false},ticks:{color:'#cfcfcf'},title:{display:true,text:'BTC($)',color:'#cfcfcf'}},
      x:{grid:{display:false},ticks:{color:'#8b93a5',maxTicksLimit:14,autoSkip:true}}
     },
