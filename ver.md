@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.134 | 2026-06-18 07:30 | 봇 카드 가로 크기 144%로 정정 (mooja, 166→144 환원). dashboard.html .card width 415px→360px (원본250×1.44). node --check 통과. 8888만. |
 | v0.9.133 | 2026-06-18 07:29 | 봇 카드 가로 크기 166%로 확대 (mooja, 144→166 정정). dashboard.html .card width 360px→415px (원본250×1.66). node --check 통과. 8888만. |
 | v0.9.132 | 2026-06-18 07:28 | 봇 카드 가로 크기 144%로 확대 (mooja, 122→144 정정). dashboard.html .card width 305px→360px (원본250×1.44). node --check 통과. 8888만. |
 | v0.9.131 | 2026-06-18 07:27 | 봇 카드 가로 크기 122%로 확대 (mooja). dashboard.html .card width 250px→305px (250×1.22). node --check 통과. 8888만. |
