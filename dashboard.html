@@ -220,7 +220,7 @@ function render(d,anim){
    <th style="padding:8px;text-align:center">타임프레임</th><th style="padding:8px;text-align:center">EMA</th>
    <th style="padding:8px;text-align:center">RSI</th><th style="padding:8px;text-align:center">전략</th>
    <th style="padding:8px;text-align:center">최대보유시간</th></tr></thead>
-  <tbody>${d.bots.map((b,i)=>`<tr style="background:${i%2?'var(--card)':'var(--card2)'};border-top:1px solid var(--border)">
+  <tbody>${d.bots.map((b,i)=>`<tr style="background:${Math.floor(i/2)%2?'var(--card)':'var(--card2)'};border-top:1px solid var(--border)">
    <td style="padding:8px;font-weight:600">${b.name}</td>
    <td style="padding:8px;text-align:center">${b.ex}</td><td style="padding:8px;text-align:center">${b.config.leverage}</td>
    <td style="padding:8px;text-align:center">${b.config.margin_usdt}</td><td style="padding:8px;text-align:center">${b.config.max_positions}</td>
