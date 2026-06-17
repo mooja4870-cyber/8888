@@ -164,7 +164,7 @@ def hist_metrics(path, perf_start):
     """봇 대시보드와 동일하게 trade_history.csv에서 당일/누적 지표 재계산.
     - 금일 실현 손익 = Σ(청산 수익), 경계 = max(오늘 00:00 KST, perf_start). 행 단위 합산.
     - 당일/누적 주문·승률 = order_id별로 묶어 합산 > 0 승 / < 0 패 (봇 방식).
-    - 당일 진입 수 = 오늘 00:00 이후 진입 기록 수 (청산과 무관).
+    - 24시간 내 진입 수 = 현재 시각 기준 직전 24시간 롤링 윈도우 내 진입 기록 수 (청산 무관).
     """
     today0 = time.strftime("%Y-%m-%d 00:00:00")
     ps = (perf_start or "")[:19]
@@ -189,11 +189,12 @@ def hist_metrics(path, perf_start):
     sw = sum(1 for v in since_grp.values() if v > 0)
     sl = sum(1 for v in since_grp.values() if v < 0)
 
-    # 당일 진입 수 = 오늘 00:00 이후 진입한 횟수
-    today_entries = sum(1 for ts, oid in entries if ts >= b_today)
+    # 24시간 내 진입 수 = 현재 시각 기준 직전 24시간(now-86400초) 내 진입 기록 수 (청산 무관)
+    cutoff_24h = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() - 86400))
+    entries_24h = sum(1 for ts, oid in entries if ts >= cutoff_24h)
 
     return {"today_pnl": round(today_pnl, 4), "today_w": tw, "today_l": tl,
-            "since_w": sw, "since_l": sl, "since_orders": sw + sl, "today_entries": today_entries}
+            "since_w": sw, "since_l": sl, "since_orders": sw + sl, "entries_24h": entries_24h}
 
 
 # ── 거래소 조회 전용 클라이언트 (15초 캐시, 백그라운드 갱신) ──────────────
@@ -413,7 +414,7 @@ def bot_status(folder, port, ex):
     r["orders_today"] = m["today_w"] + m["today_l"]
     r["since_w"], r["since_l"] = m["since_w"], m["since_l"]
     r["since_orders"] = m["since_orders"]
-    r["today_entries"] = m["today_entries"]   # 당일 진입 수 (청산과 무관, 순수 진입 기록)
+    r["entries_24h"] = m["entries_24h"]   # 24시간 내 진입 수 (청산 무관, 롤링 윈도우)
     r.update({"ex_" + k: v for k, v in EX_CACHE.get(folder, {"ok": False, "err": "조회 전"}).items()})
 
     # 누적 수익률 = (현재 총잔고 - 초기화 잔고) / 초기화 잔고  ← 봇 대시보드 툴팁과 동일
