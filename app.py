@@ -638,6 +638,126 @@ def snapshot_loop():
             pass
 
 
+# ── [B안] 총자산 고빈도 기록(1분) + BTC 가격 차트 데이터 ──────────────────────
+ASSET_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "asset_history.json")
+ASSET_KEEP = 10080      # 1분 간격 × 10080 = 7일 보관
+ASSET_LOCK = threading.Lock()
+
+
+def load_asset_history():
+    try:
+        with open(ASSET_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return []
+
+
+def _seed_asset_history():
+    """asset_history가 비었으면 기존 30분 스냅샷(total_assets)으로 백필 → 즉시 막대 표시."""
+    if load_asset_history():
+        return
+    seed = []
+    for r in load_snapshots():
+        if r.get("total_assets") is None:
+            continue
+        ts = r.get("ts", "")
+        if len(ts) == 16:          # "YYYY-MM-DD HH:MM" → 초 보강
+            ts += ":00"
+        seed.append({"ts": ts, "v": r["total_assets"]})
+    if seed:
+        with ASSET_LOCK:
+            tmp = ASSET_PATH + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(seed[-ASSET_KEEP:], f, ensure_ascii=False)
+            os.replace(tmp, ASSET_PATH)
+
+
+def record_asset():
+    """현재 총자산(Σ잔고)을 1분 1행으로 누적(최근 ASSET_KEEP행 유지)."""
+    assets = collect()["summary"]["assets"]
+    ts = time.strftime("%Y-%m-%d %H:%M:%S")
+    with ASSET_LOCK:
+        hist = load_asset_history()
+        hist.append({"ts": ts, "v": assets})
+        hist = hist[-ASSET_KEEP:]
+        tmp = ASSET_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(hist, f, ensure_ascii=False)
+        os.replace(tmp, ASSET_PATH)
+
+
+def asset_loop():
+    try:
+        _seed_asset_history()
+    except Exception:
+        pass
+    time.sleep(30)        # 거래소 캐시(EX_CACHE) 워밍업 대기 → 기동 폴백값(과소 기록) 방지
+    while True:
+        try:
+            record_asset()
+        except Exception:
+            pass
+        time.sleep(60)
+
+
+_btc_cache = {}         # tf -> (epoch_fetched, candles[[ts_ms, close], ...])
+_btc_lock = threading.Lock()
+_btc_client = None
+BTC_TF_MS = {"1m": 60000, "5m": 300000, "15m": 900000,
+             "1h": 3600000, "1d": 86400000, "1M": 2592000000}
+
+
+def fetch_btc_ohlcv(tf, limit=60):
+    """공개 OHLCV(API 키 불필요)로 BTC/USDT 종가 캔들. tf별 30초 캐시."""
+    if tf not in BTC_TF_MS:
+        tf = "1h"
+    now = time.time()
+    with _btc_lock:
+        c = _btc_cache.get(tf)
+        if c and now - c[0] < 30:
+            return c[1]
+    import ccxt
+    global _btc_client
+    candles = []
+    try:
+        with _btc_lock:
+            if _btc_client is None:
+                _btc_client = ccxt.binance({"enableRateLimit": True, "timeout": 10000})
+        raw = _btc_client.fetch_ohlcv("BTC/USDT", timeframe=tf, limit=limit)
+        candles = [[r[0], r[4]] for r in raw]   # [ts_ms, 종가]
+    except Exception:
+        candles = []
+    if candles:                                 # 성공 시에만 캐시(실패는 다음 요청서 재시도)
+        with _btc_lock:
+            _btc_cache[tf] = (now, candles)
+    return candles
+
+
+def asset_chart(tf):
+    """BTC 종가(선) + 총자산(막대)을 동일 시간축에 정렬해 반환."""
+    import bisect
+    tf = tf if tf in BTC_TF_MS else "1h"
+    candles = fetch_btc_ohlcv(tf, 60)
+    hist = load_asset_history()
+    apts = []
+    for h in hist:
+        try:
+            ems = int(time.mktime(time.strptime(h["ts"], "%Y-%m-%d %H:%M:%S")) * 1000)
+        except (ValueError, OverflowError):
+            continue
+        apts.append((ems, h.get("v")))
+    apts.sort()
+    keys = [p[0] for p in apts]
+    interval = BTC_TF_MS[tf]
+    points = []
+    for ts_ms, close in candles:
+        cutoff = ts_ms + interval               # 캔들 종료시점 이하의 마지막 자산값(전방채움)
+        idx = bisect.bisect_right(keys, cutoff) - 1
+        asset = apts[idx][1] if idx >= 0 else None
+        points.append({"t": ts_ms, "btc": close, "asset": asset})
+    return {"tf": tf, "points": points, "asset_from": hist[0]["ts"] if hist else None}
+
+
 # dashboard.html은 요청마다 새로 읽는다(파일 수정 시 서버 재시작 없이 반영)
 HTML_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard.html")
 
@@ -649,6 +769,11 @@ class Handler(BaseHTTPRequestHandler):
             ctype = "application/json; charset=utf-8"
         elif self.path.startswith("/api/snapshots"):
             body = json.dumps(load_snapshots(), ensure_ascii=False).encode()
+            ctype = "application/json; charset=utf-8"
+        elif self.path.startswith("/api/assetchart"):
+            from urllib.parse import urlparse, parse_qs
+            tf = (parse_qs(urlparse(self.path).query).get("tf") or ["1h"])[0]
+            body = json.dumps(asset_chart(tf), ensure_ascii=False).encode()
             ctype = "application/json; charset=utf-8"
         elif self.path == "/" or self.path.startswith("/index"):
             with open(HTML_PATH, encoding="utf-8") as f:
@@ -671,5 +796,6 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     threading.Thread(target=exchange_loop, daemon=True).start()
     threading.Thread(target=snapshot_loop, daemon=True).start()
+    threading.Thread(target=asset_loop, daemon=True).start()   # [B안] 총자산 1분 기록
     print(f"8888 통합 관제 대시보드: http://localhost:{PORT}")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()

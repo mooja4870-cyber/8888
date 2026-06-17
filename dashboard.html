@@ -84,6 +84,17 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
   <div id="modalContent" style="display:flex;flex-direction:column;gap:16px"></div>
  </div>
 </div>
+<div id="assetModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:999;align-items:center;justify-content:center;padding:20px">
+ <div style="background:#1a1a1a;border:0.1mm solid #1a1a1a;border-radius:18px;padding:28px;width:1100px;max-width:96vw;max-height:90vh;overflow:auto;box-shadow:0 20px 100px rgba(45,189,133,0.5)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+   <h3 style="font-size:18px;font-weight:700;margin:0;color:var(--green)">📈 총자산 · BTC 가격 추이</h3>
+   <button onclick="closeAssetModal()" style="background:none;border:none;color:var(--text);cursor:pointer;font-size:28px;opacity:0.6">×</button>
+  </div>
+  <div id="assetTfBar" style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap"></div>
+  <div style="font-size:12px;color:var(--muted);margin-bottom:14px"><span style="display:inline-block;width:11px;height:11px;background:#4a6bc6;border-radius:2px;vertical-align:-1px"></span> 막대 = 총자산(USDT, 좌축) &nbsp;·&nbsp; <span style="display:inline-block;width:14px;height:3px;background:#e8eaf0;vertical-align:3px"></span> 꺾은선 = BTC 가격($, 우축) &nbsp;·&nbsp; <span id="assetFrom"></span></div>
+  <div style="position:relative;height:62vh;min-height:420px"><canvas id="assetChartCanvas"></canvas></div>
+ </div>
+</div>
 <h2>기간별 내 진입 수</h2>
 <div id="entryCountTable" style="overflow-x:auto;margin-bottom:22px"></div>
 <h2>봇 효율 지표 <span style="font-size:12px;color:var(--muted);font-weight:400">(Profit Factor · 평균손익비 · Expectancy)</span></h2>
@@ -168,7 +179,7 @@ function render(d,anim){
  const tip=t=>`<span class="tip">ℹ<span class="tiptext">${t}</span></span>`;
  const staleTxt=(s.stale&&s.stale.length)?('갱신 지연: '+s.stale.join(', ')):'전 봇 정상';
  document.getElementById('summary').innerHTML=`
-  <div class="metric"><div class="lbl">총 자산 <span style="font-weight:400;color:var(--muted)">(현재 총잔고 합산)</span>${tip('Σ(각 봇 거래소 실시간 총잔고). 거래소 조회 실패 봇은 초기화잔고+실현손익으로 추정.<br>현재 합산: '+f2(s.assets)+' USDT')}</div><div class="val">${s.assets===null?'—':s.assets.toFixed(2)} <span style="font-size:13px;color:var(--muted)">USDT</span></div></div>
+  <div class="metric" onclick="openAssetModal()" style="cursor:pointer" title="클릭 → 총자산·BTC 추이 그래프"><div class="lbl">📈 총 자산 <span style="font-weight:400;color:var(--muted)">(현재 총잔고 합산)</span>${tip('Σ(각 봇 거래소 실시간 총잔고). 거래소 조회 실패 봇은 초기화잔고+실현손익으로 추정.<br>현재 합산: '+f2(s.assets)+' USDT<br><b>클릭하면 BTC 가격·총자산 추이 그래프</b>')}</div><div class="val">${s.assets===null?'—':s.assets.toFixed(2)} <span style="font-size:13px;color:var(--muted)">USDT</span></div></div>
   <div class="metric"><div class="lbl">누적수익률${tip('(Σ현재 총잔고 − Σ초기화 잔고) ÷ Σ초기화 잔고.<br>기준금(Σseed) '+f2(seedSum)+' → 현재 '+f2(s.assets)+'<br>증감 '+fmt(s.cum_delta,1)+' USDT')}</div><div class="val">${fmt(s.cum_ret,1)}<span style="font-size:13px;color:var(--muted)">%</span></div><div style="font-size:12px;color:var(--muted);margin-top:2px">기준금 대비 ${fmt(s.cum_delta,1)} USDT</div></div>
   <div class="metric"><div class="lbl">일 평균수익률 <span style="font-weight:400">(${s.days}일)</span>${tip('누적수익률 ÷ 경과일수.<br>경과: '+s.days+'일 (가장 이른 perf_start 기준, 최소 1일)')}</div><div class="val">${fmt(s.daily_ret,1)}<span style="font-size:13px;color:var(--muted)">%/일</span></div></div>
   <div class="metric"><div class="lbl">가동 중${tip('포트 응답 봇 수 / 전체.<br>🟢 정상 · 🟡 데이터 갱신 지연(60분+) · 🔴 다운<br>'+staleTxt)}</div><div class="val" style="color:${s.alive===s.count?'var(--green)':'var(--red-dot)'}">${s.alive} / ${s.count}<br><span style="color:var(--amber)">(${s.with_positions}/${s.count}${s.no_positions.length > 0 ? ', <span style="font-size:0.77em">' + s.no_positions.join(', ') + '</span>' : ''})</span></div></div>`;
@@ -427,6 +438,65 @@ async function updateBotGraph(botName){
 }
 window.addEventListener('keydown',e=>{if(e.key==='Escape')closeBotModal();});
 document.getElementById('botModal').addEventListener('click',e=>{if(e.target.id==='botModal')closeBotModal();});
+// ===== 총자산·BTC 추이 모달 =====
+let _assetChart=null, _assetTf='1h';
+const _assetTfs=[['1m','1분봉'],['5m','5분봉'],['15m','15분봉'],['1h','1시간봉'],['1d','일봉'],['1M','월봉']];
+function openAssetModal(){
+ document.getElementById('assetModal').style.display='flex';
+ _renderTfBar();
+ loadAssetChart(_assetTf);
+}
+function closeAssetModal(){
+ document.getElementById('assetModal').style.display='none';
+ if(_assetChart){_assetChart.destroy();_assetChart=null;}
+}
+function _renderTfBar(){
+ document.getElementById('assetTfBar').innerHTML=_assetTfs.map(([k,lbl])=>
+  '<button onclick="loadAssetChart(\''+k+'\')" style="background:'+(k===_assetTf?'var(--green)':'var(--card2)')+';color:'+(k===_assetTf?'#04342c':'var(--text)')+';border:1px solid var(--border);border-radius:7px;font-size:13px;font-weight:600;padding:6px 14px;cursor:pointer">'+lbl+'</button>'
+ ).join('');
+}
+function _fmtT(ms,tf){
+ const d=new Date(ms);const p=n=>String(n).padStart(2,'0');
+ if(tf==='1M')return d.getFullYear()+'/'+p(d.getMonth()+1);
+ if(tf==='1d')return p(d.getMonth()+1)+'/'+p(d.getDate());
+ if(tf==='1h')return p(d.getMonth()+1)+'/'+p(d.getDate())+' '+p(d.getHours())+'시';
+ return p(d.getHours())+':'+p(d.getMinutes());
+}
+async function loadAssetChart(tf){
+ _assetTf=tf;_renderTfBar();
+ try{
+  const r=await fetch('/api/assetchart?tf='+tf,{cache:'no-store'});
+  const d=await r.json();
+  const pts=d.points||[];
+  const labels=pts.map(p=>_fmtT(p.t,tf));
+  const btc=pts.map(p=>p.btc);
+  const asset=pts.map(p=>p.asset);
+  document.getElementById('assetFrom').textContent=d.asset_from?('총자산 기록 시작: '+d.asset_from):'총자산 기록 없음';
+  const ctx=document.getElementById('assetChartCanvas').getContext('2d');
+  if(_assetChart)_assetChart.destroy();
+  _assetChart=new Chart(ctx,{
+   data:{labels:labels,datasets:[
+    {type:'bar',label:'총자산(USDT)',data:asset,yAxisID:'yA',backgroundColor:'rgba(74,107,198,0.78)',order:2,borderWidth:0},
+    {type:'line',label:'BTC 가격($)',data:btc,yAxisID:'yB',borderColor:'#e8eaf0',borderWidth:2,pointRadius:0,tension:0.25,order:1,spanGaps:true}
+   ]},
+   options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    scales:{
+     yA:{position:'left',grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#9fb0d8'},title:{display:true,text:'총자산(USDT)',color:'#9fb0d8'}},
+     yB:{position:'right',grid:{display:false},ticks:{color:'#cfcfcf'},title:{display:true,text:'BTC($)',color:'#cfcfcf'}},
+     x:{grid:{display:false},ticks:{color:'#8b93a5',maxTicksLimit:14,autoSkip:true}}
+    },
+    plugins:{legend:{labels:{color:'#e8eaf0',font:{size:13}}},
+     tooltip:{backgroundColor:'rgba(0,0,0,0.85)',titleColor:'#2dbd85',bodyColor:'#fff',borderColor:'#2dbd85',borderWidth:1,padding:10,
+      callbacks:{label:c=>{const v=c.parsed.y;if(v==null)return c.dataset.label+': —';return c.dataset.label+': '+(c.dataset.yAxisID==='yB'?'$'+v.toLocaleString():v.toFixed(2)+' U')}}}}
+   }}
+  });
+ }catch(e){
+  console.error('asset chart error',e);
+  document.getElementById('assetFrom').textContent='그래프 로드 실패: '+e.message;
+ }
+}
+window.addEventListener('keydown',e=>{if(e.key==='Escape')closeAssetModal();});
+document.getElementById('assetModal').addEventListener('click',e=>{if(e.target.id==='assetModal')closeAssetModal();});
 </script>
 </body>
 </html>
