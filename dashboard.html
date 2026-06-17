@@ -144,6 +144,9 @@ async function renderTimeView(mode){
    snaps[i]._ta=fx;snaps[i]._taFix=(fx!=null);
   }
  })();
+ // 총자산 보정: 2026-06-17 22:00 및 그 이전(입금 전)은 +49 가산해 입금 후와 수평 비교 (mooja 지정)
+ (function(){const CUT='2026-06-17 22:00',ADJ=49;
+  snaps.forEach(s=>{if(s._ta!=null&&(s.ts||'')<=CUT)s._ta=+(s._ta+ADJ).toFixed(2);});})();
  const rows=[...snaps].reverse(); // 최신이 맨 위
  const cell=(n,v)=>{const rv=(v==null)?null:Math.round(v*100)/100;  // 2자리 반올림 기준으로 색·부호 결정
   const col=(rv==null)?'var(--muted)':(rv>0?'var(--profit)':(rv<0?'var(--loss)':'var(--muted)'));  // 0.00%=회색(중립)
