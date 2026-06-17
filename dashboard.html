@@ -231,7 +231,7 @@ function render(d,anim){
  const _periods=[['1h','1시간 내'],['6h','6시간 내'],['12h','12시간 내'],['24h','24시간 내'],['48h','48시간 내'],['72h','72시간 내'],['1w','1주일간']];
  const entryTable=`<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:14px;font-weight:600">
   <tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);text-align:center">봇</td>${d.bots.map(b=>'<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border)">'+b.name+'</td>').join('')}</tr>
-  ${_periods.map(([k,lbl])=>'<tr style="border-top:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);white-space:nowrap">'+lbl+' 진입 수</td>'+d.bots.map(b=>{const v=(b.entries_by_period&&b.entries_by_period[k])||0;const col=v===0?'#e24b4a':'var(--text)';return '<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border);color:'+col+'">'+v+'</td>'}).join('')+'</tr>').join('')}
+  ${_periods.map(([k,lbl],ri)=>'<tr style="background:'+(Math.floor(ri/2)%2?'var(--card)':'var(--card2)')+';border-top:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);white-space:nowrap">'+lbl+' 진입 수</td>'+d.bots.map(b=>{const v=(b.entries_by_period&&b.entries_by_period[k])||0;const col=v===0?'#e24b4a':'var(--text)';return '<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border);color:'+col+'">'+v+'</td>'}).join('')+'</tr>').join('')}
  </table>`;
  document.getElementById('entryCountTable').innerHTML=entryTable;
  document.getElementById('comparisonTable').innerHTML=compTable;
