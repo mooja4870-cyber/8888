@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.96 | 2026-06-17 13:30 | "가동 중" 메트릭 줄바꿈 (mooja). dashboard.html: alive/count 다음 보유봇 괄호 앞에 <br> 삽입 → '10 / 10' 줄바꿈 후 '(7/10, ...)' 표시. 8888만. |
 | v0.9.95 | 2026-06-17 13:27 | 시간별 표 '총 자산' 열 USDT 단위 삭제 (mooja). dashboard.html renderTimeView buildOne: tlab의 total_assets.toFixed(2)+' USDT' → toFixed(2)만 표시. 8888만. |
 | v0.9.94 | 2026-06-17 13:24 | 요약 메트릭 박스 내 문구 중앙정렬 (mooja). dashboard.html .metric에 text-align:center 추가(총자산·누적수익률·일평균·가동중 박스 라벨·값 모두 중앙). 툴팁(.tiptext)은 가독성 위해 text-align:left 유지. 8888만. |
 | v0.9.93 | 2026-06-17 13:23 | "봇 통합 관제" 제목 폰트 133% 확대 (mooja). dashboard.html h1 font-size 20px → 27px (20×1.33≈26.6). 8888만. |
