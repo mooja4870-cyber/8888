@@ -5,3 +5,4 @@ nohup.out
 snapshots.json
 snapshots.json.tmp
 asset_history.json
+snapshots.json.bak.*

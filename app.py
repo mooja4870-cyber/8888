@@ -604,8 +604,12 @@ def load_snapshots():
 
 
 def record_snapshot():
-    """현재 봇별 일평균수익률을 1행 스냅샷으로 누적(최근 SNAP_KEEP행 유지). total_assets 포함."""
+    """현재 봇별 일평균수익률을 1행 스냅샷으로 누적(최근 SNAP_KEEP행 유지). total_assets 포함.
+    거래소 캐시 콜드(다수 봇 ex_ok=False) 시엔 총자산이 폴백값으로 왜곡되므로 기록 스킵."""
     data = collect()
+    ex_ok = sum(1 for b in data["bots"] if b.get("ex_ok"))
+    if ex_ok < len(data["bots"]) * 0.7:    # 70% 미만 = 콜드 → 오염 방지 위해 기록 안 함
+        return None
     ts = time.strftime("%Y-%m-%d %H:%M")
     row = {"ts": ts, "t": time.strftime("%H:%M"),
            "total_assets": data["summary"]["assets"],
@@ -625,10 +629,8 @@ def record_snapshot():
 
 
 def snapshot_loop():
-    try:
-        record_snapshot()        # 기동 즉시 1행 시드
-    except Exception:
-        pass
+    # 재시작 직후 즉시 기록은 거래소 콜드값으로 오염 + off-grid 행 생성 → 제거.
+    # 다음 :00/:30 경계에만 기록(콜드면 record_snapshot 내부에서 스킵).
     while True:
         lt = time.localtime()
         sec_into = lt.tm_min * 60 + lt.tm_sec
@@ -675,8 +677,12 @@ def _seed_asset_history():
 
 
 def record_asset():
-    """현재 총자산(Σ잔고)을 1분 1행으로 누적(최근 ASSET_KEEP행 유지)."""
-    assets = collect()["summary"]["assets"]
+    """현재 총자산(Σ잔고)을 1분 1행으로 누적(최근 ASSET_KEEP행 유지).
+    거래소 캐시 콜드 시엔 폴백값 왜곡 방지 위해 기록 스킵."""
+    data = collect()
+    if sum(1 for b in data["bots"] if b.get("ex_ok")) < len(data["bots"]) * 0.7:
+        return
+    assets = data["summary"]["assets"]
     ts = time.strftime("%Y-%m-%d %H:%M:%S")
     with ASSET_LOCK:
         hist = load_asset_history()
