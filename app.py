@@ -69,6 +69,34 @@ def tail_trades(path, n=5):
 
 
 _HIST_CACHE = {}   # path -> (mtime, size, exits[])  ;  exits = [(ts19, pnl, oid), ...]
+_ENTRY_CACHE = {}  # path -> (mtime, size, entries[])  ;  entries = [(ts19, oid), ...]
+
+
+def _load_entries(path):
+    """trade_history.csv의 진입 행 전체를 (시각, 주문ID)로 파싱. mtime 캐시."""
+    try:
+        mt = os.path.getmtime(path)
+        sz = os.path.getsize(path)
+    except OSError:
+        return []
+    c = _ENTRY_CACHE.get(path)
+    if c and c[0] == mt and c[1] == sz:
+        return c[2]
+    entries = []
+    try:
+        with open(path, encoding="utf-8-sig", errors="replace") as f:
+            for r in csv.reader(f):
+                if len(r) < 3 or r[2] != "진입":
+                    continue
+                ts = r[0].strip()[:19]
+                if not ts[:4].isdigit():
+                    continue
+                oid = r[10].strip() if len(r) > 10 else ""
+                entries.append((ts, oid))
+    except OSError:
+        return []
+    _ENTRY_CACHE[path] = (mt, sz, entries)
+    return entries
 
 
 def _load_exits(path):
@@ -136,12 +164,15 @@ def hist_metrics(path, perf_start):
     """봇 대시보드와 동일하게 trade_history.csv에서 당일/누적 지표 재계산.
     - 금일 실현 손익 = Σ(청산 수익), 경계 = max(오늘 00:00 KST, perf_start). 행 단위 합산.
     - 당일/누적 주문·승률 = order_id별로 묶어 합산 > 0 승 / < 0 패 (봇 방식).
+    - 당일 진입 수 = 오늘 00:00 이후 진입 기록 수 (청산과 무관).
     """
     today0 = time.strftime("%Y-%m-%d 00:00:00")
     ps = (perf_start or "")[:19]
     b_today = max(today0, ps) if ps else today0
     b_since = ps or today0
     exits = _load_exits(path)
+    entries = _load_entries(path)
+
     today_pnl = 0.0
     today_grp, since_grp = {}, {}
     for ts, pnl, oid in exits:
@@ -152,12 +183,17 @@ def hist_metrics(path, perf_start):
                 today_pnl += pnl
                 if oid:
                     today_grp[oid] = today_grp.get(oid, 0.0) + pnl
+
     tw = sum(1 for v in today_grp.values() if v > 0)
     tl = sum(1 for v in today_grp.values() if v < 0)
     sw = sum(1 for v in since_grp.values() if v > 0)
     sl = sum(1 for v in since_grp.values() if v < 0)
+
+    # 당일 진입 수 = 오늘 00:00 이후 진입한 횟수
+    today_entries = sum(1 for ts, oid in entries if ts >= b_today)
+
     return {"today_pnl": round(today_pnl, 4), "today_w": tw, "today_l": tl,
-            "since_w": sw, "since_l": sl, "since_orders": sw + sl}
+            "since_w": sw, "since_l": sl, "since_orders": sw + sl, "today_entries": today_entries}
 
 
 # ── 거래소 조회 전용 클라이언트 (15초 캐시, 백그라운드 갱신) ──────────────
@@ -377,6 +413,7 @@ def bot_status(folder, port, ex):
     r["orders_today"] = m["today_w"] + m["today_l"]
     r["since_w"], r["since_l"] = m["since_w"], m["since_l"]
     r["since_orders"] = m["since_orders"]
+    r["today_entries"] = m["today_entries"]   # 당일 진입 수 (청산과 무관, 순수 진입 기록)
     r.update({"ex_" + k: v for k, v in EX_CACHE.get(folder, {"ok": False, "err": "조회 전"}).items()})
 
     # 누적 수익률 = (현재 총잔고 - 초기화 잔고) / 초기화 잔고  ← 봇 대시보드 툴팁과 동일

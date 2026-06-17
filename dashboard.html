@@ -230,7 +230,7 @@ function render(d,anim){
    <td style="padding:8px;text-align:center">${b.config.max_holding_hours}</td></tr>`).join('')}</tbody></table>`;
  const entryTable=`<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:14px;font-weight:600">
   <tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);text-align:center">봇</td>${d.bots.map(b=>'<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border)">'+b.name+'</td>').join('')}</tr>
-  <tr><td style="padding:12px 16px;color:var(--muted)">24시간 내<br>진입 수</td>${d.bots.map((b,i)=>{const v=b.orders_today||0;const col=v===0?'#e24b4a':'var(--text)';return '<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border);color:'+col+'">'+v+'</td>'}).join('')}</tr>
+  <tr><td style="padding:12px 16px;color:var(--muted)">24시간 내<br>진입 수</td>${d.bots.map((b,i)=>{const v=b.today_entries||0;const col=v===0?'#e24b4a':'var(--text)';return '<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border);color:'+col+'">'+v+'</td>'}).join('')}</tr>
  </table>`;
  document.getElementById('entryCountTable').innerHTML=entryTable;
  document.getElementById('comparisonTable').innerHTML=compTable;

@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.85 | 2026-06-17 10:09 | "24시간 내 진입 수" 수정 — 청산(orders_today) 기준 → 진입(today_entries) 기준 (mooja 지시). app.py: _load_entries() 함수 추가(진입 기록 파싱), hist_metrics()에 today_entries 필드 추가, bot_status()에서 today_entries 할당. dashboard.html: entryTable에서 b.orders_today → b.today_entries로 변경. 당일 진입 수와 청산 수의 구분으로 정확한 진입 추적 가능. 8888만. |
 | v0.9.84 | 2026-06-17 09:01 | "24시간 내 진입 수" 섹션 추가 (mooja 갓잇). dashboard.html: 매매기법 비교 직전에 각 봇의 당일 진입 수(orders_today) 표 삽입, 0은 빨강색(#e24b4a) 표시. JavaScript render()에 entryTable 생성 로직 추가. 8888만. |
 | v0.9.83 | 2026-06-16 23:39 | 8403 전략 표시 추가 (mooja 지시). app.py read_bot_config() strategy_override에 '8403_okx': 'Dynamic Vol + Symbol' 추가 → 매매기법 비교 표에 8403 전략 표시. 8888만. |
 | v0.9.82 | 2026-06-16 21:50 | 헤더·요약 메트릭 sticky 고정 (mooja 갓잇). header + .summary를 position:sticky로 설정 → 스크롤해도 제목·드롭다운·총자산·수익률·가동중 메트릭이 화면 상단 고정. header top:0 z-index:100, .summary top:49px z-index:99로 위아래 순서 유지, background:var(--bg) + border-bottom으로 카드 오버래핑 방지. 8888만. |
