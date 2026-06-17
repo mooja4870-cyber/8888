@@ -22,6 +22,7 @@ FEED_LIMIT = 15         # 통합 체결 피드 최대 건수
 TAIL_BYTES = 16384      # 체결 피드용 trade_history.csv 끝에서 읽을 바이트
 WL_TAIL_BYTES = 131072  # 당일 승률 계산용 (당일 청산을 모두 포함하도록 넉넉히)
 EX_REFRESH_SEC = 15     # 거래소 잔고/포지션 캐시 갱신 주기
+SEED_OVERRIDE = 150.0   # 전체 누적수익률 기준금(seed 합계) 고정값 (mooja 지정). None이면 봇 seed 자동합산
 
 BOTS = [
     ("8401_okx", 8401, "OKX"), ("8402_okx", 8402, "OKX"), ("8403_okx", 8403, "OKX"),
@@ -543,9 +544,10 @@ def bot_days(perf_start):
 
 def collect():
     bots = [bot_status(*b) for b in BOTS]
-    # 합산 누적 수익률 = (Σ현재 총잔고 - Σ초기화 잔고) / Σ초기화 잔고  ← 티커별과 동일 기준
+    # 합산 누적 수익률 = (Σ현재 총잔고 - 기준금) / 기준금
+    #   기준금 = SEED_OVERRIDE(mooja 지정 고정값) 우선, 없으면 봇 seed 자동합산.
     #   현재 총잔고는 거래소 실시간 잔고, 조회 실패 봇은 seed+실현손익으로 폴백.
-    seed = sum(b["seed"] or 0 for b in bots)
+    seed = SEED_OVERRIDE if SEED_OVERRIDE else sum(b["seed"] or 0 for b in bots)
     assets = 0.0
     for b in bots:
         if b.get("ex_ok") and b.get("ex_balance") is not None:
