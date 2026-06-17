@@ -128,7 +128,7 @@ async function renderTimeView(mode){
    if(ord==='rank')arr=arr.slice().sort((a,b)=>((b.v==null?-1e9:b.v)-(a.v==null?-1e9:a.v)));
    let tlab;
    if(ord==='name'){
-    tlab=(s.total_assets!=null)?s.total_assets.toFixed(2)+' USDT':'—';
+    tlab=(s.total_assets!=null)?s.total_assets.toFixed(2):'—';
    }else{
     const dt=(s.ts?s.ts.slice(5):(s.t||'—'));
     tlab=dt;
