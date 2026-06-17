@@ -130,16 +130,20 @@ def _load_exits(path):
 _EVT_CACHE = {}
 
 
-def last_entry_exit(path):
-    """trade_history.csv에서 마지막 진입 시각·마지막 청산 시각 반환(문자열, mtime 캐시)."""
+def last_entry_exit(path, perf_start=None):
+    """trade_history.csv에서 마지막 진입 시각·마지막 청산 시각 반환(문자열, mtime 캐시).
+    무진입/무포지션은 '초기화(perf_start) 이후' 기준이어야 하므로 perf_start 이전 이벤트는 제외.
+    (초기화 직전 잔존 청산/진입이 stale하게 잡혀 봇 간 표기 불일치 유발하던 버그 교정)"""
     try:
         mt = os.path.getmtime(path)
         sz = os.path.getsize(path)
     except OSError:
         return (None, None)
+    ps = (perf_start or "")[:19]
+    ck = (mt, sz, ps)
     c = _EVT_CACHE.get(path)
-    if c and c[0] == mt and c[1] == sz:
-        return c[2]
+    if c and c[0] == ck:
+        return c[1]
     le = lx = None
     try:
         with open(path, encoding="utf-8-sig", errors="replace") as f:
@@ -149,6 +153,8 @@ def last_entry_exit(path):
                 ts = r[0].strip()[:19]
                 if not ts[:4].isdigit():
                     continue
+                if ps and ts < ps:          # 초기화 이전 이벤트 제외
+                    continue
                 t = r[2].strip()
                 if t == "진입" and (le is None or ts > le):
                     le = ts
@@ -157,7 +163,7 @@ def last_entry_exit(path):
     except OSError:
         return (None, None)
     res = (le, lx)
-    _EVT_CACHE[path] = (mt, sz, res)
+    _EVT_CACHE[path] = (ck, res)
     return res
 
 
@@ -490,7 +496,7 @@ def bot_status(folder, port, ex):
     hist = os.path.join(d, "trade_history.csv")
     r["trades"] = tail_trades(hist)
     # ⏸무진입 = 마지막 진입 이후 경과, ⏸무포지션 = 마지막 청산 이후(현재 무포지션일 때) 경과
-    r["last_entry"], r["last_flat"] = last_entry_exit(hist)
+    r["last_entry"], r["last_flat"] = last_entry_exit(hist, r["perf_start"])
     r["config"] = read_bot_config(folder)
     r["app_debug"] = app_debug_time(folder)   # 앱 최종 디버깅(app.py+core/*.py 최신 mtime)
     # 금일 실현 손익·당일/누적 주문·승률을 봇 화면과 동일하게 trade_history에서 재계산
