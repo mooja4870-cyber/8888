@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.132 | 2026-06-18 07:28 | 봇 카드 가로 크기 144%로 확대 (mooja, 122→144 정정). dashboard.html .card width 305px→360px (원본250×1.44). node --check 통과. 8888만. |
 | v0.9.131 | 2026-06-18 07:27 | 봇 카드 가로 크기 122%로 확대 (mooja). dashboard.html .card width 250px→305px (250×1.22). node --check 통과. 8888만. |
 | v0.9.130 | 2026-06-18 07:15 | 4개 봇(8402·8403·8407·8501) 관제 완전 제외(B안) + 레이아웃 '3개씩(2줄)' 추가·기본 (mooja 승인). app.py: HIDDEN_BOTS 셋 + ACTIVE_BOTS로 collect() 필터 → 카드·요약·표·스냅샷 전부 6봇만. SEED_OVERRIDE 151→None(6봇 seed 자동합산, 10봇 기준금 해제). dashboard.html: layout 옵션 'three'(3개씩 2줄) 추가·디폴트, _rows three→[[0,3],[3,6]]. 검증: 6봇 표시, 가동 6/6, 기준금 85.19, 누적 0.73%. node·py 문법 통과. 8888만. |
 | v0.9.129 | 2026-06-18 01:48 | 봇 모달 '수익률 그래프 보기' 버튼 배경 진청색으로 (mooja). dashboard.html showBotModal 버튼 background #1e40af(중간파랑) → #102a6b(다크네이비). node --check 통과. 8888만. |
