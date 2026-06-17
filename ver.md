@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.108 | 2026-06-17 17:05 | 자산·BTC 그래프 모달 여백 두고 중앙 배치 (mooja, 풀스크린이 촌스러움). dashboard.html assetModal 내부 박스 97vw×94vh → 72vw×78vh(외곽 오버레이 flex center라 자동 중앙, 사방 여백 생성). node --check 통과. 8888만. |
 | v0.9.107 | 2026-06-17 17:00 | 봇 카드 ⭐Expectancy 금액 폰트 77%로 축소 (mooja). dashboard.html 카드 Expectancy 값 span font-size 150%→115.5% (150×0.77≈115.5). node --check 통과. 8888만. |
 | v0.9.106 | 2026-06-17 16:51 | 자산·BTC 그래프 모달 화면 가득 채우기 (mooja). dashboard.html assetModal 내부 박스 width:1100px→97vw, height 94vh로 확대 + flex column 레이아웃, 캔버스 래퍼 height:62vh→flex:1(min-height:0)로 남은 공간 전부 차지(maintainAspectRatio:false라 차트가 컨테이너 가득 채움). node --check 통과. 8888만. |
 | v0.9.105 | 2026-06-17 15:47 | [긴급수정] v0.9.104 자산차트 JS 닫는 괄호 1개 초과 → 전체 스크립트 파싱 실패로 대시보드 멈춤(render 미실행) 핫픽스 (mooja '강력새로고침하니 앱 뻗음'). dashboard.html 492줄 new Chart() 종료 '});' → ');' (options·config는 491줄서 이미 닫힘, 마지막은 paren만). node --check로 문법 검증 통과. dashboard.html은 요청마다 재로드라 서버 재기동 불필요. 8888만. |
