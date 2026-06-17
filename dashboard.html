@@ -252,7 +252,7 @@ function render(d,anim){
     <tr style="background:#181b22;"><td>미실현 손익</td><td><span style="font-size:166%">${ex?fmt(b.ex_upnl,1):'—'}</span></td></tr>
     <tr style="background:#252b36;" title="trade_history 청산 합산, 경계 max(오늘 00:00, ${b.perf_start||'—'})"><td>금일 실현 손익</td><td>${fmt(b.today_pnl,1)}</td></tr>
     <tr style="background:#181b22;" title="${cumtip}"><td>누적 수익률${b.cum_basis==='pnl'?' <span class="warn">~</span>':''}</td><td><span style="font-size:119%;font-weight:bold">${fmt(b.cum_ret,1)}%</span> <span style="color:var(--muted)">(${fmt(b.cum_delta,1)} U)</span></td></tr>
-    <tr style="background:#252b36;" title="누적 수익률 ÷ 경과일수 ${b.days}일"><td>일 평균 수익률</td><td><span style="font-size:155%">${fmt(b.daily_ret,1)}%</span></td></tr>
+    <tr style="background:#252b36;" title="누적 수익률 ÷ 경과일수 ${b.days}일"><td>일 평균 수익률</td><td><span style="font-size:155%;animation:cardblink 1s ease-in-out infinite">${fmt(b.daily_ret,1)}%</span></td></tr>
     <tr style="background:#252b36;" title="order_id 그룹, SINCE ${b.perf_start||'—'}"><td>누적 주문·승률</td><td>${b.since_orders}건 · ${wr(b.since_w,b.since_l)}</td></tr>
     <tr style="background:#181b22;"><td>당일 주문·승률</td><td>${b.orders_today}건 · ${wr(b.today_w,b.today_l)}</td></tr>
     <tr style="background:#181b22;" title="초기화(perf_start): ${b.perf_start||'—'}"><td>초기화 후 경과</td><td>${elapsed(b.perf_start)}</td></tr>
