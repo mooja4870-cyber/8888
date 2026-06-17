@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.130 | 2026-06-18 07:15 | 4개 봇(8402·8403·8407·8501) 관제 완전 제외(B안) + 레이아웃 '3개씩(2줄)' 추가·기본 (mooja 승인). app.py: HIDDEN_BOTS 셋 + ACTIVE_BOTS로 collect() 필터 → 카드·요약·표·스냅샷 전부 6봇만. SEED_OVERRIDE 151→None(6봇 seed 자동합산, 10봇 기준금 해제). dashboard.html: layout 옵션 'three'(3개씩 2줄) 추가·디폴트, _rows three→[[0,3],[3,6]]. 검증: 6봇 표시, 가동 6/6, 기준금 85.19, 누적 0.73%. node·py 문법 통과. 8888만. |
 | v0.9.129 | 2026-06-18 01:48 | 봇 모달 '수익률 그래프 보기' 버튼 배경 진청색으로 (mooja). dashboard.html showBotModal 버튼 background #1e40af(중간파랑) → #102a6b(다크네이비). node --check 통과. 8888만. |
 | v0.9.128 | 2026-06-18 01:41 | 봇 카드 봇 이름도 1초 깜박 (mooja). dashboard.html 카드 .name span에 animation:cardblink 1s(opacity 1↔0.4) 적용(일평균수익률과 동일). node --check 통과. 8888만. |
 | v0.9.127 | 2026-06-18 01:36 | 봇 카드 '일 평균 수익률' 숫자만 1초 깜박 → 가시성 향상 (mooja). dashboard.html 카드 daily_ret span에 animation:cardblink 1s(opacity 1↔0.4) 적용. v0.9.126은 카드 전체 깜박 제거였고, 이번엔 해당 숫자에만 한정 적용. node --check 통과. 8888만. |
