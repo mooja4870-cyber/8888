@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.129 | 2026-06-18 01:48 | 봇 모달 '수익률 그래프 보기' 버튼 배경 진청색으로 (mooja). dashboard.html showBotModal 버튼 background #1e40af(중간파랑) → #102a6b(다크네이비). node --check 통과. 8888만. |
 | v0.9.128 | 2026-06-18 01:41 | 봇 카드 봇 이름도 1초 깜박 (mooja). dashboard.html 카드 .name span에 animation:cardblink 1s(opacity 1↔0.4) 적용(일평균수익률과 동일). node --check 통과. 8888만. |
 | v0.9.127 | 2026-06-18 01:36 | 봇 카드 '일 평균 수익률' 숫자만 1초 깜박 → 가시성 향상 (mooja). dashboard.html 카드 daily_ret span에 animation:cardblink 1s(opacity 1↔0.4) 적용. v0.9.126은 카드 전체 깜박 제거였고, 이번엔 해당 숫자에만 한정 적용. node --check 통과. 8888만. |
 | v0.9.126 | 2026-06-18 01:34 | 봇 카드 일평균수익률 등 글자 깜박임 제거 (mooja 버그신고). 원인: 보유중 카드 인라인 hi의 cardblink(opacity 1↔0.4, 2초주기) 애니메이션이 카드 전체를 깜박여 큰 일평균수익률 숫자가 깜박이는 것처럼 보임. 수정: hi에서 animation 제거(보유여부는 테두리색·무포지션 텍스트로 이미 구분). node --check 통과. 8888만. |
