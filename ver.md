@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.99 | 2026-06-17 14:06 | "봇 효율 지표"·"최대 낙폭" 표 세로 스크롤바 제거 (mooja 승인). 원인: 컨테이너 overflow-x:auto → CSS 규칙상 overflow-y가 auto로 계산돼 미세 넘침에 세로 스크롤바 생성. 수정: #efficiencyTable·#drawdownTable의 overflow-x:auto → overflow:visible. 부수효과: 툴팁(ℹ) 잘림 없이 온전히 표시. 8888만. |
 | v0.9.98 | 2026-06-17 13:58 | [2·3단계] "최대 낙폭(Drawdown)" + "시간대별 성과 히트맵" 섹션 신설 — TradeZella KPI 완결 (mooja '끝까지 진행'). ②app.py drawdown_metrics(): 실현손익 equity curve로 당일/누적 최대낙폭(seed 대비 %) 산출, collect()에서 당일낙폭 -10%↓ 위험·-5%↓ 주의 분류(dd_danger/dd_warn). dashboard: ddBanner 경고배너(위험빨강/주의앰버/안전녹색)+2행 표(-10%↓빨강). ③app.py heatmap_grid(): 최근7일 청산손익을 요일×6시간4구간 집계, collect()서 전봇 합산. dashboard: 4×7 히트맵(수익빨강/손실파랑, 절대값 비례 농도). 둘 다 중딩용 친절 툴팁. 검증: 8405 당일-10.74%위험·8408 -7.15%주의 배너, 히트맵 일12-18시+3.81 강세 정상. 8888만. |
 | v0.9.97 | 2026-06-17 13:49 | [1단계] "봇 효율 지표" 섹션 신설 — TradeZella 8대 KPI 적용 (mooja 승인). 기간별 진입 수 아래·매매기법 비교 위에 3행 테이블(Profit Factor=총이익÷총손실, 평균손익비=평균이익÷평균손실, Expectancy=누적손익÷거래수) 추가. app.py hist_metrics(): order_id 그룹(perf_start 이후) 기준 profit_factor·avg_wl·expectancy 산출, bot_status 필드 추가. dashboard.html: efficiencyTable 렌더(PF 1.5↑녹/1.0↓빨강, Expectancy 양수빨강·음수파랑), 각 지표에 중딩용 친절 툴팁(설명형+개조식+사례, 300px wtip). 검증: 8408 PF=2.97·손익비=2.97·기대값=0.3614 수동대조 일치. 8888만. |
 | v0.9.96 | 2026-06-17 13:30 | "가동 중" 메트릭 줄바꿈 (mooja). dashboard.html: alive/count 다음 보유봇 괄호 앞에 <br> 삽입 → '10 / 10' 줄바꿈 후 '(7/10, ...)' 표시. 8888만. |
