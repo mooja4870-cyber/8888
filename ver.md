@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.87 | 2026-06-17 13:02 | "24시간 내 진입 수" → "기간별 내 진입 수"로 확장 (mooja 승인). 단일 행을 7개 기간 행(1h·6h·12h·24h·48h·72h·1주)으로 확대. app.py hist_metrics()에 entries_by_period 딕셔너리(각 기간 now-N초 롤링 컷오프로 진입 카운트) 산출, bot_status()에 필드 추가. dashboard.html: 제목 변경, entryTable을 _periods 배열 기반 7행 렌더링, 0은 빨강(#e24b4a) 유지. 검증: 8401 12h=4·24h=20·1w=129, 8501 24h=2·1w=11(단조증가 일관). 8888만. |
 | v0.9.86 | 2026-06-17 11:25 | "24시간 내 진입 수" 집계 기준 정정 — 당일(00:00) → 24시간 롤링 윈도우 (mooja 지시). v0.9.85가 '오늘 00:00 이후'로 계산해 어제 진입·보유중인 봇(예: 8501, 어제 22·23시 진입)이 0으로 표기되던 오류 수정. hist_metrics()에서 cutoff_24h=now-86400초 기준으로 entries_24h 산출, today_entries→entries_24h 필드명 변경(app.py·dashboard.html 동기화). 검증: 8501=2(LAB long+BNB short, 수동대조 일치), 8403=0(실제 1일19시간 무진입). 8888만. |
 | v0.9.85 | 2026-06-17 10:09 | "24시간 내 진입 수" 수정 — 청산(orders_today) 기준 → 진입(today_entries) 기준 (mooja 지시). app.py: _load_entries() 함수 추가(진입 기록 파싱), hist_metrics()에 today_entries 필드 추가, bot_status()에서 today_entries 할당. dashboard.html: entryTable에서 b.orders_today → b.today_entries로 변경. 당일 진입 수와 청산 수의 구분으로 정확한 진입 추적 가능. 8888만. |
 | v0.9.84 | 2026-06-17 09:01 | "24시간 내 진입 수" 섹션 추가 (mooja 갓잇). dashboard.html: 매매기법 비교 직전에 각 봇의 당일 진입 수(orders_today) 표 삽입, 0은 빨강색(#e24b4a) 표시. JavaScript render()에 entryTable 생성 로직 추가. 8888만. |

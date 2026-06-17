@@ -189,12 +189,18 @@ def hist_metrics(path, perf_start):
     sw = sum(1 for v in since_grp.values() if v > 0)
     sl = sum(1 for v in since_grp.values() if v < 0)
 
-    # 24시간 내 진입 수 = 현재 시각 기준 직전 24시간(now-86400초) 내 진입 기록 수 (청산 무관)
-    cutoff_24h = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() - 86400))
-    entries_24h = sum(1 for ts, oid in entries if ts >= cutoff_24h)
+    # 기간별 진입 수 = 현재 시각 기준 직전 N시간 롤링 윈도우 내 진입 기록 수 (청산 무관)
+    now = time.time()
+    periods = {"1h": 3600, "6h": 21600, "12h": 43200, "24h": 86400,
+               "48h": 172800, "72h": 259200, "1w": 604800}
+    entries_by_period = {}
+    for key, secs in periods.items():
+        cutoff = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now - secs))
+        entries_by_period[key] = sum(1 for ts, oid in entries if ts >= cutoff)
 
     return {"today_pnl": round(today_pnl, 4), "today_w": tw, "today_l": tl,
-            "since_w": sw, "since_l": sl, "since_orders": sw + sl, "entries_24h": entries_24h}
+            "since_w": sw, "since_l": sl, "since_orders": sw + sl,
+            "entries_24h": entries_by_period["24h"], "entries_by_period": entries_by_period}
 
 
 # ── 거래소 조회 전용 클라이언트 (15초 캐시, 백그라운드 갱신) ──────────────
@@ -415,6 +421,7 @@ def bot_status(folder, port, ex):
     r["since_w"], r["since_l"] = m["since_w"], m["since_l"]
     r["since_orders"] = m["since_orders"]
     r["entries_24h"] = m["entries_24h"]   # 24시간 내 진입 수 (청산 무관, 롤링 윈도우)
+    r["entries_by_period"] = m["entries_by_period"]   # 기간별 진입 수(1h~1w 롤링)
     r.update({"ex_" + k: v for k, v in EX_CACHE.get(folder, {"ok": False, "err": "조회 전"}).items()})
 
     # 누적 수익률 = (현재 총잔고 - 초기화 잔고) / 초기화 잔고  ← 봇 대시보드 툴팁과 동일
