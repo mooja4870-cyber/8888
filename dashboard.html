@@ -238,7 +238,7 @@ function render(d,anim){
   const _holding=!!b.holding;  // 거래소 증거금 기준(app.py)
   const _bc=_holding?_rc:'#e24b4a';   // 무포지션=빨강 테두리, 보유=순위 메달색
   // 입체 테두리: ridge(엠보싱) + 외부 그림자(돌출감) + 내부 상단 하이라이트
-  const hi='border:0.8mm ridge '+_bc+';box-shadow:0 4px 11px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.12), inset 0 -2px 4px rgba(0,0,0,.35);animation:'+(_holding?'cardblink 2s ease-in-out infinite':'none')+';';
+  const hi='border:0.8mm ridge '+_bc+';box-shadow:0 4px 11px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.12), inset 0 -2px 4px rgba(0,0,0,.35);';
   // Expectancy(거래당 평균손익) — 미래수익 최강 예측지표 → 카드 최상단 강조
   const _ex=b.expectancy;
   const _exTxt=(_ex==null)?'—':((_ex>0?'+':'')+_ex.toFixed(2));
