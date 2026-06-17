@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.125 | 2026-06-18 00:20 | 자산·일평균수익률 그래프 모달 크기 축소+16:9 (mooja 승인, 기존 풀에 가까워 투박). assetModal·retModal 내부 박스 72vw×78vh → width:64vw + aspect-ratio:16/9(max-width 64vw, max-height 90vh), 중앙정렬 유지. node --check 통과. 8888만. |
 | v0.9.124 | 2026-06-18 00:13 | 무진입/무포지션, 초기화 후 진입·보유 없으면 '초기화 후 경과'와 동일 표시 (mooja 승인). dashboard.html: 무진입 폴백 last_entry 없으면 elapsed(perf_start), 무포지션 폴백 last_flat 없으면 elapsed(perf_start) ('—' 대체). 결과: 갓 초기화·무거래 봇(8402/8403/8501)은 무진입=무포지션=초기화후경과로 일치. node --check 통과. 8888만. |
 | v0.9.123 | 2026-06-18 00:01 | 무진입/무포지션을 초기화(perf_start) 이후 기준으로 교정 (mooja, 비슷시각 초기화한 8402/8403/8501 표기 불일치). 버그: last_entry_exit가 trade_history 전체 스캔 → 8403의 초기화 17초 전 잔존 청산(23:25:09 < perf_start 23:25:26)이 stale하게 잡혀 8403만 무포지션 시간표시, 8402/8501은 —. 수정: last_entry_exit(path, perf_start)로 perf_start 이전 이벤트 제외(캐시키에 ps 포함). 결과: 3봇 모두 무진입=—·무포지션=— 일치, 활성봇(8401/8405/8406/8408) 정상 유지. 8888만. |
 | v0.9.122 | 2026-06-17 23:54 | 일평균수익률 그래프에 축범위 라디오버튼(±1/3/5/10/20/30%) 추가, 기본 ±1% (mooja 승인). 총자산은 곱셈(현재값×(1±N%))이나 수익률은 값이 작아 덧셈 방식 채택: yA.min/max=현재일평균 ∓ N퍼센트포인트. dashboard.html retModal: retBandBar 버튼군(_retBands=[1,3,5,10,20,30]), _retBaseline=최신 일평균, setRetBand/_applyRetBand로 즉시 갱신. node --check 통과, 검증: baseline 1.03%→±1% 0.03~2.03%. 8888만. |
