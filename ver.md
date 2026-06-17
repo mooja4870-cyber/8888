@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.92 | 2026-06-17 13:22 | "매매기법 비교" 표 전체 중앙정렬 (mooja). dashboard.html comparisonTable: 헤더 '봇' th + 데이터 첫 열(봇명) td를 text-align:left → center. 나머지 열은 이미 중앙정렬. 8888만. |
 | v0.9.91 | 2026-06-17 13:21 | "기간별 내 진입 수" 표 전체 중앙정렬 (mooja 승인). dashboard.html entryTable: 첫 열(기간 라벨) td에 text-align:center 추가 → 라벨·숫자·헤더 모두 중앙정렬. 8888만. |
 | v0.9.90 | 2026-06-17 13:19 | "기간별 내 진입 수" 표 배경 줄무늬 2행 단위 적용 (mooja 승인). dashboard.html entryTable: _periods.map에 행 인덱스(ri) 추가, Math.floor(ri/2)%2로 배경 명암 교차(1·6h=어둡, 12·24h=밝, 48·72h=어둡, 1주=밝). 8888만. |
 | v0.9.89 | 2026-06-17 13:18 | "매매기법 비교" 표 배경 줄무늬 2행 단위로 변경 (mooja 승인). dashboard.html comparisonTable: 행 배경 명암 교차를 i%2(1행마다) → Math.floor(i/2)%2(2행마다)로 변경 → 어둡-어둡-밝-밝 패턴. 8888만. |

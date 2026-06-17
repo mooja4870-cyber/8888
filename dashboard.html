@@ -213,7 +213,7 @@ function render(d,anim){
  if(anim){void _cw.offsetWidth;_cw.classList.add('anim');}  // 드롭다운 조작 시에만: 리플로우 강제 후 휘리릭 재생
  const compTable=`<table style="width:100%;border-collapse:collapse;font-size:12px">
   <thead><tr style="background:var(--card2);border-bottom:1px solid var(--border)">
-   <th style="padding:8px;text-align:left;font-weight:600">봇</th>
+   <th style="padding:8px;text-align:center;font-weight:600">봇</th>
    <th style="padding:8px;text-align:center">거래소</th><th style="padding:8px;text-align:center">레버리지</th>
    <th style="padding:8px;text-align:center">마진$</th><th style="padding:8px;text-align:center">최대포지션</th>
    <th style="padding:8px;text-align:center">손절률</th><th style="padding:8px;text-align:center">수익목표</th>
@@ -221,7 +221,7 @@ function render(d,anim){
    <th style="padding:8px;text-align:center">RSI</th><th style="padding:8px;text-align:center">전략</th>
    <th style="padding:8px;text-align:center">최대보유시간</th></tr></thead>
   <tbody>${d.bots.map((b,i)=>`<tr style="background:${Math.floor(i/2)%2?'var(--card)':'var(--card2)'};border-top:1px solid var(--border)">
-   <td style="padding:8px;font-weight:600">${b.name}</td>
+   <td style="padding:8px;font-weight:600;text-align:center">${b.name}</td>
    <td style="padding:8px;text-align:center">${b.ex}</td><td style="padding:8px;text-align:center">${b.config.leverage}</td>
    <td style="padding:8px;text-align:center">${b.config.margin_usdt}</td><td style="padding:8px;text-align:center">${b.config.max_positions}</td>
    <td style="padding:8px;text-align:center">${b.config.stop_loss_pct}</td><td style="padding:8px;text-align:center">${b.config.take_profit_pct}</td>
