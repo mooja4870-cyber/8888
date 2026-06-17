@@ -250,17 +250,19 @@ function render(d,anim){
  const _effRows=[
   ['Profit Factor',_pfTip,b=>{const v=b.profit_factor;if(v==null)return['—','var(--muted)'];return[v.toFixed(2),v>=1.5?'var(--green)':(v<1.0?'#e24b4a':'var(--text)')]}],
   ['평균손익비',_wlTip,b=>{const v=b.avg_wl;if(v==null)return['—','var(--muted)'];return[v.toFixed(2)+'x',v>=1.5?'var(--green)':(v<1.0?'#e24b4a':'var(--text)')]}],
-  ['Expectancy',_exTip,b=>{const v=b.expectancy;if(v==null)return['—','var(--muted)'];const sv=(v>0?'+':'')+v.toFixed(2);return[sv,v>0?'var(--profit)':(v<0?'var(--loss)':'var(--muted)')]}]
+  ['Expectancy',_exTip,b=>{const v=b.expectancy;if(v==null)return['—','var(--muted)'];const sv=(v>0?'+':'')+v.toFixed(2);return[sv,v>0?'var(--profit)':(v<0?'var(--loss)':'var(--muted)')]}],
+  ['일 평균 수익률','',b=>{const v=b.daily_ret;if(v==null)return['—','var(--muted)'];const sv=(v>0?'+':'')+v.toFixed(1)+'%';return[sv,v>0?'var(--profit)':(v<0?'var(--loss)':'var(--muted)')]}]
  ];
  const effTable=`<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:14px;font-weight:600">
   <tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);text-align:center">봇</td>${d.bots.map(b=>'<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border)">'+b.name+'</td>').join('')}</tr>
-  ${_effRows.map(([lbl,tp,fn],ri)=>'<tr style="background:'+(ri%2?'var(--card)':'var(--card2)')+';border-top:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);white-space:nowrap;text-align:center">'+lbl+' '+wtip(tp)+'</td>'+d.bots.map(b=>{const[v,col]=fn(b);return '<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border);color:'+col+'">'+v+'</td>'}).join('')+'</tr>').join('')}
+  ${_effRows.map(([lbl,tp,fn],ri)=>'<tr style="background:'+(ri%2?'var(--card)':'var(--card2)')+';border-top:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);white-space:nowrap;text-align:center">'+lbl+(tp?' '+wtip(tp):'')+'</td>'+d.bots.map(b=>{const[v,col]=fn(b);return '<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border);color:'+col+'">'+v+'</td>'}).join('')+'</tr>').join('')}
  </table>`;
  document.getElementById('efficiencyTable').innerHTML=effTable;
  // ── [2단계] 최대 낙폭(Drawdown) 경고 배너 + 표 ──
  const _ddTip='<b>가장 많이 떨어졌을 때 얼마나 깊이 빠졌는지</b> 보여줘요. 봇 잔고가 최고점을 찍은 뒤 바닥까지 떨어진 폭이에요. 깊을수록 위험하고, 한 봇이 크게 무너지면 전체 하루 목표가 흔들려요.<br>• 당일 낙폭: 오늘 고점 대비 현재 하락폭<br>• 최대 낙폭: 시작 후 가장 깊었던 하락폭<br>• 예: 100→90달러면 −10%<br>• −10% 넘으면 빨강 경고(위험)<br>※ 실현 청산 기준(보유중 미반영)';
  const _dd=(v)=>{if(v==null)return['—','var(--muted)'];const c=v<=-10?'#e24b4a':(v<=-5?'var(--amber)':(v<0?'var(--loss)':'var(--muted)'));return[v.toFixed(1)+'%',c]};
- const _ddRows=[['당일 낙폭',b=>_dd(b.today_dd)],['최대 낙폭 (누적)',b=>_dd(b.max_dd)]];
+ const _ddDr=b=>{const v=b.daily_ret;if(v==null)return['—','var(--muted)'];const sv=(v>0?'+':'')+v.toFixed(1)+'%';return[sv,v>0?'var(--profit)':(v<0?'var(--loss)':'var(--muted)')]};
+ const _ddRows=[['당일 낙폭',b=>_dd(b.today_dd)],['최대 낙폭 (누적)',b=>_dd(b.max_dd)],['일 평균 수익률',_ddDr]];
  let ddBan='';
  if(s.dd_danger&&s.dd_danger.length)ddBan+='<div style="border-radius:10px;padding:13px 16px;margin-bottom:10px;font-size:13px;font-weight:600;background:rgba(226,75,74,0.13);border-left:3px solid #e24b4a;color:#e24b4a">⚠️ 위험: '+s.dd_danger.map(x=>x.name+' 당일 낙폭 '+x.today_dd.toFixed(1)+'%').join(' · ')+' (한계 −10% 초과)</div>';
  if(s.dd_warn&&s.dd_warn.length)ddBan+='<div style="border-radius:10px;padding:13px 16px;margin-bottom:10px;font-size:13px;font-weight:600;background:rgba(239,160,39,0.13);border-left:3px solid #efa027;color:#efa027">⚡ 주의: '+s.dd_warn.map(x=>x.name+' '+x.today_dd.toFixed(1)+'%').join(' · ')+' (−5% 초과)</div>';
