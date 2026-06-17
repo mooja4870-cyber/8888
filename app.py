@@ -218,6 +218,70 @@ def hist_metrics(path, perf_start):
             "entries_24h": entries_by_period["24h"], "entries_by_period": entries_by_period}
 
 
+def drawdown_metrics(path, perf_start, seed):
+    """[2단계] 실현손익 equity curve로 최대낙폭(누적)·당일낙폭 계산 (seed 대비 %).
+    - equity = seed + 누적 실현손익. peak 대비 하락폭의 최저값 = 최대 낙폭(MDD).
+    - 당일 낙폭 = 오늘 시작 잔고 기준, 오늘 내 고점 대비 현재 하락폭.
+    - 미실현(보유 포지션) 미반영 — 실현 청산 기준.
+    """
+    if not seed or seed <= 0:
+        return {"max_dd": None, "today_dd": None}
+    ps = (perf_start or "")[:19]
+    today0 = time.strftime("%Y-%m-%d 00:00:00")
+    exits = sorted(_load_exits(path))   # (ts, pnl, oid) 시각 오름차순
+
+    # 누적 최대 낙폭 (perf_start 이후 전체)
+    eq = peak = seed
+    max_dd = 0.0
+    eq_at_today_start = seed
+    for ts, pnl, oid in exits:
+        if ps and ts < ps:
+            continue
+        if ts < today0:
+            eq_at_today_start = eq + pnl   # 오늘 시작 직전까지의 누적 잔고
+        eq += pnl
+        if eq > peak:
+            peak = eq
+        dd = (eq - peak) / peak * 100
+        if dd < max_dd:
+            max_dd = dd
+
+    # 당일 낙폭 (오늘 시작 잔고를 peak 기준으로, 오늘 거래만)
+    eqt = peak_t = eq_at_today_start
+    today_dd = 0.0
+    for ts, pnl, oid in exits:
+        if ps and ts < ps:
+            continue
+        if ts < today0:
+            continue
+        eqt += pnl
+        if eqt > peak_t:
+            peak_t = eqt
+        dd = (eqt - peak_t) / peak_t * 100
+        if dd < today_dd:
+            today_dd = dd
+
+    return {"max_dd": round(max_dd, 2), "today_dd": round(today_dd, 2)}
+
+
+def heatmap_grid(path, perf_start, days=7):
+    """[3단계] 최근 N일 청산 실현손익을 요일×시간대(6시간 4구간)로 집계.
+    반환: {"wday_bucket": pnl_sum, ...}  (wday 0=월 … 6=일, bucket 0=00–06 … 3=18–24)
+    """
+    cutoff = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() - days * 86400))
+    grid = {}
+    for ts, pnl, oid in _load_exits(path):
+        if ts < cutoff:
+            continue
+        try:
+            st = time.strptime(ts, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            continue
+        key = "%d_%d" % (st.tm_wday, st.tm_hour // 6)
+        grid[key] = grid.get(key, 0.0) + pnl
+    return grid
+
+
 # ── 거래소 조회 전용 클라이언트 (15초 캐시, 백그라운드 갱신) ──────────────
 
 def parse_env(path):
@@ -440,6 +504,10 @@ def bot_status(folder, port, ex):
     r["profit_factor"] = m["profit_factor"]   # 봇 효율: 총이익÷총손실 (1.5+ 우수)
     r["avg_wl"] = m["avg_wl"]                  # 봇 효율: 평균이익÷평균손실 (1.5x+ 안정)
     r["expectancy"] = m["expectancy"]         # 봇 효율: 거래당 평균 손익 (양수=엣지)
+    dd = drawdown_metrics(hist, r["perf_start"], r["seed"])
+    r["max_dd"] = dd["max_dd"]                 # [2단계] 최대 낙폭(누적, %)
+    r["today_dd"] = dd["today_dd"]             # [2단계] 당일 낙폭(%)
+    r["hm_grid"] = heatmap_grid(hist, r["perf_start"])   # [3단계] 요일×시간대 실현손익(7일)
     r.update({"ex_" + k: v for k, v in EX_CACHE.get(folder, {"ok": False, "err": "조회 전"}).items()})
 
     # 누적 수익률 = (현재 총잔고 - 초기화 잔고) / 초기화 잔고  ← 봇 대시보드 툴팁과 동일
@@ -486,6 +554,19 @@ def collect():
             assets += (b["seed"] or 0) + (b["total"] or 0)
     days = max([bot_days(b["perf_start"]) for b in bots] or [1.0])
     cum_ret = round((assets - seed) / seed * 100, 2) if seed else None
+
+    # [3단계] 전봇 히트맵 합산 (요일×시간대 실현손익, 최근 7일)
+    heatmap = {}
+    for b in bots:
+        for k, v in (b.get("hm_grid") or {}).items():
+            heatmap[k] = round(heatmap.get(k, 0.0) + v, 4)
+        b.pop("hm_grid", None)   # 합산 완료 → 봇별 grid는 페이로드에서 제거(경량화)
+    # [2단계] Drawdown 경고 대상 = 당일 낙폭 -10% 초과(위험) / -5% 초과(주의)
+    dd_danger = [{"name": b["name"], "today_dd": b["today_dd"]}
+                 for b in bots if b.get("today_dd") is not None and b["today_dd"] <= -10]
+    dd_warn = [{"name": b["name"], "today_dd": b["today_dd"]}
+               for b in bots if b.get("today_dd") is not None and -10 < b["today_dd"] <= -5]
+
     summary = {
         "assets": round(assets, 2),
         "cum_ret": cum_ret,
@@ -498,6 +579,9 @@ def collect():
         "no_positions": [b["name"] for b in bots if not b["holding"]],
         "stale": [b["name"] for b in bots
                   if b["age_min"] is not None and b["age_min"] > STALE_MIN],
+        "heatmap": heatmap,
+        "dd_danger": dd_danger,
+        "dd_warn": dd_warn,
         "updated": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
     return {"summary": summary, "bots": bots, "stale_min": STALE_MIN}

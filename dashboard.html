@@ -88,6 +88,11 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
 <div id="entryCountTable" style="overflow-x:auto;margin-bottom:22px"></div>
 <h2>봇 효율 지표 <span style="font-size:12px;color:var(--muted);font-weight:400">(Profit Factor · 평균손익비 · Expectancy)</span></h2>
 <div id="efficiencyTable" style="overflow-x:auto;margin-bottom:22px"></div>
+<h2>최대 낙폭 (Drawdown) <span style="font-size:12px;color:var(--muted);font-weight:400">(위험 조기경보)</span></h2>
+<div id="ddBanner"></div>
+<div id="drawdownTable" style="overflow-x:auto;margin-bottom:22px"></div>
+<h2>시간대별 성과 <span style="font-size:12px;color:var(--muted);font-weight:400">(요일×시간 수익 히트맵 · 최근 7일)</span></h2>
+<div id="heatmapTable" style="overflow-x:auto;margin-bottom:22px"></div>
 <h2>매매기법 비교</h2>
 <div id="comparisonTable" style="overflow-x:auto;margin-bottom:22px"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -252,6 +257,33 @@ function render(d,anim){
   ${_effRows.map(([lbl,tp,fn],ri)=>'<tr style="background:'+(ri%2?'var(--card)':'var(--card2)')+';border-top:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);white-space:nowrap;text-align:center">'+lbl+' '+wtip(tp)+'</td>'+d.bots.map(b=>{const[v,col]=fn(b);return '<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border);color:'+col+'">'+v+'</td>'}).join('')+'</tr>').join('')}
  </table>`;
  document.getElementById('efficiencyTable').innerHTML=effTable;
+ // ── [2단계] 최대 낙폭(Drawdown) 경고 배너 + 표 ──
+ const _ddTip='<b>가장 많이 떨어졌을 때 얼마나 깊이 빠졌는지</b> 보여줘요. 봇 잔고가 최고점을 찍은 뒤 바닥까지 떨어진 폭이에요. 깊을수록 위험하고, 한 봇이 크게 무너지면 전체 하루 목표가 흔들려요.<br>• 당일 낙폭: 오늘 고점 대비 현재 하락폭<br>• 최대 낙폭: 시작 후 가장 깊었던 하락폭<br>• 예: 100→90달러면 −10%<br>• −10% 넘으면 빨강 경고(위험)<br>※ 실현 청산 기준(보유중 미반영)';
+ const _dd=(v)=>{if(v==null)return['—','var(--muted)'];const c=v<=-10?'#e24b4a':(v<=-5?'var(--amber)':(v<0?'var(--loss)':'var(--muted)'));return[v.toFixed(1)+'%',c]};
+ const _ddRows=[['당일 낙폭',b=>_dd(b.today_dd)],['최대 낙폭 (누적)',b=>_dd(b.max_dd)]];
+ let ddBan='';
+ if(s.dd_danger&&s.dd_danger.length)ddBan+='<div style="border-radius:10px;padding:13px 16px;margin-bottom:10px;font-size:13px;font-weight:600;background:rgba(226,75,74,0.13);border-left:3px solid #e24b4a;color:#e24b4a">⚠️ 위험: '+s.dd_danger.map(x=>x.name+' 당일 낙폭 '+x.today_dd.toFixed(1)+'%').join(' · ')+' (한계 −10% 초과)</div>';
+ if(s.dd_warn&&s.dd_warn.length)ddBan+='<div style="border-radius:10px;padding:13px 16px;margin-bottom:10px;font-size:13px;font-weight:600;background:rgba(239,160,39,0.13);border-left:3px solid #efa027;color:#efa027">⚡ 주의: '+s.dd_warn.map(x=>x.name+' '+x.today_dd.toFixed(1)+'%').join(' · ')+' (−5% 초과)</div>';
+ if(!ddBan)ddBan='<div style="border-radius:10px;padding:13px 16px;margin-bottom:10px;font-size:13px;font-weight:600;background:rgba(45,189,133,0.10);border-left:3px solid var(--green);color:var(--green)">✅ 전 봇 당일 낙폭 안전 (−5% 이내)</div>';
+ document.getElementById('ddBanner').innerHTML=ddBan;
+ const ddTable=`<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:14px;font-weight:600">
+  <tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);text-align:center">봇</td>${d.bots.map(b=>'<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border)">'+b.name+'</td>').join('')}</tr>
+  ${_ddRows.map(([lbl,fn],ri)=>'<tr style="background:'+(ri%2?'var(--card)':'var(--card2)')+';border-top:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);white-space:nowrap;text-align:center">'+lbl+(ri===0?' '+wtip(_ddTip):'')+'</td>'+d.bots.map(b=>{const[v,col]=fn(b);return '<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border);color:'+col+'">'+v+'</td>'}).join('')+'</tr>').join('')}
+ </table>`;
+ document.getElementById('drawdownTable').innerHTML=ddTable;
+ // ── [3단계] 시간대별 성과 히트맵 (요일×6시간 4구간, 최근 7일 전봇 합산) ──
+ const _hmTip='<b>어느 요일·어느 시간에 돈을 벌고 잃는지</b> 색으로 보여줘요. 최근 7일간 모든 봇의 실현손익을 요일과 시간대로 모았어요. 잘 버는 시간대를 찾으면 그때 집중할 수 있어요.<br>• 빨강=수익 시간대 / 파랑=손실 시간대<br>• 진할수록 금액이 큼<br>• 예: 저녁이 빨강이면 저녁 장세가 유리<br>• 손실 시간대는 보수적으로';
+ const _wd=['월','화','수','목','금','토','일'];
+ const _bk=['00–06','06–12','12–18','18–24'];
+ const hm=s.heatmap||{};
+ let _mx=0; Object.values(hm).forEach(v=>{if(Math.abs(v)>_mx)_mx=Math.abs(v)});
+ const _cell=v=>{if(!v)return['background:var(--card2);color:var(--muted)','0'];const t=Math.min(1,Math.abs(v)/(_mx||1));const a=(0.18+t*0.62).toFixed(2);const bg=v>0?'rgba(255,90,90,'+a+')':'rgba(77,159,255,'+a+')';const tx=(v>0?'+':'')+v.toFixed(2);return['background:'+bg+';color:#fff',tx]};
+ const hmTable=`<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:13px;font-weight:600;table-layout:fixed">
+  <tr><td style="padding:10px 8px;color:var(--muted);text-align:center">시간대 ${wtip(_hmTip)}</td>${_wd.map(w=>'<td style="padding:10px 8px;text-align:center;color:var(--muted)">'+w+'</td>').join('')}</tr>
+  ${_bk.map((bl,bi)=>'<tr><td style="padding:10px 8px;text-align:center;color:var(--muted);white-space:nowrap">'+bl+'</td>'+_wd.map((w,wi)=>{const[st2,tx]=_cell(hm[wi+'_'+bi]||0);return '<td style="padding:10px 4px;text-align:center;'+st2+'">'+tx+'</td>'}).join('')+'</tr>').join('')}
+ </table>
+ <div style="font-size:11px;color:var(--muted);margin-top:6px">단위: USDT · <span style="color:var(--profit)">빨강=수익</span> / <span style="color:var(--loss)">파랑=손실</span> (진할수록 큰 금액) · 최근 7일 전봇 합산</div>`;
+ document.getElementById('heatmapTable').innerHTML=hmTable;
  document.getElementById('comparisonTable').innerHTML=compTable;
  applyView();  // 시간별 모드면 표 갱신, 기본화면이면 카드 표시 유지
  // (v0.8.0에서 손익차트 섹션 제거됨 — 관련 차트 JS도 삭제. 잔존 시 new Chart(null) 예외로 render 크래시→오'끊김')
