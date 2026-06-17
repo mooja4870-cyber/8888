@@ -103,6 +103,7 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
    <button onclick="closeRetModal()" style="background:none;border:none;color:var(--text);cursor:pointer;font-size:28px;opacity:0.6">×</button>
   </div>
   <div id="retTfBar" style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap"></div>
+  <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center"><span style="font-size:12px;color:var(--muted)">일평균수익률 축 범위(현재값 ±%p):</span><span id="retBandBar" style="display:flex;gap:6px;flex-wrap:wrap"></span></div>
   <div style="font-size:12px;color:var(--muted);margin-bottom:14px"><span style="display:inline-block;width:11px;height:11px;background:var(--profit);border-radius:2px;vertical-align:-1px"></span> 막대 = 일평균수익률(%, 좌축) <span style="color:var(--profit)">이익</span>/<span style="color:var(--loss)">손실</span> &nbsp;·&nbsp; <span style="display:inline-block;width:14px;height:3px;background:#e8eaf0;vertical-align:3px"></span> 꺾은선 = BTC 가격($, 우축) &nbsp;·&nbsp; <span id="retFrom"></span></div>
   <div style="position:relative;flex:1;min-height:0"><canvas id="retChartCanvas"></canvas></div>
  </div>
@@ -552,10 +553,11 @@ async function loadAssetChart(tf){
 window.addEventListener('keydown',e=>{if(e.key==='Escape')closeAssetModal();});
 document.getElementById('assetModal').addEventListener('click',e=>{if(e.target.id==='assetModal')closeAssetModal();});
 // ===== 일평균수익률·BTC 추이 모달 =====
-let _retChart=null, _retTf='5m';
+let _retChart=null, _retTf='5m', _retBand=1, _retBaseline=null;
+const _retBands=[1,3,5,10,20,30];   // 현재 일평균값 ± N 퍼센트포인트
 function openRetModal(){
  document.getElementById('retModal').style.display='flex';
- _renderRetTfBar();
+ _renderRetTfBar();_renderRetBandBar();
  loadRetChart(_retTf);
 }
 function closeRetModal(){
@@ -567,6 +569,20 @@ function _renderRetTfBar(){
   '<button onclick="loadRetChart(\''+k+'\')" style="background:'+(k===_retTf?'var(--green)':'var(--card2)')+';color:'+(k===_retTf?'#04342c':'var(--text)')+';border:1px solid var(--border);border-radius:7px;font-size:13px;font-weight:600;padding:6px 14px;cursor:pointer">'+lbl+'</button>'
  ).join('');
 }
+function _renderRetBandBar(){
+ document.getElementById('retBandBar').innerHTML=_retBands.map(p=>
+  '<button onclick="setRetBand('+p+')" style="background:'+(p===_retBand?'var(--green)':'var(--card2)')+';color:'+(p===_retBand?'#04342c':'var(--text)')+';border:1px solid var(--border);border-radius:7px;font-size:12px;font-weight:600;padding:5px 11px;cursor:pointer">±'+p+'%</button>'
+ ).join('');
+}
+function _applyRetBand(){
+ if(!_retChart)return;
+ if(_retBaseline!=null){
+  _retChart.options.scales.yA.min=+(_retBaseline-_retBand).toFixed(2);
+  _retChart.options.scales.yA.max=+(_retBaseline+_retBand).toFixed(2);
+ }else{_retChart.options.scales.yA.min=undefined;_retChart.options.scales.yA.max=undefined;}
+ _retChart.update();
+}
+function setRetBand(p){_retBand=p;_renderRetBandBar();_applyRetBand();}
 async function loadRetChart(tf){
  _retTf=tf;_renderRetTfBar();
  try{
@@ -582,6 +598,8 @@ async function loadRetChart(tf){
   const btc=pts.map(p=>p.btc);
   const ret=pts.map(p=>{if(p.asset==null)return null;const a=p.asset+(p.t<=CUT?49:0);return +(((a-seed)/seed*100)/days).toFixed(3);});
   const cols=ret.map(v=>v==null?'rgba(136,136,136,0.4)':(v>0?'rgba(255,90,90,0.85)':(v<0?'rgba(77,159,255,0.85)':'rgba(136,136,136,0.6)')));
+  const _vr=ret.filter(v=>v!=null);
+  _retBaseline=_vr.length?_vr[_vr.length-1]:null;   // 최신 일평균수익률 = 축 중앙
   document.getElementById('retFrom').textContent=d.asset_from?('총자산 기록 시작: '+d.asset_from+'  (기준금 '+seed.toFixed(0)+' · 경과 '+days+'일)'):'';
   const ctx=document.getElementById('retChartCanvas').getContext('2d');
   if(_retChart)_retChart.destroy();
@@ -592,7 +610,7 @@ async function loadRetChart(tf){
    ]},
    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
     scales:{
-     yA:{position:'left',grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#9fb0d8'},title:{display:true,text:'일평균수익률(%)',color:'#9fb0d8'}},
+     yA:{position:'left',min:_retBaseline!=null?+(_retBaseline-_retBand).toFixed(2):undefined,max:_retBaseline!=null?+(_retBaseline+_retBand).toFixed(2):undefined,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#9fb0d8'},title:{display:true,text:'일평균수익률(%)',color:'#9fb0d8'}},
      yB:{position:'right',grid:{display:false},ticks:{color:'#cfcfcf'},title:{display:true,text:'BTC($)',color:'#cfcfcf'}},
      x:{grid:{display:false},ticks:{color:'#8b93a5',maxTicksLimit:14,autoSkip:true}}
     },
