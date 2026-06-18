@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.161 | 2026-06-18 20:19 | 봇 박스(.card) 폭 324→306px (원본 360의 85%) (mooja). HTML만. 8888만. |
 | v0.9.160 | 2026-06-18 20:18 | 봇 박스(.card) 폭 360→324px (현재의 90%) (mooja). HTML만. 8888만. |
 | v0.9.159 | 2026-06-18 20:17 | 배치 옵션 '5개씩(2줄)'→'4개씩(2줄)' (mooja). 라벨 변경 + 행 분할 [[0,5],[5,10]]→[[0,4],[4,8]]. value="five" 유지(다른 참조 불변). HTML만. 8888만. |
 | v0.9.158 | 2026-06-18 20:15 | 봇 보유 티커 ROE ±30% 도달 시 해당 봇 박스 중앙에 알림 팝업 (mooja). app.py fetch_account()에서 fetch_positions percentage(없으면 upnl/initialMargin) 기준 abs≥30% 티커를 pos_alerts로 수집→ex_pos_alerts. dashboard.html .posalert 오버레이(이익 빨강🔴/손실 파랑🔵, 깜빡임, 카드 position:relative). 8888 포트한정 재기동, ex_pos_alerts 필드 검증 OK. 8888만. |
