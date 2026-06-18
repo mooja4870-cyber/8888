@@ -1057,6 +1057,54 @@ def dd_loop():
         time.sleep(300)        # 5분
 
 
+# [방안5] 일 1% 진척 + 기회손실 리포트: 매시간 전체/봇별 목표진척·정체(무진입)·미달 다이제스트
+def _hours_since(ts):
+    try:
+        t0 = time.mktime(time.strptime((ts or "")[:19], "%Y-%m-%d %H:%M:%S"))
+        return (time.time() - t0) / 3600.0
+    except (TypeError, ValueError):
+        return None
+
+
+def report_check_once():
+    out = []
+    allbots = []
+    for grp in ("main", "sub"):
+        d = collect(grp)
+        s = d["summary"]
+        tot = s.get("daily_ret")
+        lab = "메인6" if grp == "main" else "서브4"
+        out.append("[%s] 전체 일평균 %s/일 (목표 1.00%%) %s" % (
+            lab, ("%+.2f%%" % tot) if tot is not None else "—",
+            "✅달성" if (tot or 0) >= 1.0 else "미달"))
+        allbots += d["bots"]
+    lines = ["📈 [일 1%% 진척 리포트] %s시" % time.strftime("%H:%M")]
+    lines += out + ["─────"]
+    for b in sorted(allbots, key=lambda b: (b.get("daily_ret") if b.get("daily_ret") is not None else -9e9), reverse=True):
+        n = b["name"]
+        dr = b.get("daily_ret")
+        drs = ("%+.2f%%" % dr) if dr is not None else "—"
+        icon = "✅" if (dr or 0) >= 1.0 else ("🟡" if (dr or 0) >= 0 else "🔵")
+        ne = ""
+        if not b.get("holding"):
+            h = _hours_since(b.get("last_entry")) or _hours_since(b.get("perf_start"))
+            if h is not None and h >= 3:
+                ne = " ⏸무진입%.0fh(기회손실?)" % h
+        lines.append("%s %s %s%s" % (icon, n, drs, ne))
+    _discord_send("\n".join(lines))
+    _log_loop_state("[방안5] 진척리포트 발송")
+
+
+def report_loop():
+    time.sleep(120)
+    while True:
+        try:
+            report_check_once()
+        except Exception:
+            pass
+        time.sleep(3600)       # 1시간
+
+
 _btc_cache = {}         # tf -> (epoch_fetched, candles[[ts_ms, close], ...])
 _btc_lock = threading.Lock()
 _btc_client = None
@@ -1161,5 +1209,6 @@ if __name__ == "__main__":
     threading.Thread(target=errscan_loop, daemon=True).start()  # [방안2] 청산/주문 오류 스캔
     threading.Thread(target=protect_loop, daemon=True).start()  # [방안3] 보유 포지션 무방비 감시
     threading.Thread(target=dd_loop, daemon=True).start()       # [방안4] 드로우다운 서킷 감시
+    threading.Thread(target=report_loop, daemon=True).start()   # [방안5] 일 1% 진척 리포트
     print(f"8888 통합 관제 대시보드: http://localhost:{PORT}")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
