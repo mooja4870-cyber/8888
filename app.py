@@ -768,11 +768,17 @@ def send_discord_report():
     bots = sorted(data["bots"],
                   key=lambda b: (b.get("daily_ret") if b.get("daily_ret") is not None else -9e9),
                   reverse=True)   # 일평균수익률 내림차순
+    # 봇줄(ANSI 코드블록): 보유=O(노랑 1;33) / 미보유=X(밝은회색 1;30)
+    YEL = "\x1b[1;33m"
+    GRY = "\x1b[1;30m"
+    RST = "\x1b[0m"
+    blines = []
     for b in bots:
         n = b["name"]
+        mark = (YEL + "O" + RST) if b.get("holding") else (GRY + "X" + RST)
         dr = b.get("daily_ret")
         if dr is None:
-            lines.append("### %s  —" % n)
+            blines.append("%s %s  —" % (mark, n))
             continue
         drs = ("+" if dr >= 0 else "") + ("%.2f%%" % dr)
         prev = _discord_prev.get(n)
@@ -786,7 +792,7 @@ def send_discord_report():
                 chg = "🔵%.2f%%↓" % abs(dlt)      # 하락=파랑
             else:
                 chg = "⚪0.00%"
-        lines.append("### %s  %s  %s" % (n, drs, chg))
+        blines.append("%s %s  %s  %s" % (mark, n, drs, chg))
         _discord_prev[n] = dr
     # 맨 아래: 전체 일평균수익률 최근 30분 '-' 그래프 (asset_history 1분치 → 일평균% 환산)
     chart = None
@@ -804,10 +810,10 @@ def send_discord_report():
     except Exception:
         chart = None
     foot = "\n-# " + time.strftime("%Y-%m-%d %H:%M:%S")
+    ansi_body = "\n".join(blines)
     if chart:
-        content = "\n".join(lines) + ("\n📈 최근 %d분 전체 일평균 추이(%%)\n```\n" % npts) + chart + "\n```" + foot
-    else:
-        content = "\n".join(lines) + foot
+        ansi_body += ("\n\n최근 %d분 전체 일평균 추이(%%)\n" % npts) + chart
+    content = "\n".join(lines) + "\n```ansi\n" + ansi_body + "\n```" + foot
     payload = json.dumps({"content": content}).encode()
     req = urllib.request.Request(wh, data=payload,
                                  headers={"Content-Type": "application/json",
