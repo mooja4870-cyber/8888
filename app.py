@@ -975,6 +975,46 @@ def errscan_loop():
         time.sleep(120)
 
 
+# [방안3] 보유 포지션 무방비 감시: 보유중(EX_CACHE used>0)인데 엔진 다운/지연이면
+#         트레일링·동적청산이 멈춰 손절 관리가 중단됨 → 긴급 경보 (추가 거래소 호출 없음)
+_protect_prev = {}       # name -> 직전 무방비 여부
+
+
+def protect_check_once():
+    for folder, port, ex in BOTS:
+        name = folder.split("_")[0]
+        exd = EX_CACHE.get(folder, {})
+        holding = ((exd.get("used") or 0) > 0) if exd.get("ok") else False
+        up = port_alive(port)
+        sp = os.path.join(BASE, folder, "data", "stats.json")
+        try:
+            age = (time.time() - os.path.getmtime(sp)) / 60.0
+        except OSError:
+            age = None
+        stale = (age is not None and age > STALE_MIN)
+        unguarded = holding and (not up or stale)
+        prev = _protect_prev.get(name, False)
+        if unguarded and not prev:
+            why = "엔진 포트 다운" if not up else ("데이터 지연 %.0f분" % (age or 0))
+            _discord_send("🔴 [무방비포지션] 봇 %s 보유중인데 %s — 트레일링/동적청산 중단(거래소 고정SL만 의존). 점검 요망!" % (name, why))
+            _log_loop_state("[방안3] %s 무방비 (%s)" % (name, why))
+            _protect_prev[name] = True
+        elif (not unguarded) and prev:
+            _discord_send("🟢 [해제] 봇 %s 포지션 관리 정상화" % name)
+            _log_loop_state("[방안3] %s 해제" % name)
+            _protect_prev[name] = False
+
+
+def protect_loop():
+    time.sleep(60)
+    while True:
+        try:
+            protect_check_once()
+        except Exception:
+            pass
+        time.sleep(90)
+
+
 _btc_cache = {}         # tf -> (epoch_fetched, candles[[ts_ms, close], ...])
 _btc_lock = threading.Lock()
 _btc_client = None
@@ -1077,5 +1117,6 @@ if __name__ == "__main__":
     threading.Thread(target=discord_loop, daemon=True).start()  # 디스코드 1분 알림
     threading.Thread(target=health_loop, daemon=True).start()   # [방안1] 엔진 생존 감시
     threading.Thread(target=errscan_loop, daemon=True).start()  # [방안2] 청산/주문 오류 스캔
+    threading.Thread(target=protect_loop, daemon=True).start()  # [방안3] 보유 포지션 무방비 감시
     print(f"8888 통합 관제 대시보드: http://localhost:{PORT}")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()

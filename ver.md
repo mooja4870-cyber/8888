@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.143 | 2026-06-18 11:59 | [방안3] 보유 포지션 무방비 감시 추가 (mooja). protect_loop()(90초): EX_CACHE used>0(보유)인데 포트다운/데이터지연이면 트레일링·동적청산 중단(거래소 고정SL만 의존)으로 보고 🔴긴급경보, 정상화 시 🟢. 추가 거래소 호출 없음(EX_CACHE 재사용). 8888만. |
 | v0.9.142 | 2026-06-18 11:57 | [방안2] 청산/주문 오류 실시간 스캔 추가 (mooja). errscan_loop()(120초): 봇 로그(headless_runner/streamlit_server/bot_engine) 신규줄에서 치명패턴('청산 감지 오류'·진입유실·보호주문실패·주문실패/거부·Traceback·has no attribute) 탐지→디스코드 🟠경보(봇당 15분 스로틀, 백로그 무시·로테이션 대응). 검증: 8405 청산오류 패턴 매칭 확인. 8888만. |
 | v0.9.141 | 2026-06-18 11:55 | [방안1] 엔진 좀비·생존 감시 추가 (mooja, /loop 노하우 적용). app.py health_loop()(90초): 10봇 포트다운/데이터지연(stats.json>STALE_MIN)이 2회연속(≈3분) 지속 시 디스코드 🔴생존경보, 복구 시 🟢. _discord_send/_log_loop_state(loop_state.md) 헬퍼 추가. 탐지·경보만(재기동/주문 안전선). 8888만. |
 | v0.9.140 | 2026-06-18 11:38 | 봇 그룹 아코디언 추가: 메인 6봇 / 서브 4봇 (mooja 승인). app.py: SUB_BOTS·group_bots() 추가, collect(group)·/api/status?group=main|sub 지원(요약도 그룹별 합산, 기준금 자동). dashboard.html: #botgroup 드롭다운(viewmode 왼쪽, 메인6/서브4), tick()이 ?group= 전달. 스냅샷·자산기록·디스코드는 메인 기본 유지. 검증: 메인6=86.14·6/6, 서브4=58.85·4/4. node·py 통과. 8888만. |
