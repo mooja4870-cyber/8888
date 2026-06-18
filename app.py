@@ -1015,6 +1015,48 @@ def protect_loop():
         time.sleep(90)
 
 
+# [방안4] 드로우다운 서킷 감시: 봇별 당일 낙폭 -5%(주의)/-10%(위험) 단계 상승 시 경보
+_dd_prev = {}            # name -> 직전 단계('ok'/'warn'/'danger')
+_DD_RANK = {"ok": 0, "warn": 1, "danger": 2}
+
+
+def dd_check_once():
+    for folder, port, ex in BOTS:
+        name = folder.split("_")[0]
+        sp = os.path.join(BASE, folder, "data", "stats.json")
+        try:
+            with open(sp, encoding="utf-8") as f:
+                st = json.load(f)
+            seed = st.get("seed_money")
+            ps = st.get("perf_start_time")
+        except (OSError, ValueError):
+            continue
+        hist = os.path.join(BASE, folder, "data", "trade_history.csv")
+        dd = drawdown_metrics(hist, ps, seed).get("today_dd")
+        if dd is None:
+            continue
+        level = "danger" if dd <= -10 else ("warn" if dd <= -5 else "ok")
+        prev = _dd_prev.get(name, "ok")
+        if _DD_RANK[level] > _DD_RANK[prev]:        # 단계 악화
+            icon = "🔴 위험" if level == "danger" else "🟠 주의"
+            _discord_send("%s [낙폭] 봇 %s 당일 낙폭 %.1f%% (한계 %s)" % (icon, name, dd, "-10%" if level == "danger" else "-5%"))
+            _log_loop_state("[방안4] %s 낙폭 %.1f%% (%s)" % (name, dd, level))
+        elif level == "ok" and prev != "ok":        # 회복
+            _discord_send("🟢 [낙폭해소] 봇 %s 당일 낙폭 정상권" % name)
+            _log_loop_state("[방안4] %s 낙폭 해소" % name)
+        _dd_prev[name] = level
+
+
+def dd_loop():
+    time.sleep(70)
+    while True:
+        try:
+            dd_check_once()
+        except Exception:
+            pass
+        time.sleep(300)        # 5분
+
+
 _btc_cache = {}         # tf -> (epoch_fetched, candles[[ts_ms, close], ...])
 _btc_lock = threading.Lock()
 _btc_client = None
@@ -1118,5 +1160,6 @@ if __name__ == "__main__":
     threading.Thread(target=health_loop, daemon=True).start()   # [방안1] 엔진 생존 감시
     threading.Thread(target=errscan_loop, daemon=True).start()  # [방안2] 청산/주문 오류 스캔
     threading.Thread(target=protect_loop, daemon=True).start()  # [방안3] 보유 포지션 무방비 감시
+    threading.Thread(target=dd_loop, daemon=True).start()       # [방안4] 드로우다운 서킷 감시
     print(f"8888 통합 관제 대시보드: http://localhost:{PORT}")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
