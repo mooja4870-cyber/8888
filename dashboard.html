@@ -257,7 +257,7 @@ function render(d,anim){
     <tr style="background:#11151c;border-bottom:1px solid #2a2f3a;" title="거래당 평균 손익(누적, USDT). 미래수익 최강 예측지표 — 양수=엣지 있음"><td style="color:#cdd3e0;font-weight:600">⭐ Expectancy</td><td><span style="font-size:115.5%;font-weight:bold;color:${_exCol}">${_exTxt}</span></td></tr>
     <tr style="background:#181b22;"><td>총 잔고${exwarn}</td><td><span style="font-size:155%;font-weight:bold">${usd(b.ex_balance)}</span></td></tr>
     <tr style="background:#181b22;"><td>미실현 손익</td><td><span style="font-size:166%">${ex?fmt(b.ex_upnl,1):'—'}</span></td></tr>
-    <tr style="background:#252b36;" title="${cumtip}"><td>누적 수익률${b.cum_basis==='pnl'?' <span class="warn">~</span>':''}</td><td><span style="font-size:119%;font-weight:bold">${fmt(b.cum_ret,1)}%</span> <span style="color:var(--muted)">(${fmt(b.cum_delta,1)} U)</span></td></tr>
+    <tr style="background:#252b36;" title="${cumtip}"><td>누적 수익률${b.cum_basis==='pnl'?' <span class="warn">~</span>':''}</td><td><span style="font-size:119%;font-weight:bold">${fmt(b.cum_ret,1)}%</span></td></tr>
     <tr style="background:#252b36;" title="누적 수익률 ÷ 경과일수 ${b.days}일"><td>일 평균 수익률</td><td><span style="font-size:155%;animation:cardblink 1s ease-in-out infinite">${fmt(b.daily_ret,1)}%</span></td></tr>
     <tr style="background:#252b36;" title="order_id 그룹, SINCE ${b.perf_start||'—'}"><td>누적 주문·승률</td><td>${b.since_orders}건 · ${wr(b.since_w,b.since_l)}</td></tr>
     <tr style="background:#181b22;"><td>당일 주문·승률</td><td>${b.orders_today}건 · ${wr(b.today_w,b.today_l)}</td></tr>
