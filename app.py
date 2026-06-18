@@ -839,6 +839,80 @@ def discord_loop():
         time.sleep(60)
 
 
+# ── /loop 노하우 적용 감시 모듈 (탐지·경보만, 재기동/주문은 안전선) ─────────────
+LOOP_STATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "loop_state.md")
+
+
+def _discord_send(text):
+    """단문 경보 발송(웹훅 재사용)."""
+    try:
+        wh = open(DISCORD_WH_PATH, encoding="utf-8").read().strip()
+    except OSError:
+        return
+    if not wh:
+        return
+    req = urllib.request.Request(wh, data=json.dumps({"content": text}).encode(),
+                                 headers={"Content-Type": "application/json",
+                                          "User-Agent": "Mozilla/5.0 (8888-bot-monitor)"})
+    try:
+        urllib.request.urlopen(req, timeout=10)
+    except Exception:
+        pass
+
+
+def _log_loop_state(line):
+    try:
+        with open(LOOP_STATE_PATH, "a", encoding="utf-8") as f:
+            f.write("- %s %s\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), line))
+    except OSError:
+        pass
+
+
+# [방안1] 엔진 좀비·생존 감시: 포트 다운/데이터 지연이 2회 연속(약3분) 지속 시 경보, 복구 시 해제
+_health_prev = {}        # name -> 직전 ok 여부
+_health_badcnt = {}      # name -> 연속 이상 횟수
+
+
+def health_check_once():
+    for folder, port, ex in BOTS:
+        name = folder.split("_")[0]
+        up = port_alive(port)
+        sp = os.path.join(BASE, folder, "data", "stats.json")
+        try:
+            age = (time.time() - os.path.getmtime(sp)) / 60.0
+        except OSError:
+            age = None
+        stale = (age is not None and age > STALE_MIN)
+        ok = up and not stale
+        bad = _health_badcnt.get(name, 0)
+        bad = 0 if ok else bad + 1
+        _health_badcnt[name] = bad
+        sustained_bad = bad >= 2          # 2회 연속(≈3분) 지속
+        prev = _health_prev.get(name)     # 직전 '경보 상태'(True=정상, False=경보중)
+        if prev is None:
+            _health_prev[name] = not sustained_bad
+            continue
+        if prev and sustained_bad:        # 정상→이상
+            reason = "포트 다운" if not up else ("데이터 지연 %.0f분" % (age or 0))
+            _discord_send("🔴 [생존경보] 봇 %s 이상 — %s (엔진 좀비/다운 의심)" % (name, reason))
+            _log_loop_state("[방안1] %s 이상 (%s)" % (name, reason))
+            _health_prev[name] = False
+        elif (not prev) and ok:           # 이상→복구
+            _discord_send("🟢 [복구] 봇 %s 정상화" % name)
+            _log_loop_state("[방안1] %s 복구" % name)
+            _health_prev[name] = True
+
+
+def health_loop():
+    time.sleep(40)        # 기동 워밍업
+    while True:
+        try:
+            health_check_once()
+        except Exception:
+            pass
+        time.sleep(90)
+
+
 _btc_cache = {}         # tf -> (epoch_fetched, candles[[ts_ms, close], ...])
 _btc_lock = threading.Lock()
 _btc_client = None
@@ -939,5 +1013,6 @@ if __name__ == "__main__":
     threading.Thread(target=snapshot_loop, daemon=True).start()
     threading.Thread(target=asset_loop, daemon=True).start()   # [B안] 총자산 1분 기록
     threading.Thread(target=discord_loop, daemon=True).start()  # 디스코드 1분 알림
+    threading.Thread(target=health_loop, daemon=True).start()   # [방안1] 엔진 생존 감시
     print(f"8888 통합 관제 대시보드: http://localhost:{PORT}")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
