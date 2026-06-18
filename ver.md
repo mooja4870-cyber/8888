@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.154 | 2026-06-18 20:07 | 봇 그룹 드롭다운(#botgroup)에 「메인+서브」 옵션 추가 (mooja). app.py group_bots(group=="all")→ENABLED_BOTS 전체(활성 8봇) 반환, dashboard.html option value="all" 추가. 8888 포트한정 재기동, group=all 검증 8봇. 8888만. |
 | v0.9.153 | 2026-06-18 20:03 | 헤더 4개 드롭다운(메인/기본화면/3개씩(2줄)/일평균 수익률) 문구 중앙정렬 (mooja). #sortby,#layout,#viewmode 및 #botgroup CSS에 text-align:center + text-align-last:center 추가. 8888만. |
 | v0.9.152 | 2026-06-18 20:01 | 봇 그룹 드롭다운(#botgroup) 가로폭 200% (mooja). dashboard.html #botgroup 전용 CSS 추가(다른 드롭다운과 동일 다크스타일 + min-width:120px ≈현재 약60px의 2배). node --check 통과. 8888만. |
 | v0.9.151 | 2026-06-18 18:43 | 8402·8501 완전 비활성(집계·감시 전부 제외) (mooja). app.py DISABLED_BOTS={8402_okx,8501_bnc}+ENABLED_BOTS 신설, ACTIVE/SUB를 ENABLED 기준으로 산출, 감시루프 5종(health/errscan/protect/dd/weak_window·_window_pnl_today) 순회를 BOTS→ENABLED_BOTS로 변경. 결과: 메인 8401·8405·8406·8408·8409 / 서브 8403·8404·8407 / 비활성 8402·8501. 검증 완료. 8888만. |

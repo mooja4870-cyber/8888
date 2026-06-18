@@ -41,7 +41,11 @@ SUB_BOTS = [b for b in ENABLED_BOTS if b[0] in HIDDEN_BOTS]          # 서브
 
 
 def group_bots(group):
-    return SUB_BOTS if group == "sub" else ACTIVE_BOTS
+    if group == "sub":
+        return SUB_BOTS
+    if group == "all":
+        return ENABLED_BOTS          # 메인+서브 전체
+    return ACTIVE_BOTS
 
 
 def port_alive(port):
