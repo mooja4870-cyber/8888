@@ -31,10 +31,13 @@ BOTS = [
     ("8407_bnc", 8407, "BNC"), ("8408_bnc", 8408, "BNC"), ("8409_bnc", 8409, "BNC"),
     ("8501_bnc", 8501, "BNC"),
 ]
-# 봇 그룹: 메인(관제 주력 6봇) / 서브(분리 4봇). 화면 드롭다운으로 전환.
+# 완전 비활성(메인·서브·집계·감시 전부 제외) 봇 (mooja 지정)
+DISABLED_BOTS = {"8402_okx", "8501_bnc"}
+ENABLED_BOTS = [b for b in BOTS if b[0] not in DISABLED_BOTS]    # 활성 8봇
+# 봇 그룹: 메인 / 서브(=HIDDEN). 비활성 봇은 양쪽 모두에서 빠짐.
 HIDDEN_BOTS = {"8402_okx", "8403_okx", "8404_okx", "8407_bnc", "8501_bnc"}   # = 서브
-ACTIVE_BOTS = [b for b in BOTS if b[0] not in HIDDEN_BOTS]       # = 메인 6봇
-SUB_BOTS = [b for b in BOTS if b[0] in HIDDEN_BOTS]              # 서브 4봇
+ACTIVE_BOTS = [b for b in ENABLED_BOTS if b[0] not in HIDDEN_BOTS]   # 메인
+SUB_BOTS = [b for b in ENABLED_BOTS if b[0] in HIDDEN_BOTS]          # 서브
 
 
 def group_bots(group):
@@ -882,7 +885,7 @@ _health_badcnt = {}      # name -> 연속 이상 횟수
 
 
 def health_check_once():
-    for folder, port, ex in BOTS:
+    for folder, port, ex in ENABLED_BOTS:
         name = folder.split("_")[0]
         up = port_alive(port)
         sp = os.path.join(BASE, folder, "data", "stats.json")
@@ -957,7 +960,7 @@ def _scan_log_new(path):
 
 def errscan_check_once():
     now = time.time()
-    for folder, port, ex in BOTS:
+    for folder, port, ex in ENABLED_BOTS:
         name = folder.split("_")[0]
         hits = []
         for fn in ("headless_runner.log", "streamlit_server.log", "bot_engine.log"):
@@ -989,7 +992,7 @@ _protect_prev = {}       # name -> 직전 무방비 여부
 
 
 def protect_check_once():
-    for folder, port, ex in BOTS:
+    for folder, port, ex in ENABLED_BOTS:
         name = folder.split("_")[0]
         exd = EX_CACHE.get(folder, {})
         holding = ((exd.get("used") or 0) > 0) if exd.get("ok") else False
@@ -1029,7 +1032,7 @@ _DD_RANK = {"ok": 0, "warn": 1, "danger": 2}
 
 
 def dd_check_once():
-    for folder, port, ex in BOTS:
+    for folder, port, ex in ENABLED_BOTS:
         name = folder.split("_")[0]
         sp = os.path.join(BASE, folder, "data", "stats.json")
         try:
@@ -1121,7 +1124,7 @@ def _window_pnl_today(h0, h1):
     today = time.strftime("%Y-%m-%d")
     tot = 0.0
     n = 0
-    for folder, port, ex in BOTS:
+    for folder, port, ex in ENABLED_BOTS:
         f = os.path.join(BASE, folder, "data", "trade_history.csv")
         for ts, pnl, oid in _load_exits(f):
             if ts[:10] == today and ts[11:13].isdigit() and h0 <= int(ts[11:13]) < h1:
