@@ -31,9 +31,14 @@ BOTS = [
     ("8407_bnc", 8407, "BNC"), ("8408_bnc", 8408, "BNC"), ("8409_bnc", 8409, "BNC"),
     ("8501_bnc", 8501, "BNC"),
 ]
-# 관제에서 완전 제외할 봇(mooja 지정). 카드·요약·표·스냅샷 전부 제외. 비우면 전체 표시.
-HIDDEN_BOTS = {"8402_okx", "8403_okx", "8407_bnc", "8501_bnc"}
-ACTIVE_BOTS = [b for b in BOTS if b[0] not in HIDDEN_BOTS]
+# 봇 그룹: 메인(관제 주력 6봇) / 서브(분리 4봇). 화면 드롭다운으로 전환.
+HIDDEN_BOTS = {"8402_okx", "8403_okx", "8407_bnc", "8501_bnc"}   # = 서브
+ACTIVE_BOTS = [b for b in BOTS if b[0] not in HIDDEN_BOTS]       # = 메인 6봇
+SUB_BOTS = [b for b in BOTS if b[0] in HIDDEN_BOTS]              # 서브 4봇
+
+
+def group_bots(group):
+    return SUB_BOTS if group == "sub" else ACTIVE_BOTS
 
 
 def port_alive(port):
@@ -552,8 +557,8 @@ def bot_days(perf_start):
         return 1.0
 
 
-def collect():
-    bots = [bot_status(*b) for b in ACTIVE_BOTS]
+def collect(group="main"):
+    bots = [bot_status(*b) for b in group_bots(group)]
     # 합산 누적 수익률 = (Σ현재 총잔고 - 기준금) / 기준금
     #   기준금 = SEED_OVERRIDE(mooja 지정 고정값) 우선, 없으면 봇 seed 자동합산.
     #   현재 총잔고는 거래소 실시간 잔고, 조회 실패 봇은 seed+실현손익으로 폴백.
@@ -899,7 +904,9 @@ HTML_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard.
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith("/api/status"):
-            body = json.dumps(collect(), ensure_ascii=False).encode()
+            from urllib.parse import urlparse, parse_qs
+            grp = (parse_qs(urlparse(self.path).query).get("group") or ["main"])[0]
+            body = json.dumps(collect(grp), ensure_ascii=False).encode()
             ctype = "application/json; charset=utf-8"
         elif self.path.startswith("/api/snapshots"):
             body = json.dumps(load_snapshots(), ensure_ascii=False).encode()
