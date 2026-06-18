@@ -731,10 +731,25 @@ def send_discord_report():
     if not wh:
         return
     data = collect()
+    s = data["summary"]
+    # 맨 위: 전체(통합) 일평균수익률 + 직전분 대비 증감
+    tot = s.get("daily_ret")
+    if tot is not None:
+        tts = ("+" if tot >= 0 else "") + ("%.2f%%/일" % tot)
+        tprev = _discord_prev.get("__ALL__")
+        if tprev is None:
+            tchg = "(—)"
+        else:
+            td = round(tot - tprev, 2)
+            tchg = ("🔴%.2f%%↑" % abs(td)) if td > 0 else (("🔵%.2f%%↓" % abs(td)) if td < 0 else "⚪0.00%")
+        _discord_prev["__ALL__"] = tot
+        lines = ["# 📊 전체 일평균수익률 (%s일)" % s.get("days"),
+                 "# %s  %s" % (tts, tchg), "────────────────"]
+    else:
+        lines = ["# 📊 전체 일평균수익률", "────────────────"]
     bots = sorted(data["bots"],
                   key=lambda b: (b.get("daily_ret") if b.get("daily_ret") is not None else -9e9),
                   reverse=True)   # 일평균수익률 내림차순
-    lines = ["## 📊 봇 일평균수익률 (1분 갱신)"]
     for b in bots:
         n = b["name"]
         dr = b.get("daily_ret")
