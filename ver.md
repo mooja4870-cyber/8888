@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.155 | 2026-06-18 20:09 | 봇 박스 안의 '금일 실현 손익' 행 삭제 (mooja). 미실현 손익 다음 누적 수익률 행 배경 #252b36으로 줄무늬 유지. node --check 통과. HTML만(재기동 불요). 8888만. |
 | v0.9.154 | 2026-06-18 20:07 | 봇 그룹 드롭다운(#botgroup)에 「메인+서브」 옵션 추가 (mooja). app.py group_bots(group=="all")→ENABLED_BOTS 전체(활성 8봇) 반환, dashboard.html option value="all" 추가. 8888 포트한정 재기동, group=all 검증 8봇. 8888만. |
 | v0.9.153 | 2026-06-18 20:03 | 헤더 4개 드롭다운(메인/기본화면/3개씩(2줄)/일평균 수익률) 문구 중앙정렬 (mooja). #sortby,#layout,#viewmode 및 #botgroup CSS에 text-align:center + text-align-last:center 추가. 8888만. |
 | v0.9.152 | 2026-06-18 20:01 | 봇 그룹 드롭다운(#botgroup) 가로폭 200% (mooja). dashboard.html #botgroup 전용 CSS 추가(다른 드롭다운과 동일 다크스타일 + min-width:120px ≈현재 약60px의 2배). node --check 통과. 8888만. |
