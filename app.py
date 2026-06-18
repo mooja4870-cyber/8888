@@ -843,10 +843,13 @@ def discord_loop():
 LOOP_STATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "loop_state.md")
 
 
-def _discord_send(text):
-    """단문 경보 발송(웹훅 재사용)."""
+DISCORD_WH_ALERT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "discord_webhook_alert.txt")
+
+
+def _discord_send(text, wh_path=DISCORD_WH_PATH):
+    """단문 발송. 기본=정기 웹훅, wh_path 지정 시 해당 웹훅으로."""
     try:
-        wh = open(DISCORD_WH_PATH, encoding="utf-8").read().strip()
+        wh = open(wh_path, encoding="utf-8").read().strip()
     except OSError:
         return
     if not wh:
@@ -858,6 +861,11 @@ def _discord_send(text):
         urllib.request.urlopen(req, timeout=10)
     except Exception:
         pass
+
+
+def _discord_alert(text):
+    """이벤트 경보 전용 웹훅으로 발송(방안1~4)."""
+    _discord_send(text, DISCORD_WH_ALERT_PATH)
 
 
 def _log_loop_state(line):
@@ -894,11 +902,11 @@ def health_check_once():
             continue
         if prev and sustained_bad:        # 정상→이상
             reason = "포트 다운" if not up else ("데이터 지연 %.0f분" % (age or 0))
-            _discord_send("🔴 [생존경보] 봇 %s 이상 — %s (엔진 좀비/다운 의심)" % (name, reason))
+            _discord_alert("🔴 [생존경보] 봇 %s 이상 — %s (엔진 좀비/다운 의심)" % (name, reason))
             _log_loop_state("[방안1] %s 이상 (%s)" % (name, reason))
             _health_prev[name] = False
         elif (not prev) and ok:           # 이상→복구
-            _discord_send("🟢 [복구] 봇 %s 정상화" % name)
+            _discord_alert("🟢 [복구] 봇 %s 정상화" % name)
             _log_loop_state("[방안1] %s 복구" % name)
             _health_prev[name] = True
 
@@ -961,7 +969,7 @@ def errscan_check_once():
             continue
         _err_alert_ts[name] = now
         samp = hits[-1].replace("```", "ˋˋˋ")
-        _discord_send("🟠 [청산/주문오류] 봇 %s — 신규 %d건\n```\n%s\n```" % (name, len(hits), samp))
+        _discord_alert("🟠 [청산/주문오류] 봇 %s — 신규 %d건\n```\n%s\n```" % (name, len(hits), samp))
         _log_loop_state("[방안2] %s 오류 %d건: %s" % (name, len(hits), samp))
 
 
@@ -996,11 +1004,11 @@ def protect_check_once():
         prev = _protect_prev.get(name, False)
         if unguarded and not prev:
             why = "엔진 포트 다운" if not up else ("데이터 지연 %.0f분" % (age or 0))
-            _discord_send("🔴 [무방비포지션] 봇 %s 보유중인데 %s — 트레일링/동적청산 중단(거래소 고정SL만 의존). 점검 요망!" % (name, why))
+            _discord_alert("🔴 [무방비포지션] 봇 %s 보유중인데 %s — 트레일링/동적청산 중단(거래소 고정SL만 의존). 점검 요망!" % (name, why))
             _log_loop_state("[방안3] %s 무방비 (%s)" % (name, why))
             _protect_prev[name] = True
         elif (not unguarded) and prev:
-            _discord_send("🟢 [해제] 봇 %s 포지션 관리 정상화" % name)
+            _discord_alert("🟢 [해제] 봇 %s 포지션 관리 정상화" % name)
             _log_loop_state("[방안3] %s 해제" % name)
             _protect_prev[name] = False
 
@@ -1039,10 +1047,10 @@ def dd_check_once():
         prev = _dd_prev.get(name, "ok")
         if _DD_RANK[level] > _DD_RANK[prev]:        # 단계 악화
             icon = "🔴 위험" if level == "danger" else "🟠 주의"
-            _discord_send("%s [낙폭] 봇 %s 당일 낙폭 %.1f%% (한계 %s)" % (icon, name, dd, "-10%" if level == "danger" else "-5%"))
+            _discord_alert("%s [낙폭] 봇 %s 당일 낙폭 %.1f%% (한계 %s)" % (icon, name, dd, "-10%" if level == "danger" else "-5%"))
             _log_loop_state("[방안4] %s 낙폭 %.1f%% (%s)" % (name, dd, level))
         elif level == "ok" and prev != "ok":        # 회복
-            _discord_send("🟢 [낙폭해소] 봇 %s 당일 낙폭 정상권" % name)
+            _discord_alert("🟢 [낙폭해소] 봇 %s 당일 낙폭 정상권" % name)
             _log_loop_state("[방안4] %s 낙폭 해소" % name)
         _dd_prev[name] = level
 

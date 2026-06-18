@@ -8,3 +8,4 @@ asset_history.json
 snapshots.json.bak.*
 discord_webhook.txt
 loop_state.md
+discord_webhook_alert.txt
