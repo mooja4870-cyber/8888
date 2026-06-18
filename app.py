@@ -723,6 +723,24 @@ DISCORD_WH_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "disc
 _discord_prev = {}      # name -> 직전 daily_ret
 
 
+def _ascii_dash_chart(vals, rows=6):
+    """값 리스트를 '-' 문자 미니 라인차트(rows줄)로. 좌측 상/하단에 최고·최저 라벨."""
+    if len(vals) < 2:
+        return None
+    lo = min(vals)
+    hi = max(vals)
+    rng = hi - lo
+    grid = [[" "] * len(vals) for _ in range(rows)]
+    for c, v in enumerate(vals):
+        r = int(round((v - lo) / rng * (rows - 1))) if rng > 0 else rows // 2
+        grid[rows - 1 - r][c] = "-"      # 상단=최고
+    out = []
+    for i, row in enumerate(grid):
+        lab = ("%+.2f" % hi) if i == 0 else (("%+.2f" % lo) if i == rows - 1 else "")
+        out.append("%6s|%s" % (lab, "".join(row)))
+    return "\n".join(out)
+
+
 def send_discord_report():
     try:
         wh = open(DISCORD_WH_PATH, encoding="utf-8").read().strip()
@@ -770,7 +788,26 @@ def send_discord_report():
                 chg = "⚪0.00%"
         lines.append("### %s  %s  %s" % (n, drs, chg))
         _discord_prev[n] = dr
-    content = "\n".join(lines) + "\n-# " + time.strftime("%Y-%m-%d %H:%M:%S")
+    # 맨 아래: 전체 일평균수익률 최근 30분 '-' 그래프 (asset_history 1분치 → 일평균% 환산)
+    chart = None
+    npts = 0
+    try:
+        seedv = (s.get("assets") or 0) - (s.get("cum_delta") or 0)
+        days = s.get("days") or 1
+        vals = []
+        for h in load_asset_history()[-30:]:
+            v = h.get("v")
+            if v is not None and seedv:
+                vals.append((v - seedv) / seedv / days * 100)
+        npts = len(vals)
+        chart = _ascii_dash_chart(vals)
+    except Exception:
+        chart = None
+    foot = "\n-# " + time.strftime("%Y-%m-%d %H:%M:%S")
+    if chart:
+        content = "\n".join(lines) + ("\n📈 최근 %d분 전체 일평균 추이(%%)\n```\n" % npts) + chart + "\n```" + foot
+    else:
+        content = "\n".join(lines) + foot
     payload = json.dumps({"content": content}).encode()
     req = urllib.request.Request(wh, data=payload,
                                  headers={"Content-Type": "application/json",
