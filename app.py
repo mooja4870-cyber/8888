@@ -32,7 +32,7 @@ BOTS = [
     ("8501_bnc", 8501, "BNC"),
 ]
 # 봇 그룹: 메인(관제 주력 6봇) / 서브(분리 4봇). 화면 드롭다운으로 전환.
-HIDDEN_BOTS = {"8402_okx", "8403_okx", "8407_bnc", "8501_bnc"}   # = 서브
+HIDDEN_BOTS = {"8402_okx", "8403_okx", "8404_okx", "8407_bnc", "8501_bnc"}   # = 서브
 ACTIVE_BOTS = [b for b in BOTS if b[0] not in HIDDEN_BOTS]       # = 메인 6봇
 SUB_BOTS = [b for b in BOTS if b[0] in HIDDEN_BOTS]              # 서브 4봇
 
