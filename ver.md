@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.135 | 2026-06-18 09:25 | 디스코드 1분 알림 추가 (mooja, B양식). app.py: discord_loop() 백그라운드 스레드(60초), send_discord_report()가 활성봇 일평균수익률 내림차순 + 직전분 대비 증감(↑🔴상승/↓🔵하락, 이모지) 마크다운 헤더(### 큰폰트)로 웹훅 발송. urllib.request import 추가. 웹훅 URL은 discord_webhook.txt(git 미추적)에서 로드. 디스코드 403 회피 위해 User-Agent 헤더 필수. 검증: 수동/자동 발송 204 성공. 8888만. |
 | v0.9.134 | 2026-06-18 07:30 | 봇 카드 가로 크기 144%로 정정 (mooja, 166→144 환원). dashboard.html .card width 415px→360px (원본250×1.44). node --check 통과. 8888만. |
 | v0.9.133 | 2026-06-18 07:29 | 봇 카드 가로 크기 166%로 확대 (mooja, 144→166 정정). dashboard.html .card width 360px→415px (원본250×1.66). node --check 통과. 8888만. |
 | v0.9.132 | 2026-06-18 07:28 | 봇 카드 가로 크기 144%로 확대 (mooja, 122→144 정정). dashboard.html .card width 305px→360px (원본250×1.44). node --check 통과. 8888만. |

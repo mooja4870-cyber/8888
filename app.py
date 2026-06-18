@@ -13,6 +13,7 @@ import os
 import socket
 import threading
 import time
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 BASE = "/Users/l/project"
@@ -717,6 +718,64 @@ def asset_loop():
         time.sleep(60)
 
 
+# ── 디스코드 1분 알림: 활성봇 일평균수익률(내림차순) + 직전분 대비 증감(↑🔴/↓🔵) ──────
+DISCORD_WH_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "discord_webhook.txt")
+_discord_prev = {}      # name -> 직전 daily_ret
+
+
+def send_discord_report():
+    try:
+        wh = open(DISCORD_WH_PATH, encoding="utf-8").read().strip()
+    except OSError:
+        return
+    if not wh:
+        return
+    data = collect()
+    bots = sorted(data["bots"],
+                  key=lambda b: (b.get("daily_ret") if b.get("daily_ret") is not None else -9e9),
+                  reverse=True)   # 일평균수익률 내림차순
+    lines = ["## 📊 봇 일평균수익률 (1분 갱신)"]
+    for b in bots:
+        n = b["name"]
+        dr = b.get("daily_ret")
+        if dr is None:
+            lines.append("### %s  —" % n)
+            continue
+        drs = ("+" if dr >= 0 else "") + ("%.2f%%" % dr)
+        prev = _discord_prev.get(n)
+        if prev is None:
+            chg = "(—)"
+        else:
+            dlt = round(dr - prev, 2)
+            if dlt > 0:
+                chg = "🔴%.2f%%↑" % abs(dlt)      # 상승=빨강
+            elif dlt < 0:
+                chg = "🔵%.2f%%↓" % abs(dlt)      # 하락=파랑
+            else:
+                chg = "⚪0.00%"
+        lines.append("### %s  %s  %s" % (n, drs, chg))
+        _discord_prev[n] = dr
+    content = "\n".join(lines) + "\n-# " + time.strftime("%Y-%m-%d %H:%M:%S")
+    payload = json.dumps({"content": content}).encode()
+    req = urllib.request.Request(wh, data=payload,
+                                 headers={"Content-Type": "application/json",
+                                          "User-Agent": "Mozilla/5.0 (8888-bot-monitor)"})
+    try:
+        urllib.request.urlopen(req, timeout=10)
+    except Exception:
+        pass
+
+
+def discord_loop():
+    time.sleep(25)        # 거래소 워밍업 대기
+    while True:
+        try:
+            send_discord_report()
+        except Exception:
+            pass
+        time.sleep(60)
+
+
 _btc_cache = {}         # tf -> (epoch_fetched, candles[[ts_ms, close], ...])
 _btc_lock = threading.Lock()
 _btc_client = None
@@ -814,5 +873,6 @@ if __name__ == "__main__":
     threading.Thread(target=exchange_loop, daemon=True).start()
     threading.Thread(target=snapshot_loop, daemon=True).start()
     threading.Thread(target=asset_loop, daemon=True).start()   # [B안] 총자산 1분 기록
+    threading.Thread(target=discord_loop, daemon=True).start()  # 디스코드 1분 알림
     print(f"8888 통합 관제 대시보드: http://localhost:{PORT}")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
