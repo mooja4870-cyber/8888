@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.158 | 2026-06-18 20:15 | 봇 보유 티커 ROE ±30% 도달 시 해당 봇 박스 중앙에 알림 팝업 (mooja). app.py fetch_account()에서 fetch_positions percentage(없으면 upnl/initialMargin) 기준 abs≥30% 티커를 pos_alerts로 수집→ex_pos_alerts. dashboard.html .posalert 오버레이(이익 빨강🔴/손실 파랑🔵, 깜빡임, 카드 position:relative). 8888 포트한정 재기동, ex_pos_alerts 필드 검증 OK. 8888만. |
 | v0.9.157 | 2026-06-18 20:12 | '초기화 후 경과' 경과시간 크기 166%→133% (mooja). 주황색·깜빡임 유지. HTML만. 8888만. |
 | v0.9.156 | 2026-06-18 20:11 | 봇 박스 '초기화 후 경과' 경과시간 수치를 166% 크기 + 주황색(--amber) + 1초 깜빡임(cardblink) 적용 (mooja). node --check 통과. HTML만(재기동 불요). 8888만. |
 | v0.9.155 | 2026-06-18 20:09 | 봇 박스 안의 '금일 실현 손익' 행 삭제 (mooja). 미실현 손익 다음 누적 수익률 행 배경 #252b36으로 줄무늬 유지. node --check 통과. HTML만(재기동 불요). 8888만. |

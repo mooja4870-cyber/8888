@@ -404,15 +404,31 @@ def fetch_account(cred):
     bal = c.fetch_balance()
     usdt = bal.get("USDT", {})
     upnl = 0.0
+    pos_alerts = []   # 티커별 ROE ±30% 도달 포지션 [{sym, pct}]
     try:
         for p in c.fetch_positions():
             v = p.get("unrealizedPnl")
             if v is not None and float(p.get("contracts") or 0) != 0:
                 upnl += float(v)
+            # ROE(증거금 대비 손익률) ±30% 검사
+            try:
+                if float(p.get("contracts") or 0) == 0:
+                    continue
+                pct = p.get("percentage")
+                if pct is None:
+                    im = p.get("initialMargin") or p.get("collateral")
+                    if im and v is not None and float(im) != 0:
+                        pct = float(v) / float(im) * 100.0
+                if pct is not None and abs(float(pct)) >= 30.0:
+                    sym = (p.get("symbol") or "").split("/")[0].split(":")[0]
+                    pos_alerts.append({"sym": sym, "pct": round(float(pct), 1)})
+            except Exception:
+                pass
     except Exception:
         pass
     return {"balance": usdt.get("total"), "free": usdt.get("free"),
-            "used": usdt.get("used"), "upnl": round(upnl, 4), "ok": True, "err": None}
+            "used": usdt.get("used"), "upnl": round(upnl, 4),
+            "pos_alerts": pos_alerts, "ok": True, "err": None}
 
 
 _ex_cooldown = {}       # cred -> 이 시각(epoch)까지 조회 스킵 (레이트리밋 백오프)
