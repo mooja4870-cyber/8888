@@ -913,6 +913,68 @@ def health_loop():
         time.sleep(90)
 
 
+# [방안2] 청산/주문 오류 실시간 스캔: 봇 로그 신규줄에서 치명 패턴 탐지 → 디스코드 경보(봇당 15분 스로틀)
+_errscan_pos = {}        # logpath -> 마지막 읽은 바이트
+_err_alert_ts = {}       # name -> 마지막 경보 epoch
+ERR_PATTERNS = ("청산 감지 오류", "진입유실", "보호주문 실패", "주문 실패",
+                "주문 거부", "주문 거절", "Traceback", "has no attribute")
+
+
+def _scan_log_new(path):
+    try:
+        sz = os.path.getsize(path)
+    except OSError:
+        return []
+    pos = _errscan_pos.get(path)
+    if pos is None:                  # 최초: 백로그 무시(현재 끝부터)
+        _errscan_pos[path] = sz
+        return []
+    if sz < pos:                     # 로테이션/트렁케이트
+        pos = 0
+    if sz == pos:
+        return []
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            f.seek(pos)
+            chunk = f.read()
+    except OSError:
+        return []
+    _errscan_pos[path] = sz
+    hits = []
+    for ln in chunk.splitlines():
+        if any(p in ln for p in ERR_PATTERNS):
+            hits.append(ln.strip()[:160])
+    return hits
+
+
+def errscan_check_once():
+    now = time.time()
+    for folder, port, ex in BOTS:
+        name = folder.split("_")[0]
+        hits = []
+        for fn in ("headless_runner.log", "streamlit_server.log", "bot_engine.log"):
+            hits += _scan_log_new(os.path.join(BASE, folder, fn))
+        if not hits:
+            continue
+        if now - _err_alert_ts.get(name, 0) < 900:   # 15분 스로틀
+            _log_loop_state("[방안2] %s 오류 %d건(스로틀)" % (name, len(hits)))
+            continue
+        _err_alert_ts[name] = now
+        samp = hits[-1].replace("```", "ˋˋˋ")
+        _discord_send("🟠 [청산/주문오류] 봇 %s — 신규 %d건\n```\n%s\n```" % (name, len(hits), samp))
+        _log_loop_state("[방안2] %s 오류 %d건: %s" % (name, len(hits), samp))
+
+
+def errscan_loop():
+    time.sleep(50)
+    while True:
+        try:
+            errscan_check_once()
+        except Exception:
+            pass
+        time.sleep(120)
+
+
 _btc_cache = {}         # tf -> (epoch_fetched, candles[[ts_ms, close], ...])
 _btc_lock = threading.Lock()
 _btc_client = None
@@ -1014,5 +1076,6 @@ if __name__ == "__main__":
     threading.Thread(target=asset_loop, daemon=True).start()   # [B안] 총자산 1분 기록
     threading.Thread(target=discord_loop, daemon=True).start()  # 디스코드 1분 알림
     threading.Thread(target=health_loop, daemon=True).start()   # [방안1] 엔진 생존 감시
+    threading.Thread(target=errscan_loop, daemon=True).start()  # [방안2] 청산/주문 오류 스캔
     print(f"8888 통합 관제 대시보드: http://localhost:{PORT}")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
