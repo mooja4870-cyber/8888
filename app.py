@@ -1113,6 +1113,45 @@ def report_loop():
         time.sleep(3600)       # 1시간
 
 
+# [③ 시간대 분석 반영] 06–12 약세 시간대 진입/종료 경보 (역대 이 구간 -7.42·승률38% 최악)
+_ww_in = [False]
+
+
+def _window_pnl_today(h0, h1):
+    today = time.strftime("%Y-%m-%d")
+    tot = 0.0
+    n = 0
+    for folder, port, ex in BOTS:
+        f = os.path.join(BASE, folder, "data", "trade_history.csv")
+        for ts, pnl, oid in _load_exits(f):
+            if ts[:10] == today and ts[11:13].isdigit() and h0 <= int(ts[11:13]) < h1:
+                tot += pnl
+                n += 1
+    return round(tot, 2), n
+
+
+def weak_window_loop():
+    time.sleep(80)
+    while True:
+        try:
+            hr = time.localtime().tm_hour
+            in_win = 6 <= hr < 12
+            if in_win and not _ww_in[0]:
+                _ww_in[0] = True
+                _discord_alert("⏰🟠 [약세시간대 진입] 06–12 — 역대 이 구간 누적 −7.42 USDT(승률 38%)로 최악. "
+                               "보수 운영·집중 모니터링 권고(특히 화·수·목).")
+                _log_loop_state("[③] 06-12 약세시간대 진입 경고")
+            elif (not in_win) and _ww_in[0]:
+                _ww_in[0] = False
+                pnl, n = _window_pnl_today(6, 12)
+                ic = "🔵" if pnl < 0 else "🔴"
+                _discord_alert("✅ [약세시간대 종료] 오늘 06–12 실현손익 %s%+.2f USDT (%d건)" % (ic, pnl, n))
+                _log_loop_state("[③] 06-12 종료 손익 %+.2f (%d건)" % (pnl, n))
+        except Exception:
+            pass
+        time.sleep(60)
+
+
 _btc_cache = {}         # tf -> (epoch_fetched, candles[[ts_ms, close], ...])
 _btc_lock = threading.Lock()
 _btc_client = None
@@ -1218,5 +1257,6 @@ if __name__ == "__main__":
     threading.Thread(target=protect_loop, daemon=True).start()  # [방안3] 보유 포지션 무방비 감시
     threading.Thread(target=dd_loop, daemon=True).start()       # [방안4] 드로우다운 서킷 감시
     threading.Thread(target=report_loop, daemon=True).start()   # [방안5] 일 1% 진척 리포트
+    threading.Thread(target=weak_window_loop, daemon=True).start()  # [③] 06-12 약세 시간대 경보
     print(f"8888 통합 관제 대시보드: http://localhost:{PORT}")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
