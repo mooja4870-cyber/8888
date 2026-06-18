@@ -368,6 +368,10 @@ function showBotModal(botName,port){
  content.innerHTML=`
   <button onclick="openBotDashboard(${port})" style="background:#2dbd85;color:#000;border:none;padding:16px 24px;border-radius:10px;cursor:pointer;font-weight:700;font-size:16px;width:100%;transition:background 0.2s">📊 ${botName} 대시보드로 이동</button>
   <button onclick="showBotGraph('${botName}')" style="background:#102a6b;color:#fff;border:none;padding:16px 24px;border-radius:10px;cursor:pointer;font-weight:700;font-size:16px;width:100%;transition:all 0.2s">📈 수익률 그래프 보기</button>
+  <div style="display:flex;gap:10px">
+   <button onclick="gotoGroup('main')" style="flex:1;background:#3a4250;color:#fff;border:none;padding:16px 12px;border-radius:10px;cursor:pointer;font-weight:700;font-size:16px;transition:all 0.2s">🟦 메인 가기</button>
+   <button onclick="gotoGroup('sub')" style="flex:1;background:#5a4a2a;color:#fff;border:none;padding:16px 12px;border-radius:10px;cursor:pointer;font-weight:700;font-size:16px;transition:all 0.2s">🟨 서브 가기</button>
+  </div>
  `;
  modal.style.display='flex';
 }
@@ -379,6 +383,12 @@ function closeBotModal(){
 function openBotDashboard(port){
  window.open('http://localhost:'+port,'_blank');
  closeBotModal();
+}
+function gotoGroup(g){
+ const s=document.getElementById('botgroup');
+ if(s){s.value=g;}
+ closeBotModal();
+ tick();   // 선택 그룹으로 즉시 재조회·지표 갱신
 }
 async function showBotGraph(botName){
  const content=document.getElementById('modalContent');
