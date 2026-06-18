@@ -761,10 +761,10 @@ def send_discord_report():
             td = round(tot - tprev, 2)
             tchg = ("🔴%.2f%%↑" % abs(td)) if td > 0 else (("🔵%.2f%%↓" % abs(td)) if td < 0 else "⚪0.00%")
         _discord_prev["__ALL__"] = tot
-        lines = ["# 📊 전체 일평균수익률 (%s일)" % s.get("days"),
-                 "# %s  %s" % (tts, tchg), "────────────────"]
+        lines = ["📊 전체 일평균수익률 (%s일)" % s.get("days"),
+                 "%s  %s" % (tts, tchg), "────────────────"]
     else:
-        lines = ["# 📊 전체 일평균수익률", "────────────────"]
+        lines = ["📊 전체 일평균수익률", "────────────────"]
     bots = sorted(data["bots"],
                   key=lambda b: (b.get("daily_ret") if b.get("daily_ret") is not None else -9e9),
                   reverse=True)   # 일평균수익률 내림차순
@@ -813,7 +813,7 @@ def send_discord_report():
     ansi_body = "\n".join(blines)
     if chart:
         ansi_body += ("\n\n최근 %d분 전체 일평균 추이(%%)\n" % npts) + chart
-    content = "\n".join(lines) + "\n```ansi\n" + ansi_body + "\n```" + foot
+    content = "```ansi\n" + "\n".join(lines) + "\n" + ansi_body + "\n```" + foot
     payload = json.dumps({"content": content}).encode()
     req = urllib.request.Request(wh, data=payload,
                                  headers={"Content-Type": "application/json",
