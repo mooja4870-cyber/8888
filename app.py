@@ -35,7 +35,7 @@ BOTS = [
 DISABLED_BOTS = {"8402_okx", "8501_bnc"}
 ENABLED_BOTS = [b for b in BOTS if b[0] not in DISABLED_BOTS]    # 활성 8봇
 # 봇 그룹: 메인 / 서브(=HIDDEN). 비활성 봇은 양쪽 모두에서 빠짐.
-HIDDEN_BOTS = {"8402_okx", "8403_okx", "8407_bnc", "8409_bnc", "8501_bnc"}   # = 서브
+HIDDEN_BOTS = {"8402_okx", "8403_okx", "8404_okx", "8407_bnc", "8409_bnc", "8501_bnc"}   # = 서브
 ACTIVE_BOTS = [b for b in ENABLED_BOTS if b[0] not in HIDDEN_BOTS]   # 메인
 SUB_BOTS = [b for b in ENABLED_BOTS if b[0] in HIDDEN_BOTS]          # 서브
 
