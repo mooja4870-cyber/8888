@@ -183,68 +183,140 @@ def last_entry_exit(path, perf_start=None):
     return res
 
 
+def get_position_direction(category: str, side: str) -> str:
+    cat = category.strip()
+    s = side.strip().lower()
+    if s in ("long", "l"): return "LONG"
+    if s in ("short", "s"): return "SHORT"
+    if cat in ("진입", "*진입"):
+        return "LONG" if s == "buy" else "SHORT"
+    return "LONG" if s == "sell" else "SHORT"
+
 def hist_metrics(path, perf_start):
-    """봇 대시보드와 동일하게 trade_history.csv에서 당일/누적 지표 재계산.
-    - 금일 실현 손익 = Σ(청산 수익), 경계 = max(오늘 00:00 KST, perf_start). 행 단위 합산.
-    - 당일/누적 주문·승률 = order_id별로 묶어 합산 > 0 승 / < 0 패 (봇 방식).
-    - 24시간 내 진입 수 = 현재 시각 기준 직전 24시간 롤링 윈도우 내 진입 기록 수 (청산 무관).
-    """
+    import time, csv, os
     today0 = time.strftime("%Y-%m-%d 00:00:00")
     ps = (perf_start or "")[:19]
     b_today = max(today0, ps) if ps else today0
     b_since = ps or today0
-    exits = _load_exits(path)
-    entries = _load_entries(path)
+    
+    try:
+        with open(path, encoding="utf-8-sig", errors="replace") as f:
+            rows = list(csv.reader(f))
+    except OSError:
+        return {"today_pnl": 0.0, "today_w": 0, "today_l": 0, "since_w": 0, "since_l": 0, "since_orders": 0, "profit_factor": None, "avg_wl": None, "expectancy": None, "entries_24h": 0, "entries_by_period": {}}
 
+    trades = []
+    for i, r in enumerate(rows):
+        if len(r) < 7 or r[0].startswith("시간") or r[0].startswith("﻿"): continue
+        ts = r[0].strip()[:19]
+        if not ts[:4].isdigit(): continue
+        sym = r[1].strip()
+        cat = r[2].strip()
+        side = r[3].strip()
+        try:
+            amt = float(r[5])
+            pnl = float(r[6]) if r[6] else 0.0
+            price = float(r[4])
+        except: continue
+        dir = get_position_direction(cat, side)
+        oid = r[10].strip() if len(r) > 10 else ""
+        if not oid: oid = f"TEMP_{ts}_{i}"
+        trades.append({"ts": ts, "sym": sym, "cat": cat, "side": side, "dir": dir, "price": price, "amt": amt, "pnl": pnl, "oid": oid})
+        
+    # Group by order_id, symbol, category, direction to get exact amounts (like dedupe & aggregate)
+    # Actually, simpler: just group by oid+category if available
+    grouped_trades = []
+    oid_groups = {}
+    for t in trades:
+        k = (t["oid"], t["sym"], t["cat"], t["dir"])
+        if k not in oid_groups:
+            oid_groups[k] = {"ts": t["ts"], "sym": t["sym"], "cat": t["cat"], "dir": t["dir"], "amt": 0.0, "pnl": 0.0, "oid": t["oid"]}
+            grouped_trades.append(oid_groups[k])
+        oid_groups[k]["amt"] += t["amt"]
+        oid_groups[k]["pnl"] += t["pnl"]
+        # Keep the earliest timestamp
+        if t["ts"] < oid_groups[k]["ts"]:
+            oid_groups[k]["ts"] = t["ts"]
+            
+    # Now pair
+    sym_groups = {}
+    for t in grouped_trades:
+        sym_groups.setdefault(t["sym"], []).append(t)
+        
+    cycles = []
+    unique_entries = set()
+    
+    for sym, st in sym_groups.items():
+        st.sort(key=lambda x: x["ts"])
+        active_longs = []
+        active_shorts = []
+        for t in st:
+            if t["cat"] in ("진입", "*진입"):
+                unique_entries.add((t["ts"], t["oid"] if t["oid"].startswith("TEMP_") else t["oid"])) # For 24h entry
+                lst = active_longs if t["dir"] == "LONG" else active_shorts
+                lst.append({"ts": t["ts"], "amt_rem": t["amt"]})
+            elif t["cat"] in ("청산", "청산(로테이션)"):
+                rem = t["amt"]
+                tot_pnl = t["pnl"]
+                lst = active_longs if t["dir"] == "LONG" else active_shorts
+                while rem > 1e-8 and lst:
+                    entry = lst[-1]
+                    match_amt = min(entry["amt_rem"], rem)
+                    match_pnl = tot_pnl * (match_amt / t["amt"])
+                    cycles.append({"exit_ts": t["ts"], "pnl": match_pnl})
+                    entry["amt_rem"] -= match_amt
+                    rem -= match_amt
+                    if entry["amt_rem"] <= 1e-8:
+                        lst.pop()
+                if rem > 1e-8:
+                    match_pnl = tot_pnl * (rem / t["amt"])
+                    cycles.append({"exit_ts": t["ts"], "pnl": match_pnl})
+                    
     today_pnl = 0.0
-    today_grp, since_grp = {}, {}
-    for i, (ts, pnl, oid) in enumerate(exits):
-        if ts >= b_since:
-            key = oid if oid else f"no_id_{i}"
-            since_grp[key] = since_grp.get(key, 0.0) + pnl
-            if ts >= b_today:
-                today_pnl += pnl
-                today_grp[key] = today_grp.get(key, 0.0) + pnl
+    today_w = today_l = 0
+    since_w = since_l = 0
+    since_pnl = 0.0
+    wins = []
+    losses = []
+    
+    for c in cycles:
+        if c["exit_ts"] >= b_since:
+            if c["pnl"] > 0: since_w += 1; wins.append(c["pnl"])
+            if c["pnl"] < 0: since_l += 1; losses.append(abs(c["pnl"]))
+            since_pnl += c["pnl"]
+            if c["exit_ts"] >= b_today:
+                today_pnl += c["pnl"]
+                if c["pnl"] > 0: today_w += 1
+                if c["pnl"] < 0: today_l += 1
 
-    tw = sum(1 for v in today_grp.values() if v > 0)
-    tl = sum(1 for v in today_grp.values() if v < 0)
-    sw = sum(1 for v in since_grp.values() if v > 0)
-    sl = sum(1 for v in since_grp.values() if v < 0)
-
-    # 봇 효율 지표
-    wins = [v for v in since_grp.values() if v > 0]
-    losses = [abs(v) for v in since_grp.values() if v < 0]
-    gross_win, gross_loss = sum(wins), sum(losses)
-    profit_factor = round(gross_win / gross_loss, 2) if gross_loss > 0 else None
-    avg_wl = None
-    if wins and losses:
-        avg_wl = round((gross_win / len(wins)) / (gross_loss / len(losses)), 2)
-    n_grp = len(since_grp)
-    expectancy = round(sum(since_grp.values()) / n_grp, 4) if n_grp else None
-
-    # 기간별 진입 수 (롤링 윈도우 + perf_start + oid 중복 제거)
+    gross_w = sum(wins)
+    gross_l = sum(losses)
+    profit_factor = round(gross_w / gross_l, 2) if gross_l > 0 else None
+    avg_wl = round((gross_w / len(wins)) / (gross_l / len(losses)), 2) if wins and losses else None
+    expectancy = round(since_pnl / (since_w + since_l), 4) if (since_w + since_l) > 0 else None
+    
+    # 24h entries
     now = time.time()
-    periods = {"1h": 3600, "6h": 21600, "12h": 43200, "24h": 86400,
-               "48h": 172800, "72h": 259200, "1w": 604800}
-    entries_by_period = {}
+    periods = {"1h": 3600, "6h": 21600, "12h": 43200, "24h": 86400, "48h": 172800, "72h": 259200, "1w": 604800}
+    ebp = {}
+    
+    entries_list = []
+    for t in trades:
+        if t["cat"] in ("진입", "*진입"):
+            entries_list.append((t["ts"], t["oid"]))
+            
     for key, secs in periods.items():
         cutoff = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now - secs))
-        if ps and ps > cutoff:
-            cutoff = ps
-        
-        unique_entries = set()
-        for i, (ts, oid) in enumerate(entries):
-            if ts >= cutoff:
-                if oid:
-                    unique_entries.add(oid)
-                else:
-                    unique_entries.add(f"no_id_{i}")
-        entries_by_period[key] = len(unique_entries)
+        if ps and ps > cutoff: cutoff = ps
+        ue = set()
+        for ts, oid in entries_list:
+            if ts >= cutoff: ue.add(oid)
+        ebp[key] = len(ue)
 
-    return {"today_pnl": round(today_pnl, 4), "today_w": tw, "today_l": tl,
-            "since_w": sw, "since_l": sl, "since_orders": sw + sl,
+    return {"today_pnl": round(today_pnl, 4), "today_w": today_w, "today_l": today_l,
+            "since_w": since_w, "since_l": since_l, "since_orders": since_w + since_l,
             "profit_factor": profit_factor, "avg_wl": avg_wl, "expectancy": expectancy,
-            "entries_24h": entries_by_period["24h"], "entries_by_period": entries_by_period}
+            "entries_24h": ebp.get("24h", 0), "entries_by_period": ebp}
 
 def drawdown_metrics(path, perf_start, seed):
     """[2단계] 실현손익 equity curve로 최대낙폭(누적)·당일낙폭 계산 (seed 대비 %)."""
