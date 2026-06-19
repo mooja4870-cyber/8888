@@ -198,24 +198,20 @@ def hist_metrics(path, perf_start):
 
     today_pnl = 0.0
     today_grp, since_grp = {}, {}
-    for ts, pnl, oid in exits:
+    for i, (ts, pnl, oid) in enumerate(exits):
         if ts >= b_since:
-            if oid:
-                since_grp[oid] = since_grp.get(oid, 0.0) + pnl
+            key = oid if oid else f"no_id_{i}"
+            since_grp[key] = since_grp.get(key, 0.0) + pnl
             if ts >= b_today:
                 today_pnl += pnl
-                if oid:
-                    today_grp[oid] = today_grp.get(oid, 0.0) + pnl
+                today_grp[key] = today_grp.get(key, 0.0) + pnl
 
     tw = sum(1 for v in today_grp.values() if v > 0)
     tl = sum(1 for v in today_grp.values() if v < 0)
     sw = sum(1 for v in since_grp.values() if v > 0)
     sl = sum(1 for v in since_grp.values() if v < 0)
 
-    # 봇 효율 지표 (누적 perf_start 이후, order_id 그룹 손익 기준) ── TradeZella 8대 KPI 일부
-    #   profit_factor = 총이익 ÷ 총손실(절대값)  [1.5+ 우수]
-    #   avg_wl        = 평균이익 ÷ 평균손실       [1.5x+ 안정]
-    #   expectancy    = 누적 실현손익 ÷ 거래수    [양수면 엣지]
+    # 봇 효율 지표
     wins = [v for v in since_grp.values() if v > 0]
     losses = [abs(v) for v in since_grp.values() if v < 0]
     gross_win, gross_loss = sum(wins), sum(losses)
@@ -226,34 +222,47 @@ def hist_metrics(path, perf_start):
     n_grp = len(since_grp)
     expectancy = round(sum(since_grp.values()) / n_grp, 4) if n_grp else None
 
-    # 기간별 진입 수 = 현재 시각 기준 직전 N시간 롤링 윈도우 내 진입 기록 수 (청산 무관)
+    # 기간별 진입 수 (롤링 윈도우 + perf_start + oid 중복 제거)
     now = time.time()
     periods = {"1h": 3600, "6h": 21600, "12h": 43200, "24h": 86400,
                "48h": 172800, "72h": 259200, "1w": 604800}
     entries_by_period = {}
     for key, secs in periods.items():
         cutoff = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now - secs))
-        entries_by_period[key] = sum(1 for ts, oid in entries if ts >= cutoff)
+        if ps and ps > cutoff:
+            cutoff = ps
+        
+        unique_entries = set()
+        for i, (ts, oid) in enumerate(entries):
+            if ts >= cutoff:
+                if oid:
+                    unique_entries.add(oid)
+                else:
+                    unique_entries.add(f"no_id_{i}")
+        entries_by_period[key] = len(unique_entries)
 
     return {"today_pnl": round(today_pnl, 4), "today_w": tw, "today_l": tl,
             "since_w": sw, "since_l": sl, "since_orders": sw + sl,
             "profit_factor": profit_factor, "avg_wl": avg_wl, "expectancy": expectancy,
             "entries_24h": entries_by_period["24h"], "entries_by_period": entries_by_period}
 
-
 def drawdown_metrics(path, perf_start, seed):
-    """[2단계] 실현손익 equity curve로 최대낙폭(누적)·당일낙폭 계산 (seed 대비 %).
-    - equity = seed + 누적 실현손익. peak 대비 하락폭의 최저값 = 최대 낙폭(MDD).
-    - 당일 낙폭 = 오늘 시작 잔고 기준, 오늘 내 고점 대비 현재 하락폭.
-    - 미실현(보유 포지션) 미반영 — 실현 청산 기준.
-    """
+    """[2단계] 실현손익 equity curve로 최대낙폭(누적)·당일낙폭 계산 (seed 대비 %)."""
     if not seed or seed <= 0:
         return {"max_dd": None, "today_dd": None}
     ps = (perf_start or "")[:19]
     today0 = time.strftime("%Y-%m-%d 00:00:00")
-    exits = sorted(_load_exits(path))   # (ts, pnl, oid) 시각 오름차순
+    
+    raw_exits = sorted(_load_exits(path))
+    grp = {}
+    for i, (ts, pnl, oid) in enumerate(raw_exits):
+        key = oid if oid else f"no_id_{i}"
+        if key not in grp:
+            grp[key] = {"ts": ts, "pnl": 0.0}
+        grp[key]["pnl"] += pnl
+    
+    exits = sorted([(v["ts"], v["pnl"], k) for k, v in grp.items()])
 
-    # 누적 최대 낙폭 (perf_start 이후 전체)
     eq = peak = seed
     max_dd = 0.0
     eq_at_today_start = seed
@@ -261,7 +270,7 @@ def drawdown_metrics(path, perf_start, seed):
         if ps and ts < ps:
             continue
         if ts < today0:
-            eq_at_today_start = eq + pnl   # 오늘 시작 직전까지의 누적 잔고
+            eq_at_today_start = eq + pnl
         eq += pnl
         if eq > peak:
             peak = eq
@@ -269,7 +278,6 @@ def drawdown_metrics(path, perf_start, seed):
         if dd < max_dd:
             max_dd = dd
 
-    # 당일 낙폭 (오늘 시작 잔고를 peak 기준으로, 오늘 거래만)
     eqt = peak_t = eq_at_today_start
     today_dd = 0.0
     for ts, pnl, oid in exits:
@@ -286,12 +294,15 @@ def drawdown_metrics(path, perf_start, seed):
 
     return {"max_dd": round(max_dd, 2), "today_dd": round(today_dd, 2)}
 
-
 def heatmap_grid(path, perf_start, days=7):
     """[3단계] 최근 N일 청산 실현손익을 요일×시간대(6시간 4구간)로 집계.
     반환: {"wday_bucket": pnl_sum, ...}  (wday 0=월 … 6=일, bucket 0=00–06 … 3=18–24)
     """
     cutoff = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() - days * 86400))
+    if perf_start:
+        ps = perf_start[:19]
+        if ps > cutoff:
+            cutoff = ps
     grid = {}
     for ts, pnl, oid in _load_exits(path):
         if ts < cutoff:
