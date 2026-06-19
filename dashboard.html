@@ -69,7 +69,7 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
 </style>
 </head>
 <body>
-<header><h1>봇 통합 관제</h1><span style="font-size:12px;color:var(--muted)">수익 <span style="color:var(--profit)">빨강</span> · 손실 <span style="color:var(--loss)">파랑</span></span><select id="botgroup" onchange="onGroupChange()" title="봇 그룹"><option value="main" selected>메인</option><option value="sub">서브</option><option value="all">메인+서브</option></select><select id="viewmode" onchange="applyView()" title="화면 모드"><option value="base" selected>기본화면</option><option value="name">시간별 봇 이름 순</option></select><select id="layout" onchange="if(_lastData)render(_lastData,true)" title="배치 형태"><option value="pyramid">피라미드(1·2·3·4)</option><option value="five">4개씩(2줄)</option><option value="three" selected>3개씩(2줄)</option></select><select id="sortby" onchange="if(_lastData)render(_lastData,true)" title="정렬 기준(내림차순)"><option value="daily_ret">일평균 수익률</option><option value="cum_ret">누적 수익률</option><option value="ex_balance">총 잔고</option><option value="since_orders">누적 주문수</option><option value="orders_today">당일 주문수</option><option value="elapsed">초기화 후 경과</option><option value="name">봇 번호 순</option></select><span id="updated">불러오는 중…</span></header>
+<header><h1>봇 통합 관제</h1><span style="font-size:12px;color:var(--muted)">수익 <span style="color:var(--profit)">빨강</span> · 손실 <span style="color:var(--loss)">파랑</span></span><select id="botgroup" onchange="onGroupChange()" title="봇 그룹"><option value="main" selected>메인</option><option value="sub">서브</option><option value="all">메인+서브</option></select><select id="viewmode" onchange="applyView()" title="화면 모드"><option value="base" selected>기본화면</option><option value="name">시간별 봇 이름 순</option></select><select id="layout" onchange="if(_lastData)render(_lastData,true)" title="배치 형태"><option value="pyramid">피라미드(1·2·3·4)</option><option value="five" selected>4개씩(2줄)</option><option value="three">3개씩(2줄)</option></select><select id="sortby" onchange="if(_lastData)render(_lastData,true)" title="정렬 기준(내림차순)"><option value="daily_ret">일평균 수익률</option><option value="cum_ret">누적 수익률</option><option value="ex_balance">총 잔고</option><option value="since_orders">누적 주문수</option><option value="orders_today">당일 주문수</option><option value="elapsed">초기화 후 경과</option><option value="name">봇 번호 순</option></select><span id="updated">불러오는 중…</span></header>
 <div class="summary" id="summary"></div>
 <div class="legend">
 <span><span class="dot" style="background:var(--green)"></span>정상</span>
@@ -265,7 +265,7 @@ function render(d,anim){
     <tr style="background:#181b22;" title="현재 무포지션 지속(거래소 증거금 기준, 초기화 후 보유 없으면 초기화 시점부터). 마지막 청산: ${b.last_flat||'초기화 후 없음'}"><td style="color:#ffd633">⏸무포지션</td><td style="color:#ffd633">${b.holding?'<span style="color:#ffd633">보유중</span>':(b.last_flat?elapsed(b.last_flat):(b.perf_start?elapsed(b.perf_start):'—'))}</td></tr>
    </table></div>`});
  // 피라미드 배치: 1행 1개(1등) / 2행 2개(2·3등) / 3행 3개(4·5·6등) / 4행 4개(나머지)
- const _lay=(document.getElementById('layout')||{}).value||'three';  // 디폴트 '3개씩(2줄)'
+ const _lay=(document.getElementById('layout')||{}).value||'five';  // 디폴트 '4개씩(2줄)'
  const _rows = _lay==='three' ? [[0,3],[3,6]] : (_lay==='five' ? [[0,4],[4,8]] : [[0,1],[1,3],[3,6],[6,10]]);
  var _cw=document.getElementById('cards');_cw.classList.toggle('five',_lay==='five');
  _cw.classList.remove('anim');  // 자동 새로고침은 조용히(모션 없음) — 먼저 제거 후 재구성
@@ -348,9 +348,8 @@ function render(d,anim){
 }
 let _fails=0;
 function onGroupChange(){
- // 메인+서브 선택 시 배치를 '4개씩(2줄)' 디폴트로
- const g=(document.getElementById('botgroup')||{}).value;
- if(g==='all'){const L=document.getElementById('layout'); if(L) L.value='five';}
+ // 메인/서브/메인+서브 어느 그룹을 선택해도 배치를 '4개씩(2줄)' 디폴트로
+ const L=document.getElementById('layout'); if(L) L.value='five';
  tick();
 }
 async function tick(){
