@@ -873,9 +873,24 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 
+def discord_loop():
+    """매 1분 전체 일평균수익률 요약을 디스코드로 발송 (8888 보유 집계 기반)."""
+    import discord_alert
+    time.sleep(35)   # 거래소 캐시(EX_CACHE) 워밍업 후 첫 발송 (콜드값 발송 방지)
+    while True:
+        try:
+            ok, info = discord_alert.tick(collect())
+            if not ok:
+                print(f"[DISCORD] 발송 실패: {info}")
+        except Exception as e:
+            print(f"[DISCORD] 예외: {str(e)[:150]}")
+        time.sleep(60)
+
+
 if __name__ == "__main__":
     threading.Thread(target=exchange_loop, daemon=True).start()
     threading.Thread(target=snapshot_loop, daemon=True).start()
     threading.Thread(target=asset_loop, daemon=True).start()   # [B안] 총자산 1분 기록
+    threading.Thread(target=discord_loop, daemon=True).start()  # 디스코드 1분 요약 알림
     print(f"8888 통합 관제 대시보드: http://localhost:{PORT}")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()

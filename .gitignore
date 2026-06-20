@@ -6,3 +6,6 @@ snapshots.json
 snapshots.json.tmp
 asset_history.json
 snapshots.json.bak.*
+
+discord_webhook.txt
+discord_state.json

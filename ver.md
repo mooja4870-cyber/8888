@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.134 | 2026-06-20 18:05 | 디스코드 전체 일평균수익률 요약 알림 신설 (mooja 지시, 과거 형식 재현). 봇별 개별발송이 아니라 8888이 보유한 집계를 매 1분 webhook 1건 발송. discord_alert.py 추가: 📊전체일평균(±/일)+직전대비 아이콘(🔴상승↑/🔵하락↓/⚪무변, 수익=빨강 컨벤션), 봇별 일평균 내림차순(O=보유/X=무포지션), 최근 30분(1분×30) 전체일평균 ASCII 라인차트. app.py discord_loop()(35초 워밍업 후 60초 주기) 스레드 추가. webhook URL은 discord_webhook.txt(.gitignore), 직전값·추이버퍼는 discord_state.json(.gitignore, 재시작 연속성). 디스코드 403 원인=User-Agent 누락 → 헤더 명시로 해결, 발송 status=204 확인. 8888만. |
 | v0.9.133 | 2026-06-20 17:25 | 헤더 3개 드롭다운(아코디언) 폰트 122% 확대 (mooja). dashboard.html #sortby,#layout,#viewmode (기본화면/배치/정렬 선택): font-size 12px → 14.64px(=12×1.22). 정적 파일이라 새로고침만으로 반영. 8888만. |
 | v0.9.132 | 2026-06-20 17:18 | BNC 봇(8408/8409)도 api.md를 키 단일출처로 우선 사용 (mooja 지시). parse_api_md_bnc() 추가(형식 'api ='/'secret =', #·빈줄 무시, 첫등장 우선), bot_creds() BNC는 api.md 우선·없으면 .env(BINANCE_API_KEY/SECRET) 폴백. 효과: 8408 잔고가 .env키(29.78)→api.md키(31.00)로 교정(올바른 계정). 검증: 8408 ex_balance=31.0·8409=29.9 정상 조회, 5봇 전부 각자 api.md 키 사용. 총자산 121.18/누적 1.77%. 8888만. |
 | v0.9.131 | 2026-06-20 17:10 | 봇별 거래소 잔고 구분 — bot_creds()가 api.md를 키 단일출처로 우선 사용(.env보다 우선, 봇 본체 core/api_keys.py와 동일 규칙) (mooja 지시). 버그: 8401(메인)·8406(서브) .env에 동일 키(...3dd0)가 들어 있어 8888이 두 봇을 같은 cred로 묶어 동일 잔고 조회 → 봇별 자산 구분 불가. 수정: parse_api_md_okx() 추가(#/빈줄 무시, apikey/secretkey/passphrase 첫등장 우선), OKX 봇은 api.md 우선·없으면 .env 폴백. 결과: 8401=19.84(메인)·8406=20.84(서브)·8405=...b529로 키 분리. 검증: bot_creds로 3봇 키 상이 확인, /api/status 8401 ex_balance=19.84(mooja 확인값 일치). 8888만. |
