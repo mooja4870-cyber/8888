@@ -379,6 +379,31 @@ def parse_api_md_okx(folder):
     return None
 
 
+def parse_api_md_bnc(folder):
+    """봇의 api.md에서 BNC(바이낸스) 키 파싱. 형식: api = ... / secret = ...
+    #/빈 줄 무시, 첫 등장값 우선. 두 값 모두 있으면 (key, sec) 반환, 아니면 None."""
+    path = os.path.join(BASE, folder, "api.md")
+    slot_of = {"api": "key", "apikey": "key", "secret": "sec", "secretkey": "sec"}
+    found = {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                s = line.strip()
+                if not s or s.startswith("#") or "=" not in s:
+                    continue
+                rk, _, rv = s.partition("=")
+                slot = slot_of.get(rk.strip().lower().replace(" ", ""))
+                if slot and slot not in found:
+                    v = rv.strip().strip('"').strip("'").strip()
+                    if v:
+                        found[slot] = v
+    except OSError:
+        return None
+    if "key" in found and "sec" in found:
+        return (found["key"], found["sec"])
+    return None
+
+
 def bot_creds(folder, ex):
     if ex == "OKX":
         # 봇 본체와 동일하게 api.md를 단일 출처로 우선 사용(.env보다 우선).
@@ -389,6 +414,10 @@ def bot_creds(folder, ex):
         e = parse_env(os.path.join(BASE, folder, ".env"))
         return ("okx", e.get("OKX_API_KEY", ""), e.get("OKX_SECRET_KEY", ""),
                 e.get("OKX_PASSPHRASE", ""))
+    # BNC도 api.md를 키 단일 출처로 우선 사용(.env보다 우선) — 봇별 계정 잔고 구분.
+    md = parse_api_md_bnc(folder)
+    if md:
+        return ("binanceusdm", md[0], md[1], "")
     e = parse_env(os.path.join(BASE, folder, ".env"))
     # 봇마다 시크릿 키 이름 상이(BINANCE_SECRET_KEY 또는 BINANCE_API_SECRET) → 둘 다 허용
     return ("binanceusdm", e.get("BINANCE_API_KEY", ""),
