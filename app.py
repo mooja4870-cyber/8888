@@ -22,7 +22,9 @@ FEED_LIMIT = 15         # 통합 체결 피드 최대 건수
 TAIL_BYTES = 16384      # 체결 피드용 trade_history.csv 끝에서 읽을 바이트
 WL_TAIL_BYTES = 131072  # 당일 승률 계산용 (당일 청산을 모두 포함하도록 넉넉히)
 EX_REFRESH_SEC = 15     # 거래소 잔고/포지션 캐시 갱신 주기
-SEED_OVERRIDE = 119.07   # 활성 5개 봇(8401/8405/8406/8408/8409) seed 합계 최신값 (mooja 지정). None이면 봇 seed 자동합산
+SEED_OVERRIDE = None     # 전체 기준금(초기자본금 합). None=각 봇 stats.json seed_money 실시간 합산.
+                         # 봇 재초기화 시 seed_money가 갱신되므로 고정값이 아니라 자동합산해야
+                         # 봇별 누적수익률과 전체 누적수익률이 항상 정합(전체 cum_delta = Σ봇별 cum_delta).
 
 BOTS = [
     ("8401_okx", 8401, "OKX"),
