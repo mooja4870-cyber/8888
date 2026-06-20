@@ -353,11 +353,43 @@ def read_bot_config(folder):
                                   "strategy", "max_holding_hours"]}
 
 
+def parse_api_md_okx(folder):
+    """봇의 api.md에서 활성(주석 제외) OKX 키 파싱.
+    봇 본체(core/api_keys.py)와 동일 규칙: #/빈 줄 무시, apikey/secretkey/passphrase만 인식,
+    같은 키는 첫 등장값 우선. 세 값 모두 있으면 (key, sec, pw) 반환, 아니면 None."""
+    path = os.path.join(BASE, folder, "api.md")
+    slot_of = {"apikey": "key", "secretkey": "sec", "passphrase": "pw"}
+    found = {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                s = line.strip()
+                if not s or s.startswith("#") or "=" not in s:
+                    continue
+                rk, _, rv = s.partition("=")
+                slot = slot_of.get(rk.strip().lower().replace(" ", ""))
+                if slot and slot not in found:
+                    v = rv.strip().strip('"').strip("'").strip()
+                    if v:
+                        found[slot] = v
+    except OSError:
+        return None
+    if all(k in found for k in ("key", "sec", "pw")):
+        return (found["key"], found["sec"], found["pw"])
+    return None
+
+
 def bot_creds(folder, ex):
-    e = parse_env(os.path.join(BASE, folder, ".env"))
     if ex == "OKX":
+        # 봇 본체와 동일하게 api.md를 단일 출처로 우선 사용(.env보다 우선).
+        # 봇별 메인/서브계정 키가 api.md에 정확히 들어 있어야 봇별 잔고가 구분된다.
+        md = parse_api_md_okx(folder)
+        if md:
+            return ("okx", md[0], md[1], md[2])
+        e = parse_env(os.path.join(BASE, folder, ".env"))
         return ("okx", e.get("OKX_API_KEY", ""), e.get("OKX_SECRET_KEY", ""),
                 e.get("OKX_PASSPHRASE", ""))
+    e = parse_env(os.path.join(BASE, folder, ".env"))
     # 봇마다 시크릿 키 이름 상이(BINANCE_SECRET_KEY 또는 BINANCE_API_SECRET) → 둘 다 허용
     return ("binanceusdm", e.get("BINANCE_API_KEY", ""),
             e.get("BINANCE_SECRET_KEY") or e.get("BINANCE_API_SECRET", ""), "")
