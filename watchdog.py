@@ -37,6 +37,10 @@ PY = sys.executable           # 현재 watchdog을 띄운 동일 파이썬(Pytho
 TARGETS = [
     (8888, os.path.join(_DOWNLOADS, "8888"),
      ["app.py"]),
+    (8401, os.path.join(_DOWNLOADS, "8401_okx"),
+     ["-m", "streamlit", "run", "app.py", "--server.port", "8401", "--server.headless", "true"]),
+    (8405, os.path.join(_DOWNLOADS, "8405_okx"),
+     ["-m", "streamlit", "run", "app.py", "--server.port", "8405", "--server.headless", "true"]),
     (8408, os.path.join(_DOWNLOADS, "8408_bnc"),
      ["-m", "streamlit", "run", "app.py", "--server.port", "8408", "--server.headless", "true"]),
     (8409, os.path.join(_DOWNLOADS, "8409_bnc"),

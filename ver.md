@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.140 | 2026-06-22 00:16 | watchdog 감시 대상에 8401·8405 추가 (mooja 갓잇). TARGETS에 8401_okx·8405_okx 추가 → 감시 5개(8888·8401·8405·8408·8409). 기동명령은 8408/8409와 동일 streamlit 패턴(--server.port <p> --server.headless true), 현 실제 실행방식과 일치. 동작 불변(매 5분 점검, down만 재실행, 살아있는 앱 무중단). 8888만. |
 | v0.9.139 | 2026-06-22 00:13 | watchdog 출력 인코딩 버그 수정 (mooja 갓잇 후속). 원인: Windows 콘솔 기본 코덱 cp949가 로그의 이모지/em-dash(—)를 못 찍어 UnicodeEncodeError로 watchdog 즉시 종료. 수정: 기동 시 sys.stdout/stderr를 utf-8(errors=replace)로 reconfigure, print는 try/except 방어. 파일 로그(watchdog.log)는 원래 utf-8이라 영향 없음. 재실행 후 정상 루프 확인. 8888만. |
 | v0.9.138 | 2026-06-22 00:11 | 앱 감시(watchdog) 신설 (mooja 갓잇). watchdog.py 추가: 8888/8408/8409 3개 앱을 매 5분(300초) TCP 포트 점검, DOWN인 앱만 해당 폴더(cwd)에서 분리 실행으로 재기동. 8888=`python app.py`, 8408/8409=`python -m streamlit run app.py --server.port <p> --server.headless true`(현 실행방식과 동일), sys.executable(Python312) 사용. 살아있는 앱은 절대 건드리지/죽이지 않음(down일 때만 기동). 로그=watchdog.log, 재기동 앱 출력=watchdog_logs/<port>.log. Windows DETACHED_PROCESS|CREATE_NEW_PROCESS_GROUP로 독립 생존. 8888 폴더에만 생성, 타 폴더 소스 불변. 8888만. |
 | v0.9.137 | 2026-06-21 17:15 | 디스코드 알림 첫 라인 시각 표기 + 웹훅 URL 교체 (mooja 갓잇). ① discord_alert.py build_message() 메시지 맨 첫 줄에 `[YYYY-MM-DD HH:MM:SS]`(time.localtime) 추가. ② discord_webhook.txt를 새 webhook(...1517021231700770837)으로 교체. 발송 주기(매 1분)·양식·집계 4봇(8401/8405/8408/8409)은 불변. 검증: 단독 테스트 status=204 성공. 8888만. |
