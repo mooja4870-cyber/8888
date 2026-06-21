@@ -18,6 +18,13 @@ import subprocess
 import sys
 import time
 
+# Windows 콘솔 기본 코덱(cp949)이 이모지/em-dash를 못 찍어 죽는 것 방지
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 CHECK_INTERVAL = 300          # 5분
 WARMUP_AFTER_LAUNCH = 20      # 기동 후 포트 바인딩 대기(중복 기동 방지용 짧은 확인)
 _DIR = os.path.dirname(os.path.abspath(__file__))
@@ -43,7 +50,10 @@ def now():
 
 def log(msg):
     line = f"[{now()}] {msg}"
-    print(line, flush=True)
+    try:
+        print(line, flush=True)
+    except Exception:
+        pass
     try:
         with open(LOG_FILE, "a", encoding="utf-8") as f:
             f.write(line + "\n")
