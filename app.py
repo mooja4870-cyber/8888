@@ -15,7 +15,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-BASE = "/Users/l/project"
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PORT = 8888
 STALE_MIN = 60          # stats.json 갱신이 이보다 오래되면 '지연' 상태
 FEED_LIMIT = 15         # 통합 체결 피드 최대 건수
@@ -28,7 +28,7 @@ SEED_OVERRIDE = None     # 전체 기준금(초기자본금 합). None=각 봇 s
 
 BOTS = [
     ("8401_okx", 8401, "OKX"),
-    ("8405_okx", 8405, "OKX"), ("8406_okx", 8406, "OKX"),
+    ("8405_okx", 8405, "OKX"),
     ("8408_bnc", 8408, "BNC"), ("8409_bnc", 8409, "BNC"),
 ]
 
