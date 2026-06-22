@@ -65,7 +65,7 @@ def _save_state(prev_total, prev_bots, history):
 def _trend(cur, prev):
     """(아이콘, 화살표, 변화량) — 직전값 대비. 수익=빨강 컨벤션: 상승=🔴↑, 하락=🔵↓."""
     if prev is None or cur is None or abs(cur - prev) < EPS:
-        return "⚪", "", 0.0
+        return "⚪", "-", 0.0
     d = abs(cur - prev)
     return ("🔴", "↑", d) if cur > prev else ("🔵", "↓", d)
 
