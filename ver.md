@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.143 | 2026-06-22 18:38 | 디스코드 알림 봇별 줄에 '4h진입 N'(최근 4시간 진입 횟수) 추가 (mooja). app.py hist_metrics periods에 '4h':14400 추가, discord_alert.py build_message 봇별 줄 끝에 entries_by_period['4h'] 표시. 발송 status=204 확인. 8888만. |
 | v0.9.142 | 2026-06-22 12:05 | 배치 드롭다운 '5개씩(2줄)' → '3개씩(2줄)' 변경 (mooja, 봇 6개로 3×2 정합). dashboard.html: layout option value five→three·라벨 변경, _rows 슬라이싱 [[0,5],[5,10]]→[[0,3],[3,6]], 디폴트 'five'→'three', classList.toggle 및 CSS .cards.five→.cards.three. 'five' 잔여참조 0 확인. 정적파일이라 새로고침 반영. 8888만. |
 | v0.9.141 | 2026-06-22 02:40 | 8403, 8406 집계 추가. BOTS 리스트에 8403_okx, 8406_okx 추가. |
 |------|------|------|

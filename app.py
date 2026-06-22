@@ -215,7 +215,7 @@ def hist_metrics(path, perf_start):
 
     # 기간별 진입 수 = 현재 시각 기준 직전 N시간 롤링 윈도우 내 진입 기록 수 (청산 무관)
     now = time.time()
-    periods = {"1h": 3600, "6h": 21600, "12h": 43200, "24h": 86400,
+    periods = {"1h": 3600, "4h": 14400, "6h": 21600, "12h": 43200, "24h": 86400,
                "48h": 172800, "72h": 259200, "1w": 604800}
     entries_by_period = {}
     for key, secs in periods.items():
