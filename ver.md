@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.146 | 2026-06-22 22:38 | 보유 판정 3-state화 — 거래소 조회 실패 시 유령 포지션 오표시 방지 (mooja 버그신고: 8409 미보유인데 보유중 표시). 원인: 바이낸스 IP ban(과다조회)으로 ex_ok=False → active_positions.json 폴백 → 청산 후 미삭제된 유령 포지션(UB/RESOLV/WLD)을 보유중으로 표시. 수정: app.py holding = ex_ok면 ex_used>0(True/False), 조회실패면 None('거래소 미확인', 파일 폴백 신뢰 안 함). collect summary에 unknown_positions 추가, with/no_positions는 True/False만. discord_alert O/X→O/X/?(None). dashboard.html 미확인=회색 테두리·'거래소 미확인' 텍스트·가동중 메트릭 '?봇' 표시. ban 해제 시 ex_used 기준 O/X 자동전환. 8888만. |
 | v0.9.145 | 2026-06-22 19:47 | 디스코드 알림 변화 화살표 ↑/↓ 2종 → ↑/-/↓ 3종 (mooja). _trend 변화없음(⚪) 케이스 arrow '' → '-'. 전체일평균·봇별 줄 모두 적용. 8888 재시작 반영, 발송 status=204 확인. 8888만. |
 | v0.9.144 | 2026-06-22 18:49 | 디스코드 알림 진입수 형식 '(4h진입 N)' → '(1H NN, 4H NN)' (mooja). 1시간·4시간 진입 횟수 둘 다 2자리 제로패딩 표시. discord_alert.py build_message: entries_by_period['1h']·['4h'] 사용. 8888 재시작으로 반영, 발송 status=204 확인. 8888만. |
 | v0.9.143 | 2026-06-22 18:38 | 디스코드 알림 봇별 줄에 '4h진입 N'(최근 4시간 진입 횟수) 추가 (mooja). app.py hist_metrics periods에 '4h':14400 추가, discord_alert.py build_message 봇별 줄 끝에 entries_by_period['4h'] 표시. 발송 status=204 확인. 8888만. |

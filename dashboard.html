@@ -214,7 +214,7 @@ function render(d,anim){
   <div class="metric" onclick="openAssetModal()" style="cursor:pointer" title="클릭 → 총자산·BTC 추이 그래프"><div class="lbl">📈 총 자산 <span style="font-weight:400;color:var(--muted)">(현재 총잔고 합산)</span>${tip('Σ(각 봇 거래소 실시간 총잔고). 거래소 조회 실패 봇은 초기화잔고+실현손익으로 추정.<br>현재 합산: '+f2(s.assets)+' USDT<br><b>클릭하면 BTC 가격·총자산 추이 그래프</b>')}</div><div class="val">${s.assets===null?'—':s.assets.toFixed(2)} <span style="font-size:13px;color:var(--muted)">USDT</span></div></div>
   <div class="metric"><div class="lbl">누적수익률${tip('(Σ현재 총잔고 − Σ초기화 잔고) ÷ Σ초기화 잔고.<br>기준금(Σseed) '+f2(seedSum)+' → 현재 '+f2(s.assets)+'<br>증감 '+fmt(s.cum_delta,1)+' USDT')}</div><div class="val">${fmt(s.cum_ret,1)}<span style="font-size:13px;color:var(--muted)">%</span></div><div style="font-size:12px;color:var(--muted);margin-top:2px">기준금 대비 ${fmt(s.cum_delta,1)} USDT</div></div>
   <div class="metric" onclick="openRetModal()" style="cursor:pointer" title="클릭 → 일평균수익률·BTC 추이 그래프"><div class="lbl">📊 일 평균수익률 <span style="font-weight:400">(${s.days}일)</span>${tip('누적수익률 ÷ 경과일수.<br>경과: '+s.days+'일 (가장 이른 perf_start 기준, 최소 1일)<br><b>클릭하면 일평균수익률 추이 그래프</b>')}</div><div class="val">${fmt(s.daily_ret,1)}<span style="font-size:13px;color:var(--muted)">%/일</span></div></div>
-  <div class="metric"><div class="lbl">가동 중${tip('포트 응답 봇 수 / 전체.<br>🟢 정상 · 🟡 데이터 갱신 지연(60분+) · 🔴 다운<br>'+staleTxt)}</div><div class="val" style="color:${s.alive===s.count?'var(--green)':'var(--red-dot)'}">${s.alive} / ${s.count}<br><span style="color:var(--amber)">(${s.with_positions}/${s.count}${s.no_positions.length > 0 ? ', <span style="font-size:0.77em">' + s.no_positions.join(', ') + '</span>' : ''})</span></div></div>`;
+  <div class="metric"><div class="lbl">가동 중${tip('포트 응답 봇 수 / 전체.<br>🟢 정상 · 🟡 데이터 갱신 지연(60분+) · 🔴 다운<br>'+staleTxt)}</div><div class="val" style="color:${s.alive===s.count?'var(--green)':'var(--red-dot)'}">${s.alive} / ${s.count}<br><span style="color:var(--amber)">(${s.with_positions}/${s.count}${s.no_positions.length > 0 ? ', <span style="font-size:0.77em">' + s.no_positions.join(', ') + '</span>' : ''}${(s.unknown_positions&&s.unknown_positions.length>0) ? ', <span style="font-size:0.77em;color:#888">?' + s.unknown_positions.join(',') + '</span>' : ''})</span></div></div>`;
  // '초기화 후 경과' 최장 봇 = perf_start가 가장 이른(작은) 봇 → 연두 테두리 200%(0.4mm) 강조
  let _longestBot=null,_minPs=Infinity;
  d.bots.forEach(b=>{if(b.perf_start){const t=new Date(b.perf_start.replace(' ','T')).getTime();if(!isNaN(t)&&t<_minPs){_minPs=t;_longestBot=b.name;}}});
@@ -235,8 +235,9 @@ function render(d,anim){
    +(b.cum_basis==='pnl'?' (거래소 조회 실패 → 실현손익 기준 추정)':'');
   // 일평균수익률 순위별 메달 테두리: 1등 황금 / 2·3등 은색 / 4·5·6등 동색 / 나머지 회색
   const _rc=i===0?'#FFD700':(i<=2?'#C0C0C0':(i<=5?'#CD7F32':'#888888'));
-  const _holding=!!b.holding;  // 거래소 증거금 기준(app.py)
-  const _bc=_holding?_rc:'#e24b4a';   // 무포지션=빨강 테두리, 보유=순위 메달색
+  const _holding=b.holding===true;  // 거래소 증거금 기준(app.py). null=거래소 미확인(ban 등)
+  const _unknown=b.holding===null;  // 거래소 조회 실패 → 보유여부 미확인
+  const _bc=_unknown?'#888888':(_holding?_rc:'#e24b4a');   // 미확인=회색, 무포지션=빨강, 보유=순위 메달색
   // 입체 테두리: ridge(엠보싱) + 외부 그림자(돌출감) + 내부 상단 하이라이트
   const hi='border:0.8mm ridge '+_bc+';box-shadow:0 4px 11px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.12), inset 0 -2px 4px rgba(0,0,0,.35);';
   // Expectancy(거래당 평균손익) — 미래수익 최강 예측지표 → 카드 최상단 강조
@@ -257,7 +258,7 @@ function render(d,anim){
     <tr style="background:#181b22;"><td>당일 주문·승률</td><td>${b.orders_today}건 · ${wr(b.today_w,b.today_l)}</td></tr>
     <tr style="background:#181b22;" title="초기화(perf_start): ${b.perf_start||'—'}"><td>초기화 후 경과</td><td>${elapsed(b.perf_start)}</td></tr>
     <tr style="background:#252b36;" title="마지막 진입 이후 경과(초기화 후 진입 없으면 초기화 시점부터). 마지막 진입: ${b.last_entry||'초기화 후 없음'}"><td style="color:#ffd633">⏸무진입</td><td style="color:#ffd633">${b.last_entry?elapsed(b.last_entry):(b.perf_start?elapsed(b.perf_start):'—')}</td></tr>
-    <tr style="background:#181b22;" title="현재 무포지션 지속(거래소 증거금 기준, 초기화 후 보유 없으면 초기화 시점부터). 마지막 청산: ${b.last_flat||'초기화 후 없음'}"><td style="color:#ffd633">⏸무포지션</td><td style="color:#ffd633">${b.holding?'<span style="color:#ffd633">보유중</span>':(b.last_flat?elapsed(b.last_flat):(b.perf_start?elapsed(b.perf_start):'—'))}</td></tr>
+    <tr style="background:#181b22;" title="현재 무포지션 지속(거래소 증거금 기준, 초기화 후 보유 없으면 초기화 시점부터). 마지막 청산: ${b.last_flat||'초기화 후 없음'}"><td style="color:#ffd633">⏸무포지션</td><td style="color:#ffd633">${b.holding===null?'<span style="color:#888">거래소 미확인</span>':(b.holding?'<span style="color:#ffd633">보유중</span>':(b.last_flat?elapsed(b.last_flat):(b.perf_start?elapsed(b.perf_start):'—')))}</td></tr>
     <tr style="background:#252b36;" title="app.py+core/*.py 최신 수정시각: ${b.app_debug||'—'}"><td>🛠앱 최종 디버깅</td><td>${b.app_debug?elapsed(b.app_debug):'—'}</td></tr>
    </table></div>`});
  // 피라미드 배치: 1행 1개(1등) / 2행 2개(2·3등) / 3행 3개(4·5·6등) / 4행 4개(나머지)

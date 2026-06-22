@@ -606,7 +606,14 @@ def bot_status(folder, port, ex):
         r["cum_basis"] = None
     # 보유 여부 = 거래소 실제 증거금 사용(ex_used>0) 기준. 조회 실패 시에만 active_positions 파일 폴백.
     # (봇이 청산 후 active_positions.json을 안 지워 생기는 '유령 포지션' 오집계 방지 — 예: 8501)
-    r["holding"] = ((r.get("ex_used") or 0) > 0) if r.get("ex_ok") else bool(r.get("positions"))
+    # 보유 판정: 거래소 증거금(ex_used) 기준이 가장 정확.
+    #   거래소 조회 실패(ban·레이트리밋 등 ex_ok=False)면 active_positions.json은
+    #   유령(청산 후 미삭제) 위험이 커서 보유 근거로 쓰지 않는다 → None('미확인').
+    #   (예: 8409가 바이낸스 IP ban 중 청산했는데 파일엔 옛 포지션이 남아 보유중 오표시되던 문제)
+    if r.get("ex_ok"):
+        r["holding"] = (r.get("ex_used") or 0) > 0   # True/False
+    else:
+        r["holding"] = None                          # 거래소 미확인
     return r
 
 
@@ -653,8 +660,9 @@ def collect():
         "days": round(days, 1),
         "alive": sum(1 for b in bots if b["alive"]),
         "count": len(bots),
-        "with_positions": sum(1 for b in bots if b["holding"]),
-        "no_positions": [b["name"] for b in bots if not b["holding"]],
+        "with_positions": sum(1 for b in bots if b["holding"] is True),
+        "no_positions": [b["name"] for b in bots if b["holding"] is False],
+        "unknown_positions": [b["name"] for b in bots if b["holding"] is None],  # 거래소 미확인(ban 등)
         "stale": [b["name"] for b in bots
                   if b["age_min"] is not None and b["age_min"] > STALE_MIN],
         "heatmap": heatmap,

@@ -109,7 +109,8 @@ def build_message(data, prev_total, prev_bots, history):
                   key=lambda b: (b.get("daily_ret") if b.get("daily_ret") is not None else -9999),
                   reverse=True)
     for b in bots:
-        mark = "O" if b.get("holding") else "X"
+        h = b.get("holding")
+        mark = "?" if h is None else ("O" if h else "X")   # O=보유 X=미보유 ?=거래소미확인(ban 등)
         dr = b.get("daily_ret")
         dr = dr if dr is not None else 0.0
         pic, parrow, pdelta = _trend(dr, prev_bots.get(b["name"]))
