@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.147 | 2026-06-22 23:20 | 바이낸스(BNC) 조회 주기 분리 — IP ban/레이트리밋 회피 (mooja, 8409 미확인 대응). 진단: 8409 키는 이미 정확(api.md=8888=mooja제공 ...AQvz/...UtOn), 미확인 원인은 키가 아니라 바이낸스 IP(222.120.190.228) ban이며 ban 해제시각이 계속 밀림(과다조회로 연장). 수정: exchange_loop 거래소별 주기 분리 — OKX 15초 유지, BNC는 BNC_REFRESH_SEC=300초(5분)로만 조회(_ex_last_fetch로 성공/실패 무관 주기 제어). 8888의 바이낸스 부하 대폭 감소. 단 봇 앱(8408/8409) 자체 조회는 봇 영역이라 완전 해소엔 봇 조정 필요. ban 해제 시 ex_used 기준 O/X 자동전환. 8888만. |
 | v0.9.146 | 2026-06-22 22:38 | 보유 판정 3-state화 — 거래소 조회 실패 시 유령 포지션 오표시 방지 (mooja 버그신고: 8409 미보유인데 보유중 표시). 원인: 바이낸스 IP ban(과다조회)으로 ex_ok=False → active_positions.json 폴백 → 청산 후 미삭제된 유령 포지션(UB/RESOLV/WLD)을 보유중으로 표시. 수정: app.py holding = ex_ok면 ex_used>0(True/False), 조회실패면 None('거래소 미확인', 파일 폴백 신뢰 안 함). collect summary에 unknown_positions 추가, with/no_positions는 True/False만. discord_alert O/X→O/X/?(None). dashboard.html 미확인=회색 테두리·'거래소 미확인' 텍스트·가동중 메트릭 '?봇' 표시. ban 해제 시 ex_used 기준 O/X 자동전환. 8888만. |
 | v0.9.145 | 2026-06-22 19:47 | 디스코드 알림 변화 화살표 ↑/↓ 2종 → ↑/-/↓ 3종 (mooja). _trend 변화없음(⚪) 케이스 arrow '' → '-'. 전체일평균·봇별 줄 모두 적용. 8888 재시작 반영, 발송 status=204 확인. 8888만. |
 | v0.9.144 | 2026-06-22 18:49 | 디스코드 알림 진입수 형식 '(4h진입 N)' → '(1H NN, 4H NN)' (mooja). 1시간·4시간 진입 횟수 둘 다 2자리 제로패딩 표시. discord_alert.py build_message: entries_by_period['1h']·['4h'] 사용. 8888 재시작으로 반영, 발송 status=204 확인. 8888만. |
