@@ -113,8 +113,10 @@ def build_message(data, prev_total, prev_bots, history):
         dr = b.get("daily_ret")
         dr = dr if dr is not None else 0.0
         pic, parrow, pdelta = _trend(dr, prev_bots.get(b["name"]))
-        ent4 = (b.get("entries_by_period") or {}).get("4h", 0)   # 최근 4시간 진입 횟수
-        lines.append(f"{mark} {b['name']}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}  (4h진입 {ent4})")
+        eb = b.get("entries_by_period") or {}
+        ent1 = eb.get("1h", 0)   # 최근 1시간 진입 횟수
+        ent4 = eb.get("4h", 0)   # 최근 4시간 진입 횟수
+        lines.append(f"{mark} {b['name']}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}  (1H {ent1:02d}, 4H {ent4:02d})")
     lines.append("")
     lines.append("최근 30분 전체 일평균 추이(%)")
     lines.append(ascii_chart(history))
