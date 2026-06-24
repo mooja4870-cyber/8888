@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.157 | 2026-06-25 01:14 | '보유중 티커 수' 행 폰트 111% 확대 (mooja). dashboard.html 해당 tr에 font-size:111% 추가(라벨+값 🔴N+🔵N 모두). 정적파일 새로고침 반영. 8888만. |
 | v0.9.156 | 2026-06-25 01:09 | '보유중 티커 수'를 롱/숏 분리 표시 🔴{롱}+🔵{숏} (mooja 승인). app.py fetch_account에 side(long/short) 기준 poslong·posshort 카운트 추가, dashboard.html 표시를 '🔴N+🔵N'으로(🔴=롱·🔵=숏). 조회실패 시 '미확인'. 검증: 총합과 정합(8403 🔴2+🔵3=5). 8888만. |
 | v0.9.155 | 2026-06-25 00:53 | 전략명 하드코딩 전면 제거 → config STRATEGY_MODE 실시간화 (mooja 지시 '전략명 전부 config 실시간화'). read_bot_config의 strategy_override·strategy_map 삭제, config STRATEGY_MODE 우선('None'·빈값은 STRATEGY_TYPE→실거래 strategy_type→'—' 폴백). 결과: 8401=MACD_RSI_ADX, 8402=Breakout(실거래), 8403=더블BB(옛 override 제거), 8405=더블BB, 8406='—'(config None). 8402·8406은 config STRATEGY_MODE가 'None'이라 봇 config 보강 필요. 8888만. |
 | v0.9.154 | 2026-06-25 00:36 | 8401/8405/8406 매매기법 개편 반영 (mooja). 8401(STRATEGY_MODE=MACD_RSI_ADX)·8405(더블BB+신규필터 7종)는 config 실시간 읽기로 자동 반영 확인. 8406은 옛 하드코딩 strategy_map 'BoxRange'가 개편 config(STRATEGY_MODE=None)를 가려, strategy_map서 8406 제거+strategy_override에 '8406_okx':'DMI+ADX 방향성 크로스오버' 추가(override 최우선). 청산기준(SL/TP/트레일링)은 config 실시간 반영. 8888만. |
