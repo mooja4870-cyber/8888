@@ -456,15 +456,19 @@ def fetch_account(cred):
     bal = c.fetch_balance()
     usdt = bal.get("USDT", {})
     upnl = 0.0
+    poscount = 0   # 거래소 실시간 보유 포지션(contracts≠0) 종목 수
     try:
         for p in c.fetch_positions():
-            v = p.get("unrealizedPnl")
-            if v is not None and float(p.get("contracts") or 0) != 0:
-                upnl += float(v)
+            if float(p.get("contracts") or 0) != 0:
+                poscount += 1
+                v = p.get("unrealizedPnl")
+                if v is not None:
+                    upnl += float(v)
     except Exception:
         pass
     return {"balance": usdt.get("total"), "free": usdt.get("free"),
-            "used": usdt.get("used"), "upnl": round(upnl, 4), "ok": True, "err": None}
+            "used": usdt.get("used"), "upnl": round(upnl, 4),
+            "poscount": poscount, "ok": True, "err": None}
 
 
 _ex_cooldown = {}       # cred -> 이 시각(epoch)까지 조회 스킵 (레이트리밋 백오프)
