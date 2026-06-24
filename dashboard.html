@@ -259,7 +259,7 @@ function render(d,anim){
     <tr style="background:#181b22;" title="초기화(perf_start): ${b.perf_start||'—'}"><td>초기화 후 경과</td><td>${elapsed(b.perf_start)}</td></tr>
     <tr style="background:#252b36;" title="마지막 진입 이후 경과(초기화 후 진입 없으면 초기화 시점부터). 마지막 진입: ${b.last_entry||'초기화 후 없음'}"><td style="color:#ffd633">⏸무진입</td><td style="color:#ffd633">${b.last_entry?elapsed(b.last_entry):(b.perf_start?elapsed(b.perf_start):'—')}</td></tr>
     <tr style="background:#181b22;" title="현재 무포지션 지속(거래소 증거금 기준, 초기화 후 보유 없으면 초기화 시점부터). 마지막 청산: ${b.last_flat||'초기화 후 없음'}"><td style="color:#ffd633">⏸무포지션</td><td style="color:#ffd633">${b.holding===null?'<span style="color:#888">거래소 미확인</span>':(b.holding?'<span style="color:#ffd633">보유중</span>':(b.last_flat?elapsed(b.last_flat):(b.perf_start?elapsed(b.perf_start):'—')))}</td></tr>
-    <tr style="background:#252b36;font-size:106%;" title="거래소 실시간 보유 포지션 종목 수(contracts≠0 기준). 조회 실패 시 미확인."><td style="color:#7dd3fc">📊 보유중 티커 수</td><td style="color:#7dd3fc">${b.ex_ok?('🔴'+(b.ex_poslong!=null?b.ex_poslong:0)+'+🔵'+(b.ex_posshort!=null?b.ex_posshort:0)):'<span style="color:#888">미확인</span>'}</td></tr>
+    <tr style="background:#252b36;font-size:106%;" title="거래소 실시간 보유 포지션 종목 수(contracts≠0 기준). 조회 실패 시 미확인."><td style="color:#7dd3fc">📊 보유중 티커</td><td style="color:#7dd3fc">${b.ex_ok?('🔴'+(b.ex_poslong!=null?b.ex_poslong:0)+'+🔵'+(b.ex_posshort!=null?b.ex_posshort:0)):'<span style="color:#888">미확인</span>'}</td></tr>
     <tr style="background:#181b22;" title="app.py+core/*.py 최신 수정시각: ${b.app_debug||'—'}"><td>🛠앱 최종 디버깅</td><td>${b.app_debug?elapsed(b.app_debug):'—'}</td></tr>
    </table></div>`});
  // 피라미드 배치: 1행 1개(1등) / 2행 2개(2·3등) / 3행 3개(4·5·6등) / 4행 4개(나머지)
