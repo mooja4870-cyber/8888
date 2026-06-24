@@ -447,10 +447,17 @@ def fetch_account(cred):
     usdt = bal.get("USDT", {})
     upnl = 0.0
     poscount = 0   # 거래소 실시간 보유 포지션(contracts≠0) 종목 수
+    poslong = 0    # 롱 포지션 수
+    posshort = 0   # 숏 포지션 수
     try:
         for p in c.fetch_positions():
             if float(p.get("contracts") or 0) != 0:
                 poscount += 1
+                side = p.get("side")
+                if side == "long":
+                    poslong += 1
+                elif side == "short":
+                    posshort += 1
                 v = p.get("unrealizedPnl")
                 if v is not None:
                     upnl += float(v)
@@ -458,7 +465,8 @@ def fetch_account(cred):
         pass
     return {"balance": usdt.get("total"), "free": usdt.get("free"),
             "used": usdt.get("used"), "upnl": round(upnl, 4),
-            "poscount": poscount, "ok": True, "err": None}
+            "poscount": poscount, "poslong": poslong, "posshort": posshort,
+            "ok": True, "err": None}
 
 
 _ex_cooldown = {}       # cred -> 이 시각(epoch)까지 조회 스킵 (레이트리밋 백오프)
