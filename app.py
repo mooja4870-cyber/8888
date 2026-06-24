@@ -902,13 +902,16 @@ def discord_loop():
     import discord_alert
     time.sleep(35)   # 거래소 캐시(EX_CACHE) 워밍업 후 첫 발송 (콜드값 발송 방지)
     while True:
+        t0 = time.time()
         try:
-            ok, info = discord_alert.tick(collect())
-            if not ok:
-                print(f"[DISCORD] 발송 실패: {info}")
+            data = collect(); t1 = time.time()
+            ok, info = discord_alert.tick(data); t2 = time.time()
+            print(f"[DISCORD] {time.strftime('%H:%M:%S')} ok={ok} {info} "
+                  f"collect={t1-t0:.1f}s post={t2-t1:.1f}s", flush=True)
         except Exception as e:
-            print(f"[DISCORD] 예외: {str(e)[:150]}")
-        time.sleep(60)
+            print(f"[DISCORD] {time.strftime('%H:%M:%S')} 예외: {str(e)[:150]}", flush=True)
+        # 작업 소요를 빼고 60초 주기 유지 → 발송 간격이 정확히 1분이 되도록 보정
+        time.sleep(max(1, 60 - (time.time() - t0)))
 
 
 if __name__ == "__main__":
