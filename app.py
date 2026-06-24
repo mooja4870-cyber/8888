@@ -319,13 +319,13 @@ def read_bot_config(folder):
     # STRATEGY_MODE/TYPE 없는 봇의 매매기법 (실거래 active_positions strategy_type 기반)
     strategy_map = {
         "8404_okx": "Breakout",
-        "8406_okx": "BoxRange",
     }
     # 전략 '표시명' 강제 override (mooja 지정) — config/보유포지션 strategy_type보다 최우선.
     # 봇이 전략을 바꿨으나 config/잔존 포지션이 옛 이름을 가리킬 때 대시보드 표기 교정용(봇 소스 무수정).
     strategy_override = {
         "8402_okx": "가격 다이버전스",
         "8403_okx": "Dynamic Vol + Symbol",
+        "8406_okx": "DMI+ADX 방향성 크로스오버",   # 2026-06-24 개편(mooja): BoxRange→DMI+ADX 크로스오버
         "8407_bnc": "Fabio",
     }
     try:

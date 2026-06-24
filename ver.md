@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.154 | 2026-06-25 00:36 | 8401/8405/8406 매매기법 개편 반영 (mooja). 8401(STRATEGY_MODE=MACD_RSI_ADX)·8405(더블BB+신규필터 7종)는 config 실시간 읽기로 자동 반영 확인. 8406은 옛 하드코딩 strategy_map 'BoxRange'가 개편 config(STRATEGY_MODE=None)를 가려, strategy_map서 8406 제거+strategy_override에 '8406_okx':'DMI+ADX 방향성 크로스오버' 추가(override 최우선). 청산기준(SL/TP/트레일링)은 config 실시간 반영. 8888만. |
 | v0.9.153 | 2026-06-24 20:18 | 봇 카드에 '보유중 티커 수' 행 추가 (mooja 승인). '⏸무포지션' 아래에 거래소 실시간 보유 포지션 종목 수(contracts≠0) 표시. app.py fetch_account에 poscount 카운트 추가→ex_poscount, dashboard.html 행 추가(조회실패 시 '미확인'). 검증: 8401:1/8402:2/8403:3/8405:0/8406:1 증거금과 정합. 8888만. |
 | v0.9.152 | 2026-06-23 00:45 | 배치 드롭다운 '4개씩(2줄)' → '5개씩(2줄)' (mooja, 8402 추가로 5봇). dashboard.html: layout value four→five·라벨, _rows [[0,4],[4,8]]→[[0,5],[5,10]], 디폴트·classList·CSS .cards.four→.cards.five. 'four' 잔여 0. 정적파일 새로고침 반영. 8888만. |
 | v0.9.151 | 2026-06-23 00:40 | 8402(OKX) 집계 추가 (mooja). app.py BOTS에 8402_okx 추가(8401 다음). 거래소 조회 정상(키 ...44d0, 잔고 16.35). 집계 5봇(8401·8402·8403·8405·8406). 8402 봇 앱은 미기동이라 거래소 API로만 집계(가동 4/5). 8888만. |
