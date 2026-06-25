@@ -80,7 +80,7 @@ def ascii_chart(vals, width=CHART_WIDTH, height=CHART_HEIGHT):
     rows = [[" "] * len(vals) for _ in range(height)]
     for col, v in enumerate(vals):
         r = round((hi - v) / rng * (height - 1))   # hi→0행(상단), lo→마지막행(하단)
-        rows[r][col] = "-"
+        rows[r][col] = "•"
     out = []
     for i, row in enumerate(rows):
         if i == 0:
