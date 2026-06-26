@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.174 | 2026-06-26 22:50 | 8888 배경을 8401 스타일+영롱 효과로 (mooja 승인). dashboard.html: body::before에 8401 배경(중앙 청색 radial 발광+38px 격자, attachment:fixed)+glowpulse 6s 펄스(밝기·채도·hue 호흡)→영롱~영롱. body transparent, header·summary 반투명 글래스(blur12), .metric 글래스(blur8+그림자). 카드/텍스트 가독성 유지. 8888만. |
 | v0.9.173 | 2026-06-26 22:42 | 디스코드 총자산·일평균 형식 수정 '[$85.56] +2.18%/일' → '[85.56] +2.18%' (mooja). $·/일 제거, 공백 1개. 8888만. |
 | v0.9.172 | 2026-06-26 22:39 | 디스코드 전체 일평균 줄 앞에 총자산 금액 표기 (mooja 승인). discord_alert.py build_message: '[${assets}] {일평균}%/일 ...' 형식. 예 [$85.56] +2.18%/일. summary.assets 사용. 8888만. |
 | v0.9.171 | 2026-06-26 19:05 | 진입(보유) 봇 카드 테두리 백색 0.01mm로 (mooja). dashboard.html: holding=true 시 _bc 순위메달색→'#ffffff'(백색), 테두리 0.8mm ridge→0.01mm solid. 무포지션(빨강)·미확인(회색) 0.8mm 유지. 8888만. |

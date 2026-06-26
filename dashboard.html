@@ -7,16 +7,28 @@
 <style>
 :root{--bg:#0f1115;--card:#181b22;--card2:#252b36;--border:#2a2f3a;--text:#e8eaf0;--muted:#8b93a5;--green:#2dbd85;--amber:#efa027;--red-dot:#e24b4a;--profit:#ff5a5a;--loss:#4d9fff}
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;padding:20px;max-width:1280px;margin:0 auto;zoom:1.2496}
-header{display:flex;align-items:baseline;gap:12px;margin-bottom:18px;position:sticky;top:0;background:var(--bg);z-index:100;padding:10px 0;border-bottom:1px solid var(--border)}
+html{background:#05070f}
+/* 8401 스타일 배경: 중앙 청색 발광 radial + 38px 격자 그리드 + 영롱~ 펄스(호흡하듯 밝기·채도·색조 흐름) */
+body::before{content:'';position:fixed;inset:0;z-index:-1;
+  background-color:#05070f;
+  background-image:
+    radial-gradient(circle at 50% 42%, rgba(35,60,105,0.85) 0%, rgba(10,15,30,0.95) 55%, rgba(3,4,8,1) 100%),
+    linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size:100% 100%, 38px 38px, 38px 38px;
+  background-attachment:fixed;
+  animation:glowpulse 6s ease-in-out infinite}
+@keyframes glowpulse{0%,100%{opacity:1;filter:brightness(1) saturate(1) hue-rotate(0deg)}50%{opacity:.94;filter:brightness(1.22) saturate(1.3) hue-rotate(18deg)}}
+body{background:transparent;color:var(--text);font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;padding:20px;max-width:1280px;margin:0 auto;zoom:1.2496}
+header{display:flex;align-items:baseline;gap:12px;margin-bottom:18px;position:sticky;top:0;background:rgba(10,14,26,0.55);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:100;padding:10px 0;border-bottom:1px solid var(--border)}
 h1{font-size:27px;font-weight:600}
 #updated{font-size:12px;color:var(--muted);margin-left:10px}
 #sortby,#layout,#viewmode{background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:14.64px;padding:3px 6px;cursor:pointer}
 #viewmode{margin-left:10px;font-weight:600}
 #layout{margin-left:auto}
 #sortby{margin-left:6px}
-.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px;position:sticky;top:49px;background:var(--bg);z-index:99;padding:10px 0}
-.metric{background:var(--card);border-radius:10px;padding:14px 16px;position:relative;text-align:center}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px;position:sticky;top:49px;background:rgba(10,14,26,0.5);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:99;padding:10px 0}
+.metric{background:rgba(24,27,34,0.66);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px 16px;position:relative;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3)}
 .metric .tiptext{text-align:left}
 .metric .lbl{font-size:12px;color:var(--muted);margin-bottom:4px}
 .metric .val{font-size:22px;font-weight:600}
