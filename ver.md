@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.180 | 2026-06-26 23:43 | 승률 깜박 방향별 색 — 상승=빨강·하락=파랑 (mooja). dashboard.html: 승률(sw/ow)을 _bchkW()로 상승/하락 방향 추적(localStorage v·ts·dir), _wsty()로 up→빨강(#ff5a5a)·down→파랑(#4d9fff) orderblink. 주문건수(so/oo)는 노랑 유지. 8888만. |
 | v0.9.179 | 2026-06-26 23:40 | 주문 증가·승률 상승 시 해당 수치 1시간 깜박 (mooja 승인). dashboard.html: 누적/당일 주문건수(so/oo)·승률(sw/ow) 4수치를 _bchk()로 직전값 비교(localStorage, 1시간 타이머·새로고침 유지)→증가/상승 시 orderblink(노랑#ffd633+scale 1↔1.22, 1초). keyframe orderblink 추가. 8888만. |
 | v0.9.178 | 2026-06-26 23:14 | 8403·8406 테두리 파랑 (mooja). dashboard.html _idc: 8403·8406 #efa027→#4d9fff(파랑). 최종 8401·8402 빨강/8403·8406 파랑/8404 주황/8405 보라. 8888만. |
 | v0.9.177 | 2026-06-26 23:09 | 8404 주황·8405 보라 테두리 (mooja). dashboard.html _idc: 8404 #c0c0c0→#efa027(주황), 8405 #c0c0c0→#a855f7(보라). 8888만. |
