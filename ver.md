@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.175 | 2026-06-26 23:02 | 봇 카드 테두리 봇번호별 고정색 + 무포지션 미실현손익 초록깜박 (mooja 승인). dashboard.html: 테두리 _idc 매핑(8401·8402 빨강#e24b4a / 8403·8406 주황#efa027 / 8404·8405 밝은회색#c0c0c0, 0.8mm ridge), holding기반 테두리 대체. 무포지션(holding=false) '미실현 손익' 값 color:green+animation miblink 1s(font-size 166%↔332% 펄스=꺼짐 현크기·켜짐 200%). 8888만. |
 | v0.9.174 | 2026-06-26 22:50 | 8888 배경을 8401 스타일+영롱 효과로 (mooja 승인). dashboard.html: body::before에 8401 배경(중앙 청색 radial 발광+38px 격자, attachment:fixed)+glowpulse 6s 펄스(밝기·채도·hue 호흡)→영롱~영롱. body transparent, header·summary 반투명 글래스(blur12), .metric 글래스(blur8+그림자). 카드/텍스트 가독성 유지. 8888만. |
 | v0.9.173 | 2026-06-26 22:42 | 디스코드 총자산·일평균 형식 수정 '[$85.56] +2.18%/일' → '[85.56] +2.18%' (mooja). $·/일 제거, 공백 1개. 8888만. |
 | v0.9.172 | 2026-06-26 22:39 | 디스코드 전체 일평균 줄 앞에 총자산 금액 표기 (mooja 승인). discord_alert.py build_message: '[${assets}] {일평균}%/일 ...' 형식. 예 [$85.56] +2.18%/일. summary.assets 사용. 8888만. |
