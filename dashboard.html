@@ -237,9 +237,10 @@ function render(d,anim){
   const _rc=i===0?'#FFD700':(i<=2?'#C0C0C0':(i<=5?'#CD7F32':'#888888'));
   const _holding=b.holding===true;  // 거래소 증거금 기준(app.py). null=거래소 미확인(ban 등)
   const _unknown=b.holding===null;  // 거래소 조회 실패 → 보유여부 미확인
-  const _bc=_unknown?'#888888':(_holding?_rc:'#e24b4a');   // 미확인=회색, 무포지션=빨강, 보유=순위 메달색
-  // 입체 테두리: ridge(엠보싱) + 외부 그림자(돌출감) + 내부 상단 하이라이트
-  const hi='border:0.8mm ridge '+_bc+';box-shadow:0 4px 11px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.12), inset 0 -2px 4px rgba(0,0,0,.35);';
+  const _bc=_unknown?'#888888':(_holding?'#ffffff':'#e24b4a');   // 미확인=회색, 무포지션=빨강, 보유(진입)=백색
+  // 입체 테두리: ridge(엠보싱) + 외부 그림자. 진입(보유)은 백색 0.01mm solid.
+  const _bdr=_holding?'0.01mm solid':'0.8mm ridge';
+  const hi='border:'+_bdr+' '+_bc+';box-shadow:0 4px 11px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.12), inset 0 -2px 4px rgba(0,0,0,.35);';
   // Expectancy(거래당 평균손익) — 미래수익 최강 예측지표 → 카드 최상단 강조
   const _ex=b.expectancy;
   const _exTxt=(_ex==null)?'—':((_ex>0?'+':'')+_ex.toFixed(2));
