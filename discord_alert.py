@@ -102,10 +102,10 @@ def build_message(data, prev_total, prev_bots, history):
     tot_str = f"{total:+.2f}" if total is not None else "—"
     ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())   # 매 알림 첫 라인 = 시스템 시각
     assets = s.get("assets")
-    asset_str = f"[${assets:.2f}] " if assets is not None else ""   # 전체 일평균 줄 앞에 총자산 금액
+    asset_str = f"[{assets:.2f}] " if assets is not None else ""   # 전체 일평균 줄 앞에 총자산 금액
     lines = [ts,
              f"📊 전체 일평균수익률 ({head_days})",
-             f"{asset_str}{tot_str}%/일  {icon}{delta:.2f}%{arrow}",
+             f"{asset_str}{tot_str}% {icon}{delta:.2f}%{arrow}",
              "─" * 16]
     bots = sorted(data["bots"],
                   key=lambda b: (b.get("daily_ret") if b.get("daily_ret") is not None else -9999),
