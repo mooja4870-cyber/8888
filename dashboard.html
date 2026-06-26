@@ -251,7 +251,7 @@ function render(d,anim){
   const _holding=b.holding===true;  // 거래소 증거금 기준(app.py). null=거래소 미확인(ban 등)
   const _unknown=b.holding===null;  // 거래소 조회 실패 → 보유여부 미확인
   // 테두리: 봇 번호별 고정색 (8401·8402 빨강 / 8403·8406 주황 / 8404·8405 밝은회색)
-  const _idc={'8401':'#e24b4a','8402':'#e24b4a','8403':'#efa027','8404':'#efa027','8406':'#efa027','8405':'#a855f7'};
+  const _idc={'8401':'#e24b4a','8402':'#e24b4a','8403':'#4d9fff','8406':'#4d9fff','8404':'#efa027','8405':'#a855f7'};
   const _bc=_idc[b.name]||'#888888';
   const hi='border:0.8mm ridge '+_bc+';box-shadow:0 4px 11px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.12), inset 0 -2px 4px rgba(0,0,0,.35);';
   // Expectancy(거래당 평균손익) — 미래수익 최강 예측지표 → 카드 최상단 강조
