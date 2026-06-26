@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.168 | 2026-06-26 11:37 | 5봇 고유 OKX키 매핑 집계 + 8401/8405/8406 복원 (mooja 제공키 승인). okx_keys.json(.gitignore, 봇별 apikey/secret/passphrase) 추가, bot_creds가 load_okx_keys() 최우선(매 호출 파일읽기→키변경 즉시반영)→api.md→.env 폴백. BOTS 5봇 복원. 효과: 8401(…13bd 메인)·8406(…3dd0 서브) 키 분리→잔고 24.11 vs 14.93 정상 구분. 봇 폴더 무수정. 검증 5봇 ex_ok 정상. 8888만. |
 | v0.9.167 | 2026-06-25 22:42 | 8402·8403 자동복구 watchdog (mooja 승인). watchdog.py를 8402/8403 전용·60초 주기로 재작성, 각 봇 venv/bin/python으로 streamlit 기동(start_new_session 분리). DOWN 감지 시 허락없이 즉시 재기동, 살아있으면 무중단·종료 안 함(기동 전용). 봇 폴더 소스 무수정. 데몬 기동(PID 확인), 8402·8403 UP skip 정상. 8888만. |
 | v0.9.166 | 2026-06-25 22:25 | 8401/8405/8406 집계 제외 (mooja). app.py BOTS에서 8401_okx·8405_okx·8406_okx 주석처리(복원 가능). 집계 8402·8403 2봇만. 8888만. |
 | v0.9.165 | 2026-06-25 12:31 | 상단 '일 평균수익률' 수치 1초 2회 깜빡임 (mooja). dashboard.html summary daily_ret 값 span에 animation:cardblink .5s(=1초 2회). '%/일'은 정적 유지. 8888만. |

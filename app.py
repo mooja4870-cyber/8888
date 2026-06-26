@@ -28,12 +28,11 @@ SEED_OVERRIDE = None     # 전체 기준금(초기자본금 합). None=각 봇 s
                          # 봇별 누적수익률과 전체 누적수익률이 항상 정합(전체 cum_delta = Σ봇별 cum_delta).
 
 BOTS = [
-    # 8401/8405/8406 집계 제외 (mooja 2026-06-25) — 복원 시 주석 해제.
-    # ("8401_okx", 8401, "OKX"),
+    ("8401_okx", 8401, "OKX"),
     ("8402_okx", 8402, "OKX"),
     ("8403_okx", 8403, "OKX"),
-    # ("8405_okx", 8405, "OKX"),
-    # ("8406_okx", 8406, "OKX"),
+    ("8405_okx", 8405, "OKX"),
+    ("8406_okx", 8406, "OKX"),
     # 8408/8409(BNC) 집계 제외 (mooja 2026-06-22) — 바이낸스 IP ban 지속으로 실시간 조회 불가.
     # ban 해소·재가동 시 아래 두 줄 복원하면 집계 재포함.
     # ("8408_bnc", 8408, "BNC"), ("8409_bnc", 8409, "BNC"),
@@ -403,10 +402,23 @@ def parse_api_md_bnc(folder):
     return None
 
 
+def load_okx_keys():
+    """mooja 지정 봇별 OKX 키 매핑(okx_keys.json, .gitignore). 매 호출 파일 읽기(키 변경 즉시 반영)."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "okx_keys.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
 def bot_creds(folder, ex):
     if ex == "OKX":
-        # 봇 본체와 동일하게 api.md를 단일 출처로 우선 사용(.env보다 우선).
-        # 봇별 메인/서브계정 키가 api.md에 정확히 들어 있어야 봇별 잔고가 구분된다.
+        # mooja 지정 봇별 키 매핑(okx_keys.json) 최우선 → 각 봇 고유키로 잔고 분리 보장.
+        k = load_okx_keys().get(folder)
+        if k and k.get("apikey"):
+            return ("okx", k["apikey"], k.get("secret", ""), k.get("passphrase", ""))
+        # 폴백: 봇 본체와 동일하게 api.md를 단일 출처로 사용(.env보다 우선).
         md = parse_api_md_okx(folder)
         if md:
             return ("okx", md[0], md[1], md[2])
