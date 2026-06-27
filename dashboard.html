@@ -23,7 +23,7 @@ body{background:transparent;color:var(--text);font-family:-apple-system,"Apple S
 header{display:flex;align-items:baseline;gap:12px;margin-bottom:18px;position:sticky;top:0;background:rgba(10,14,26,0.55);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:100;padding:10px 0;border-bottom:1px solid var(--border)}
 h1{font-size:27px;font-weight:600}
 #updated{font-size:12px;color:var(--muted);margin-left:10px}
-#sortby,#layout,#viewmode{background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:14.64px;padding:3px 6px;cursor:pointer}
+#sortby,#layout,#viewmode,#botfilter{background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:14.64px;padding:3px 6px;cursor:pointer}
 #viewmode{margin-left:10px;font-weight:600}
 #layout{margin-left:auto}
 #sortby{margin-left:6px}
@@ -79,7 +79,7 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
 </style>
 </head>
 <body>
-<header><h1>봇 통합 관제</h1><span style="font-size:12px;color:var(--muted)">수익 <span style="color:var(--profit)">빨강</span> · 손실 <span style="color:var(--loss)">파랑</span></span><select id="viewmode" onchange="applyView()" title="화면 모드"><option value="base" selected>기본화면</option><option value="name">시간별 봇 이름 순</option></select><select id="layout" onchange="if(_lastData)render(_lastData,true)" title="배치 형태"><option value="pyramid">피라미드(1·2·3·4)</option><option value="three" selected>3개씩(2줄)</option></select><select id="sortby" onchange="if(_lastData)render(_lastData,true)" title="정렬 기준(내림차순)"><option value="daily_ret">일평균 수익률</option><option value="cum_ret">누적 수익률</option><option value="ex_balance">총 잔고</option><option value="since_orders">누적 주문수</option><option value="orders_today">당일 주문수</option><option value="elapsed">초기화 후 경과</option><option value="name">봇 번호 순</option></select><span id="updated">불러오는 중…</span></header>
+<header><h1>봇 통합 관제</h1><span style="font-size:12px;color:var(--muted)">수익 <span style="color:var(--profit)">빨강</span> · 손실 <span style="color:var(--loss)">파랑</span></span><select id="botfilter" onchange="localStorage.setItem('botfilter',this.value);if(_lastData)render(_lastData,true)" title="집계 봇 필터"><option value="exclude" selected>8404,8405 제외</option><option value="all">전체</option></select><select id="viewmode" onchange="applyView()" title="화면 모드"><option value="base" selected>기본화면</option><option value="name">시간별 봇 이름 순</option></select><select id="layout" onchange="if(_lastData)render(_lastData,true)" title="배치 형태"><option value="pyramid">피라미드(1·2·3·4)</option><option value="three" selected>3개씩(2줄)</option></select><select id="sortby" onchange="if(_lastData)render(_lastData,true)" title="정렬 기준(내림차순)"><option value="daily_ret">일평균 수익률</option><option value="cum_ret">누적 수익률</option><option value="ex_balance">총 잔고</option><option value="since_orders">누적 주문수</option><option value="orders_today">당일 주문수</option><option value="elapsed">초기화 후 경과</option><option value="name">봇 번호 순</option></select><span id="updated">불러오는 중…</span></header>
 <div class="summary" id="summary"></div>
 <div class="legend">
 <span><span class="dot" style="background:var(--green)"></span>정상</span>
@@ -216,8 +216,20 @@ const elapsed=ps=>{if(!ps)return'—';const t0=new Date(ps.replace(' ','T'));
 const fmt=(v,sign)=>{if(v===null||v===undefined)return'<span class="flat">—</span>';
  const c=v>0?'profit':(v<0?'loss':'flat');const s=v>0&&sign?'+':'';
  return `<span class="${c}">${s}${(+v).toFixed(2)}</span>`};
+// 봇 필터: '8404,8405 제외'면 두 봇을 빼고 상단 집계(총자산·누적·일평균·가동)를 나머지로 재계산
+function _applyFilter(d){
+  const f=(document.getElementById('botfilter')||{}).value||'exclude';
+  if(f!=='exclude'||!d||!d.bots)return d;
+  const bots=d.bots.filter(b=>b.name!=='8404'&&b.name!=='8405');
+  let assets=0,seed=0;
+  bots.forEach(b=>{const bal=(b.ex_ok&&b.ex_balance!=null)?b.ex_balance:((b.seed||0)+(b.total||0));assets+=bal;seed+=(b.seed||0);});
+  const cum=seed?((assets-seed)/seed*100):null, days=(d.summary&&d.summary.days)||1, r=x=>Math.round(x*100)/100;
+  const s=Object.assign({},d.summary,{assets:r(assets),cum_ret:cum!=null?r(cum):null,cum_delta:r(assets-seed),daily_ret:cum!=null?r(cum/days):null,alive:bots.filter(b=>b.alive).length,count:bots.length,with_positions:bots.filter(b=>b.holding===true).length,no_positions:bots.filter(b=>b.holding===false).map(b=>b.name),unknown_positions:bots.filter(b=>b.holding===null).map(b=>b.name)});
+  return Object.assign({},d,{bots:bots,summary:s});
+}
 function render(d,anim){
  _lastData=d;
+ d=_applyFilter(d);
  const s=d.summary;
  document.getElementById('updated').textContent='갱신 '+s.updated;
  const seedSum=(s.assets!==null&&s.cum_delta!==null)?(s.assets-s.cum_delta):null;
@@ -381,6 +393,7 @@ async function tick(){
   else { u.textContent='서버 연결 끊김 — 자동 재시도 중'; }                          // 데이터는 화면에 유지
  }
 }
+(function(){var f=localStorage.getItem('botfilter'),el=document.getElementById('botfilter');if(f&&el)el.value=f;})();  // 봇필터 선택 복원
 tick();setInterval(tick,5000);
 // ===== 봇 모달 팝업 + 그래프 =====
 let _botGraphChart=null;
