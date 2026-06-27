@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.182 | 2026-06-27 14:05 | 상단 집계에 '누적 주문·승률'·'당일 주문·승률' 메트릭 2종 추가 (mooja). dashboard.html render: d.bots(필터 후) 합산(_agg)→ 주문수·승률(_wrM)·W/L 표시. 봇필터 자동 반영(필터된 bots 합산). 8888만. |
 | v0.9.181 | 2026-06-26 23:55 | 봇 필터 드롭다운 추가 '8404,8405 제외'(디폴트)/'전체' (mooja 승인). dashboard.html header에 #botfilter(viewmode 왼쪽), _applyFilter()로 exclude 시 8404·8405 카드 제외+상단집계(총자산·누적·일평균·가동·보유수) 나머지 4봇 재계산. render 첫줄 적용, localStorage 선택유지(복원). 디폴트=제외. 서버 BOTS·디스코드는 6봇 유지(화면만). 8888만. |
 | v0.9.180 | 2026-06-26 23:43 | 승률 깜박 방향별 색 — 상승=빨강·하락=파랑 (mooja). dashboard.html: 승률(sw/ow)을 _bchkW()로 상승/하락 방향 추적(localStorage v·ts·dir), _wsty()로 up→빨강(#ff5a5a)·down→파랑(#4d9fff) orderblink. 주문건수(so/oo)는 노랑 유지. 8888만. |
 | v0.9.179 | 2026-06-26 23:40 | 주문 증가·승률 상승 시 해당 수치 1시간 깜박 (mooja 승인). dashboard.html: 누적/당일 주문건수(so/oo)·승률(sw/ow) 4수치를 _bchk()로 직전값 비교(localStorage, 1시간 타이머·새로고침 유지)→증가/상승 시 orderblink(노랑#ffd633+scale 1↔1.22, 1초). keyframe orderblink 추가. 8888만. |
