@@ -656,13 +656,18 @@ def collect():
     # 합산 누적 수익률 = (Σ현재 총잔고 - 기준금) / 기준금
     #   기준금 = SEED_OVERRIDE(mooja 지정 고정값) 우선, 없으면 봇 seed 자동합산.
     #   현재 총잔고는 거래소 실시간 잔고, 조회 실패 봇은 seed+실현손익으로 폴백.
-    seed = SEED_OVERRIDE if SEED_OVERRIDE else sum(b["seed"] or 0 for b in bots)
+    # 봇별 현재 잔고·기준금을 함께 합산. 기준금(seed)이 없는 봇(stats.json 미생성 등)은
+    # 현재 잔고를 기준금으로 간주(누적 0% 중립) → seed 누락으로 전체 누적이 폭등하는 왜곡 방지.
     assets = 0.0
+    seed = 0.0
     for b in bots:
-        if b.get("ex_ok") and b.get("ex_balance") is not None:
-            assets += b["ex_balance"]
-        else:
-            assets += (b["seed"] or 0) + (b["total"] or 0)
+        bal = b["ex_balance"] if (b.get("ex_ok") and b.get("ex_balance") is not None) \
+              else ((b["seed"] or 0) + (b["total"] or 0))
+        bseed = b["seed"] if b["seed"] else bal   # seed 없으면 잔고=기준금(중립)
+        assets += bal
+        seed += bseed
+    if SEED_OVERRIDE:
+        seed = SEED_OVERRIDE
     days = max([bot_days(b["perf_start"]) for b in bots] or [1.0])
     cum_ret = round((assets - seed) / seed * 100, 2) if seed else None
 
