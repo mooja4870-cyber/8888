@@ -36,9 +36,9 @@ def _venv_py(folder):
 
 # (포트, cwd, python, argv)  — 8402·8403만 감시
 TARGETS = [
-    (8402, os.path.join(_ROOT, "8402_okx"), _venv_py("8402_okx"),
+    (8402, os.path.join(_ROOT, "8402"), _venv_py("8402"),
      ["-m", "streamlit", "run", "app.py", "--server.port", "8402", "--server.headless", "true"]),
-    (8403, os.path.join(_ROOT, "8403_okx"), _venv_py("8403_okx"),
+    (8403, os.path.join(_ROOT, "8403"), _venv_py("8403"),
      ["-m", "streamlit", "run", "app.py", "--server.port", "8403", "--server.headless", "true"]),
 ]
 
