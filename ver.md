@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.190 | 2026-06-29 14:43 | 누적/일평균을 봇 앱 방식(초기화 이후 실현손익÷기준금)으로 통일 (mooja, 봇앱 화면 일치 요청). 기존 (현재잔고-기준금)/기준금 → since_pnl(perf_start 이후 trade_history 실현손익 합)/seed. hist_metrics에 since_pnl 추가, bot_status cum_delta=since_pnl, collect 전체 Σsince_pnl/Σseed. 미실현은 별도(ex_upnl). 검증: 8405 -2.21%(봇앱-2.51%)·8406 +1.47%(봇앱+1.52%) 근접. 총자산은 잔고합 유지. 8888만. |
 | v0.9.189 | 2026-06-29 14:35 | watchdog 폴더명 840X_okx→840X 반영 (mooja, 폴더명 변경 후속). watchdog.py TARGETS 8402_okx·8403_okx→8402·8403(cwd·venv 경로). 재시작. 봇 DOWN 시 새 폴더 venv로 자동복구. 8888만. |
 | v0.9.188 | 2026-06-29 14:33 | 봇 폴더명 840X_okx→840X 변경 반영 (mooja). app.py BOTS·okx_keys.json·seeds.json 참조명 _okx 제거. 효과: 8888이 새 폴더 stats(기준금)·config·api.md 정상 읽기→기준금 자동(seeds 폴백 불요), 8403·8404 누적 정상화(이전 +49%/-13%→0%). 8405 -21.2%는 실제손실(기준14.80→잔고11.66). 8888만. |
 | v0.9.187 | 2026-06-29 12:48 | 봇 stats.json 부재 시 기준금·초기화일시 수동지정 폴백 (mooja 제공값). seeds.json(.gitignore, 봇별 seed·perf_start) 추가, load_seeds()+bot_status에서 seed None이면 폴백→누적/일평균 계산 복원. mooja 확정: 8401 13.60·8402 14.79·8403 10.13·8404 11.74·8405 14.80·8406 14.93. 봇 stats 재생성 시 자동 우선. 8888만. |
