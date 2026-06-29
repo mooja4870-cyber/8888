@@ -413,6 +413,16 @@ def load_okx_keys():
         return {}
 
 
+def load_seeds():
+    """봇별 기준금·초기화일시 수동 지정(seeds.json). 봇 stats.json 부재 시 누적/일평균 계산 폴백."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seeds.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
 def bot_creds(folder, ex):
     if ex == "OKX":
         # mooja 지정 봇별 키 매핑(okx_keys.json) 최우선 → 각 봇 고유키로 잔고 분리 보장.
@@ -584,6 +594,12 @@ def bot_status(folder, port, ex):
         r["age_min"] = round((time.time() - os.path.getmtime(sp)) / 60, 1)
     except (OSError, ValueError):
         pass
+    # 봇 stats.json이 없어 기준금(seed)·초기화일시를 못 읽으면 seeds.json(mooja 수동 지정)으로 폴백.
+    if r["seed"] is None:
+        sd = load_seeds().get(folder)
+        if sd:
+            r["seed"] = sd.get("seed")
+            r["perf_start"] = r["perf_start"] or sd.get("perf_start")
     try:
         with open(os.path.join(d, "active_positions.json"), encoding="utf-8") as f:
             r["positions"] = [k.split("/")[0] for k in json.load(f)]
