@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.193 | 2026-07-01 10:56 | 무포지션 봇 테두리 0.1mm 빨강, 나머지 흰색 0.01mm (mooja). dashboard.html _bw=holding false면 0.1mm else 0.01mm. 8888만. |
 | v0.9.192 | 2026-06-30 22:50 | 봇 카드 테두리 전체 흰색 0.01mm, 무포지션만 빨강 (mooja). dashboard.html _idc(봇ID별 색) 제거→ _bc=holding false면 #e24b4a 아니면 #ffffff, 두께 0.01mm solid. 8888만. |
 | v0.9.191 | 2026-06-29 14:48 | 봇 필터 '8404,8405 제외' 드롭다운 삭제 (mooja, 폴더 정상화로 불필요). dashboard.html header #botfilter select 제거, _applyFilter 디폴트 'all'(필터 무력화), localStorage 복원줄 제거 → 항상 6봇 전체 표시. 8888만. |
 | v0.9.190 | 2026-06-29 14:43 | 누적/일평균을 봇 앱 방식(초기화 이후 실현손익÷기준금)으로 통일 (mooja, 봇앱 화면 일치 요청). 기존 (현재잔고-기준금)/기준금 → since_pnl(perf_start 이후 trade_history 실현손익 합)/seed. hist_metrics에 since_pnl 추가, bot_status cum_delta=since_pnl, collect 전체 Σsince_pnl/Σseed. 미실현은 별도(ex_upnl). 검증: 8405 -2.21%(봇앱-2.51%)·8406 +1.47%(봇앱+1.52%) 근접. 총자산은 잔고합 유지. 8888만. |
