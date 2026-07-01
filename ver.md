@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.195 | 2026-07-01 13:38 | 각 봇 테두리 두께 0.2mm → 1mm (mooja). dashboard.html _bw='1mm'. 8888만. |
 | v0.9.194 | 2026-07-01 11:05 | 각 봇 테두리 두께 0.2mm 통일 (mooja). dashboard.html _bw='0.2mm'(전체). 색은 무포지션 빨강/나머지 흰색 유지. 8888만. |
 | v0.9.193 | 2026-07-01 10:56 | 무포지션 봇 테두리 0.1mm 빨강, 나머지 흰색 0.01mm (mooja). dashboard.html _bw=holding false면 0.1mm else 0.01mm. 8888만. |
 | v0.9.192 | 2026-06-30 22:50 | 봇 카드 테두리 전체 흰색 0.01mm, 무포지션만 빨강 (mooja). dashboard.html _idc(봇ID별 색) 제거→ _bc=holding false면 #e24b4a 아니면 #ffffff, 두께 0.01mm solid. 8888만. |
