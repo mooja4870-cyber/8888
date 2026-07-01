@@ -638,9 +638,14 @@ def bot_status(folder, port, ex):
     days = bot_days(r["perf_start"])
     r["days"] = round(days, 2)
     if r["seed"]:
-        # 봇 앱과 동일하게 '초기화 이후 실현손익 ÷ 기준금' 누적 (미실현은 별도=ex_upnl).
-        r["cum_delta"] = round(r["since_pnl"] or 0, 4)
-        r["cum_basis"] = "pnl"
+        # 봇 앱과 동일하게 '실제 잔고 변화 ÷ 기준금' 누적 (수수료·펀딩 반영된 실잔고 기준).
+        #   조회 실패 시에만 실현손익(total)으로 폴백.
+        if r.get("ex_ok") and r.get("ex_balance") is not None:
+            r["cum_delta"] = round(r["ex_balance"] - r["seed"], 4)
+            r["cum_basis"] = "balance"
+        else:
+            r["cum_delta"] = round(r["total"] or 0, 4)
+            r["cum_basis"] = "pnl"
         r["cum_ret"] = round(r["cum_delta"] / r["seed"] * 100, 2)
         r["daily_ret"] = round(r["cum_ret"] / days, 2)
     else:
@@ -676,19 +681,17 @@ def collect():
     # 현재 잔고를 기준금으로 간주(누적 0% 중립) → seed 누락으로 전체 누적이 폭등하는 왜곡 방지.
     assets = 0.0
     seed = 0.0
-    pnl = 0.0
     for b in bots:
         bal = b["ex_balance"] if (b.get("ex_ok") and b.get("ex_balance") is not None) \
               else ((b["seed"] or 0) + (b["total"] or 0))
         bseed = b["seed"] if b["seed"] else bal   # seed 없으면 잔고=기준금(중립)
         assets += bal
         seed += bseed
-        pnl += (b["since_pnl"] or 0)              # 초기화 이후 실현손익 합 (봇 앱 누적손익)
     if SEED_OVERRIDE:
         seed = SEED_OVERRIDE
     days = max([bot_days(b["perf_start"]) for b in bots] or [1.0])
-    # 합산 누적 = Σ실현손익 ÷ Σ기준금 (봇 앱과 동일 방식, 미실현 제외). 총자산(assets)은 잔고합 별도 표시.
-    cum_ret = round(pnl / seed * 100, 2) if seed else None
+    # 합산 누적 = (Σ현재잔고 − Σ기준금) ÷ Σ기준금 (봇 앱과 동일한 실잔고 변화 기준, 수수료·펀딩 반영).
+    cum_ret = round((assets - seed) / seed * 100, 2) if seed else None
 
     # [3단계] 전봇 히트맵 합산 (요일×시간대 실현손익, 최근 7일)
     heatmap = {}
@@ -705,7 +708,7 @@ def collect():
     summary = {
         "assets": round(assets, 2),
         "cum_ret": cum_ret,
-        "cum_delta": round(pnl, 2),
+        "cum_delta": round(assets - seed, 2),
         "daily_ret": round(cum_ret / days, 2) if cum_ret is not None else None,
         "days": round(days, 1),
         "alive": sum(1 for b in bots if b["alive"]),
