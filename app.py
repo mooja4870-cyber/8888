@@ -31,13 +31,10 @@ BOTS = [
     # 봇 폴더명이 840X_okx → 840X 로 변경됨(mooja 2026-06-29). 폴더·키·기준금 참조명 통일.
     ("8401", 8401, "OKX"),
     ("8402", 8402, "OKX"),
-    ("8403", 8403, "OKX"),
     ("8404", 8404, "OKX"),
-    ("8405", 8405, "OKX"),
-    ("8406", 8406, "OKX"),
-    # 8408/8409(BNC) 집계 제외 (mooja 2026-06-22) — 바이낸스 IP ban 지속으로 실시간 조회 불가.
-    # ban 해소·재가동 시 아래 두 줄 복원하면 집계 재포함.
-    # ("8408_bnc", 8408, "BNC"), ("8409_bnc", 8409, "BNC"),
+    ("8407", 8407, "BNC"),
+    ("8408", 8408, "BNC"),
+    ("8409", 8409, "BNC"),
 ]
 
 
@@ -597,7 +594,7 @@ def bot_status(folder, port, ex):
     except (OSError, ValueError):
         pass
     # 봇 stats.json이 없어 기준금(seed)·초기화일시를 못 읽으면 seeds.json(mooja 수동 지정)으로 폴백.
-    if r["seed"] is None:
+    if r["seed"] is None or r["seed"] == 0:
         sd = load_seeds().get(folder)
         if sd:
             r["seed"] = sd.get("seed")
