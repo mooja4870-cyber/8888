@@ -356,7 +356,11 @@ def parse_api_md_okx(folder):
     봇 본체(core/api_keys.py)와 동일 규칙: #/빈 줄 무시, apikey/secretkey/passphrase만 인식,
     같은 키는 첫 등장값 우선. 세 값 모두 있으면 (key, sec, pw) 반환, 아니면 None."""
     path = os.path.join(BASE, folder, "api.md")
-    slot_of = {"apikey": "key", "secretkey": "sec", "passphrase": "pw"}
+    slot_of = {
+        "apikey": "key", "okxapikey": "key",
+        "secretkey": "sec", "okxsecretkey": "sec",
+        "passphrase": "pw", "okxpassphrase": "pw"
+    }
     found = {}
     try:
         with open(path, encoding="utf-8") as f:
@@ -365,7 +369,7 @@ def parse_api_md_okx(folder):
                 if not s or s.startswith("#") or "=" not in s:
                     continue
                 rk, _, rv = s.partition("=")
-                slot = slot_of.get(rk.strip().lower().replace(" ", ""))
+                slot = slot_of.get(rk.strip().lower().replace(" ", "").replace("_", ""))
                 if slot and slot not in found:
                     v = rv.strip().strip('"').strip("'").strip()
                     if v:
@@ -381,7 +385,10 @@ def parse_api_md_bnc(folder):
     """봇의 api.md에서 BNC(바이낸스) 키 파싱. 형식: api = ... / secret = ...
     #/빈 줄 무시, 첫 등장값 우선. 두 값 모두 있으면 (key, sec) 반환, 아니면 None."""
     path = os.path.join(BASE, folder, "api.md")
-    slot_of = {"api": "key", "apikey": "key", "secret": "sec", "secretkey": "sec"}
+    slot_of = {
+        "api": "key", "apikey": "key", "binanceapikey": "key",
+        "secret": "sec", "secretkey": "sec", "binancesecretkey": "sec"
+    }
     found = {}
     try:
         with open(path, encoding="utf-8") as f:
@@ -390,7 +397,7 @@ def parse_api_md_bnc(folder):
                 if not s or s.startswith("#") or "=" not in s:
                     continue
                 rk, _, rv = s.partition("=")
-                slot = slot_of.get(rk.strip().lower().replace(" ", ""))
+                slot = slot_of.get(rk.strip().lower().replace(" ", "").replace("_", ""))
                 if slot and slot not in found:
                     v = rv.strip().strip('"').strip("'").strip()
                     if v:
