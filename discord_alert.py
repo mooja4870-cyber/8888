@@ -106,7 +106,7 @@ def build_message(data, prev_total, prev_bots, history):
     lines = [ts,
              f"📊 전체 일평균수익률 ({head_days})",
              f"{asset_str}{tot_str}% {icon}{delta:.2f}%{arrow}",
-             "─" * 35]
+             "─" * 36]
     bots = sorted(data["bots"],
                   key=lambda b: (b.get("daily_ret") if b.get("daily_ret") is not None else -9999),
                   reverse=True)
@@ -122,7 +122,7 @@ def build_message(data, prev_total, prev_bots, history):
         pos_count = b.get("ex_poscount")
         pos_count_str = "?" if pos_count is None else str(pos_count)
         lines.append(f"{pos_count_str} {b['name']}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}  ({ent1}, {ent4}, {orders:02d})")
-    lines.append("─" * 35)
+    lines.append("─" * 36)
     lines.append("최근 30분 전체 일평균 추이(%)")
     lines.append(ascii_chart(history))
     return "```\n" + "\n".join(lines) + "\n```"
