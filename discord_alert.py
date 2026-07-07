@@ -111,8 +111,6 @@ def build_message(data, prev_total, prev_bots, history):
                   key=lambda b: (b.get("daily_ret") if b.get("daily_ret") is not None else -9999),
                   reverse=True)
     for b in bots:
-        h = b.get("holding")
-        mark = "?" if h is None else ("O" if h else "X")   # O=보유 X=미보유 ?=거래소미확인(ban 등)
         dr = b.get("daily_ret")
         dr = dr if dr is not None else 0.0
         pic, parrow, pdelta = _trend(dr, prev_bots.get(b["name"]))
@@ -120,10 +118,10 @@ def build_message(data, prev_total, prev_bots, history):
         ent1 = eb.get("1h", 0)   # 최근 1시간 진입 횟수
         ent4 = eb.get("4h", 0)   # 최근 4시간 진입 횟수
         orders = b.get("since_orders") or 0   # 누적 주문수(=청산 횟수)
-        # 형식: ({보유티커수}, {1h진입}, {4h진입}, {누적주문수})
+        # 형식: {보유티커수} {봇이름}  {일평균}%  {추이}  ({1h진입}, {4h진입}, {누적주문수})
         pos_count = b.get("ex_poscount")
         pos_count_str = "?" if pos_count is None else str(pos_count)
-        lines.append(f"{mark} {b['name']}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}  ({pos_count_str}, {ent1}, {ent4}, {orders:02d})")
+        lines.append(f"{pos_count_str} {b['name']}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}  ({ent1}, {ent4}, {orders:02d})")
     lines.append("")
     lines.append("최근 30분 전체 일평균 추이(%)")
     lines.append(ascii_chart(history))
