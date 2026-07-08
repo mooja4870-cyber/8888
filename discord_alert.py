@@ -118,10 +118,14 @@ def build_message(data, prev_total, prev_bots, history):
         ent1 = eb.get("1h", 0)   # 최근 1시간 진입 횟수
         ent4 = eb.get("4h", 0)   # 최근 4시간 진입 횟수
         orders = b.get("since_orders") or 0   # 누적 주문수(=청산 횟수)
-        # 형식: {보유티커수} {봇이름}  {일평균}%  {추이}  ({1h진입}, {4h진입}, {누적주문수})
-        pos_count = b.get("ex_poscount")
-        pos_count_str = "?" if pos_count is None else str(pos_count)
-        lines.append(f"{pos_count_str} {b['name']}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}  ({ent1}, {ent4}, {orders:02d})")
+        # 형식: {롱포지션수}/{숏포지션수} {봇이름}  {일평균}%  {추이}  ({1h진입}, {4h진입}, {누적주문수})
+        pos_long = b.get("ex_poslong")
+        pos_short = b.get("ex_posshort")
+        if pos_long is None or pos_short is None:
+            pos_str = "?/?"
+        else:
+            pos_str = f"{pos_long}/{pos_short}"
+        lines.append(f"{pos_str} {b['name']}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}  ({ent1}, {ent4}, {orders:02d})")
     lines.append("─" * 36)
     lines.append("최근 30분 전체 일평균 추이(%)")
     lines.append(ascii_chart(history))
