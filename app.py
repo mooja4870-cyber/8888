@@ -479,6 +479,7 @@ def fetch_account(cred):
     poscount = 0   # 거래소 실시간 보유 포지션(contracts≠0) 종목 수
     poslong = 0    # 롱 포지션 수
     posshort = 0   # 숏 포지션 수
+    pos_symbols = [] # 거래소 실시간 보유 심볼 목록
     try:
         for p in c.fetch_positions():
             if float(p.get("contracts") or 0) != 0:
@@ -491,11 +492,15 @@ def fetch_account(cred):
                 v = p.get("unrealizedPnl")
                 if v is not None:
                     upnl += float(v)
+                sym = p.get("symbol", "").split("/")[0]
+                if sym and sym not in pos_symbols:
+                    pos_symbols.append(sym)
     except Exception:
         pass
     return {"balance": usdt.get("total"), "free": usdt.get("free"),
             "used": usdt.get("used"), "upnl": round(upnl, 4),
             "poscount": poscount, "poslong": poslong, "posshort": posshort,
+            "pos_symbols": pos_symbols,
             "ok": True, "err": None}
 
 
@@ -635,6 +640,8 @@ def bot_status(folder, port, ex):
     r["today_dd"] = dd["today_dd"]             # [2단계] 당일 낙폭(%)
     r["hm_grid"] = heatmap_grid(hist, r["perf_start"])   # [3단계] 요일×시간대 실현손익(7일)
     r.update({"ex_" + k: v for k, v in EX_CACHE.get(folder, {"ok": False, "err": "조회 전"}).items()})
+    if not r.get("positions") and r.get("ex_pos_symbols"):
+        r["positions"] = r["ex_pos_symbols"]
 
     # 누적 수익률 = (현재 총잔고 - 초기화 잔고) / 초기화 잔고  ← 봇 대시보드 툴팁과 동일
     #   일시   = perf_start_time(stats.json),  초기화 잔고 = seed_money(stats.json)
@@ -662,7 +669,7 @@ def bot_status(folder, port, ex):
     #   유령(청산 후 미삭제) 위험이 커서 보유 근거로 쓰지 않는다 → None('미확인').
     #   (예: 8409가 바이낸스 IP ban 중 청산했는데 파일엔 옛 포지션이 남아 보유중 오표시되던 문제)
     if r.get("ex_ok"):
-        r["holding"] = (r.get("ex_used") or 0) > 0   # True/False
+        r["holding"] = (r.get("ex_used") or 0) > 0 or (r.get("ex_poscount") or 0) > 0 or len(r.get("positions") or []) > 0
     else:
         r["holding"] = None                          # 거래소 미확인
     return r
