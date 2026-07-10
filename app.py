@@ -669,7 +669,7 @@ def bot_status(folder, port, ex):
     #   유령(청산 후 미삭제) 위험이 커서 보유 근거로 쓰지 않는다 → None('미확인').
     #   (예: 8409가 바이낸스 IP ban 중 청산했는데 파일엔 옛 포지션이 남아 보유중 오표시되던 문제)
     if r.get("ex_ok"):
-        r["holding"] = (r.get("ex_used") or 0) > 0 or (r.get("ex_poscount") or 0) > 0 or len(r.get("positions") or []) > 0
+        r["holding"] = (r.get("ex_used") or 0) > 0.02 or (r.get("ex_poscount") or 0) > 0 or len(r.get("positions") or []) > 0
     else:
         r["holding"] = None                          # 거래소 미확인
     return r
