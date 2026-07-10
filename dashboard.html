@@ -515,7 +515,7 @@ window.addEventListener('keydown',e=>{if(e.key==='Escape')closeBotModal();});
 document.getElementById('botModal').addEventListener('click',e=>{if(e.target.id==='botModal')closeBotModal();});
 // ===== 총자산·BTC 추이 모달 =====
 let _assetChart=null, _assetTf='5m', _assetBand=0.01, _assetBaseline=null;
-const _assetTfs=[['1m','1분봉'],['5m','5분봉'],['15m','15분봉'],['1h','1시간봉'],['1d','일봉'],['1M','월봉']];
+const _assetTfs=[['1m','1분봉'],['5m','5분봉'],['15m','15분봉'],['1h','1시간봉'],['4h','4시간봉'],['1d','일봉'],['1M','월봉']];
 const _assetBands=[0.01,0.02,0.03,0.04,0.05,0.10,0.20,0.30];
 function openAssetModal(){
  document.getElementById('assetModal').style.display='flex';

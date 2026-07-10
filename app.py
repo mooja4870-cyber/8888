@@ -860,7 +860,7 @@ _btc_cache = {}         # tf -> (epoch_fetched, candles[[ts_ms, close], ...])
 _btc_lock = threading.Lock()
 _btc_client = None
 BTC_TF_MS = {"1m": 60000, "5m": 300000, "15m": 900000,
-             "1h": 3600000, "1d": 86400000, "1M": 2592000000}
+             "1h": 3600000, "4h": 14400000, "1d": 86400000, "1M": 2592000000}
 
 
 def fetch_btc_ohlcv(tf, limit=60):
