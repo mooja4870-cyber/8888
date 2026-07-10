@@ -100,7 +100,7 @@ function render(d){
   const stale=b.age_min!==null&&b.age_min>d.stale_min;
   const dot=!b.alive?'var(--red-dot)':(stale?'var(--amber)':'var(--green)');
   const usd=v=>(v===null||v===undefined)?'—':'$'+(+v).toFixed(2);
-  const wr=(w,l)=>(w+l)>0?(w/(w+l)*100).toFixed(1)+'% ('+w+'W/'+l+'L)':'0.0% (0W/0L)';
+  const wr=(w,l)=>(w+l)>0?(w/(w+l)*100).toFixed(1)+'% (<span style="color:var(--profit)">'+w+'W</span>/<span style="color:var(--loss)">'+l+'L</span>)':'0.0% (<span style="color:var(--profit)">0W</span>/<span style="color:var(--loss)">0L</span>)';
   const ex=b.ex_ok;
   const exwarn=ex?'':' <span class="warn" title="'+(b.ex_err||'')+'">!</span>';
   const seed=(b.seed===null||b.seed===undefined)?'—':(+b.seed).toFixed(2);
