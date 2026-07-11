@@ -65,7 +65,7 @@ def _save_state(prev_total, prev_bots, history):
 def _trend(cur, prev):
     """(아이콘, 화살표, 변화량) — 직전값 대비. 수익=빨강 컨벤션: 상승=🔴↑, 하락=🔵↓."""
     if prev is None or cur is None or abs(cur - prev) < EPS:
-        return "⚪", "-", 0.0
+        return "", "-", 0.0
     d = abs(cur - prev)
     return ("🔴", "↑", d) if cur > prev else ("🔵", "↓", d)
 
@@ -118,14 +118,19 @@ def build_message(data, prev_total, prev_bots, history):
         ent1 = eb.get("1h", 0)   # 최근 1시간 진입 횟수
         ent4 = eb.get("4h", 0)   # 최근 4시간 진입 횟수
         orders = b.get("since_orders") or 0   # 누적 주문수(=청산 횟수)
-        # 형식: {롱포지션수}/{숏포지션수} {봇이름}  {일평균}%  {추이}  ({1h진입}, {4h진입}, {누적주문수})
+        sw = b.get("since_w") or 0
+        sl = b.get("since_l") or 0
+        # 형식: {롱포지션수}/{숏포지션수} {봇이름}  {일평균}%  {추이}  ({1h진입}, {4h진입}, {승/패})
         pos_long = b.get("ex_poslong")
         pos_short = b.get("ex_posshort")
         if pos_long is None or pos_short is None:
             pos_str = "?/?"
         else:
             pos_str = f"{pos_long}/{pos_short}"
-        lines.append(f"{pos_str} {b['name']}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}  ({ent1}, {ent4}, {orders:02d})")
+        
+        b_name_short = b['name'].replace('840', '')
+        
+        lines.append(f"{pos_str} {b_name_short}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}  ({ent1:02d}, {ent4:02d}, W{sw:02d}/L{sl:02d})")
     lines.append("─" * 38)
     lines.append("최근 30분 전체 일평균 추이(%)")
     lines.append(ascii_chart(history))
