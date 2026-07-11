@@ -288,7 +288,7 @@ function render(d,anim){
   const _exTxt=(_ex==null)?'—':((_ex>0?'+':'')+_ex.toFixed(2));
   const _exCol=(_ex==null)?'var(--muted)':(_ex>0?'var(--profit)':(_ex<0?'var(--loss)':'var(--muted)'));
   return `<div class="card${b.alive?'':' offline'}" style="${hi}" onclick="showBotModal('${b.name}', ${b.port})">
-   <div class="head"><span class="dot" style="background:${dot}"></span><span class="name" style="animation:cardblink 1s ease-in-out infinite">${b.name}</span>${b.config&&b.config.timeframe?' <span style="font-size:17px;font-weight:600;color:var(--muted)">['+b.config.timeframe+']</span>':''}
+   <div class="head"><span class="dot" style="background:${dot}"></span><span class="name" style="animation:cardblink 1s ease-in-out infinite">${b.display_name || b.name}</span>${b.config&&b.config.timeframe?' <span style="font-size:17px;font-weight:600;color:var(--muted)">['+b.config.timeframe+']</span>':''}
    <span class="badge ${b.ex.toLowerCase()}">${b.ex}</span></div>
    <table>
     <tr style="background:#11151c;border-bottom:1px solid #2a2f3a;" title="거래당 평균 손익(누적, USDT). 미래수익 최강 예측지표 — 양수=엣지 있음"><td style="color:#cdd3e0;font-weight:600">⭐ Expectancy</td><td><span style="font-size:115.5%;font-weight:bold;color:${_exCol}">${_exTxt}</span></td></tr>
@@ -321,7 +321,7 @@ function render(d,anim){
    <th style="padding:8px;text-align:center">RSI</th><th style="padding:8px;text-align:center">전략</th>
    <th style="padding:8px;text-align:center">최대보유시간</th></tr></thead>
   <tbody>${d.bots.map((b,i)=>`<tr style="background:${Math.floor(i/2)%2?'var(--card)':'var(--card2)'};border-top:1px solid var(--border)">
-   <td style="padding:8px;font-weight:600;text-align:center">${b.name}</td>
+   <td style="padding:8px;font-weight:600;text-align:center">${b.display_name || b.name}</td>
    <td style="padding:8px;text-align:center">${b.ex}</td><td style="padding:8px;text-align:center">${b.config.leverage}</td>
    <td style="padding:8px;text-align:center">${b.config.margin_usdt}</td><td style="padding:8px;text-align:center">${b.config.max_positions}</td>
    <td style="padding:8px;text-align:center">${b.config.stop_loss_pct}</td><td style="padding:8px;text-align:center">${b.config.take_profit_pct}</td>

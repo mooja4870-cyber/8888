@@ -578,6 +578,22 @@ def app_debug_time(folder):
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(latest)) if latest else None
 
 
+def get_bot_display_name(folder, default_name):
+    """각 봇의 app.py 내용 중 class="rainbow-text"에 있는 표시용 이름을 추출"""
+    app_path = os.path.join(BASE, folder, "app.py")
+    try:
+        if os.path.exists(app_path):
+            with open(app_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            import re
+            match = re.search(r'class=["\']rainbow-text["\'][^>]*>\s*([^<\n]+?)\s*</span>', content)
+            if match:
+                return match.group(1).strip()
+    except Exception:
+        pass
+    return default_name
+
+
 def bot_status(folder, port, ex):
     # port로 정확하게 봇 ID 추출, 포트-폴더 매칭 명시
     bot_id = str(port)  # port 8401 → bot_id "8401"
@@ -622,6 +638,7 @@ def bot_status(folder, port, ex):
     r["last_entry"], r["last_flat"] = last_entry_exit(hist, r["perf_start"])
     r["config"] = read_bot_config(folder)
     r["app_debug"] = app_debug_time(folder)   # 앱 최종 디버깅(app.py+core/*.py 최신 mtime)
+    r["display_name"] = get_bot_display_name(folder, bot_id)
     # 금일 실현 손익·당일/누적 주문·승률을 봇 화면과 동일하게 trade_history에서 재계산
     m = hist_metrics(hist, r["perf_start"])
     r["today_pnl"] = m["today_pnl"]            # 금일 실현 손익 (봇 화면값)
