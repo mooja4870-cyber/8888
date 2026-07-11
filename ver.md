@@ -2,6 +2,7 @@
 
 | 버전 | 일시 | 설명 |
 |------|------|------|
+| v0.9.220 | 2026-07-11 19:37 | 대시보드 봇 이름 표시를 무지개색(.rainbow-text) 및 거래소 접미사 없이 순수 흰색 텍스트(예: 8401)로 복구 (사용자 요청) |
 | v0.9.219 | 2026-07-11 19:15 | 대시보드 봇 이름 표시부에 8401/8408 등 개별 봇의 UI 스타일(.rainbow-text 및 개별 SINCE 표기) 반영 및 봇 설정 정보 테이블에 실제 적용 전략과 지표(Indicators)가 동적으로 출력되도록 개선 |
 | v0.9.218 | 2026-07-11 14:02 | 대시보드 상단 요약 지표 카드(`.metric:hover`) 호버 시 쌓임 맥락(Stacking Context) 최상위(`z-index: 100`)로 끌어올려 인접 카드에 툴팁이 가려지는 버그 해결 |
 | v0.9.217 | 2026-07-11 00:45 | 대시보드 개별 티커 박스(봇 카드) 내 봇 이름(.card .name)의 폰트 크기를 기존 15px 대비 144%(21.6px)로 확대 적용 |
@@ -82,6 +83,7 @@
 | v0.9.142 | 2026-06-22 12:05 | 배치 드롭다운 '5개씩(2줄)' → '3개씩(2줄)' 변경 (mooja, 봇 6개로 3×2 정합). dashboard.html: layout option value five→three·라벨 변경, _rows 슬라이싱 [[0,5],[5,10]]→[[0,3],[3,6]], 디폴트 'five'→'three', classList.toggle 및 CSS .cards.five→.cards.three. 'five' 잔여참조 0 확인. 정적파일이라 새로고침 반영. 8888만. |
 | v0.9.141 | 2026-06-22 02:40 | 8403, 8406 집계 추가. BOTS 리스트에 8403_okx, 8406_okx 추가. |
 |------|------|------|
+| v0.9.220 | 2026-07-11 19:37 | 대시보드 봇 이름 표시를 무지개색(.rainbow-text) 및 거래소 접미사 없이 순수 흰색 텍스트(예: 8401)로 복구 (사용자 요청) |
 | v0.9.140 | 2026-06-22 00:16 | watchdog 감시 대상에 8401·8405 추가 (mooja 갓잇). TARGETS에 8401_okx·8405_okx 추가 → 감시 5개(8888·8401·8405·8408·8409). 기동명령은 8408/8409와 동일 streamlit 패턴(--server.port <p> --server.headless true), 현 실제 실행방식과 일치. 동작 불변(매 5분 점검, down만 재실행, 살아있는 앱 무중단). 8888만. |
 | v0.9.139 | 2026-06-22 00:13 | watchdog 출력 인코딩 버그 수정 (mooja 갓잇 후속). 원인: Windows 콘솔 기본 코덱 cp949가 로그의 이모지/em-dash(—)를 못 찍어 UnicodeEncodeError로 watchdog 즉시 종료. 수정: 기동 시 sys.stdout/stderr를 utf-8(errors=replace)로 reconfigure, print는 try/except 방어. 파일 로그(watchdog.log)는 원래 utf-8이라 영향 없음. 재실행 후 정상 루프 확인. 8888만. |
 | v0.9.138 | 2026-06-22 00:11 | 앱 감시(watchdog) 신설 (mooja 갓잇). watchdog.py 추가: 8888/8408/8409 3개 앱을 매 5분(300초) TCP 포트 점검, DOWN인 앱만 해당 폴더(cwd)에서 분리 실행으로 재기동. 8888=`python app.py`, 8408/8409=`python -m streamlit run app.py --server.port <p> --server.headless true`(현 실행방식과 동일), sys.executable(Python312) 사용. 살아있는 앱은 절대 건드리지/죽이지 않음(down일 때만 기동). 로그=watchdog.log, 재기동 앱 출력=watchdog_logs/<port>.log. Windows DETACHED_PROCESS|CREATE_NEW_PROCESS_GROUP로 독립 생존. 8888 폴더에만 생성, 타 폴더 소스 불변. 8888만. |
