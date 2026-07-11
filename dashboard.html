@@ -57,6 +57,8 @@ h1{font-size:27px;font-weight:600}
 .card.holding{border:0.2mm solid #a3e635;animation:blinkgreen 1s ease-in-out infinite}
 .card .head{display:flex;align-items:center;gap:7px;margin-bottom:8px}
 .card .name{font-weight:600;font-size:21.6px}
+.rainbow-text{background:linear-gradient(90deg,#ff5a5a,#fcd162,#4db168,#4d9fff,#8c6cf5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:900 !important;animation:rainbow_anim 4s linear infinite}
+@keyframes rainbow_anim{0%{filter:hue-rotate(0deg)}100%{filter:hue-rotate(360deg)}}
 .badge{margin-left:auto;font-size:11px;padding:2px 8px;border-radius:7px;font-weight:600}
 .badge.okx{background:#2e2a55;color:#b9b3f5}
 .badge.bnc{background:#4a3a14;color:#f5cd6e}
@@ -288,8 +290,13 @@ function render(d,anim){
   const _exTxt=(_ex==null)?'—':((_ex>0?'+':'')+_ex.toFixed(2));
   const _exCol=(_ex==null)?'var(--muted)':(_ex>0?'var(--profit)':(_ex<0?'var(--loss)':'var(--muted)'));
   return `<div class="card${b.alive?'':' offline'}" style="${hi}" onclick="showBotModal('${b.name}', ${b.port})">
-   <div class="head"><span class="dot" style="background:${dot}"></span><span class="name" style="animation:cardblink 1s ease-in-out infinite">${b.display_name || b.name}</span>${b.config&&b.config.timeframe?' <span style="font-size:17px;font-weight:600;color:var(--muted)">['+b.config.timeframe+']</span>':''}
-   <span class="badge ${b.ex.toLowerCase()}">${b.ex}</span></div>
+   <div class="head" style="align-items:flex-start;"><span class="dot" style="background:${dot};margin-top:6px;"></span>
+    <div style="display:flex;flex-direction:column;line-height:1.2;">
+     <div><span class="name rainbow-text" style="animation:cardblink 1s ease-in-out infinite">${b.name}_${b.ex.toUpperCase()}</span>${b.config&&b.config.timeframe?' <span style="font-size:17px;font-weight:600;color:var(--muted);vertical-align:bottom;">['+b.config.timeframe+']</span>':''}</div>
+     <span style="font-size:12.6px;color:#888;font-family:'JetBrains Mono',monospace;">SINCE ${b.perf_start ? b.perf_start.replace(/-/g, '.').substring(0, 16) : '—'}</span>
+    </div>
+    <span class="badge ${b.ex.toLowerCase()}" style="margin-top:3px;">${b.ex}</span>
+   </div>
    <table>
     <tr style="background:#11151c;border-bottom:1px solid #2a2f3a;" title="거래당 평균 손익(누적, USDT). 미래수익 최강 예측지표 — 양수=엣지 있음"><td style="color:#cdd3e0;font-weight:600">⭐ Expectancy</td><td><span style="font-size:115.5%;font-weight:bold;color:${_exCol}">${_exTxt}</span></td></tr>
     <tr style="background:#181b22;"><td>총 잔고${exwarn}</td><td><span style="font-size:155%;font-weight:bold">${usd(b.ex_balance)}</span></td></tr>
@@ -317,17 +324,15 @@ function render(d,anim){
    <th style="padding:8px;text-align:center">거래소</th><th style="padding:8px;text-align:center">레버리지</th>
    <th style="padding:8px;text-align:center">마진$</th><th style="padding:8px;text-align:center">최대포지션</th>
    <th style="padding:8px;text-align:center">손절률</th><th style="padding:8px;text-align:center">수익목표</th>
-   <th style="padding:8px;text-align:center">타임프레임</th><th style="padding:8px;text-align:center">EMA</th>
-   <th style="padding:8px;text-align:center">RSI</th><th style="padding:8px;text-align:center">전략</th>
-   <th style="padding:8px;text-align:center">최대보유시간</th></tr></thead>
+   <th style="padding:8px;text-align:center">타임프레임</th><th style="padding:8px;text-align:center">지표 설정</th>
+   <th style="padding:8px;text-align:center">전략 (스캐너)</th><th style="padding:8px;text-align:center">최대보유시간</th></tr></thead>
   <tbody>${d.bots.map((b,i)=>`<tr style="background:${Math.floor(i/2)%2?'var(--card)':'var(--card2)'};border-top:1px solid var(--border)">
-   <td style="padding:8px;font-weight:600;text-align:center">${b.display_name || b.name}</td>
+   <td style="padding:8px;font-weight:600;text-align:center">${b.name}</td>
    <td style="padding:8px;text-align:center">${b.ex}</td><td style="padding:8px;text-align:center">${b.config.leverage}</td>
    <td style="padding:8px;text-align:center">${b.config.margin_usdt}</td><td style="padding:8px;text-align:center">${b.config.max_positions}</td>
    <td style="padding:8px;text-align:center">${b.config.stop_loss_pct}</td><td style="padding:8px;text-align:center">${b.config.take_profit_pct}</td>
-   <td style="padding:8px;text-align:center">${b.config.timeframe}</td><td style="padding:8px;text-align:center">${b.config.ema_period}</td>
-   <td style="padding:8px;text-align:center">${b.config.rsi_period}</td><td style="padding:8px;text-align:center">${b.config.strategy}</td>
-   <td style="padding:8px;text-align:center">${b.config.max_holding_hours}</td></tr>`).join('')}</tbody></table>`;
+   <td style="padding:8px;text-align:center">${b.config.timeframe}</td><td style="padding:8px;text-align:center">${b.config.indicators}</td>
+   <td style="padding:8px;text-align:center">${b.config.strategy}</td><td style="padding:8px;text-align:center">${b.config.max_holding_hours}</td></tr>`).join('')}</tbody></table>`;
  const _periods=[['1h','1시간 내'],['6h','6시간 내'],['12h','12시간 내'],['24h','24시간 내'],['48h','48시간 내'],['72h','72시간 내'],['1w','1주일간']];
  const entryTable=`<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:14px;font-weight:600">
   <tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);text-align:center">봇</td>${d.bots.map(b=>'<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border)">'+b.name+'</td>').join('')}</tr>

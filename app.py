@@ -333,6 +333,26 @@ def read_bot_config(folder):
         except (OSError, json.JSONDecodeError, ValueError, AttributeError):
             pass
         strategy = mode or cfg.get("STRATEGY_TYPE") or live or "—"
+        if strategy == "—":
+            if "MACD_FAST" in cfg:
+                strategy = "AKMCD + SSL 하이브리드"
+            elif len(cfg.get("SYMBOL_WHITELIST", [])) == 7:
+                strategy = "메이저 7종 한정 스캔"
+            elif len(cfg.get("SYMBOL_WHITELIST", [])) >= 30:
+                strategy = "우량 30종목 스캔"
+            elif "BB_PERIOD" in cfg:
+                strategy = "TTM Squeeze 돌파"
+            else:
+                strategy = "기본 추세 돌파"
+                
+        indicators = []
+        if cfg.get("EMA_PERIOD"): indicators.append(f"EMA{cfg['EMA_PERIOD']}")
+        if cfg.get("RSI_PERIOD"): indicators.append(f"RSI{cfg['RSI_PERIOD']}")
+        if cfg.get("MACD_FAST"): indicators.append(f"MACD({cfg['MACD_FAST']},{cfg['MACD_SLOW']})")
+        if cfg.get("SSL_PERIOD"): indicators.append(f"SSL{cfg['SSL_PERIOD']}")
+        if cfg.get("BB_PERIOD"): indicators.append(f"BB{cfg['BB_PERIOD']}")
+        ind_str = ", ".join(indicators) if indicators else "—"
+
         return {
             "leverage": cfg.get("LEVERAGE", "—"),
             "margin_usdt": cfg.get("MARGIN_USDT", "—"),
@@ -340,14 +360,13 @@ def read_bot_config(folder):
             "stop_loss_pct": f"{cfg.get('STOP_LOSS_PCT', 0)*100:.2f}%",
             "take_profit_pct": f"{cfg.get('TAKE_PROFIT_PCT', 0)*100:.2f}%",
             "timeframe": cfg.get("TIMEFRAME", "—"),
-            "ema_period": cfg.get("EMA_PERIOD", "—"),
-            "rsi_period": cfg.get("RSI_PERIOD", "—"),
+            "indicators": ind_str,
             "strategy": strategy,
             "max_holding_hours": cfg.get("MAX_HOLDING_HOURS", "—"),
         }
     except (OSError, json.JSONDecodeError, ValueError):
         return {k: "—" for k in ["leverage", "margin_usdt", "max_positions", "stop_loss_pct",
-                                  "take_profit_pct", "timeframe", "ema_period", "rsi_period",
+                                  "take_profit_pct", "timeframe", "indicators", "strategy",
                                   "strategy", "max_holding_hours"]}
 
 
@@ -578,22 +597,6 @@ def app_debug_time(folder):
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(latest)) if latest else None
 
 
-def get_bot_display_name(folder, default_name):
-    """각 봇의 app.py 내용 중 class="rainbow-text"에 있는 표시용 이름을 추출"""
-    app_path = os.path.join(BASE, folder, "app.py")
-    try:
-        if os.path.exists(app_path):
-            with open(app_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            import re
-            match = re.search(r'class=["\']rainbow-text["\'][^>]*>\s*([^<\n]+?)\s*</span>', content)
-            if match:
-                return match.group(1).strip()
-    except Exception:
-        pass
-    return default_name
-
-
 def bot_status(folder, port, ex):
     # port로 정확하게 봇 ID 추출, 포트-폴더 매칭 명시
     bot_id = str(port)  # port 8401 → bot_id "8401"
@@ -638,7 +641,6 @@ def bot_status(folder, port, ex):
     r["last_entry"], r["last_flat"] = last_entry_exit(hist, r["perf_start"])
     r["config"] = read_bot_config(folder)
     r["app_debug"] = app_debug_time(folder)   # 앱 최종 디버깅(app.py+core/*.py 최신 mtime)
-    r["display_name"] = get_bot_display_name(folder, bot_id)
     # 금일 실현 손익·당일/누적 주문·승률을 봇 화면과 동일하게 trade_history에서 재계산
     m = hist_metrics(hist, r["perf_start"])
     r["today_pnl"] = m["today_pnl"]            # 금일 실현 손익 (봇 화면값)
