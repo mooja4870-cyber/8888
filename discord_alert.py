@@ -130,7 +130,7 @@ def build_message(data, prev_total, prev_bots, history):
         
         b_name_short = b['name'].replace('840', '')
         
-        lines.append(f"{pos_str} {b_name_short}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}  ({ent1:02d}, {ent4:02d}, W{sw:02d}/L{sl:02d})")
+        lines.append(f"{pos_str} {b_name_short}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}  ({ent1:02d}, {ent4:02d}, {sw:02d}/{sl:02d})")
     lines.append("─" * 38)
     lines.append("최근 30분 전체 일평균 추이(%)")
     lines.append(ascii_chart(history))
