@@ -293,7 +293,6 @@ function render(d,anim){
    <div class="head" style="align-items:flex-start;"><span class="dot" style="background:${dot};margin-top:6px;"></span>
     <div style="display:flex;flex-direction:column;line-height:1.2;">
      <div><span class="name" style="color:#ffffff; animation:cardblink 1s ease-in-out infinite">${b.name}</span>${b.config&&b.config.timeframe?' <span style="font-size:17px;font-weight:600;color:var(--muted);vertical-align:bottom;">['+b.config.timeframe+']</span>':''}</div>
-     <span style="font-size:12.6px;color:#888;font-family:'JetBrains Mono',monospace;">SINCE ${b.perf_start ? b.perf_start.replace(/-/g, '.').substring(0, 16) : '—'}</span>
     </div>
     <span class="badge ${b.ex.toLowerCase()}" style="margin-top:3px;">${b.ex}</span>
    </div>
