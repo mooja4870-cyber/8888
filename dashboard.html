@@ -83,7 +83,7 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
 </style>
 </head>
 <body>
-<header><h1>봇 통합 관제</h1><span style="font-size:12px;color:var(--muted)">수익 <span style="color:var(--profit)">빨강</span> · 손실 <span style="color:var(--loss)">파랑</span></span><select id="viewmode" onchange="applyView()" title="화면 모드"><option value="base" selected>기본화면</option><option value="name">시간별 봇 이름 순</option></select><select id="botfilter" onchange="if(_lastData)render(_lastData,true)" title="집계 대상 봇"><option value="all">전체</option><option value="exclude" selected>8403,8405 제외</option></select><select id="layout" onchange="if(_lastData)render(_lastData,true)" title="배치 형태"><option value="pyramid">피라미드(1·2·3·4)</option><option value="three">3개씩(2줄)</option><option value="four" selected>4개씩(2줄)</option></select><select id="sortby" onchange="if(_lastData)render(_lastData,true)" title="정렬 기준(내림차순)"><option value="daily_ret">일평균 수익률</option><option value="cum_ret">누적 수익률</option><option value="ex_balance">총 잔고</option><option value="since_orders">누적 주문수</option><option value="orders_today">당일 주문수</option><option value="elapsed">초기화 후 경과</option><option value="name">봇 번호 순</option></select><span id="updated">불러오는 중…</span></header>
+<header><h1>봇 통합 관제</h1><span style="font-size:12px;color:var(--muted)">수익 <span style="color:var(--profit)">빨강</span> · 손실 <span style="color:var(--loss)">파랑</span></span><select id="viewmode" onchange="applyView()" title="화면 모드"><option value="base" selected>기본화면</option><option value="name">시간별 봇 이름 순</option></select><select id="layout" onchange="if(_lastData)render(_lastData,true)" title="배치 형태"><option value="pyramid">피라미드(1·2·3·4)</option><option value="three">3개씩(2줄)</option><option value="four" selected>4개씩(2줄)</option></select><select id="sortby" onchange="if(_lastData)render(_lastData,true)" title="정렬 기준(내림차순)"><option value="daily_ret">일평균 수익률</option><option value="cum_ret">누적 수익률</option><option value="ex_balance">총 잔고</option><option value="since_orders">누적 주문수</option><option value="orders_today">당일 주문수</option><option value="elapsed">초기화 후 경과</option><option value="name">봇 번호 순</option></select><span id="updated">불러오는 중…</span></header>
 <div class="summary" id="summary"></div>
 <div class="legend">
 <span><span class="dot" style="background:var(--green)"></span>정상</span>
@@ -219,16 +219,9 @@ const elapsed=ps=>{if(!ps)return'—';const t0=new Date(ps.replace(' ','T'));
 const fmt=(v,sign)=>{if(v===null||v===undefined)return'<span class="flat">—</span>';
  const c=v>0?'profit':(v<0?'loss':'flat');const s=v>0&&sign?'+':'';
  return `<span class="${c}">${s}${(+v).toFixed(2)}</span>`};
-// 봇 필터: '8403,8405 제외'면 두 봇을 빼고 상단 집계(총자산·누적·일평균·가동)를 나머지로 재계산
+// 봇 필터 미사용
 function _applyFilter(d){
-  const f=(document.getElementById('botfilter')||{}).value||'exclude';
-  if(f!=='exclude'||!d||!d.bots)return d;
-  const bots=d.bots.filter(b=>b.name!=='8403'&&b.name!=='8405');
-  let assets=0,seed=0;
-  bots.forEach(b=>{const bal=(b.ex_ok&&b.ex_balance!=null)?b.ex_balance:((b.seed||0)+(b.total||0));assets+=bal;seed+=(b.seed||0);});
-  const cum=seed?((assets-seed)/seed*100):null, days=(d.summary&&d.summary.days)||1, r=x=>Math.round(x*100)/100;
-  const s=Object.assign({},d.summary,{assets:r(assets),cum_ret:cum!=null?r(cum):null,cum_delta:r(assets-seed),daily_ret:cum!=null?r(cum/days):null,alive:bots.filter(b=>b.alive).length,count:bots.length,with_positions:bots.filter(b=>b.holding===true).length,no_positions:bots.filter(b=>b.holding===false).map(b=>b.name),unknown_positions:bots.filter(b=>b.holding===null).map(b=>b.name)});
-  return Object.assign({},d,{bots:bots,summary:s});
+  return d;
 }
 function render(d,anim){
  _lastData=d;

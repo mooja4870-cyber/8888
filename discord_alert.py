@@ -192,15 +192,10 @@ def _process_single(data, path, title_suffix):
 
 def tick(data):
     """집계 1건을 받아 직전값과 비교·발송하고 상태를 갱신. (ok, info) 반환."""
-    # 1. 8개 봇 전체
-    ok1, info1 = _process_single(data, STATE_FILE, " [전체 8봇]")
+    # 4개 봇 전체
+    ok, info = _process_single(data, STATE_FILE, " [전체 4봇]")
     
-    # 2. 6개 봇 (8403, 8405 제외)
-    data_exc = recalc_data(data, ["8403", "8405"])
-    STATE_FILE_EXC = os.path.join(_DIR, "discord_state_exc.json")
-    ok2, info2 = _process_single(data_exc, STATE_FILE_EXC, " [6봇: 8403,8405 제외]")
-    
-    return ok1 and ok2, f"all:{info1} / exc:{info2}"
+    return ok, info
 
 
 if __name__ == "__main__":
