@@ -45,21 +45,21 @@ def _load_webhook():
         return ""
 
 
-def _load_state():
+def _load_state(path):
     try:
-        with open(STATE_FILE, encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             s = json.load(f)
         return s.get("prev_total"), s.get("prev_bots", {}), s.get("history", [])
     except (OSError, ValueError):
         return None, {}, []
 
 
-def _save_state(prev_total, prev_bots, history):
-    tmp = STATE_FILE + ".tmp"
+def _save_state(path, prev_total, prev_bots, history):
+    tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump({"prev_total": prev_total, "prev_bots": prev_bots,
                    "history": history[-CHART_WIDTH:]}, f, ensure_ascii=False)
-    os.replace(tmp, STATE_FILE)
+    os.replace(tmp, path)
 
 
 def _trend(cur, prev):
@@ -93,7 +93,7 @@ def ascii_chart(vals, width=CHART_WIDTH, height=CHART_HEIGHT):
     return "\n".join(out)
 
 
-def build_message(data, prev_total, prev_bots, history):
+def build_message(data, prev_total, prev_bots, history, title_suffix=""):
     s = data["summary"]
     total = s.get("daily_ret")
     days = s.get("days")
@@ -104,7 +104,7 @@ def build_message(data, prev_total, prev_bots, history):
     assets = s.get("assets")
     asset_str = f"[{assets:.2f}] " if assets is not None else ""   # 전체 일평균 줄 앞에 총자산 금액
     lines = [ts,
-             f"📊 전체 일평균수익률 ({head_days})",
+             f"📊 전체 일평균수익률 ({head_days}){title_suffix}",
              f"{asset_str}{tot_str}% {icon}{delta:.2f}%{arrow}",
              "─" * 38]
     bots = sorted(data["bots"],
@@ -153,19 +153,54 @@ def _post(content):
         return False, str(e)[:150]
 
 
-def tick(data):
-    """집계 1건을 받아 직전값과 비교·발송하고 상태를 갱신. (ok, info) 반환."""
-    prev_total, prev_bots, history = _load_state()
+def recalc_data(data, exclude_names):
+    import copy
+    d = copy.deepcopy(data)
+    bots = [b for b in d["bots"] if b["name"] not in exclude_names]
+    d["bots"] = bots
+    
+    assets = 0.0
+    seed = 0.0
+    for b in bots:
+        bal = b["ex_balance"] if (b.get("ex_ok") and b.get("ex_balance") is not None) else ((b.get("seed") or 0) + (b.get("total") or 0))
+        bseed = b.get("seed") if b.get("seed") else bal
+        assets += bal
+        seed += bseed
+        
+    days = d["summary"].get("days", 1.0)
+    cum_ret = round((assets - seed) / seed * 100, 2) if seed else None
+    d["summary"]["assets"] = round(assets, 2)
+    d["summary"]["cum_ret"] = cum_ret
+    d["summary"]["cum_delta"] = round(assets - seed, 2)
+    d["summary"]["daily_ret"] = round(cum_ret / days, 2) if cum_ret is not None else None
+    return d
+
+
+def _process_single(data, path, title_suffix):
+    prev_total, prev_bots, history = _load_state(path)
     total = data["summary"].get("daily_ret")
     history.append(total)
     history = history[-CHART_WIDTH:]
-    msg = build_message(data, prev_total, prev_bots, history)
+    msg = build_message(data, prev_total, prev_bots, history, title_suffix)
     ok, info = _post(msg)
     if ok:
         new_prev_bots = {b["name"]: (b.get("daily_ret") if b.get("daily_ret") is not None else 0.0)
                          for b in data["bots"]}
-        _save_state(total, new_prev_bots, history)
+        _save_state(path, total, new_prev_bots, history)
     return ok, info
+
+
+def tick(data):
+    """집계 1건을 받아 직전값과 비교·발송하고 상태를 갱신. (ok, info) 반환."""
+    # 1. 8개 봇 전체
+    ok1, info1 = _process_single(data, STATE_FILE, " [전체 8봇]")
+    
+    # 2. 6개 봇 (8403, 8405 제외)
+    data_exc = recalc_data(data, ["8403", "8405"])
+    STATE_FILE_EXC = os.path.join(_DIR, "discord_state_exc.json")
+    ok2, info2 = _process_single(data_exc, STATE_FILE_EXC, " [6봇: 8403,8405 제외]")
+    
+    return ok1 and ok2, f"all:{info1} / exc:{info2}"
 
 
 if __name__ == "__main__":
