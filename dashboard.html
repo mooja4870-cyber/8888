@@ -60,7 +60,7 @@ h1{font-size:27px;font-weight:600}
 .card .name{font-weight:600;font-size:21.6px}
 .rainbow-text{background:linear-gradient(90deg,#ff5a5a,#fcd162,#4db168,#4d9fff,#8c6cf5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:900 !important;animation:rainbow_anim 4s linear infinite}
 @keyframes rainbow_anim{0%{filter:hue-rotate(0deg)}100%{filter:hue-rotate(360deg)}}
-.badge{margin-left:auto;font-size:11px;padding:2px 8px;border-radius:7px;font-weight:600}
+.badge{margin-left:auto;font-size:15.84px;padding:2px 8px;border-radius:7px;font-weight:600}
 .badge.okx{background:#2e2a55;color:#b9b3f5}
 .badge.bnc{background:#4a3a14;color:#f5cd6e}
 .card table{width:100%;font-size:12.5px;border-collapse:collapse}
@@ -94,7 +94,7 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
 <div class="cards" id="cards"></div>
 <div id="timeview" style="display:none;margin-bottom:22px"></div>
 <div id="botModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:999;align-items:center;justify-content:center;padding:20px">
- <div style="background:#1a1a1a;border:0.1mm solid #1a1a1a;border-radius:18px;padding:32px;max-width:900px;max-height:85vh;overflow:auto;box-shadow:0 20px 100px rgba(45,189,133,0.5)">
+ <div style="background:#1a1a1a;border:0.1mm solid #1a1a1a;border-radius:18px;padding:32px;max-width:1100px;width:95%;max-height:88vh;overflow:auto;box-shadow:0 20px 100px rgba(45,189,133,0.5)">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
    <h3 id="modalTitle" style="font-size:18px;font-weight:700;margin:0;color:var(--green)"></h3>
    <button onclick="closeBotModal()" style="background:none;border:none;color:var(--text);cursor:pointer;font-size:28px;opacity:0.6;hover:opacity:1">×</button>
@@ -387,16 +387,39 @@ async function tick(){
 tick();setInterval(tick,5000);
 // ===== 봇 모달 팝업 + 그래프 =====
 let _botGraphChart=null;
+let _botCurrentRange='7d';
 function showBotModal(botName,port){
  const modal=document.getElementById('botModal');
  const title=document.getElementById('modalTitle');
  const content=document.getElementById('modalContent');
- title.textContent=botName;
+ title.innerHTML=`📈 <span style="color:#fff">${botName}</span> 수익률 추세 차트`;
  content.innerHTML=`
-  <button onclick="openBotDashboard(${port})" style="background:#2dbd85;color:#000;border:none;padding:16px 24px;border-radius:10px;cursor:pointer;font-weight:700;font-size:16px;width:100%;transition:background 0.2s">📊 ${botName} 대시보드로 이동</button>
-  <button onclick="showBotGraph('${botName}')" style="background:#102a6b;color:#fff;border:none;padding:16px 24px;border-radius:10px;cursor:pointer;font-weight:700;font-size:16px;width:100%;transition:all 0.2s">📈 수익률 그래프 보기</button>
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:8px">
+   <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap" id="botRangeButtons">
+    ${[
+     ['12h','12시간'],['24h','24시간'],['48h','48시간'],['7d','7일'],['15d','15일'],['1m','1개월'],['max','최대']
+    ].map(([k,lbl])=>`<button onclick="setBotRange('${botName}', '${k}')" id="btn_bot_${k}" style="background:${k==='7d'?'var(--green)':'var(--card2)'};color:${k==='7d'?'#04342c':'var(--text)'};border:1px solid var(--border);border-radius:7px;font-size:13px;font-weight:600;padding:6px 14px;cursor:pointer">${lbl}</button>`).join('')}
+   </div>
+   <button onclick="openBotDashboard(${port})" style="background:#1e3a8a;color:#fff;border:1px solid #3b82f6;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px;transition:all 0.2s">📊 ${botName} 대시보드 새창 열기 ↗</button>
+  </div>
+  <div style="background:#131722;border:1px solid #2d3748;border-radius:12px;padding:18px">
+   <canvas id="botGraphCanvas" style="width:100%;height:450px;max-height:65vh;display:block"></canvas>
+  </div>
  `;
  modal.style.display='flex';
+ _botCurrentRange='7d';
+ updateBotGraph(botName);
+}
+function setBotRange(botName, k){
+ _botCurrentRange=k;
+ ['12h','24h','48h','7d','15d','1m','max'].forEach(rk=>{
+  const b=document.getElementById('btn_bot_'+rk);
+  if(b){
+   b.style.background = (rk===k ? 'var(--green)' : 'var(--card2)');
+   b.style.color = (rk===k ? '#04342c' : 'var(--text)');
+  }
+ });
+ updateBotGraph(botName);
 }
 function closeBotModal(){
  const modal=document.getElementById('botModal');
@@ -408,34 +431,16 @@ function openBotDashboard(port){
  closeBotModal();
 }
 async function showBotGraph(botName){
- const content=document.getElementById('modalContent');
- content.innerHTML=`
-  <div style="display:flex;gap:12px;align-items:center;margin-bottom:20px">
-   <label style="font-size:16px;font-weight:700;color:#2dbd85">📊 시간 범위:</label>
-   <select id="timeRangeSelect" onchange="updateBotGraph('${botName}')" style="background:#1e40af;color:#fff;border:2px solid #2dbd85;border-radius:10px;padding:10px 16px;cursor:pointer;font-size:15px;font-weight:600">
-    <option value="12h">최근 12시간</option>
-    <option value="24h">24시간</option>
-    <option value="48h">48시간</option>
-    <option value="72h">72시간</option>
-    <option value="7d" selected>7일</option>
-    <option value="15d">15일</option>
-    <option value="1m">1개월</option>
-   </select>
-  </div>
-  <div style="background:#1a202c;border:2px solid #2dbd85;border-radius:12px;padding:16px">
-   <canvas id="botGraphCanvas" style="width:100%;max-height:930px;display:block"></canvas>
-  </div>
- `;
- updateBotGraph(botName);
+ showBotModal(botName, 8402);
 }
 async function updateBotGraph(botName){
  try{
   const r=await fetch('/api/snapshots',{cache:'no-store'});
   if(!r.ok) throw new Error('Snapshots fetch failed');
   const snaps=await r.json();
-  const range=document.getElementById('timeRangeSelect').value;
+  const range=_botCurrentRange||'7d';
   const now=new Date();
-  const mins={'12h':720,'24h':1440,'48h':2880,'72h':4320,'7d':10080,'15d':21600,'1m':43200}[range]||10080;
+  const mins={'12h':720,'24h':1440,'48h':2880,'7d':10080,'15d':21600,'1m':43200,'max':99999999}[range]||10080;
   const cutoff=new Date(now-mins*60000);
   const data=snaps
    .filter(s=>new Date(s.ts)>=cutoff)
