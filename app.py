@@ -280,8 +280,8 @@ def drawdown_metrics(path, perf_start, seed):
 
 
 def heatmap_grid(path, perf_start, days=7):
-    """[3단계] 최근 N일 청산 실현손익을 요일×시간대(6시간 4구간)로 집계.
-    반환: {"wday_bucket": pnl_sum, ...}  (wday 0=월 … 6=일, bucket 0=00–06 … 3=18–24)
+    """[3단계] 최근 N일 청산 실현손익을 요일×시간대(3시간 8구간)로 집계.
+    반환: {"wday_bucket": pnl_sum, ...}  (wday 0=월 … 6=일, bucket 0=00–03 … 7=21–24)
     """
     cutoff = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() - days * 86400))
     grid = {}
@@ -292,7 +292,7 @@ def heatmap_grid(path, perf_start, days=7):
             st = time.strptime(ts, "%Y-%m-%d %H:%M:%S")
         except ValueError:
             continue
-        key = "%d_%d" % (st.tm_wday, st.tm_hour // 6)
+        key = "%d_%d" % (st.tm_wday, st.tm_hour // 3)
         grid[key] = grid.get(key, 0.0) + pnl
     return grid
 

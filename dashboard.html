@@ -401,7 +401,7 @@ function showBotModal(botName,port){
  let hmHtml = '';
  if (bot && bot.hm_grid) {
   const _wd=['월','화','수','목','금','토','일'];
-  const _bk=['00–06','06–12','12–18','18–24'];
+  const _bk=['00–03','03–06','06–09','09–12','12–15','15–18','18–21','21–24'];
   const hm=bot.hm_grid||{};
   let _mx=0; Object.values(hm).forEach(v=>{if(Math.abs(v)>_mx)_mx=Math.abs(v)});
   const _cell=v=>{if(!v)return['background:#131722;color:var(--muted)','0'];const t=Math.min(1,Math.abs(v)/(_mx||1));const a=(0.18+t*0.62).toFixed(2);const bg=v>0?'rgba(255,90,90,'+a+')':'rgba(77,159,255,'+a+')';const tx=(v>0?'+':'')+v.toFixed(2);return['background:'+bg+';color:#fff',tx]};
