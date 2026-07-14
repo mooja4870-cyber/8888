@@ -729,7 +729,7 @@ def collect():
     for b in bots:
         for k, v in (b.get("hm_grid") or {}).items():
             heatmap[k] = round(heatmap.get(k, 0.0) + v, 4)
-        b.pop("hm_grid", None)   # 합산 완료 → 봇별 grid는 페이로드에서 제거(경량화)
+        # b.pop("hm_grid", None)   # 개별 봇 모달에서 사용하기 위해 유지
     # [2단계] Drawdown 경고 대상 = 당일 낙폭 -10% 초과(위험) / -5% 초과(주의)
     dd_danger = [{"name": b["name"], "today_dd": b["today_dd"]}
                  for b in bots if b.get("today_dd") is not None and b["today_dd"] <= -10]

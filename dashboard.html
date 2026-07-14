@@ -393,6 +393,28 @@ function showBotModal(botName,port){
  const title=document.getElementById('modalTitle');
  const content=document.getElementById('modalContent');
  title.innerHTML=`📈 <span style="color:#fff">${botName}</span> 수익률 추세 차트`;
+ 
+ let bot = null;
+ if(_lastData && _lastData.bots) {
+  bot = _lastData.bots.find(b=>b.name===botName);
+ }
+ let hmHtml = '';
+ if (bot && bot.hm_grid) {
+  const _wd=['월','화','수','목','금','토','일'];
+  const _bk=['00–06','06–12','12–18','18–24'];
+  const hm=bot.hm_grid||{};
+  let _mx=0; Object.values(hm).forEach(v=>{if(Math.abs(v)>_mx)_mx=Math.abs(v)});
+  const _cell=v=>{if(!v)return['background:#131722;color:var(--muted)','0'];const t=Math.min(1,Math.abs(v)/(_mx||1));const a=(0.18+t*0.62).toFixed(2);const bg=v>0?'rgba(255,90,90,'+a+')':'rgba(77,159,255,'+a+')';const tx=(v>0?'+':'')+v.toFixed(2);return['background:'+bg+';color:#fff',tx]};
+  hmHtml=`<div style="margin-top:20px;background:#131722;border:1px solid #2d3748;border-radius:12px;padding:18px">
+   <div style="font-weight:600;font-size:15px;color:var(--green);margin-bottom:12px">🔥 시간대별 성과 <span style="font-size:12px;color:var(--muted);font-weight:400">(요일×시간 수익 히트맵 · 최근 7일 실현손익)</span></div>
+   <table style="width:100%;border-collapse:collapse;font-size:13px;font-weight:600;table-layout:fixed">
+    <tr><td style="padding:8px;color:var(--muted);text-align:center">시간대</td>${_wd.map(w=>'<td style="padding:8px;text-align:center;color:var(--muted)">'+w+'</td>').join('')}</tr>
+    ${_bk.map((bl,bi)=>'<tr style="border-top:1px solid #2d3748"><td style="padding:10px 8px;text-align:center;color:var(--muted);white-space:nowrap">'+bl+'</td>'+_wd.map((w,wi)=>{const[st2,tx]=_cell(hm[wi+'_'+bi]||0);return '<td style="padding:10px 4px;text-align:center;'+st2+';border-left:1px solid #2d3748">'+tx+'</td>'}).join('')+'</tr>').join('')}
+   </table>
+   <div style="font-size:11px;color:var(--muted);margin-top:8px">단위: USDT · <span style="color:var(--profit)">빨강=수익</span> / <span style="color:var(--loss)">파랑=손실</span> (진할수록 큰 금액)</div>
+  </div>`;
+ }
+
  content.innerHTML=`
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:8px">
    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap" id="botRangeButtons">
@@ -405,6 +427,7 @@ function showBotModal(botName,port){
   <div style="background:#131722;border:1px solid #2d3748;border-radius:12px;padding:18px">
    <canvas id="botGraphCanvas" style="width:100%;height:450px;max-height:65vh;display:block"></canvas>
   </div>
+  ${hmHtml}
  `;
  modal.style.display='flex';
  _botCurrentRange='7d';
