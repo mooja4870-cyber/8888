@@ -192,8 +192,8 @@ def _process_single(data, path, title_suffix):
 
 def tick(data):
     """집계 1건을 받아 직전값과 비교·발송하고 상태를 갱신. (ok, info) 반환."""
-    # 4개 봇 전체
-    ok, info = _process_single(data, STATE_FILE, " [전체 4봇]")
+    num_bots = len(data.get("bots", []))
+    ok, info = _process_single(data, STATE_FILE, f" [전체 {num_bots}봇]")
     
     return ok, info
 
