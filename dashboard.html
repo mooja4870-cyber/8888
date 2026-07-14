@@ -133,6 +133,8 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
 <h2>최대 낙폭 (Drawdown) <span style="font-size:12px;color:var(--muted);font-weight:400">(위험 조기경보)</span></h2>
 <div id="ddBanner"></div>
 <div id="drawdownTable" style="overflow:visible;margin-bottom:22px"></div>
+<h2>봇별 시간대별 성과 <span style="font-size:12px;color:var(--muted);font-weight:400">(시간별 수익 히트맵 · 최근 7일)</span></h2>
+<div id="heatmapTable" style="overflow-x:auto;margin-bottom:22px"></div>
 
 <h2>매매기법 비교</h2>
 <div id="comparisonTable" style="overflow-x:auto;margin-bottom:22px"></div>
@@ -365,8 +367,42 @@ function render(d,anim){
   <tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);text-align:center">봇</td>${d.bots.map(b=>'<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border)">'+b.name+'</td>').join('')}</tr>
   ${_ddRows.map(([lbl,fn],ri)=>'<tr style="background:'+(ri%2?'var(--card)':'var(--card2)')+';border-top:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);white-space:nowrap;text-align:center">'+lbl+(ri===0?' '+wtip(_ddTip):'')+'</td>'+d.bots.map(b=>{const[v,col]=fn(b);return '<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border);color:'+col+'">'+v+'</td>'}).join('')+'</tr>').join('')}
  </table>`;
- document.getElementById('drawdownTable').innerHTML=ddTable;
- document.getElementById('comparisonTable').innerHTML=compTable;
+  document.getElementById('drawdownTable').innerHTML=ddTable;
+
+  // ── [3단계] 봇별 시간대별 성과 히트맵 (8시간 구간, 최근 7일) ──
+  const _hmTip='<b>각 봇이 어느 시간에 돈을 벌고 잃는지</b> 색으로 보여줘요. 최근 7일간 실현손익을 요일 무관 시간대별로 합산했어요.<br>• 빨강=수익 / 파랑=손실<br>• 진할수록 금액이 큼';
+  const _bk_labels=['00–03','03–06','06–09','09–12','12–15','15–18','18–21','21–24'];
+  let _hmMx=0;
+  d.bots.forEach(b=>{
+    const hm=b.hm_grid||{};
+    for(let bi=0;bi<8;bi++) {
+      let sum=0; for(let w=0;w<7;w++) sum+=(hm[w+'_'+bi]||0);
+      if(Math.abs(sum)>_hmMx) _hmMx=Math.abs(sum);
+    }
+  });
+  const _hmCell=(v)=>{if(!v)return['background:var(--card2);color:var(--muted)','0'];const t=Math.min(1,Math.abs(v)/(_hmMx||1));const a=(0.18+t*0.62).toFixed(2);const bg=v>0?'rgba(255,90,90,'+a+')':'rgba(77,159,255,'+a+')';const tx=(v>0?'+':'')+v.toFixed(2);return['background:'+bg+';color:#fff',tx]};
+  const hmTable=`<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:14px;font-weight:600">
+   <tr style="border-bottom:1px solid var(--border)">
+    <td style="padding:12px 16px;color:var(--muted);text-align:center;white-space:nowrap">봇 ${wtip(_hmTip)}</td>
+    ${_bk_labels.map(bl=>'<td style="padding:12px 4px;text-align:center;border-left:1px solid var(--border);color:var(--muted)">'+bl+'</td>').join('')}
+   </tr>
+   ${d.bots.map((b,ri)=>{
+     const hm=b.hm_grid||{};
+     let rowHtml = '<tr style="background:'+(ri%2?'var(--card)':'var(--card2)')+';border-top:1px solid var(--border)">';
+     rowHtml += '<td style="padding:12px 16px;color:var(--muted);white-space:nowrap;text-align:center">'+b.name+'</td>';
+     _bk_labels.forEach((bl,bi)=>{
+       let sum=0; for(let w=0;w<7;w++) sum+=(hm[w+'_'+bi]||0);
+       const [st2,tx] = _hmCell(sum);
+       rowHtml += '<td style="padding:12px 2px;text-align:center;border-left:1px solid var(--border);'+st2+'">'+tx+'</td>';
+     });
+     rowHtml += '</tr>';
+     return rowHtml;
+   }).join('')}
+  </table>
+  <div style="font-size:11px;color:var(--muted);margin-top:6px">단위: USDT · <span style="color:var(--profit)">빨강=수익</span> / <span style="color:var(--loss)">파랑=손실</span> (진할수록 큰 금액) · 최근 7일(요일무관) 실현손익 합산</div>`;
+  document.getElementById('heatmapTable').innerHTML=hmTable;
+
+  document.getElementById('comparisonTable').innerHTML=compTable;
  applyView();  // 시간별 모드면 표 갱신, 기본화면이면 카드 표시 유지
  // (v0.8.0에서 손익차트 섹션 제거됨 — 관련 차트 JS도 삭제. 잔존 시 new Chart(null) 예외로 render 크래시→오'끊김')
 }
