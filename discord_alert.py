@@ -131,7 +131,34 @@ def build_message(data, prev_total, prev_bots, history, title_suffix=""):
         b_name_short = b['name']
         b_days = b.get('days', 1.0)
         
-        lines.append(f"{pos_str} {b_name_short}  {b_days:.1f} {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}  ({ent1:02d},{ent4:02d}, {sw:02d}W/{sl:02d}L)")
+        try:
+            import app
+            path = f"/Users/l/project/{b['folder']}/data/trade_history.csv"
+            exits = app._load_exits(path)
+            perf_start = b.get("perf_start", "")
+            if perf_start:
+                exits = [e for e in exits if e[0] >= perf_start]
+            
+            grp = {}
+            ts_map = {}
+            for ts, pnl, oid in exits:
+                if oid:
+                    grp[oid] = grp.get(oid, 0.0) + pnl
+                    ts_map[oid] = max(ts_map.get(oid, ""), ts)
+            
+            filtered_oids = [o for o in grp.keys() if round(grp[o], 4) != 0.0]
+            sorted_oids = sorted(filtered_oids, key=lambda o: ts_map[o], reverse=True)
+            recent_oids = sorted_oids[:20]
+            
+            seq = ""
+            for oid in recent_oids:
+                seq += "O" if grp[oid] > 0 else "x"
+            seq_grouped = " ".join([seq[i:i+5] for i in range(0, len(seq), 5)])
+            seq_str = f" {seq_grouped}" if seq_grouped else ""
+        except Exception:
+            seq_str = ""
+        
+        lines.append(f"{pos_str} {b_name_short}  {b_days:.1f} {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}  ({ent1:02d},{ent4:02d}, {sw:02d}W/{sl:02d}L){seq_str}")
     lines.append("─" * 38)
     lines.append("최근 30분 전체 일평균 추이(%)")
     lines.append(ascii_chart(history))
