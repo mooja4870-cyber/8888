@@ -354,6 +354,9 @@ def read_bot_config(folder):
         if cfg.get("BB_PERIOD"): indicators.append(f"BB{cfg['BB_PERIOD']}")
         ind_str = ", ".join(indicators) if indicators else "—"
 
+        wl = cfg.get("SYMBOL_WHITELIST", [])
+        scan_targets = f"지정 {len(wl)}개" if wl else f"상위 {cfg.get('SCAN_TOP_N', '?')}개"
+
         return {
             "leverage": cfg.get("LEVERAGE", "—"),
             "margin_usdt": cfg.get("MARGIN_USDT", "—"),
@@ -363,11 +366,12 @@ def read_bot_config(folder):
             "timeframe": cfg.get("TIMEFRAME", "—"),
             "indicators": ind_str,
             "strategy": strategy,
+            "scan_targets": scan_targets,
             "max_holding_hours": cfg.get("MAX_HOLDING_HOURS", "—"),
         }
     except (OSError, json.JSONDecodeError, ValueError):
         return {k: "—" for k in ["leverage", "margin_usdt", "max_positions", "stop_loss_pct",
-                                  "take_profit_pct", "timeframe", "indicators", "strategy",
+                                  "take_profit_pct", "timeframe", "indicators", "strategy", "scan_targets",
                                   "strategy", "max_holding_hours"]}
 
 

@@ -319,7 +319,7 @@ function render(d,anim){
    <th style="padding:8px;text-align:center">마진$</th><th style="padding:8px;text-align:center">최대포지션</th>
    <th style="padding:8px;text-align:center">손절률</th><th style="padding:8px;text-align:center">수익목표</th>
    <th style="padding:8px;text-align:center">타임프레임</th><th style="padding:8px;text-align:center">지표 설정</th>
-   <th style="padding:8px;text-align:center">전략 (스캐너)</th><th style="padding:8px;text-align:center">최대보유시간</th>
+   <th style="padding:8px;text-align:center">전략 (스캐너)</th><th style="padding:8px;text-align:center">스캔 대상</th><th style="padding:8px;text-align:center">최대보유시간</th>
    <th style="padding:8px;text-align:center">MSDE++ 적용</th></tr></thead>
   <tbody>${d.bots.map((b,i)=>`<tr style="background:${Math.floor(i/2)%2?'var(--card)':'var(--card2)'};border-top:1px solid var(--border)">
    <td style="padding:8px;font-weight:600;text-align:center">${b.name}</td>
@@ -327,7 +327,7 @@ function render(d,anim){
    <td style="padding:8px;text-align:center">${b.config.margin_usdt}</td><td style="padding:8px;text-align:center">${b.config.max_positions}</td>
    <td style="padding:8px;text-align:center">${b.config.stop_loss_pct}</td><td style="padding:8px;text-align:center">${b.config.take_profit_pct}</td>
    <td style="padding:8px;text-align:center">${b.config.timeframe}</td><td style="padding:8px;text-align:center">${b.config.indicators}</td>
-   <td style="padding:8px;text-align:center">${b.config.strategy}</td><td style="padding:8px;text-align:center">${b.config.max_holding_hours}</td>
+   <td style="padding:8px;text-align:center">${b.config.strategy}</td><td style="padding:8px;text-align:center">${b.config.scan_targets}</td><td style="padding:8px;text-align:center">${b.config.max_holding_hours}</td>
    <td style="padding:8px;text-align:center;color:${String(b.name).includes('8409') ? '#e24b4a' : 'var(--green)'};font-weight:600">${String(b.name).includes('8409') ? 'X' : 'O'}</td></tr>`).join('')}</tbody></table>`;
  const _periods=[['1h','1시간 내'],['6h','6시간 내'],['12h','12시간 내'],['24h','24시간 내'],['48h','48시간 내'],['72h','72시간 내'],['1w','1주일간']];
  const entryTable=`<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:14px;font-weight:600">
