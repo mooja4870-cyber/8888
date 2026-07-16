@@ -49,16 +49,16 @@ def _load_state(path):
     try:
         with open(path, encoding="utf-8") as f:
             s = json.load(f)
-        return s.get("prev_total"), s.get("prev_bots", {}), s.get("history", [])
+        return s.get("prev_total"), s.get("prev_bots", {}), s.get("history", []), s.get("prev_sub_total")
     except (OSError, ValueError):
-        return None, {}, []
+        return None, {}, [], None
 
 
-def _save_state(path, prev_total, prev_bots, history):
+def _save_state(path, prev_total, prev_bots, history, prev_sub_total=None):
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump({"prev_total": prev_total, "prev_bots": prev_bots,
-                   "history": history[-CHART_WIDTH:]}, f, ensure_ascii=False)
+                   "history": history[-CHART_WIDTH:], "prev_sub_total": prev_sub_total}, f, ensure_ascii=False)
     os.replace(tmp, path)
 
 
@@ -93,7 +93,7 @@ def ascii_chart(vals, width=CHART_WIDTH, height=CHART_HEIGHT):
     return "\n".join(out)
 
 
-def build_message(data, prev_total, prev_bots, history, title_suffix=""):
+def build_message(data, prev_total, prev_bots, history, title_suffix="", sub_assets=None, sub_total=None, prev_sub_total=None):
     s = data["summary"]
     total = s.get("daily_ret")
     days = s.get("days")
@@ -103,9 +103,17 @@ def build_message(data, prev_total, prev_bots, history, title_suffix=""):
     ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())   # 매 알림 첫 라인 = 시스템 시각
     assets = s.get("assets")
     asset_str = f"[{assets:.2f}] " if assets is not None else ""   # 전체 일평균 줄 앞에 총자산 금액
+    
+    if sub_assets is not None and sub_total is not None:
+        s_icon, s_arrow, s_delta = _trend(sub_total, prev_sub_total)
+        s_tot_str = f"{sub_total:+.2f}" if sub_total is not None else "—"
+        sub_str = f"({sub_assets:.2f} {s_tot_str}% {s_icon}{s_delta:.2f}%{s_arrow})"
+    else:
+        sub_str = ""
+        
     lines = [ts,
              f"📊 전체 일평균수익률 ({head_days}){title_suffix}",
-             f"{asset_str}{tot_str}% {icon}{delta:.2f}%{arrow}",
+             f"{asset_str}{tot_str}% {icon}{delta:.2f}%{arrow}{sub_str}",
              "─" * 38]
     bots = sorted(data["bots"],
                   key=lambda b: (b.get("daily_ret") if b.get("daily_ret") is not None else -9999),
@@ -205,16 +213,32 @@ def recalc_data(data, exclude_names):
 
 
 def _process_single(data, path, title_suffix):
-    prev_total, prev_bots, history = _load_state(path)
+    prev_total, prev_bots, history, prev_sub_total = _load_state(path)
     total = data["summary"].get("daily_ret")
     history.append(total)
     history = history[-CHART_WIDTH:]
-    msg = build_message(data, prev_total, prev_bots, history, title_suffix)
+    
+    # Subset calculation (8402, 8407, 8409)
+    subset_names = {"8402", "8407", "8409"}
+    sub_assets = 0.0
+    sub_seed = 0.0
+    for b in data.get("bots", []):
+        if str(b.get("name")) in subset_names:
+            bal = b.get("ex_balance") if (b.get("ex_ok") and b.get("ex_balance") is not None) else ((b.get("seed") or 0) + (b.get("total") or 0))
+            bseed = b.get("seed") if b.get("seed") else bal
+            sub_assets += bal
+            sub_seed += bseed
+            
+    sub_days = data["summary"].get("days", 1.0)
+    sub_cum_ret = round((sub_assets - sub_seed) / sub_seed * 100, 2) if sub_seed else None
+    sub_total = round(sub_cum_ret / sub_days, 2) if sub_cum_ret is not None else None
+    
+    msg = build_message(data, prev_total, prev_bots, history, title_suffix, sub_assets, sub_total, prev_sub_total)
     ok, info = _post(msg)
     if ok:
         new_prev_bots = {b["name"]: (b.get("daily_ret") if b.get("daily_ret") is not None else 0.0)
                          for b in data["bots"]}
-        _save_state(path, total, new_prev_bots, history)
+        _save_state(path, total, new_prev_bots, history, sub_total)
     return ok, info
 
 
