@@ -220,15 +220,19 @@ def _process_single(data, path, title_suffix):
     return ok, info
 
 
-def tick(data):
+def tick(data, tick_count=0):
     """집계 1건을 받아 직전값과 비교·발송하고 상태를 갱신. (ok, info) 반환."""
     import copy
     
-    num_bots = len(data.get("bots", []))
-    ok1, info1 = _process_single(data, STATE_FILE, f" [전체 {num_bots}봇]")
+    ok1 = False
+    info1 = "Skip (60s loop)"
+    if tick_count % 2 == 0:
+        num_bots = len(data.get("bots", []))
+        ok1, info1 = _process_single(data, STATE_FILE, f" [전체 {num_bots}봇]")
+
     
-    # 2. 선택 3봇 집계 및 발송
-    subset_names = {"8402", "8404", "8409"}
+    # 2. 선택 2봇 집계 및 발송
+    subset_names = {"8402", "8409"}
     d_sub = copy.deepcopy(data)
     d_sub["bots"] = [b for b in d_sub.get("bots", []) if str(b.get("name")) in subset_names]
     
