@@ -211,37 +211,51 @@ def _process_single(data, path, title_suffix):
     history.append(total)
     history = history[-CHART_WIDTH:]
     
-    # Subset calculation (8402, 8407, 8409)
-    subset_names = {"8402", "8407", "8409"}
-    sub_assets = 0.0
-    sub_seed = 0.0
-    for b in data.get("bots", []):
-        if str(b.get("name")) in subset_names:
-            bal = b.get("ex_balance") if (b.get("ex_ok") and b.get("ex_balance") is not None) else ((b.get("seed") or 0) + (b.get("total") or 0))
-            bseed = b.get("seed") if b.get("seed") else bal
-            sub_assets += bal
-            sub_seed += bseed
-            
-    import app
-    sub_days = max([app.bot_days(b["perf_start"]) for b in data.get("bots", []) if str(b.get("name")) in subset_names] or [1.0])
-    sub_cum_ret = round((sub_assets - sub_seed) / sub_seed * 100, 2) if sub_seed else None
-    sub_total = round(sub_cum_ret / sub_days, 2) if sub_cum_ret is not None else None
-    
-    msg = build_message(data, prev_total, prev_bots, history, title_suffix, sub_assets, sub_total, prev_sub_total)
+    msg = build_message(data, prev_total, prev_bots, history, title_suffix)
     ok, info = _post(msg)
     if ok:
         new_prev_bots = {b["name"]: (b.get("daily_ret") if b.get("daily_ret") is not None else 0.0)
                          for b in data["bots"]}
-        _save_state(path, total, new_prev_bots, history, sub_total)
+        _save_state(path, total, new_prev_bots, history)
     return ok, info
 
 
 def tick(data):
     """집계 1건을 받아 직전값과 비교·발송하고 상태를 갱신. (ok, info) 반환."""
-    num_bots = len(data.get("bots", []))
-    ok, info = _process_single(data, STATE_FILE, f" [전체 {num_bots}봇]")
+    import copy
     
-    return ok, info
+    num_bots = len(data.get("bots", []))
+    ok1, info1 = _process_single(data, STATE_FILE, f" [전체 {num_bots}봇]")
+    
+    # 2. 선택 3봇 집계 및 발송
+    subset_names = {"8402", "8404", "8409"}
+    d_sub = copy.deepcopy(data)
+    d_sub["bots"] = [b for b in d_sub.get("bots", []) if str(b.get("name")) in subset_names]
+    
+    if d_sub["bots"]:
+        import app
+        assets = 0.0
+        seed = 0.0
+        for b in d_sub["bots"]:
+            bal = b.get("ex_balance") if (b.get("ex_ok") and b.get("ex_balance") is not None) else ((b.get("seed") or 0) + (b.get("total") or 0))
+            bseed = b.get("seed") if b.get("seed") else bal
+            assets += bal
+            seed += bseed
+            
+        days = max([app.bot_days(b["perf_start"]) for b in d_sub["bots"]] or [1.0])
+        cum_ret = round((assets - seed) / seed * 100, 2) if seed else None
+        d_sub["summary"]["assets"] = round(assets, 2)
+        d_sub["summary"]["cum_ret"] = cum_ret
+        d_sub["summary"]["cum_delta"] = round(assets - seed, 2)
+        d_sub["summary"]["daily_ret"] = round(cum_ret / days, 2) if cum_ret is not None else None
+        d_sub["summary"]["days"] = round(days, 1)
+        
+        state_file_sub = STATE_FILE.replace(".json", "_sub.json")
+        ok2, info2 = _process_single(d_sub, state_file_sub, f" [선택 {len(d_sub['bots'])}봇]")
+    else:
+        ok2, info2 = False, "No subset bots found"
+    
+    return ok1, f"All: {info1} | Sub: {info2}"
 
 
 if __name__ == "__main__":
