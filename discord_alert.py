@@ -248,10 +248,18 @@ def tick(data, tick_count=0):
             
         days = max([app.bot_days(b["perf_start"]) for b in d_sub["bots"]] or [1.0])
         cum_ret = round((assets - seed) / seed * 100, 2) if seed else None
+        
+        valid_bots = [b for b in d_sub["bots"] if b.get("daily_ret") is not None and b.get("seed")]
+        if valid_bots:
+            tot_s = sum(b["seed"] for b in valid_bots)
+            avg_daily = round(sum(b["daily_ret"] * b["seed"] for b in valid_bots) / tot_s, 2) if tot_s else 0.0
+        else:
+            avg_daily = round(cum_ret / days, 2) if cum_ret is not None else None
+            
         d_sub["summary"]["assets"] = round(assets, 2)
         d_sub["summary"]["cum_ret"] = cum_ret
         d_sub["summary"]["cum_delta"] = round(assets - seed, 2)
-        d_sub["summary"]["daily_ret"] = round(cum_ret / days, 2) if cum_ret is not None else None
+        d_sub["summary"]["daily_ret"] = avg_daily
         d_sub["summary"]["days"] = round(days, 1)
         
         state_file_sub = STATE_FILE.replace(".json", "_sub.json")

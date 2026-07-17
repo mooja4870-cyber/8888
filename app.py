@@ -727,6 +727,15 @@ def collect():
     days = max([bot_days(b["perf_start"]) for b in bots] or [1.0])
     # 합산 누적 = (Σ현재잔고 − Σ기준금) ÷ Σ기준금 (봇 앱과 동일한 실잔고 변화 기준, 수수료·펀딩 반영).
     cum_ret = round((assets - seed) / seed * 100, 2) if seed else None
+    
+    # 전체 일평균수익률: (개별 봇 일평균수익률 × 시드)의 가중 평균
+    valid_bots = [b for b in bots if b.get("daily_ret") is not None and b.get("seed")]
+    if valid_bots:
+        tot_s = sum(b["seed"] for b in valid_bots)
+        daily_ret = round(sum(b["daily_ret"] * b["seed"] for b in valid_bots) / tot_s, 2) if tot_s else 0.0
+    else:
+        daily_ret = round(cum_ret / days, 2) if cum_ret is not None else None
+
 
     # [3단계] 전봇 히트맵 합산 (요일×시간대 실현손익, 최근 7일)
     heatmap = {}
@@ -744,7 +753,7 @@ def collect():
         "assets": round(assets, 2),
         "cum_ret": cum_ret,
         "cum_delta": round(assets - seed, 2),
-        "daily_ret": round(cum_ret / days, 2) if cum_ret is not None else None,
+        "daily_ret": daily_ret,
         "days": round(days, 1),
         "alive": sum(1 for b in bots if b["alive"]),
         "count": len(bots),
@@ -974,20 +983,23 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def discord_loop():
-    """매 1분 전체 일평균수익률 요약을 디스코드로 발송 (8888 보유 집계 기반)."""
+    """전체 일평균수익률 요약을 디스코드로 발송 (8888 보유 집계 기반).
+       전체는 60초, 선택 3봇은 30초 주기로 발송."""
     import discord_alert
     time.sleep(35)   # 거래소 캐시(EX_CACHE) 워밍업 후 첫 발송 (콜드값 발송 방지)
+    loop_count = 0
     while True:
         t0 = time.time()
         try:
             data = collect(); t1 = time.time()
-            ok, info = discord_alert.tick(data); t2 = time.time()
+            ok, info = discord_alert.tick(data, tick_count=loop_count); t2 = time.time()
+            loop_count += 1
             print(f"[DISCORD] {time.strftime('%H:%M:%S')} ok={ok} {info} "
                   f"collect={t1-t0:.1f}s post={t2-t1:.1f}s", flush=True)
         except Exception as e:
             print(f"[DISCORD] {time.strftime('%H:%M:%S')} 예외: {str(e)[:150]}", flush=True)
-        # 작업 소요를 빼고 60초 주기 유지 → 발송 간격이 정확히 1분이 되도록 보정
-        time.sleep(max(1, 60 - (time.time() - t0)))
+        # 작업 소요를 빼고 30초 주기 유지
+        time.sleep(max(1, 30 - (time.time() - t0)))
 
 
 if __name__ == "__main__":
