@@ -104,16 +104,9 @@ def build_message(data, prev_total, prev_bots, history, title_suffix="", sub_ass
     assets = s.get("assets")
     asset_str = f"[{assets:.2f}] " if assets is not None else ""   # 전체 일평균 줄 앞에 총자산 금액
     
-    if sub_assets is not None and sub_total is not None:
-        s_icon, s_arrow, s_delta = _trend(sub_total, prev_sub_total)
-        s_tot_str = f"{sub_total:+.2f}" if sub_total is not None else "—"
-        sub_str = f"({sub_assets:.2f} {s_tot_str}% {s_icon}{s_delta:.2f}%{s_arrow})"
-    else:
-        sub_str = ""
-        
     lines = [ts,
              f"📊 전체 일평균수익률 ({head_days}){title_suffix}",
-             f"{asset_str}{tot_str}% {icon}{delta:.2f}%{arrow}{sub_str}",
+             f"{asset_str}{tot_str}% {icon}{delta:.2f}%{arrow}",
              "─" * 38]
     bots = sorted(data["bots"],
                   key=lambda b: (b.get("daily_ret") if b.get("daily_ret") is not None else -9999),
@@ -229,7 +222,8 @@ def _process_single(data, path, title_suffix):
             sub_assets += bal
             sub_seed += bseed
             
-    sub_days = data["summary"].get("days", 1.0)
+    import app
+    sub_days = max([app.bot_days(b["perf_start"]) for b in data.get("bots", []) if str(b.get("name")) in subset_names] or [1.0])
     sub_cum_ret = round((sub_assets - sub_seed) / sub_seed * 100, 2) if sub_seed else None
     sub_total = round(sub_cum_ret / sub_days, 2) if sub_cum_ret is not None else None
     
@@ -253,5 +247,6 @@ def tick(data):
 if __name__ == "__main__":
     # 단독 테스트: app.collect()로 현재 집계를 가져와 1건 발송
     import app
-    ok, info = tick(app.collect())
+    msg = tick(app.collect())
+    print(app.collect())
     print(f"[DISCORD] 발송 {'성공' if ok else '실패'}: {info}")
