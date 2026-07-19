@@ -232,7 +232,7 @@ def tick(data, tick_count=0):
 
     
     # 2. 선택 6봇 집계 및 발송
-    subset_names = {"8402", "8403", "8404", "8407", "8408", "8409"}
+    subset_names = {"8402", "8403", "8405", "8407", "8408", "8409"}
     d_sub = copy.deepcopy(data)
     d_sub["bots"] = [b for b in d_sub.get("bots", []) if str(b.get("name")) in subset_names]
     

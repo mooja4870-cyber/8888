@@ -5,7 +5,7 @@ data = app.collect()
 
 for b in data.get("bots", []):
     name = b.get("name")
-    if name in ["8402", "8403", "8404", "8407", "8408", "8409"]:
+    if name in ["8402", "8403", "8405", "8407", "8408", "8409"]:
         print(f"\n[{name}]")
         print(f"  ex_ok: {b.get('ex_ok')}")
         print(f"  ex_error: {b.get('ex_error')}")
