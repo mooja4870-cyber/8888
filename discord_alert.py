@@ -231,8 +231,8 @@ def tick(data, tick_count=0):
         ok1, info1 = _process_single(data, STATE_FILE, f" [전체 {num_bots}봇]")
 
     
-    # 2. 선택 3봇 집계 및 발송
-    subset_names = {"8402", "8404", "8409"}
+    # 2. 선택 6봇 집계 및 발송
+    subset_names = {"8402", "8403", "8404", "8407", "8408", "8409"}
     d_sub = copy.deepcopy(data)
     d_sub["bots"] = [b for b in d_sub.get("bots", []) if str(b.get("name")) in subset_names]
     
