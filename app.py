@@ -669,6 +669,27 @@ def bot_status(folder, port, ex):
     if not r.get("positions") and r.get("ex_pos_symbols"):
         r["positions"] = r["ex_pos_symbols"]
 
+    # 로컬 매매 엔진(active_positions.json)에 포지션이 비어 있으면(len(positions) == 0),
+    # 거래소 API 조회가 실패(ok=False)했거나 과거 캐시가 지연(stale=True) 상태로 덮어씌워졌더라도
+    # 유령 포지션(과거 증거금/포지션 수)이나 ?/? 표기가 나오지 않도록 0/무포지션으로 확정.
+    if r.get("positions") is not None and len(r["positions"]) == 0:
+        if not r.get("ex_ok") or r.get("ex_stale"):
+            r["ex_poscount"] = 0
+            r["ex_poslong"] = 0
+            r["ex_posshort"] = 0
+            r["ex_used"] = 0.0
+            r["ex_pos_symbols"] = []
+            r["holding"] = False
+    elif r.get("positions") is not None and len(r["positions"]) > 0:
+        if not r.get("ex_ok") or r.get("ex_stale"):
+            # 로컬 매매 엔진엔 포지션이 존재하는데 거래소 조회가 실패/지연된 경우,
+            # active_positions.json을 폴백 기준으로 삼아 최소한의 포지션 개수 및 보유 상태 반영
+            if r.get("ex_poscount") is None or not r.get("ex_ok"):
+                r["ex_poscount"] = len(r["positions"])
+                r["ex_poslong"] = len(r["positions"])
+                r["ex_posshort"] = 0
+                r["holding"] = True
+
     # 누적 수익률 = (현재 총잔고 - 초기화 잔고) / 초기화 잔고  ← 봇 대시보드 툴팁과 동일
     #   일시   = perf_start_time(stats.json),  초기화 잔고 = seed_money(stats.json)
     #   현재 총잔고 = 거래소 실시간 잔고. 조회 실패 시 실현손익 기준으로 폴백.
@@ -691,13 +712,12 @@ def bot_status(folder, port, ex):
     # 보유 여부 = 거래소 실제 증거금 사용(ex_used>0) 기준. 조회 실패 시에만 active_positions 파일 폴백.
     # (봇이 청산 후 active_positions.json을 안 지워 생기는 '유령 포지션' 오집계 방지 — 예: 8501)
     # 보유 판정: 거래소 증거금(ex_used) 기준이 가장 정확.
-    #   거래소 조회 실패(ban·레이트리밋 등 ex_ok=False)면 active_positions.json은
-    #   유령(청산 후 미삭제) 위험이 커서 보유 근거로 쓰지 않는다 → None('미확인').
-    #   (예: 8409가 바이낸스 IP ban 중 청산했는데 파일엔 옛 포지션이 남아 보유중 오표시되던 문제)
-    if r.get("ex_ok"):
-        r["holding"] = (r.get("ex_used") or 0) > 0.02 or (r.get("ex_poscount") or 0) > 0
-    else:
-        r["holding"] = None                          # 거래소 미확인
+    #   거래소 조회 실패(ban·레이트리밋 등 ex_ok=False)나 stale일 경우 로컬 엔진(active_positions.json) 교차 검증 반영.
+    if r.get("holding") is None:
+        if r.get("ex_ok") and not r.get("ex_stale"):
+            r["holding"] = (r.get("ex_used") or 0) > 0.02 or (r.get("ex_poscount") or 0) > 0
+        else:
+            r["holding"] = len(r["positions"]) > 0 if r.get("positions") is not None else None
     return r
 
 
