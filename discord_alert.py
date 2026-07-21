@@ -220,59 +220,64 @@ def _process_single(data, path, title_suffix):
     return ok, info
 
 
+def _process_subset(data, target_names, state_suffix, title_suffix):
+    import copy
+    import app
+    d_sub = copy.deepcopy(data)
+    d_sub["bots"] = [b for b in d_sub.get("bots", []) if str(b.get("name")) in target_names]
+    if not d_sub["bots"]:
+        return False, "No target bots found"
+    assets = 0.0
+    seed = 0.0
+    for b in d_sub["bots"]:
+        bal = b.get("ex_balance") if (b.get("ex_ok") and b.get("ex_balance") is not None) else ((b.get("seed") or 0) + (b.get("total") or 0))
+        bseed = b.get("seed") if b.get("seed") else bal
+        assets += bal
+        seed += bseed
+        
+    days = max([app.bot_days(b["perf_start"]) for b in d_sub["bots"]] or [1.0])
+    cum_ret = round((assets - seed) / seed * 100, 2) if seed else None
+    
+    valid_bots = [b for b in d_sub["bots"] if b.get("daily_ret") is not None and b.get("seed")]
+    if valid_bots:
+        tot_s = sum(b["seed"] for b in valid_bots)
+        avg_daily = round(sum(b["daily_ret"] * b["seed"] for b in valid_bots) / tot_s, 2) if tot_s else 0.0
+    else:
+        avg_daily = round(cum_ret / days, 2) if cum_ret is not None else None
+        
+    d_sub["summary"]["assets"] = round(assets, 2)
+    d_sub["summary"]["cum_ret"] = cum_ret
+    d_sub["summary"]["cum_delta"] = round(assets - seed, 2)
+    d_sub["summary"]["daily_ret"] = avg_daily
+    d_sub["summary"]["days"] = round(days, 1)
+    
+    state_file = STATE_FILE.replace(".json", state_suffix)
+    return _process_single(d_sub, state_file, f" {title_suffix}")
+
+
 def tick(data, tick_count=0):
     """집계 1건을 받아 직전값과 비교·발송하고 상태를 갱신. (ok, info) 반환."""
-    import copy
-    
     ok1 = False
     info1 = "Skip (60s loop)"
     if tick_count % 2 == 0:
         num_bots = len(data.get("bots", []))
         ok1, info1 = _process_single(data, STATE_FILE, f" [전체 {num_bots}봇]")
 
-    
     # 2. 선택 8봇 집계 및 발송
     subset_names = {"8401", "8402", "8403", "8404", "8405", "8407", "8408", "8409"}
-    d_sub = copy.deepcopy(data)
-    d_sub["bots"] = [b for b in d_sub.get("bots", []) if str(b.get("name")) in subset_names]
-    
-    if d_sub["bots"]:
-        import app
-        assets = 0.0
-        seed = 0.0
-        for b in d_sub["bots"]:
-            bal = b.get("ex_balance") if (b.get("ex_ok") and b.get("ex_balance") is not None) else ((b.get("seed") or 0) + (b.get("total") or 0))
-            bseed = b.get("seed") if b.get("seed") else bal
-            assets += bal
-            seed += bseed
-            
-        days = max([app.bot_days(b["perf_start"]) for b in d_sub["bots"]] or [1.0])
-        cum_ret = round((assets - seed) / seed * 100, 2) if seed else None
-        
-        valid_bots = [b for b in d_sub["bots"] if b.get("daily_ret") is not None and b.get("seed")]
-        if valid_bots:
-            tot_s = sum(b["seed"] for b in valid_bots)
-            avg_daily = round(sum(b["daily_ret"] * b["seed"] for b in valid_bots) / tot_s, 2) if tot_s else 0.0
-        else:
-            avg_daily = round(cum_ret / days, 2) if cum_ret is not None else None
-            
-        d_sub["summary"]["assets"] = round(assets, 2)
-        d_sub["summary"]["cum_ret"] = cum_ret
-        d_sub["summary"]["cum_delta"] = round(assets - seed, 2)
-        d_sub["summary"]["daily_ret"] = avg_daily
-        d_sub["summary"]["days"] = round(days, 1)
-        
-        state_file_sub = STATE_FILE.replace(".json", "_sub.json")
-        ok2, info2 = _process_single(d_sub, state_file_sub, f" [선택 {len(d_sub['bots'])}봇]")
-    else:
-        ok2, info2 = False, "No subset bots found"
-    
-    return ok1, f"All: {info1} | Sub: {info2}"
+    sub_cnt = len([b for b in data.get("bots", []) if str(b.get("name")) in subset_names])
+    ok2, info2 = _process_subset(data, subset_names, "_sub.json", f"[선택 {sub_cnt}봇]")
+
+    # 3. 청개구리 5봇 (BlueFrog: 8401, 8403, 8404, 8407, 8408) 집계 및 별도 발송
+    bf_names = {"8401", "8403", "8404", "8407", "8408"}
+    bf_cnt = len([b for b in data.get("bots", []) if str(b.get("name")) in bf_names])
+    ok3, info3 = _process_subset(data, bf_names, "_bf.json", f"[청개구리 {bf_cnt}봇]")
+
+    return (ok1 or ok2 or ok3), f"All: {info1} | Sub: {info2} | BF: {info3}"
 
 
 if __name__ == "__main__":
-    # 단독 테스트: app.collect()로 현재 집계를 가져와 1건 발송
+    # 단독 테스트: app.collect()로 현재 집계를 가져와 발송
     import app
-    msg = tick(app.collect())
-    print(app.collect())
+    ok, info = tick(app.collect())
     print(f"[DISCORD] 발송 {'성공' if ok else '실패'}: {info}")
