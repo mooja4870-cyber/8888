@@ -628,16 +628,15 @@ def bot_status(folder, port, ex):
     except (OSError, ValueError):
         pass
 
-    # 기준금(seed)·초기화일시(perf_start)는 seeds.json(mooja 수동 지정 고정값)을 우선 사용.
-    # seeds.json에 지정된 값이 없거나 0이면 stats.json의 seed_money/perf_start_time을 폴백으로 사용.
+    # 기준금(seed)·초기화일시(perf_start)는 stats.json의 실시간 seed_money/perf_start_time을 1순위로 사용.
+    # stats.json에 값이 없거나 0이면 seeds.json을 폴백으로 사용.
     sd = load_seeds().get(folder)
-    if sd and sd.get("seed") and float(sd.get("seed")) > 0:
-        r["seed"] = float(sd.get("seed"))
-        r["perf_start"] = sd.get("perf_start") or r["perf_start"]
-    elif r["seed"] is None or r["seed"] == 0:
-        if sd:
-            r["seed"] = sd.get("seed")
-            r["perf_start"] = r["perf_start"] or sd.get("perf_start")
+    if not r["seed"] or float(r["seed"] or 0) <= 0:
+        if sd and sd.get("seed") and float(sd.get("seed")) > 0:
+            r["seed"] = float(sd.get("seed"))
+    if not r["perf_start"]:
+        if sd and sd.get("perf_start"):
+            r["perf_start"] = sd.get("perf_start")
     try:
         with open(os.path.join(d, "active_positions.json"), encoding="utf-8") as f:
             r["positions"] = [k.split("/")[0] for k in json.load(f)]
