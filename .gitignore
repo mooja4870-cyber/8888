@@ -11,3 +11,5 @@ discord_webhook.txt
 discord_state.json
 okx_keys.json
 seeds.json
+__pycache__/
+discord_state_*.json

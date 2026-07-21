@@ -611,10 +611,8 @@ def bot_status(folder, port, ex):
          "losses": 0, "seed": None, "perf_start": None, "orders_today": 0,
          "total_trades": 0, "age_min": None, "positions": [], "trades": []}
 
-    # 앱 메모리 상태 우선 시도: /tmp/bot_<port>_state.json (앱의 실시간 메모리)
-    memory_state_path = f"/tmp/bot_{port}_state.json"
-    sp = memory_state_path if os.path.exists(memory_state_path) else os.path.join(d, "stats.json")
-
+    # 실시간 메모리 / stats.json 데이터 로딩
+    sp = os.path.join(d, "stats.json")
     try:
         with open(sp, encoding="utf-8") as f:
             s = json.load(f)
@@ -629,9 +627,14 @@ def bot_status(folder, port, ex):
         r["age_min"] = round((time.time() - os.path.getmtime(sp)) / 60, 1)
     except (OSError, ValueError):
         pass
-    # 봇 stats.json이 없어 기준금(seed)·초기화일시를 못 읽으면 seeds.json(mooja 수동 지정)으로 폴백.
-    if r["seed"] is None or r["seed"] == 0:
-        sd = load_seeds().get(folder)
+
+    # 기준금(seed)·초기화일시(perf_start)는 seeds.json(mooja 수동 지정 고정값)을 우선 사용.
+    # seeds.json에 지정된 값이 없거나 0이면 stats.json의 seed_money/perf_start_time을 폴백으로 사용.
+    sd = load_seeds().get(folder)
+    if sd and sd.get("seed") and float(sd.get("seed")) > 0:
+        r["seed"] = float(sd.get("seed"))
+        r["perf_start"] = sd.get("perf_start") or r["perf_start"]
+    elif r["seed"] is None or r["seed"] == 0:
         if sd:
             r["seed"] = sd.get("seed")
             r["perf_start"] = r["perf_start"] or sd.get("perf_start")
