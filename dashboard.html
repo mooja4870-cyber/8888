@@ -24,7 +24,7 @@ header{display:flex;align-items:baseline;gap:12px;margin-bottom:18px;position:st
 h1{font-size:27px;font-weight:600}
 #updated{font-size:12px;color:var(--muted);margin-left:10px}
 #sortby,#layout,#viewmode,#botfilter{background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:14.64px;padding:3px 6px;cursor:pointer}
-#viewmode{margin-left:10px;font-weight:600}
+#viewmode,#botfilter{margin-left:10px;font-weight:600}
 #layout{margin-left:auto}
 #sortby{margin-left:6px}
 .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px;position:sticky;top:49px;background:rgba(10,14,26,0.5);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:99;padding:10px 0}
@@ -83,7 +83,7 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
 </style>
 </head>
 <body>
-<header><h1>봇 통합 관제</h1><span style="font-size:12px;color:var(--muted)">수익 <span style="color:var(--profit)">빨강</span> · 손실 <span style="color:var(--loss)">파랑</span></span><select id="viewmode" onchange="applyView()" title="화면 모드"><option value="base" selected>기본화면</option><option value="name">시간별 봇 이름 순</option></select><select id="layout" onchange="if(_lastData)render(_lastData,true)" title="배치 형태"><option value="pyramid">피라미드(1·2·3·4)</option><option value="three">3개씩(2줄)</option><option value="four" selected>4개씩(2줄)</option></select><select id="sortby" onchange="if(_lastData)render(_lastData,true)" title="정렬 기준(내림차순)"><option value="daily_ret">일평균 수익률</option><option value="cum_ret">누적 수익률</option><option value="ex_balance">총 잔고</option><option value="since_orders">누적 주문수</option><option value="orders_today">당일 주문수</option><option value="elapsed">초기화 후 경과</option><option value="name">봇 번호 순</option></select><span id="updated">불러오는 중…</span></header>
+<header><h1>봇 통합 관제</h1><span style="font-size:12px;color:var(--muted)">수익 <span style="color:var(--profit)">빨강</span> · 손실 <span style="color:var(--loss)">파랑</span></span><select id="viewmode" onchange="applyView()" title="화면 모드"><option value="base" selected>기본화면</option><option value="name">시간별 봇 이름 순</option></select><select id="botfilter" onchange="if(_lastData)render(_lastData,true)" title="봇 필터 (전체/청개구리)"><option value="all" selected>전체 봇</option><option value="bluefrog">청개구리 봇 (5개)</option></select><select id="layout" onchange="if(_lastData)render(_lastData,true)" title="배치 형태"><option value="pyramid">피라미드(1·2·3·4)</option><option value="three">3개씩(2줄)</option><option value="four" selected>4개씩(2줄)</option></select><select id="sortby" onchange="if(_lastData)render(_lastData,true)" title="정렬 기준(내림차순)"><option value="daily_ret">일평균 수익률</option><option value="cum_ret">누적 수익률</option><option value="ex_balance">총 잔고</option><option value="since_orders">누적 주문수</option><option value="orders_today">당일 주문수</option><option value="elapsed">초기화 후 경과</option><option value="name">봇 번호 순</option></select><span id="updated">불러오는 중…</span></header>
 <div class="summary" id="summary"></div>
 <div class="legend">
 <span><span class="dot" style="background:var(--green)"></span>정상</span>
@@ -221,13 +221,66 @@ const elapsed=ps=>{if(!ps)return'—';const t0=new Date(ps.replace(' ','T'));
 const fmt=(v,sign)=>{if(v===null||v===undefined)return'<span class="flat">—</span>';
  const c=v>0?'profit':(v<0?'loss':'flat');const s=v>0&&sign?'+':'';
  return `<span class="${c}">${s}${(+v).toFixed(2)}</span>`};
-// 봇 필터 미사용
+// 봇 필터 (전체 / 청개구리 5봇)
 function _applyFilter(d){
-  return d;
+ const selEl=document.getElementById('botfilter');
+ if(!selEl)return d;
+ const sel=selEl.value||'all';
+ localStorage.setItem('botfilter_mode', sel);
+ if(sel==='all'||!d.bots)return d;
+ const copy=JSON.parse(JSON.stringify(d));
+ const bfNames=new Set(['8401','8403','8404','8407','8408']);
+ const filtered=copy.bots.filter(b=>bfNames.has(String(b.name)));
+ copy.bots=filtered;
+ let assets=0.0, seed=0.0;
+ filtered.forEach(b=>{
+  const bal=(b.ex_ok&&b.ex_balance!=null)?b.ex_balance:((b.seed||0)+(b.total||0));
+  const bseed=b.seed?b.seed:bal;
+  assets+=bal;
+  seed+=bseed;
+ });
+ const s=copy.summary||{};
+ let maxDays=1.0;
+ filtered.forEach(b=>{
+  if(b.perf_start){
+   const t0=new Date(b.perf_start.replace(' ','T')).getTime();
+   if(!isNaN(t0)){
+    const d=(Date.now()-t0)/86400000;
+    if(d>maxDays)maxDays=d;
+   }
+  }
+ });
+ const cumRet=seed?Math.round((assets-seed)/seed*10000)/100:0;
+ const validBots=filtered.filter(b=>b.daily_ret!=null&&b.seed);
+ let avgDaily=0.0;
+ if(validBots.length){
+  const totS=validBots.reduce((a,b)=>a+b.seed,0);
+  avgDaily=totS?Math.round((validBots.reduce((a,b)=>a+b.daily_ret*b.seed,0)/totS)*100)/100:0;
+ }else{
+  avgDaily=Math.round((cumRet/maxDays)*100)/100;
+ }
+ s.assets=assets;
+ s.cum_ret=cumRet;
+ s.cum_delta=assets-seed;
+ s.daily_ret=avgDaily;
+ s.days=Math.round(maxDays*10)/10;
+ s.count=filtered.length;
+ const staleArr=s.stale||[];
+ s.alive=filtered.filter(b=>!staleArr.includes(String(b.name))).length;
+ s.with_positions=filtered.filter(b=>(b.ex_poslong||0)>0||(b.ex_posshort||0)>0).length;
+ const posNames=new Set();
+ filtered.forEach(b=>{if((b.ex_poslong||0)===0&&(b.ex_posshort||0)===0)posNames.add(String(b.name));});
+ s.no_positions=Array.from(posNames);
+ return copy;
 }
+window.addEventListener('DOMContentLoaded', ()=>{
+ const saved=localStorage.getItem('botfilter_mode');
+ const el=document.getElementById('botfilter');
+ if(el&&saved&&(saved==='all'||saved==='bluefrog'))el.value=saved;
+});
 function render(d,anim){
  _lastData=d;
- d=_applyFilter(d);
+ d=_applyFilter(JSON.parse(JSON.stringify(d)));
  const s=d.summary;
  document.getElementById('updated').textContent='갱신 '+s.updated;
  const seedSum=(s.assets!==null&&s.cum_delta!==null)?(s.assets-s.cum_delta):null;
