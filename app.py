@@ -988,11 +988,13 @@ def discord_loop():
     """전체 일평균수익률 요약을 디스코드로 발송 (8888 보유 집계 기반).
        전체는 60초, 선택 3봇은 30초 주기로 발송."""
     import discord_alert
+    import importlib
     time.sleep(35)   # 거래소 캐시(EX_CACHE) 워밍업 후 첫 발송 (콜드값 발송 방지)
     loop_count = 0
     while True:
         t0 = time.time()
         try:
+            importlib.reload(discord_alert)
             data = collect(); t1 = time.time()
             ok, info = discord_alert.tick(data, tick_count=loop_count); t2 = time.time()
             loop_count += 1
