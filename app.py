@@ -919,7 +919,7 @@ BTC_TF_MS = {"1m": 60000, "5m": 300000, "15m": 900000,
 
 
 def fetch_btc_ohlcv(tf, limit=60):
-    """공개 OHLCV(API 키 불필요)로 BTC/USDT 종가 캔들. tf별 30초 캐시."""
+    """공개 OHLCV(API 키 불필요)로 BTC/USDT 종가 캔들. OKX/Bybit/Gate/Binance 교차 폴백 및 30초 캐시."""
     if tf not in BTC_TF_MS:
         tf = "1h"
     now = time.time()
@@ -928,16 +928,18 @@ def fetch_btc_ohlcv(tf, limit=60):
         if c and now - c[0] < 30:
             return c[1]
     import ccxt
-    global _btc_client
     candles = []
-    try:
-        with _btc_lock:
-            if _btc_client is None:
-                _btc_client = ccxt.binance({"enableRateLimit": True, "timeout": 10000})
-        raw = _btc_client.fetch_ohlcv("BTC/USDT", timeframe=tf, limit=limit)
-        candles = [[r[0], r[4]] for r in raw]   # [ts_ms, 종가]
-    except Exception:
-        candles = []
+    # 바이낸스 IP ban/레이트리밋 대비 OKX -> Bybit -> Gate -> Binance 순으로 교차 조회
+    for ex_cls in [ccxt.okx, ccxt.bybit, ccxt.gate, ccxt.binance]:
+        try:
+            client = ex_cls({"enableRateLimit": True, "timeout": 5000})
+            raw = client.fetch_ohlcv("BTC/USDT", timeframe=tf, limit=limit)
+            if raw:
+                candles = [[r[0], r[4]] for r in raw]   # [ts_ms, 종가]
+                break
+        except Exception:
+            continue
+
     if candles:                                 # 성공 시에만 캐시(실패는 다음 요청서 재시도)
         with _btc_lock:
             _btc_cache[tf] = (now, candles)
@@ -961,11 +963,20 @@ def asset_chart(tf):
     keys = [p[0] for p in apts]
     interval = BTC_TF_MS[tf]
     points = []
-    for ts_ms, close in candles:
-        cutoff = ts_ms + interval               # 캔들 종료시점 이하의 마지막 자산값(전방채움)
-        idx = bisect.bisect_right(keys, cutoff) - 1
-        asset = apts[idx][1] if idx >= 0 else None
-        points.append({"t": ts_ms, "btc": close, "asset": asset})
+
+    if candles:
+        for ts_ms, close in candles:
+            cutoff = ts_ms + interval               # 캔들 종료시점 이하의 마지막 자산값(전방채움)
+            idx = bisect.bisect_right(keys, cutoff) - 1
+            asset = apts[idx][1] if idx >= 0 else None
+            points.append({"t": ts_ms, "btc": close, "asset": asset})
+    elif apts:
+        # 거래소 캔들 전체 실패 시 자산 데이터(apts) 단독 포인트 폴백 (차트 막대 보장)
+        step = max(1, len(apts) // 60)
+        sample = apts[::step][-60:]
+        for ts_ms, val in sample:
+            points.append({"t": ts_ms, "btc": None, "asset": val})
+
     return {"tf": tf, "points": points, "asset_from": hist[0]["ts"] if hist else None}
 
 
