@@ -268,8 +268,8 @@ def tick(data, tick_count=0):
     sub_cnt = len([b for b in data.get("bots", []) if str(b.get("name")) in subset_names])
     ok2, info2 = _process_subset(data, subset_names, "_sub.json", f"[선택 {sub_cnt}봇]")
 
-    # 3. 청개구리 6봇 (BlueFrog: 8401, 8403, 8404, 8407, 8408, 8409) 집계 및 별도 발송
-    bf_names = {"8401", "8403", "8404", "8407", "8408", "8409"}
+    # 3. 청개구리 7봇 (BlueFrog: 8401, 8403, 8404, 8405, 8407, 8408, 8409) 집계 및 별도 발송
+    bf_names = {"8401", "8403", "8404", "8405", "8407", "8408", "8409"}
     bf_cnt = len([b for b in data.get("bots", []) if str(b.get("name")) in bf_names])
     ok3, info3 = _process_subset(data, bf_names, "_bf.json", f"[청개구리 {bf_cnt}봇]")
 
