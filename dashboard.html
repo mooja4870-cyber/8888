@@ -229,7 +229,7 @@ function _applyFilter(d){
  localStorage.setItem('botfilter_mode', sel);
  if(sel==='all'||!d.bots)return d;
  const copy=JSON.parse(JSON.stringify(d));
- const bfNames=new Set(['8401','8403','8404','8405','8407','8408','8409']);
+ const bfNames=new Set(['8401','8404','8405','8407','8408']);
  const filtered=copy.bots.filter(b=>bfNames.has(String(b.name)));
  copy.bots=filtered;
  let assets=0.0, seed=0.0;
