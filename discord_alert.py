@@ -268,29 +268,29 @@ def tick(data, tick_count=0):
         num_bots = len(data.get("bots", []))
         ok1, info1 = _process_single(data, STATE_FILE, f" [전체 {num_bots}봇]")
 
-    # 2. 선택 6봇 집계 및 발송
-    subset_names = {"8401", "8402", "8404", "8405", "8407", "8408"}
+    # 2. 선택 5봇 집계 및 발송
+    subset_names = {"8401", "8402", "8404", "8405", "8408"}
     sub_cnt = len([b for b in data.get("bots", []) if str(b.get("name")) in subset_names])
     ok2, info2 = _process_subset(data, subset_names, "_sub.json", f"[선택 {sub_cnt}봇]")
 
-    # 3. 청개구리 5봇 (BlueFrog: 8401, 8404, 8405, 8407, 8408) 집계 및 별도 발송
-    bf_names = {"8401", "8404", "8405", "8407", "8408"}
+    # 3. 청개구리 4봇 (BlueFrog: 8401, 8404, 8405, 8408) 집계 및 별도 발송
+    bf_names = {"8401", "8404", "8405", "8408"}
     bf_cnt = len([b for b in data.get("bots", []) if str(b.get("name")) in bf_names])
     ok3, info3 = _process_subset(data, bf_names, "_bf.json", f"[청개구리 {bf_cnt}봇]")
 
-    # 4. 제외 2봇 (8403, 8409) 별도 집계 및 발송
+    # 4. 제외 3봇 (8403, 8407, 8409) 별도 집계 및 발송
     ok4 = False
     info4 = "Skip"
     try:
         import app
-        ex2_data = app.collect_excluded()
-        ex2_names = {"8403", "8409"}
-        ex2_cnt = len([b for b in ex2_data.get("bots", []) if str(b.get("name")) in ex2_names])
-        ok4, info4 = _process_subset(ex2_data, ex2_names, "_ex2.json", f"[8403, 8409 {ex2_cnt}봇]")
+        ex3_data = app.collect_excluded()
+        ex3_names = {"8403", "8407", "8409"}
+        ex3_cnt = len([b for b in ex3_data.get("bots", []) if str(b.get("name")) in ex3_names])
+        ok4, info4 = _process_subset(ex3_data, ex3_names, "_ex3.json", f"[8403, 8407, 8409 {ex3_cnt}봇]")
     except Exception as e:
         info4 = f"Error: {e}"
 
-    return (ok1 or ok2 or ok3 or ok4), f"All: {info1} | Sub: {info2} | BF: {info3} | Ex2: {info4}"
+    return (ok1 or ok2 or ok3 or ok4), f"All: {info1} | Sub: {info2} | BF: {info3} | Ex3: {info4}"
 
 
 if __name__ == "__main__":
