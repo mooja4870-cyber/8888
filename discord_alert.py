@@ -125,7 +125,12 @@ def build_message(data, prev_total, prev_bots, history, title_suffix="", sub_ass
         pos_long = b.get("ex_poslong")
         pos_short = b.get("ex_posshort")
         if pos_long is None or pos_short is None:
-            pos_str = "?/?"
+            if b.get("positions"):
+                pos_str = f"{len(b['positions'])}/0"
+            elif b.get("holding"):
+                pos_str = "1/0"
+            else:
+                pos_str = "?/?"
         else:
             pos_str = f"{pos_long}/{pos_short}"
         

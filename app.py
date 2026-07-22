@@ -480,6 +480,33 @@ EX_CACHE = {}           # folder -> {balance, free, used, upnl, ok, err}
 _ex_clients = {}        # cred key -> ccxt client (재사용)
 _ex_lock = threading.Lock()
 
+PERSIST_EX_CACHE_PATH = os.path.join(BASE, "data", "ex_cache_persistent.json")
+
+
+def _load_persistent_ex_cache():
+    try:
+        if os.path.exists(PERSIST_EX_CACHE_PATH):
+            with open(PERSIST_EX_CACHE_PATH, encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    EX_CACHE.update(data)
+    except Exception:
+        pass
+
+
+def _save_persistent_ex_cache():
+    try:
+        os.makedirs(os.path.dirname(PERSIST_EX_CACHE_PATH), exist_ok=True)
+        tmp = PERSIST_EX_CACHE_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(EX_CACHE, f, ensure_ascii=False)
+        os.replace(tmp, PERSIST_EX_CACHE_PATH)
+    except Exception:
+        pass
+
+
+_load_persistent_ex_cache()
+
 
 def fetch_account(cred):
     """조회 전용: 잔고/포지션만 읽는다. 주문 관련 호출 없음."""
@@ -496,6 +523,8 @@ def fetch_account(cred):
             if ex_id == "okx":
                 # ccxt 4.5.x: 전체 마켓 로드 시 id=None 마켓 정렬 버그 회피 (swap만 사용)
                 c.options["fetchMarkets"] = ["swap"]
+            elif ex_id == "binanceusdm":
+                c.options["fetchMarkets"] = ["linear"]
             _ex_clients[cred] = c
     bal = c.fetch_balance()
     usdt = bal.get("USDT", {})
@@ -570,13 +599,19 @@ def exchange_loop():
                         _ex_backoff[cred] = bo
                         _ex_cooldown[cred] = now + bo
                     # 직전 정상 잔고가 있으면 None으로 덮지 않고 '지연(stale)'으로 유지
-                    prev = next((EX_CACHE.get(f) for f in folders if EX_CACHE.get(f)), None)
+                    prev = None
+                    for f in folders:
+                        c_item = EX_CACHE.get(f)
+                        if c_item and c_item.get("balance") is not None:
+                            prev = c_item
+                            break
                     if prev and prev.get("balance") is not None:
                         r = {**prev, "ok": True, "stale": True, "err": msg}
                     else:
-                        r = {"ok": False, "err": msg}
+                        r = {"ok": False, "err": msg, "stale": True}
             for f in folders:
                 EX_CACHE[f] = r
+            _save_persistent_ex_cache()
         time.sleep(EX_REFRESH_SEC)
 
 
@@ -698,8 +733,9 @@ def bot_status(folder, port, ex):
     if r["seed"]:
         # 봇 앱과 동일하게 '실제 잔고 변화 ÷ 기준금' 누적 (수수료·펀딩 반영된 실잔고 기준).
         #   조회 실패 시에만 실현손익(total)으로 폴백.
-        if r.get("ex_ok") and r.get("ex_balance") is not None:
-            r["cum_delta"] = round(r["ex_balance"] - r["seed"], 4)
+        ex_bal = r.get("ex_balance")
+        if ex_bal is not None and float(ex_bal) > 0:
+            r["cum_delta"] = round(float(ex_bal) - r["seed"], 4)
             r["cum_basis"] = "balance"
         else:
             r["cum_delta"] = round(r["total"] or 0, 4)
