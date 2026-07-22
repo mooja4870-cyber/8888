@@ -617,6 +617,68 @@ def exchange_loop():
 
 # ── 봇별 파일 기반 지표 ──────────────────────────────────────────────
 
+_TICKER_CACHE = {}  # symbol -> (mtime, price)
+
+
+def get_public_price(symbol_short):
+    """OKX 퍼블릭 시세 조회 (IP 차단 무관, 인증 0). 15초 캐시."""
+    now = time.time()
+    c = _TICKER_CACHE.get(symbol_short)
+    if c and (now - c[0]) < 15:
+        return c[1]
+    try:
+        import ccxt
+        ex = getattr(get_public_price, "_ex", None)
+        if ex is None:
+            ex = ccxt.okx({"enableRateLimit": True, "timeout": 5000})
+            get_public_price._ex = ex
+        pair = f"{symbol_short}/USDT:USDT"
+        tick = ex.fetch_ticker(pair)
+        price = float(tick.get("last") or 0.0)
+        if price > 0:
+            _TICKER_CACHE[symbol_short] = (now, price)
+            return price
+    except Exception:
+        pass
+    return c[1] if c else None
+
+
+def estimate_bot_upnl(folder, positions):
+    """trade_history.csv에서 보유 종목 진입가/수량/방향 추출 후 퍼블릭 시세로 uPNL 실시간 계산."""
+    if not positions:
+        return 0.0
+    hist_path = os.path.join(BASE, folder, "data", "trade_history.csv")
+    try:
+        if not os.path.exists(hist_path):
+            return 0.0
+        with open(hist_path, encoding="utf-8-sig", errors="replace") as f:
+            rows = list(csv.reader(f))
+        if not rows:
+            return 0.0
+        pos_set = set(positions)
+        entry_info = {}
+        for r in reversed(rows):
+            if len(r) >= 6 and r[2] == "진입":
+                sym = r[1].split("/")[0].strip()
+                if sym in pos_set and sym not in entry_info:
+                    try:
+                        side = r[3].strip().lower()
+                        price = float(r[4])
+                        qty = float(r[5])
+                        entry_info[sym] = (side, price, qty)
+                    except (ValueError, IndexError):
+                        pass
+        total_upnl = 0.0
+        for sym, (side, entry_price, qty) in entry_info.items():
+            curr_price = get_public_price(sym)
+            if curr_price and entry_price > 0:
+                diff = (curr_price - entry_price) if side in ("long", "buy") else (entry_price - curr_price)
+                total_upnl += diff * qty
+        return round(total_upnl, 4)
+    except Exception:
+        return 0.0
+
+
 def app_debug_time(folder):
     """봇 폴더의 app.py + core/*.py 중 가장 최근 수정시각(KST 문자열). '앱 최종 디버깅 후 경과' 표시용. 읽기(stat)만 수행."""
     base = os.path.join(BASE, folder)
@@ -738,8 +800,16 @@ def bot_status(folder, port, ex):
             r["cum_delta"] = round(float(ex_bal) - r["seed"], 4)
             r["cum_basis"] = "balance"
         else:
-            r["cum_delta"] = round(r["total"] or 0, 4)
-            r["cum_basis"] = "pnl"
+            # 거래소 API 미확인/차단 상태라도 포지션 보유 중이면 trade_history + 퍼블릭 시세 기반 uPNL 추산
+            est_upnl = estimate_bot_upnl(folder, r.get("positions"))
+            if est_upnl != 0.0 or (r.get("positions") and len(r["positions"]) > 0):
+                r["ex_upnl"] = est_upnl
+                base_pnl = (r["total"] or 0) + est_upnl
+                r["cum_delta"] = round(base_pnl, 4)
+                r["cum_basis"] = "estimated_pnl"
+            else:
+                r["cum_delta"] = round(r["total"] or 0, 4)
+                r["cum_basis"] = "pnl"
         r["cum_ret"] = round(r["cum_delta"] / r["seed"] * 100, 2)
         r["daily_ret"] = round(r["cum_ret"] / days, 2)
     else:
