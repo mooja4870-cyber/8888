@@ -278,7 +278,19 @@ def tick(data, tick_count=0):
     bf_cnt = len([b for b in data.get("bots", []) if str(b.get("name")) in bf_names])
     ok3, info3 = _process_subset(data, bf_names, "_bf.json", f"[청개구리 {bf_cnt}봇]")
 
-    return (ok1 or ok2 or ok3), f"All: {info1} | Sub: {info2} | BF: {info3}"
+    # 4. 제외 2봇 (8403, 8409) 별도 집계 및 발송
+    ok4 = False
+    info4 = "Skip"
+    try:
+        import app
+        ex2_data = app.collect_excluded()
+        ex2_names = {"8403", "8409"}
+        ex2_cnt = len([b for b in ex2_data.get("bots", []) if str(b.get("name")) in ex2_names])
+        ok4, info4 = _process_subset(ex2_data, ex2_names, "_ex2.json", f"[8403, 8409 {ex2_cnt}봇]")
+    except Exception as e:
+        info4 = f"Error: {e}"
+
+    return (ok1 or ok2 or ok3 or ok4), f"All: {info1} | Sub: {info2} | BF: {info3} | Ex2: {info4}"
 
 
 if __name__ == "__main__":

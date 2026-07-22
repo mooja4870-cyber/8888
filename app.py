@@ -833,28 +833,25 @@ def bot_days(perf_start):
         return 1.0
 
 
-def collect():
-    bots = [bot_status(*b) for b in BOTS]
-    # 합산 누적 수익률 = (Σ현재 총잔고 - 기준금) / 기준금
-    #   기준금 = SEED_OVERRIDE(mooja 지정 고정값) 우선, 없으면 봇 seed 자동합산.
-    #   현재 총잔고는 거래소 실시간 잔고, 조회 실패 봇은 seed+실현손익으로 폴백.
-    # 봇별 현재 잔고·기준금을 함께 합산. 기준금(seed)이 없는 봇(stats.json 미생성 등)은
-    # 현재 잔고를 기준금으로 간주(누적 0% 중립) → seed 누락으로 전체 누적이 폭등하는 왜곡 방지.
+EXCLUDED_BOTS = [
+    ("8403", 8403, "OKX"),
+    ("8409", 8409, "BNC"),
+]
+
+
+def collect_bots(bot_tuples):
+    bots = [bot_status(*b) for b in bot_tuples]
     assets = 0.0
     seed = 0.0
     for b in bots:
         bal = b["ex_balance"] if (b.get("ex_ok") and b.get("ex_balance") is not None) \
               else ((b["seed"] or 0) + (b["total"] or 0))
-        bseed = b["seed"] if b["seed"] else bal   # seed 없으면 잔고=기준금(중립)
+        bseed = b["seed"] if b["seed"] else bal
         assets += bal
         seed += bseed
-    if SEED_OVERRIDE:
-        seed = SEED_OVERRIDE
     days = max([bot_days(b["perf_start"]) for b in bots] or [1.0])
-    # 합산 누적 = (Σ현재잔고 − Σ기준금) ÷ Σ기준금 (봇 앱과 동일한 실잔고 변화 기준, 수수료·펀딩 반영).
     cum_ret = round((assets - seed) / seed * 100, 2) if seed else None
     
-    # 전체 일평균수익률: (개별 봇 일평균수익률 × 시드)의 가중 평균
     valid_bots = [b for b in bots if b.get("daily_ret") is not None and b.get("seed")]
     if valid_bots:
         tot_s = sum(b["seed"] for b in valid_bots)
@@ -862,14 +859,11 @@ def collect():
     else:
         daily_ret = round(cum_ret / days, 2) if cum_ret is not None else None
 
-
-    # [3단계] 전봇 히트맵 합산 (요일×시간대 실현손익, 최근 7일)
     heatmap = {}
     for b in bots:
         for k, v in (b.get("hm_grid") or {}).items():
             heatmap[k] = round(heatmap.get(k, 0.0) + v, 4)
-        # b.pop("hm_grid", None)   # 개별 봇 모달에서 사용하기 위해 유지
-    # [2단계] Drawdown 경고 대상 = 당일 낙폭 -10% 초과(위험) / -5% 초과(주의)
+
     dd_danger = [{"name": b["name"], "today_dd": b["today_dd"]}
                  for b in bots if b.get("today_dd") is not None and b["today_dd"] <= -10]
     dd_warn = [{"name": b["name"], "today_dd": b["today_dd"]}
@@ -885,7 +879,7 @@ def collect():
         "count": len(bots),
         "with_positions": sum(1 for b in bots if b["holding"] is True),
         "no_positions": [b["name"] for b in bots if b["holding"] is False],
-        "unknown_positions": [b["name"] for b in bots if b["holding"] is None],  # 거래소 미확인(ban 등)
+        "unknown_positions": [b["name"] for b in bots if b["holding"] is None],
         "stale": [b["name"] for b in bots
                   if b["age_min"] is not None and b["age_min"] > STALE_MIN],
         "heatmap": heatmap,
@@ -894,6 +888,14 @@ def collect():
         "updated": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
     return {"summary": summary, "bots": bots, "stale_min": STALE_MIN}
+
+
+def collect():
+    return collect_bots(BOTS)
+
+
+def collect_excluded():
+    return collect_bots(EXCLUDED_BOTS)
 
 
 # ── 시간별 스냅샷 기록 (매시 :00·:30, 봇별 일평균수익률 누적) ──────────────
