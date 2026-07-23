@@ -358,6 +358,20 @@ def read_bot_config(folder):
         wl = cfg.get("SYMBOL_WHITELIST", [])
         scan_targets = f"지정 {len(wl)}개" if wl else f"상위 {cfg.get('SCAN_TOP_N', '?')}개"
 
+        use_bf = cfg.get("USE_BLUEFROG")
+        if use_bf is None:
+            py_path = os.path.join(BASE, folder, "config.py")
+            if os.path.exists(py_path):
+                try:
+                    with open(py_path, encoding="utf-8") as pf:
+                        m = re.search(r"USE_BLUEFROG\s*=\s*(True|False)", pf.read())
+                        if m:
+                            use_bf = (m.group(1) == "True")
+                except Exception:
+                    pass
+        if use_bf is None:
+            use_bf = True
+
         return {
             "leverage": cfg.get("LEVERAGE", "—"),
             "margin_usdt": cfg.get("MARGIN_USDT", "—"),
@@ -369,6 +383,7 @@ def read_bot_config(folder):
             "strategy": strategy,
             "scan_targets": scan_targets,
             "max_holding_hours": cfg.get("MAX_HOLDING_HOURS", "—"),
+            "USE_BLUEFROG": bool(use_bf),
         }
     except (OSError, json.JSONDecodeError, ValueError):
         return {k: "—" for k in ["leverage", "margin_usdt", "max_positions", "stop_loss_pct",
