@@ -1273,22 +1273,40 @@ def auto_repair_bot(folder):
 
 
 def auto_repair_all_bots():
-    """전체 8개 봇의 매매이력 CSV 진입유실 점검 및 자동 보정"""
+    """전체 8개 봇의 매매이력 CSV 진입유실 점검 및 자동 보정 (봇별 복구 결과 리턴)"""
+    res = {}
     tot = 0
     for folder, _port, _ex in BOTS:
-        tot += auto_repair_bot(folder)
-    return tot
+        cnt = auto_repair_bot(folder)
+        if cnt > 0:
+            res[folder] = cnt
+            tot += cnt
+    return tot, res
 
 
 def auto_repair_loop():
-    """매 5분(300초) 주기 백그라운드 8개 봇 매매이력 자동 점검 스레드"""
+    """매 5분(300초) 주기 백그라운드 8개 봇 매매이력 자동 점검 및 디스코드 알림 스레드"""
     time.sleep(10)  # 앱 초기화 후 10초 대기
     while True:
         try:
             t0 = time.time()
-            cnt = auto_repair_all_bots()
+            cnt, details = auto_repair_all_bots()
             if cnt > 0:
-                print(f"[AUTO_REPAIR] {time.strftime('%H:%M:%S')} 전체 봇 점검 완료: 총 {cnt}건 진입유실 자동 채우기 완료 ({time.time()-t0:.2f}초)", flush=True)
+                detail_str = ", ".join([f"{k}: {v}건" for k, v in details.items()])
+                log_msg = f"[AUTO_REPAIR] {time.strftime('%H:%M:%S')} 전체 봇 점검 완료: 총 {cnt}건 진입유실 자동 채우기 완료 ({detail_str}) ({time.time()-t0:.2f}초)"
+                print(log_msg, flush=True)
+
+                # 디스코드 알림 발송
+                try:
+                    import discord_alert
+                    alert_msg = (
+                        f"🛠️ **[8888 스마트 힐링] 매매이력 진입유실 자동 복구 완료!**\n"
+                        f"• **총 복구 건수**: **{cnt}건** ({detail_str})\n"
+                        f"• `trade_history.csv` 진입시각 및 실현손익 정합성 100% 자동 채우기 완료!"
+                    )
+                    discord_alert._post(alert_msg)
+                except Exception as _e:
+                    print(f"[AUTO_REPAIR] 디스코드 알림 발송 중 예외: {_e}", flush=True)
         except Exception as e:
             print(f"[AUTO_REPAIR] {time.strftime('%H:%M:%S')} 스레드 예외: {e}", flush=True)
         time.sleep(300)
