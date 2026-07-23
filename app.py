@@ -454,6 +454,24 @@ def load_seeds():
         return {}
 
 
+def sync_seed_info(folder, seed, perf_start):
+    """각 봇 stats.json의 seed와 perf_start가 변경되면 seeds.json에도 실시간 자동 업데이트"""
+    if not seed or not perf_start:
+        return
+    try:
+        seeds_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seeds.json")
+        seeds = load_seeds()
+        curr = seeds.get(folder, {})
+        if curr.get("seed") != float(seed) or curr.get("perf_start") != str(perf_start):
+            seeds[folder] = {"seed": float(seed), "perf_start": str(perf_start)}
+            tmp = seeds_path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(seeds, f, ensure_ascii=False, indent=2)
+            os.replace(tmp, seeds_path)
+    except Exception:
+        pass
+
+
 def bot_creds(folder, ex):
     if ex == "OKX":
         # mooja 지정 봇별 키 매핑(okx_keys.json) 최우선 → 각 봇 고유키로 잔고 분리 보장.
@@ -735,6 +753,7 @@ def bot_status(folder, port, ex):
     if not r["perf_start"]:
         if sd and sd.get("perf_start"):
             r["perf_start"] = sd.get("perf_start")
+    sync_seed_info(folder, r.get("seed"), r.get("perf_start"))
     try:
         with open(os.path.join(d, "active_positions.json"), encoding="utf-8") as f:
             r["positions"] = [k.split("/")[0] for k in json.load(f)]
