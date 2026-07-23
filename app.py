@@ -13,6 +13,7 @@ import os
 import socket
 import threading
 import time
+import pandas as pd
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -1146,10 +1147,145 @@ def discord_loop():
         time.sleep(max(1, 30 - (time.time() - t0)))
 
 
+def repair_bot_history(folder):
+    """단일 봇의 trade_history.csv에서 진입유실/방향 엇갈림 검사 및 자동 보정."""
+    base = os.path.join(BASE, folder)
+    csv_path = os.path.join(base, "data", "trade_history.csv")
+    if not os.path.exists(csv_path):
+        return 0
+
+    try:
+        df_curr = pd.read_csv(csv_path)
+        if df_curr.empty:
+            return 0
+
+        import sys, importlib
+        if base not in sys.path:
+            sys.path.insert(0, base)
+        import core.history_helper as hh
+        importlib.reload(hh)
+        
+        raw = hh.load_local_trade_history()
+        paired = hh.aggregate_and_pair_trades(raw)
+        missing = [p for p in paired if not p.get("entry_time") or str(p.get("entry_time")).strip() in ("", "—", "None") or "진입유실" in str(p.get("status"))]
+        
+        if not missing:
+            return 0
+
+        # 1차 보정: 진입 방향 엇갈림 보정
+        updated = False
+        for m in missing:
+            exit_time_str = str(m.get("exit_time", ""))
+            sym = m.get("symbol")
+            direction_str = str(m.get("direction"))
+            is_long = "LONG" in direction_str.upper() or "🟢" in direction_str
+            needed_side = "long" if is_long else "short"
+            
+            mask = (df_curr["심볼"] == sym) & (df_curr["유형"] == "진입") & (df_curr["시간"] <= exit_time_str) & (df_curr["방향"] != needed_side)
+            if not df_curr[mask].empty:
+                df_curr.loc[mask, "방향"] = needed_side
+                updated = True
+
+        if updated:
+            df_curr.to_csv(csv_path, index=False, encoding="utf-8-sig")
+            raw = hh.load_local_trade_history()
+            paired = hh.aggregate_and_pair_trades(raw)
+            missing = [p for p in paired if not p.get("entry_time") or str(p.get("entry_time")).strip() in ("", "—", "None") or "진입유실" in str(p.get("status"))]
+            if not missing:
+                return 1
+
+        # 2차 보정: 진입 행 완전 누락 시 추정 진입 행 신규 추가
+        if missing:
+            add_rows = []
+            for idx, m in enumerate(missing):
+                exit_time_str = str(m.get("exit_time", ""))
+                sym = m.get("symbol")
+                direction_str = str(m.get("direction"))
+                is_long = "LONG" in direction_str.upper() or "🟢" in direction_str
+                entry_side = "long" if is_long else "short"
+                exit_px = float(m.get("exit_price", 0.0) or 0.0)
+                
+                match_df = df_curr[(df_curr["시간"] == exit_time_str) & (df_curr["심볼"] == sym)]
+                pnl_pct = 0.0
+                lev = 5
+                if not match_df.empty:
+                    pnl_pct = match_df.iloc[0].get("수익률(%)", 0.0)
+                    lev = match_df.iloc[0].get("레버리지", 5)
+                
+                amt = float(m.get("amount", 0.0) or 0.0)
+                if amt <= 0:
+                    amt = 0.01
+                
+                if not pnl_pct or pd.isna(pnl_pct):
+                    entry_px = exit_px
+                else:
+                    try:
+                        pct = float(pnl_pct) / 100.0
+                        entry_px = round(exit_px / (1.0 + pct), 5) if is_long else round(exit_px / (1.0 - pct), 5)
+                    except Exception:
+                        entry_px = exit_px
+
+                try:
+                    dt_exit = pd.to_datetime(exit_time_str)
+                    dt_entry = dt_exit - pd.Timedelta(seconds=10)
+                    entry_time_str = dt_entry.strftime("%Y-%m-%d %H:%M:%S")
+                except Exception:
+                    entry_time_str = exit_time_str
+                    dt_entry = pd.Timestamp.now()
+
+                entry_row = {
+                    "시간": entry_time_str,
+                    "심볼": sym,
+                    "유형": "진입",
+                    "방향": entry_side,
+                    "가격": entry_px,
+                    "수량": amt,
+                    "수익(USDT)": 0.0,
+                    "수익률(%)": 0.0,
+                    "청산유형": "ATR",
+                    "레버리지": lev,
+                    "주문ID": f'ID_ENTRY_AUTO_{dt_entry.strftime("%Y%m%d%H%M%S")}_{idx}',
+                    "체결ID": "",
+                    "수수료(USDT)": 0.0
+                }
+                add_rows.append(entry_row)
+
+            if add_rows:
+                final_df = pd.concat([df_curr, pd.DataFrame(add_rows)], ignore_index=True)
+                final_df = final_df.drop_duplicates()
+                final_df["dt"] = pd.to_datetime(final_df["시간"], errors="coerce")
+                final_df = final_df.sort_values(by="dt", ascending=True).drop(columns=["dt"])
+                final_df.to_csv(csv_path, index=False, encoding="utf-8-sig")
+                return len(add_rows)
+    except Exception as e:
+        print(f"[REPAIR] {folder} error: {e}")
+        return 0
+    return 0
+
+
+def auto_repair_loop():
+    """8개 봇의 trade_history.csv 매매이력을 매 5분마다 점검하여 진입유실 자동 복구."""
+    time.sleep(10)
+    while True:
+        try:
+            bot_folders = [b[0] for b in BOTS]
+            total_repaired = 0
+            for folder in bot_folders:
+                c = repair_bot_history(folder)
+                total_repaired += c
+            if total_repaired > 0:
+                print(f"[AUTO_REPAIR] {time.strftime('%Y-%m-%d %H:%M:%S')} 진입유실 {total_repaired}건 자동 복구 완료", flush=True)
+        except Exception as e:
+            print(f"[AUTO_REPAIR] 예외 발생: {e}", flush=True)
+        time.sleep(300)
+
+
 if __name__ == "__main__":
     threading.Thread(target=exchange_loop, daemon=True).start()
     threading.Thread(target=snapshot_loop, daemon=True).start()
     threading.Thread(target=asset_loop, daemon=True).start()   # [B안] 총자산 1분 기록
     threading.Thread(target=discord_loop, daemon=True).start()  # 디스코드 1분 요약 알림
+    threading.Thread(target=auto_repair_loop, daemon=True).start() # 매 5분 매매이력 자동 점검·복구
     print(f"8888 통합 관제 대시보드: http://localhost:{PORT}")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+
