@@ -262,35 +262,31 @@ def _process_subset(data, target_names, state_suffix, title_suffix):
 
 def tick(data, tick_count=0):
     """집계 1건을 받아 직전값과 비교·발송하고 상태를 갱신. (ok, info) 반환."""
+    # 1. 전체 8개 봇 종합 알림 (2분에 1회 발송)
     ok1 = False
     info1 = "Skip (60s loop)"
     if tick_count % 2 == 0:
         num_bots = len(data.get("bots", []))
         ok1, info1 = _process_single(data, STATE_FILE, f" [전체 {num_bots}봇]")
 
-    # 2. 선택 5봇 집계 및 발송
-    subset_names = {"8401", "8402", "8404", "8405", "8408"}
-    sub_cnt = len([b for b in data.get("bots", []) if str(b.get("name")) in subset_names])
-    ok2, info2 = _process_subset(data, subset_names, "_sub.json", f"[선택 {sub_cnt}봇]")
-
-    # 3. 청개구리 4봇 (BlueFrog: 8401, 8404, 8405, 8408) 집계 및 별도 발송
-    bf_names = {"8401", "8404", "8405", "8408"}
-    bf_cnt = len([b for b in data.get("bots", []) if str(b.get("name")) in bf_names])
-    ok3, info3 = _process_subset(data, bf_names, "_bf.json", f"[청개구리 {bf_cnt}봇]")
-
-    # 4. 제외 3봇 (8403, 8407, 8409) 별도 집계 및 발송
-    ok4 = False
-    info4 = "Skip"
+    # 2. 8403, 8405, 8407, 8409 (4개 봇) 그룹 알림
+    ok2 = False
+    info2 = "Skip"
     try:
         import app
-        ex3_data = app.collect_excluded()
-        ex3_names = {"8403", "8407", "8409"}
-        ex3_cnt = len([b for b in ex3_data.get("bots", []) if str(b.get("name")) in ex3_names])
-        ok4, info4 = _process_subset(ex3_data, ex3_names, "_ex3.json", f"[8403, 8407, 8409 {ex3_cnt}봇]")
+        ex4_data = app.collect_excluded()
+        ex4_names = {"8403", "8405", "8407", "8409"}
+        ex4_cnt = len([b for b in ex4_data.get("bots", []) if str(b.get("name")) in ex4_names])
+        ok2, info2 = _process_subset(ex4_data, ex4_names, "_ex4.json", f"[8403, 8405, 8407, 8409 {ex4_cnt}봇]")
     except Exception as e:
-        info4 = f"Error: {e}"
+        info2 = f"Error: {e}"
 
-    return (ok1 or ok2 or ok3 or ok4), f"All: {info1} | Sub: {info2} | BF: {info3} | Ex3: {info4}"
+    # 3. 8401, 8402, 8404, 8408 (4개 봇) 그룹 알림
+    main4_names = {"8401", "8402", "8404", "8408"}
+    main4_cnt = len([b for b in data.get("bots", []) if str(b.get("name")) in main4_names])
+    ok3, info3 = _process_subset(data, main4_names, "_main4.json", f"[8401, 8402, 8404, 8408 {main4_cnt}봇]")
+
+    return (ok1 or ok2 or ok3), f"All: {info1} | Ex4: {info2} | Main4: {info3}"
 
 
 if __name__ == "__main__":
