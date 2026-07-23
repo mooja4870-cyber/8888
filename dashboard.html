@@ -343,7 +343,7 @@ function render(d,anim){
   return `<div class="card${b.alive?'':' offline'}" style="${hi}" onclick="showBotModal('${b.name}', ${b.port})">
    <div class="head" style="align-items:flex-start;"><span class="dot" style="background:${dot};margin-top:6px;"></span>
     <div style="display:flex;flex-direction:column;line-height:1.2;">
-     <div><span class="name" style="color:#ffffff; animation:cardblink 1s ease-in-out infinite">${b.name}</span>${b.config&&b.config.timeframe?' <span style="font-size:17px;font-weight:600;color:var(--muted);vertical-align:bottom;">['+b.config.timeframe+']</span>':''}</div>
+     <div><span class="name" style="color:#ffffff; animation:cardblink 1s ease-in-out infinite">${((b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog)?"<span style=\"color:#ff5a5a;font-weight:bold;margin-right:4px;\">[역]</span>":"<span style=\"color:#4d9fff;font-weight:bold;margin-right:4px;\">[순]</span>")+b.name}</span>${b.config&&b.config.timeframe?' <span style="font-size:17px;font-weight:600;color:var(--muted);vertical-align:bottom;">['+b.config.timeframe+']</span>':''}</div>
     </div>
     <span class="badge ${b.ex.toLowerCase()}" style="margin-top:3px;">${b.ex}</span>
    </div>
@@ -378,7 +378,7 @@ function render(d,anim){
    <th style="padding:8px;text-align:center">전략 (스캐너)</th><th style="padding:8px;text-align:center">스캔 대상</th><th style="padding:8px;text-align:center">최대보유시간</th>
    <th style="padding:8px;text-align:center">MSDE++ 적용</th></tr></thead>
   <tbody>${d.bots.map((b,i)=>`<tr style="background:${Math.floor(i/2)%2?'var(--card)':'var(--card2)'};border-top:1px solid var(--border)">
-   <td style="padding:8px;font-weight:600;text-align:center">${b.name}</td>
+   <td style="padding:8px;font-weight:600;text-align:center">${((b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog)?"<span style=\"color:#ff5a5a;font-weight:bold;margin-right:3px;\">[역]</span>":"<span style=\"color:#4d9fff;font-weight:bold;margin-right:3px;\">[순]</span>")+b.name}</td>
    <td style="padding:8px;text-align:center">${b.ex}</td><td style="padding:8px;text-align:center">${b.config.leverage}</td>
    <td style="padding:8px;text-align:center">${b.config.margin_usdt}</td><td style="padding:8px;text-align:center">${b.config.max_positions}</td>
    <td style="padding:8px;text-align:center">${b.config.stop_loss_pct}</td><td style="padding:8px;text-align:center">${b.config.take_profit_pct}</td>
@@ -387,7 +387,7 @@ function render(d,anim){
    <td style="padding:8px;text-align:center;color:${String(b.name).includes('8409') ? '#e24b4a' : 'var(--green)'};font-weight:600">${String(b.name).includes('8409') ? 'X' : 'O'}</td></tr>`).join('')}</tbody></table>`;
  const _periods=[['1h','1시간 내'],['6h','6시간 내'],['12h','12시간 내'],['24h','24시간 내'],['48h','48시간 내'],['72h','72시간 내'],['1w','1주일간']];
  const entryTable=`<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:14px;font-weight:600">
-  <tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);text-align:center">봇</td>${d.bots.map(b=>'<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border)">'+b.name+'</td>').join('')}</tr>
+  <tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);text-align:center">봇</td>${d.bots.map(b=>'<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border)">'+(((b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog))?'<span style="color:#ff5a5a;font-weight:bold;margin-right:3px;">[역]</span> ':'<span style="color:#4d9fff;font-weight:bold;margin-right:3px;">[순]</span> ')+b.name+'</td>').join('')}</tr>
   ${_periods.map(([k,lbl],ri)=>'<tr style="background:'+(Math.floor(ri/2)%2?'var(--card)':'var(--card2)')+';border-top:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);white-space:nowrap;text-align:center">'+lbl+' 진입 수</td>'+d.bots.map(b=>{const v=(b.entries_by_period&&b.entries_by_period[k])||0;const col=v===0?'#e24b4a':'var(--text)';return '<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border);color:'+col+'">'+v+'</td>'}).join('')+'</tr>').join('')}
  </table>`;
  document.getElementById('entryCountTable').innerHTML=entryTable;
@@ -407,7 +407,7 @@ function render(d,anim){
   ['일 평균 수익률','',b=>{const v=b.daily_ret;if(v==null)return['—','var(--muted)'];const sv=(v>0?'+':'')+v.toFixed(1)+'%';return[sv,v>0?'var(--profit)':(v<0?'var(--loss)':'var(--muted)')]}]
  ];
  const effTable=`<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:14px;font-weight:600">
-  <tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);text-align:center">봇</td>${d.bots.map(b=>'<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border)">'+b.name+'</td>').join('')}</tr>
+  <tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);text-align:center">봇</td>${d.bots.map(b=>'<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border)">'+(((b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog))?'<span style="color:#ff5a5a;font-weight:bold;margin-right:3px;">[역]</span> ':'<span style="color:#4d9fff;font-weight:bold;margin-right:3px;">[순]</span> ')+b.name+'</td>').join('')}</tr>
   ${_effRows.map(([lbl,tp,fn],ri)=>'<tr style="background:'+(ri%2?'var(--card)':'var(--card2)')+';border-top:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);white-space:nowrap;text-align:center">'+lbl+(tp?' '+wtip(tp):'')+'</td>'+d.bots.map(b=>{const[v,col]=fn(b);return '<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border);color:'+col+'">'+v+'</td>'}).join('')+'</tr>').join('')}
  </table>`;
  document.getElementById('efficiencyTable').innerHTML=effTable;
@@ -422,7 +422,7 @@ function render(d,anim){
  if(!ddBan)ddBan='<div style="border-radius:10px;padding:13px 16px;margin-bottom:10px;font-size:13px;font-weight:600;background:rgba(45,189,133,0.10);border-left:3px solid var(--green);color:var(--green)">✅ 전 봇 당일 낙폭 안전 (−5% 이내)</div>';
  document.getElementById('ddBanner').innerHTML=ddBan;
  const ddTable=`<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:14px;font-weight:600">
-  <tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);text-align:center">봇</td>${d.bots.map(b=>'<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border)">'+b.name+'</td>').join('')}</tr>
+  <tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);text-align:center">봇</td>${d.bots.map(b=>'<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border)">'+(((b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog))?'<span style="color:#ff5a5a;font-weight:bold;margin-right:3px;">[역]</span> ':'<span style="color:#4d9fff;font-weight:bold;margin-right:3px;">[순]</span> ')+b.name+'</td>').join('')}</tr>
   ${_ddRows.map(([lbl,fn],ri)=>'<tr style="background:'+(ri%2?'var(--card)':'var(--card2)')+';border-top:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);white-space:nowrap;text-align:center">'+lbl+(ri===0?' '+wtip(_ddTip):'')+'</td>'+d.bots.map(b=>{const[v,col]=fn(b);return '<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border);color:'+col+'">'+v+'</td>'}).join('')+'</tr>').join('')}
  </table>`;
   document.getElementById('drawdownTable').innerHTML=ddTable;
