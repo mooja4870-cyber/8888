@@ -1,6 +1,6 @@
 8888 통합 관제 대시보드: http://localhost:8888
 Traceback (most recent call last):
-  File "/Users/l/project/8888/app.py", line 1304, in <module>
+  File "/Users/l/project/8888/app.py", line 1314, in <module>
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socketserver.py", line 457, in __init__

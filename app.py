@@ -1294,11 +1294,21 @@ def auto_repair_loop():
         time.sleep(300)
 
 
+def discord_listener_loop():
+    """디스코드 양방향 원격 제어 봇 웹소켓 리스너 스레드"""
+    try:
+        import discord_bot_listener
+        asyncio.run(discord_bot_listener.run_gateway_listener())
+    except Exception as e:
+        print(f"[DISCORD_LISTENER] 스레드 예외: {e}", flush=True)
+
+
 if __name__ == "__main__":
     threading.Thread(target=exchange_loop, daemon=True).start()
     threading.Thread(target=snapshot_loop, daemon=True).start()
     threading.Thread(target=asset_loop, daemon=True).start()   # [B안] 총자산 1분 기록
     threading.Thread(target=discord_loop, daemon=True).start()  # 디스코드 1분 요약 알림
     threading.Thread(target=auto_repair_loop, daemon=True).start()  # 매 5분 매매이력 자동 점검 스레드
+    threading.Thread(target=discord_listener_loop, daemon=True).start()  # 디스코드 양방향 원격 제어 봇 스레드
     print(f"8888 통합 관제 대시보드: http://localhost:{PORT}")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
