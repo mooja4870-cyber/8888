@@ -154,7 +154,7 @@ def build_message(data, prev_total, prev_bots, history, title_suffix="", sub_ass
             
             filtered_oids = [o for o in grp.keys() if round(grp[o], 4) != 0.0]
             sorted_oids = sorted(filtered_oids, key=lambda o: ts_map[o], reverse=True)
-            recent_oids = sorted_oids[:20]
+            recent_oids = sorted_oids[:50]
             
             seq = ""
             for oid in recent_oids:
