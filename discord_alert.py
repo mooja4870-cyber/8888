@@ -261,32 +261,18 @@ def _process_subset(data, target_names, state_suffix, title_suffix):
 
 
 def tick(data, tick_count=0):
-    """집계 1건을 받아 직전값과 비교·발송하고 상태를 갱신. (ok, info) 반환."""
-    # 1. 전체 8개 봇 종합 알림 (2분에 1회 발송)
-    ok1 = False
-    info1 = "Skip (60s loop)"
-    if tick_count % 2 == 0:
-        num_bots = len(data.get("bots", []))
-        ok1, info1 = _process_single(data, STATE_FILE, f" [전체 {num_bots}봇]")
+    """집계 1건을 받아 지정된 2개 그룹 순서대로 디스코드 알림 발송하고 상태 갱신."""
+    # 1. 첫 번째 알림: 8403, 8405, 8407, 8409 (4봇)
+    grp1_names = {"8403", "8405", "8407", "8409"}
+    grp1_cnt = len([b for b in data.get("bots", []) if str(b.get("name")) in grp1_names])
+    ok1, info1 = _process_subset(data, grp1_names, "_grp1.json", f"[8403, 8405, 8407, 8409 {grp1_cnt}봇]")
 
-    # 2. 8403, 8405, 8407, 8409 (4개 봇) 그룹 알림
-    ok2 = False
-    info2 = "Skip"
-    try:
-        import app
-        ex4_data = app.collect_excluded()
-        ex4_names = {"8403", "8405", "8407", "8409"}
-        ex4_cnt = len([b for b in ex4_data.get("bots", []) if str(b.get("name")) in ex4_names])
-        ok2, info2 = _process_subset(ex4_data, ex4_names, "_ex4.json", f"[8403, 8405, 8407, 8409 {ex4_cnt}봇]")
-    except Exception as e:
-        info2 = f"Error: {e}"
+    # 2. 두 번째 알림: 8401, 8402, 8404, 8408 (4봇)
+    grp2_names = {"8401", "8402", "8404", "8408"}
+    grp2_cnt = len([b for b in data.get("bots", []) if str(b.get("name")) in grp2_names])
+    ok2, info2 = _process_subset(data, grp2_names, "_grp2.json", f"[8401, 8402, 8404, 8408 {grp2_cnt}봇]")
 
-    # 3. 8401, 8402, 8404, 8408 (4개 봇) 그룹 알림
-    main4_names = {"8401", "8402", "8404", "8408"}
-    main4_cnt = len([b for b in data.get("bots", []) if str(b.get("name")) in main4_names])
-    ok3, info3 = _process_subset(data, main4_names, "_main4.json", f"[8401, 8402, 8404, 8408 {main4_cnt}봇]")
-
-    return (ok1 or ok2 or ok3), f"All: {info1} | Ex4: {info2} | Main4: {info3}"
+    return (ok1 or ok2), f"Grp1(8403,5,7,9): {info1} | Grp2(8401,2,4,8): {info2}"
 
 
 if __name__ == "__main__":
