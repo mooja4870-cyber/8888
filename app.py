@@ -1321,6 +1321,31 @@ def discord_listener_loop():
         print(f"[DISCORD_LISTENER] 스레드 예외: {e}", flush=True)
 
 
+def auto_mode_switch_guard_loop():
+    """8403, 8405, 8407, 8409 4개 봇 적응형 자동 스위처 2중 중앙 관제 루프"""
+    time.sleep(15)
+    target_bots = ["8403", "8405", "8407", "8409"]
+    while True:
+        try:
+            for b in target_bots:
+                bot_path = f"/Users/l/project/{b}"
+                if os.path.exists(f"{bot_path}/core/engine.py"):
+                    try:
+                        sys.path.insert(0, bot_path)
+                        import core.config
+                        import core.engine
+                        engine = core.engine.QuantumEngine()
+                        engine.check_auto_mode_switch()
+                    except Exception:
+                        pass
+                    finally:
+                        if sys.path and sys.path[0] == bot_path:
+                            sys.path.pop(0)
+        except Exception as e:
+            print(f"[AUTO_SWITCH_GUARD] 스레드 예외: {e}", flush=True)
+        time.sleep(300)
+
+
 if __name__ == "__main__":
     threading.Thread(target=exchange_loop, daemon=True).start()
     threading.Thread(target=snapshot_loop, daemon=True).start()
@@ -1328,5 +1353,6 @@ if __name__ == "__main__":
     threading.Thread(target=discord_loop, daemon=True).start()  # 디스코드 1분 요약 알림
     threading.Thread(target=auto_repair_loop, daemon=True).start()  # 매 5분 매매이력 자동 점검 스레드
     threading.Thread(target=discord_listener_loop, daemon=True).start()  # 디스코드 양방향 원격 제어 봇 스레드
+    threading.Thread(target=auto_mode_switch_guard_loop, daemon=True).start()  # 8403,5,7,9 2중 자동 스위칭 중앙 관제 스레드
     print(f"8888 통합 관제 대시보드: http://localhost:{PORT}")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
