@@ -108,9 +108,7 @@ def build_message(data, prev_total, prev_bots, history, title_suffix="", sub_ass
              f"📊 전체 일평균수익률 ({head_days}){title_suffix}",
              f"{asset_str}{tot_str}% {icon}{delta:.2f}%{arrow}",
              "─" * 38]
-    bots = sorted(data["bots"],
-                  key=lambda b: (b.get("daily_ret") if b.get("daily_ret") is not None else -9999),
-                  reverse=True)
+    bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
     for b in bots:
         dr = b.get("daily_ret")
         dr = dr if dr is not None else 0.0
