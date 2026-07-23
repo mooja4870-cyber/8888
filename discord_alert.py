@@ -27,7 +27,15 @@ import os
 import time
 import urllib.request
 
+import sys
+
 _DIR = os.path.dirname(os.path.abspath(__file__))
+if _DIR not in sys.path:
+    sys.path.insert(0, _DIR)
+elif sys.path[0] != _DIR:
+    sys.path.remove(_DIR)
+    sys.path.insert(0, _DIR)
+
 WEBHOOK_FILE = os.path.join(_DIR, "discord_webhook.txt")
 STATE_FILE = os.path.join(_DIR, "discord_state.json")
 

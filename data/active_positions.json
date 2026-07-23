@@ -1,9 +1,1 @@
-{
-    "BTC/USDT:USDT": {
-        "strategy_type": "DualBB",
-        "atr_activation": 0.01,
-        "atr_callback": 0.008,
-        "exit_profile": "SL/TP",
-        "partial_done": false
-    }
-}
+{}

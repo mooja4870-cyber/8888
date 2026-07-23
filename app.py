@@ -1160,14 +1160,23 @@ def repair_bot_history(folder):
             return 0
 
         import sys, importlib
-        if base not in sys.path:
-            sys.path.insert(0, base)
-        import core.history_helper as hh
-        importlib.reload(hh)
-        
-        raw = hh.load_local_trade_history()
-        paired = hh.aggregate_and_pair_trades(raw)
-        missing = [p for p in paired if not p.get("entry_time") or str(p.get("entry_time")).strip() in ("", "—", "None") or "진입유실" in str(p.get("status"))]
+        orig_sys_path = list(sys.path)
+        try:
+            if base not in sys.path:
+                sys.path.insert(0, base)
+            import core.history_helper as hh
+            importlib.reload(hh)
+            
+            raw = hh.load_local_trade_history()
+            paired = hh.aggregate_and_pair_trades(raw)
+            missing = [p for p in paired if not p.get("entry_time") or str(p.get("entry_time")).strip() in ("", "—", "None") or "진입유실" in str(p.get("status"))]
+        finally:
+            sys.path = orig_sys_path
+            if BASE not in sys.path:
+                sys.path.insert(0, BASE)
+            elif sys.path[0] != BASE:
+                sys.path.remove(BASE)
+                sys.path.insert(0, BASE)
         
         if not missing:
             return 0

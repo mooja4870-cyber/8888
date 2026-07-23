@@ -1,5 +1,20 @@
 # 버전 이력 (ver.md)
 
+## v0.9.282
+Date: 2026-07-23
+
+### 변경 내용
+* 디스코드 알림 미발송 원인 해결: repair_bot_history 실행 시 sys.path 조작으로 8888 app.py 대신 각 봇의 app.py가 불려와 AttributeError: bot_days 예외가 발생하던 원인을 규명하고 sys.path 안전 복원 로직 구현 (app.py, discord_alert.py).
+* 8888 데몬 프로세스(PID 1688) 재시작 및 디스코드 알림(15:47:11 status=204) 정상 발송 복구 확인.
+
+### 수정 파일
+* app.py
+* discord_alert.py
+* ver.md
+
+### 비고
+* 디스코드 알림 100% 정상 전송 검증 완료
+
 ## v0.9.281
 Date: 2026-07-23
 
