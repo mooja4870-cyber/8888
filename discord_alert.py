@@ -164,7 +164,9 @@ def build_message(data, prev_total, prev_bots, history, title_suffix="", sub_ass
         except Exception:
             seq_str = ""
         
-        lines.append(f"{pos_str} {b_name_short}  {b_days:.1f} {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}  ({ent1:02d},{ent4:02d}, {sw:02d}W/{sl:02d}L){seq_str}")
+        is_bf = bool(b.get("config", {}).get("USE_BLUEFROG", False)) if isinstance(b.get("config"), dict) else False
+        mode_prefix = "역) " if is_bf else "순) "
+        lines.append(f"{mode_prefix}{pos_str} {b_name_short}  {b_days:.1f} {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}  ({ent1:02d},{ent4:02d}, {sw:02d}W/{sl:02d}L){seq_str}")
     lines.append("─" * 38)
     lines.append("최근 30분 전체 일평균 추이(%)")
     lines.append(ascii_chart(history))
