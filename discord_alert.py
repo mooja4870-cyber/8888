@@ -31,7 +31,7 @@ _DIR = os.path.dirname(os.path.abspath(__file__))
 WEBHOOK_FILE = os.path.join(_DIR, "discord_webhook.txt")
 STATE_FILE = os.path.join(_DIR, "discord_state.json")
 
-CHART_WIDTH = 30        # 최근 30포인트(=1분×30=30분)
+CHART_WIDTH = 40        # 최근 40포인트(=1분×40=40분)
 CHART_HEIGHT = 6
 USERNAME = "봇 관제"
 EPS = 0.005             # 이 값 미만 변화는 '변화없음(⚪)'으로 간주
@@ -71,25 +71,17 @@ def _trend(cur, prev):
 
 
 def ascii_chart(vals, width=CHART_WIDTH, height=CHART_HEIGHT):
-    """1분 단위 값 리스트 → ASCII 라인차트. 좌측에 max(상단)·min(하단) 라벨."""
+    """1분 단위 값 리스트 → ASCII 라인차트."""
     vals = [v for v in vals if v is not None][-width:]
     if not vals:
-        return "      |"
+        return ""
     lo, hi = min(vals), max(vals)
     rng = (hi - lo) or 1.0
     rows = [[" "] * len(vals) for _ in range(height)]
     for col, v in enumerate(vals):
         r = round((hi - v) / rng * (height - 1))   # hi→0행(상단), lo→마지막행(하단)
         rows[r][col] = "•"
-    out = []
-    for i, row in enumerate(rows):
-        if i == 0:
-            label = f"{hi:6.2f}"
-        elif i == height - 1:
-            label = f"{lo:6.2f}"
-        else:
-            label = " " * 6
-        out.append(label + "|" + "".join(row))
+    out = ["".join(row) for row in rows]
     return "\n".join(out)
 
 
@@ -169,7 +161,7 @@ def build_message(data, prev_total, prev_bots, history, title_suffix="", sub_ass
         lines.append(f"{mode_prefix}{pos_str} {b_name_short}  {b_days:.1f}  {asset_val_str}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}")
         lines.append(f"  ({ent1:02d},{ent4:02d}, {sw:02d}W/{sl:02d}L){seq_str}")
     lines.append("─" * 38)
-    lines.append("최근 30분 전체 일평균 추이(%)")
+    lines.append("최근 40분 전체 일평균 추이(%)")
     lines.append(ascii_chart(history))
     return "```\n" + "\n".join(lines) + "\n```"
 
