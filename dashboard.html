@@ -298,6 +298,10 @@ window.addEventListener('DOMContentLoaded', ()=>{
  if(el&&saved&&(saved==='all'||saved==='bluefrog'))el.value=saved;
 });
 function render(d,anim){
+ if(!d || !d.bots || !d.bots.length){
+  if(window._FB_DATA) d = window._FB_DATA;
+  else return;
+ }
  _lastData=d;
  d=_applyFilter(JSON.parse(JSON.stringify(d)));
  const s=d.summary;
