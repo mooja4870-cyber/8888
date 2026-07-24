@@ -1324,7 +1324,7 @@ def discord_listener_loop():
 def auto_mode_switch_guard_loop():
     """8403, 8405, 8407, 8409 4개 봇 적응형 자동 스위처 2중 중앙 관제 루프"""
     time.sleep(15)
-    target_bots = ["8403", "8405", "8407", "8409"]
+    target_bots = ["8402", "8403", "8405", "8407", "8409"]
     while True:
         try:
             for b in target_bots:
