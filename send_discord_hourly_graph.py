@@ -145,7 +145,7 @@ def collect_hourly_data(num_hours=30):
 
 def generate_ascii_graph(title: str, bot_ids: list, values: list) -> str:
     if not values:
-        return f"{title}\n(데이터 없음)"
+        return f"(데이터 없음)"
         
     n = len(values)
     min_v = min(values)
@@ -165,8 +165,9 @@ def generate_ascii_graph(title: str, bot_ids: list, values: list) -> str:
         grid[y][x] = "•"
         
     bot_names = ", ".join(bot_ids)
+    title_str = f" {title}" if title else ""
     lines = []
-    lines.append(f"📊 **[{bot_names} 봇 집계] {title}** (최신: `{values[-1]:+.2f}%`) ")
+    lines.append(f"📊 **[{bot_names} 봇 집계]{title_str}** (최신: `{values[-1]:+.2f}%`)")
     lines.append("```")
     for r in range(height):
         row_str = "".join(grid[r])
@@ -198,8 +199,8 @@ def send_report():
     now_str = datetime.now().strftime("%Y-%m-%d %H:00:00")
     timestamps, series_a, series_b = collect_hourly_data(num_hours=30)
     
-    graph_a = generate_ascii_graph("30시간 일평균수익률 추이(%)", GROUP_A_IDS, series_a)
-    graph_b = generate_ascii_graph("30시간 일평균수익률 추이(%)", GROUP_B_IDS, series_b)
+    graph_a = generate_ascii_graph("", GROUP_A_IDS, series_a)
+    graph_b = generate_ascii_graph("", GROUP_B_IDS, series_b)
     
     message = (
         f"📢 **[8888 봇 그룹별 30시간 일평균수익률 추이 리포트]**\n"
