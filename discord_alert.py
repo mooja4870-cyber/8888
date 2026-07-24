@@ -120,7 +120,7 @@ def get_bot_40min_history(b_obj):
     return history
 
 
-def build_message(data, prev_total, prev_bots, history, title_suffix="", sub_assets=None, sub_total=None, prev_sub_total=None):
+def build_message(data, prev_total, prev_bots, history, title_suffix="", sub_assets=None, sub_total=None, prev_sub_total=None, include_bot_charts=False):
     s = data["summary"]
     total = s.get("daily_ret")
     days = s.get("days")
@@ -196,14 +196,16 @@ def build_message(data, prev_total, prev_bots, history, title_suffix="", sub_ass
         lines.append(f"{mode_prefix}{pos_str} {b_name_short}  {b_days:.1f}  {asset_val_str}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}")
         lines.append(f"  ({ent1:02d},{ent4:02d}, {sw:02d}W/{sl:02d}L){seq_str}")
         
-        # 🤖 개별 봇 40분 파동 곡선 차트 추가
-        bot_chart_hist = get_bot_40min_history(b)
-        lines.append(f"  [최근 40분 추이(%)]")
-        lines.append(ascii_chart(bot_chart_hist))
-        lines.append("")
+        # 🤖 5분 정각 알림(include_bot_charts=True)일 때 개별 봇 40분 파동 차트 렌더링
+        if include_bot_charts:
+            bot_chart_hist = get_bot_40min_history(b)
+            lines.append("─" * 38)
+            lines.append("최근 40분 전체 일평균 추이(%)")
+            lines.append(ascii_chart(bot_chart_hist))
+            lines.append("")
         
     lines.append("─" * 38)
-    lines.append("최근 40분 그룹 전체 일평균 추이(%)")
+    lines.append("최근 40분 전체 일평균 추이(%)")
     lines.append(ascii_chart(history))
     return "```\n" + "\n".join(lines) + "\n```"
 
@@ -247,13 +249,13 @@ def recalc_data(data, exclude_names):
     return d
 
 
-def _process_single(data, path, title_suffix):
+def _process_single(data, path, title_suffix, include_bot_charts=False):
     prev_total, prev_bots, history, prev_sub_total = _load_state(path)
     total = data["summary"].get("daily_ret")
     history.append(total)
     history = history[-CHART_WIDTH:]
     
-    msg = build_message(data, prev_total, prev_bots, history, title_suffix)
+    msg = build_message(data, prev_total, prev_bots, history, title_suffix, include_bot_charts=include_bot_charts)
     ok, info = _post(msg)
     if ok:
         new_prev_bots = {b["name"]: (b.get("daily_ret") if b.get("daily_ret") is not None else 0.0)
@@ -262,52 +264,71 @@ def _process_single(data, path, title_suffix):
     return ok, info
 
 
-def _process_subset(data, target_names, state_suffix, title_suffix):
+def _process_subset(data, target_names, state_suffix, title_suffix, include_bot_charts=False):
     import copy
     import app
     d_sub = copy.deepcopy(data)
     d_sub["bots"] = [b for b in d_sub.get("bots", []) if str(b.get("name")) in target_names]
     if not d_sub["bots"]:
         return False, "No target bots found"
-    assets = 0.0
-    seed = 0.0
-    for b in d_sub["bots"]:
-        bal = b.get("ex_balance") if (b.get("ex_ok") and b.get("ex_balance") is not None) else ((b.get("seed") or 0) + (b.get("total") or 0))
-        bseed = b.get("seed") if b.get("seed") else bal
-        assets += bal
-        seed += bseed
         
-    days = max([app.bot_days(b["perf_start"]) for b in d_sub["bots"]] or [1.0])
-    cum_ret = round((assets - seed) / seed * 100, 2) if seed else None
-    
-    valid_bots = [b for b in d_sub["bots"] if b.get("daily_ret") is not None and b.get("seed")]
-    if valid_bots:
-        tot_s = sum(b["seed"] for b in valid_bots)
-        avg_daily = round(sum(b["daily_ret"] * b["seed"] for b in valid_bots) / tot_s, 2) if tot_s else 0.0
+    if include_bot_charts:
+        # 매 5분 정각 알림: 봇별 개별 메시지로 분할 발송 (디스코드 2000자 제한 완벽 회피 & 봇별 파동 차트 단독 렌더링)
+        results = []
+        for b_item in d_sub["bots"]:
+            d_single = copy.deepcopy(d_sub)
+            d_single["bots"] = [b_item]
+            d_single["summary"]["assets"] = b_item.get("ex_balance") or b_item.get("seed") or 0.0
+            d_single["summary"]["daily_ret"] = b_item.get("daily_ret") or 0.0
+            d_single["summary"]["days"] = b_item.get("days", 1.0)
+            
+            b_name = b_item.get("name")
+            state_file = STATE_FILE.replace(".json", f"_{b_name}.json")
+            ok, info = _process_single(d_single, state_file, f" [{b_name} 봇]", include_bot_charts=True)
+            results.append(ok)
+            time.sleep(0.5)   # 웹훅 레이트리밋 방지
+        return any(results), f"5Min Per-Bot Split Sent ({len(results)} bots)"
     else:
-        avg_daily = round(cum_ret / days, 2) if cum_ret is not None else None
+        # 매 1분 실시간 알림: 기존 깔끔 그룹 메시지
+        assets = 0.0
+        seed = 0.0
+        for b in d_sub["bots"]:
+            bal = b.get("ex_balance") if (b.get("ex_ok") and b.get("ex_balance") is not None) else ((b.get("seed") or 0) + (b.get("total") or 0))
+            bseed = b.get("seed") if b.get("seed") else bal
+            assets += bal
+            seed += bseed
+            
+        days = max([app.bot_days(b["perf_start"]) for b in d_sub["bots"]] or [1.0])
+        cum_ret = round((assets - seed) / seed * 100, 2) if seed else None
         
-    d_sub["summary"]["assets"] = round(assets, 2)
-    d_sub["summary"]["cum_ret"] = cum_ret
-    d_sub["summary"]["cum_delta"] = round(assets - seed, 2)
-    d_sub["summary"]["daily_ret"] = avg_daily
-    d_sub["summary"]["days"] = round(days, 1)
-    
-    state_file = STATE_FILE.replace(".json", state_suffix)
-    return _process_single(d_sub, state_file, f" {title_suffix}")
+        valid_bots = [b for b in d_sub["bots"] if b.get("daily_ret") is not None and b.get("seed")]
+        if valid_bots:
+            tot_s = sum(b["seed"] for b in valid_bots)
+            avg_daily = round(sum(b["daily_ret"] * b["seed"] for b in valid_bots) / tot_s, 2) if tot_s else 0.0
+        else:
+            avg_daily = round(cum_ret / days, 2) if cum_ret is not None else None
+            
+        d_sub["summary"]["assets"] = round(assets, 2)
+        d_sub["summary"]["cum_ret"] = cum_ret
+        d_sub["summary"]["cum_delta"] = round(assets - seed, 2)
+        d_sub["summary"]["daily_ret"] = avg_daily
+        d_sub["summary"]["days"] = round(days, 1)
+        
+        state_file = STATE_FILE.replace(".json", state_suffix)
+        return _process_single(d_sub, state_file, f" {title_suffix}", include_bot_charts=False)
 
 
-def tick(data, tick_count=0):
+def tick(data, tick_count=0, include_bot_charts=False):
     """집계 1건을 받아 지정된 2개 그룹 순서대로 디스코드 알림 발송하고 상태 갱신."""
     # 1. 첫 번째 알림: 8403, 8405, 8407, 8409 (4봇)
     grp1_names = {"8403", "8405", "8407", "8409"}
     grp1_cnt = len([b for b in data.get("bots", []) if str(b.get("name")) in grp1_names])
-    ok1, info1 = _process_subset(data, grp1_names, "_grp1.json", f"[8403, 8405, 8407, 8409 {grp1_cnt}봇]")
+    ok1, info1 = _process_subset(data, grp1_names, "_grp1.json", f"[{grp1_cnt}봇]", include_bot_charts=include_bot_charts)
 
     # 2. 두 번째 알림: 8401, 8402, 8404, 8408 (4봇)
     grp2_names = {"8401", "8402", "8404", "8408"}
     grp2_cnt = len([b for b in data.get("bots", []) if str(b.get("name")) in grp2_names])
-    ok2, info2 = _process_subset(data, grp2_names, "_grp2.json", f"[8401, 8402, 8404, 8408 {grp2_cnt}봇]")
+    ok2, info2 = _process_subset(data, grp2_names, "_grp2.json", f"[{grp2_cnt}봇]", include_bot_charts=include_bot_charts)
 
     return (ok1 or ok2), f"Grp1(8403,5,7,9): {info1} | Grp2(8401,2,4,8): {info2}"
 
