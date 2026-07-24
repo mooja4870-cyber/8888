@@ -1160,11 +1160,33 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 
-def discord_loop():
-    """전체 일평균수익률 요약을 디스코드로 발송 (매 5분 정각: 00분00초, 05분00초, 10분00초...)."""
+def discord_1min_loop():
+    """기존 매 1분(60초) 간격 디스코드 실시간 관제 알림 스레드."""
     import discord_alert
     import importlib
-    time.sleep(15)   # 첫 기동 시 캐시 워밍업 후 정각 대기 계산 진입
+    time.sleep(30)   # 거래소 캐시(EX_CACHE) 워밍업 후 첫 발송
+    loop_count = 0
+    while True:
+        t0 = time.time()
+        try:
+            importlib.reload(discord_alert)
+            data = collect()
+            t1 = time.time()
+            ok, info = discord_alert.tick(data, tick_count=loop_count)
+            t2 = time.time()
+            loop_count += 1
+            print(f"[DISCORD 1MIN] {time.strftime('%H:%M:%S')} ok={ok} {info} "
+                  f"collect={t1-t0:.1f}s post={t2-t1:.1f}s", flush=True)
+        except Exception as e:
+            print(f"[DISCORD 1MIN] {time.strftime('%H:%M:%S')} 예외: {str(e)[:150]}", flush=True)
+        time.sleep(max(1, 60 - (time.time() - t0)))
+
+
+def discord_5min_loop():
+    """매 5분 정각(00분00초, 05분00초, 10분00초...) 디스코드 8개 봇 개별 파동 알림 스레드."""
+    import discord_alert
+    import importlib
+    time.sleep(15)   # 첫 기동 시 캐시 워밍업 후 정각 대기
     loop_count = 0
     while True:
         now = time.time()
@@ -1384,7 +1406,8 @@ if __name__ == "__main__":
     threading.Thread(target=exchange_loop, daemon=True).start()
     threading.Thread(target=snapshot_loop, daemon=True).start()
     threading.Thread(target=asset_loop, daemon=True).start()   # [B안] 총자산 1분 기록
-    threading.Thread(target=discord_loop, daemon=True).start()  # 디스코드 1분 요약 알림
+    threading.Thread(target=discord_1min_loop, daemon=True).start()  # 디스코드 매 1분 실시간 알림 스레드
+    threading.Thread(target=discord_5min_loop, daemon=True).start()  # 디스코드 매 5분 정각 8개 봇 파동 알림 스레드
     threading.Thread(target=auto_repair_loop, daemon=True).start()  # 매 5분 매매이력 자동 점검 스레드
     threading.Thread(target=discord_listener_loop, daemon=True).start()  # 디스코드 양방향 원격 제어 봇 스레드
     threading.Thread(target=auto_mode_switch_guard_loop, daemon=True).start()  # 8403,5,7,9 2중 자동 스위칭 중앙 관제 스레드
