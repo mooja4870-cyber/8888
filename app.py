@@ -24,7 +24,7 @@ FEED_LIMIT = 15         # 통합 체결 피드 최대 건수
 TAIL_BYTES = 16384      # 체결 피드용 trade_history.csv 끝에서 읽을 바이트
 WL_TAIL_BYTES = 131072  # 당일 승률 계산용 (당일 청산을 모두 포함하도록 넉넉히)
 EX_REFRESH_SEC = 15     # 거래소(OKX) 잔고/포지션 캐시 갱신 주기
-BNC_REFRESH_SEC = 300   # 바이낸스(BNC)만 별도 장주기 — IP 레이트리밋/ban 회피(같은 IP 과다조회 방지)
+BNC_REFRESH_SEC = 30    # 바이낸스(BNC) 30초 동기화 — 실시간 자산 및 수익률 반영
 SEED_OVERRIDE = None     # 전체 기준금(초기자본금 합). None=각 봇 stats.json seed_money 실시간 합산.
                          # 봇 재초기화 시 seed_money가 갱신되므로 고정값이 아니라 자동합산해야
                          # 봇별 누적수익률과 전체 누적수익률이 항상 정합(전체 cum_delta = Σ봇별 cum_delta).
@@ -833,10 +833,13 @@ def bot_status(folder, port, ex):
         #   조회 실패 시에만 실현손익(total)으로 폴백.
         ex_bal = r.get("ex_balance")
         if ex_bal is not None and float(ex_bal) > 0:
-            r["cum_delta"] = round(float(ex_bal) - r["seed"], 4)
-            r["cum_basis"] = "balance"
+            upnl = r.get("ex_upnl")
+            if upnl is None:
+                upnl = estimate_bot_upnl(folder, r.get("positions"))
+            tot_bal = float(ex_bal) + (upnl or 0.0)
+            r["cum_delta"] = round(tot_bal - r["seed"], 4)
+            r["cum_basis"] = "balance_with_upnl"
         else:
-            # 거래소 API 미확인/차단 상태라도 포지션 보유 중이면 trade_history + 퍼블릭 시세 기반 uPNL 추산
             est_upnl = estimate_bot_upnl(folder, r.get("positions"))
             if est_upnl != 0.0 or (r.get("positions") and len(r["positions"]) > 0):
                 r["ex_upnl"] = est_upnl
@@ -1161,7 +1164,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def discord_1min_loop():
-    """기존 매 1분(60초) 간격 디스코드 실시간 관제 알림 스레드."""
+    """기존 매 1분(60초) 간격 디스코드 실시간 관제 알림 스레드 (기존 깔끔한 2개 그룹 양식)."""
     import discord_alert
     import importlib
     time.sleep(30)   # 거래소 캐시(EX_CACHE) 워밍업 후 첫 발송
@@ -1172,7 +1175,7 @@ def discord_1min_loop():
             importlib.reload(discord_alert)
             data = collect()
             t1 = time.time()
-            ok, info = discord_alert.tick(data, tick_count=loop_count)
+            ok, info = discord_alert.tick(data, tick_count=loop_count, include_bot_charts=False)
             t2 = time.time()
             loop_count += 1
             print(f"[DISCORD 1MIN] {time.strftime('%H:%M:%S')} ok={ok} {info} "
@@ -1183,7 +1186,7 @@ def discord_1min_loop():
 
 
 def discord_5min_loop():
-    """매 5분 정각(00분00초, 05분00초, 10분00초...) 디스코드 8개 봇 개별 파동 알림 스레드."""
+    """매 5분 정각(00분00초, 05분00초, 10분00초...) 디스코드 8개 봇 개별 파동 알림 스레드 (봇별 개별 파동 차트 포함 양식)."""
     import discord_alert
     import importlib
     time.sleep(15)   # 첫 기동 시 캐시 워밍업 후 정각 대기
@@ -1208,7 +1211,7 @@ def discord_5min_loop():
             importlib.reload(discord_alert)
             data = collect()
             t1 = time.time()
-            ok, info = discord_alert.tick(data, tick_count=loop_count)
+            ok, info = discord_alert.tick(data, tick_count=loop_count, include_bot_charts=True)
             t2 = time.time()
             loop_count += 1
             print(f"[DISCORD 5MIN] {time.strftime('%H:%M:%S')} ok={ok} {info} "
