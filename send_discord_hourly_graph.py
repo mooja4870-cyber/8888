@@ -85,7 +85,7 @@ def calculate_bot_daily_ret_at(seed, perf, exits, T):
     days = max(1.0, (T - perf) / 86400.0)
     return round(cum_ret / days, 2)
 
-def collect_hourly_data(num_hours=44):
+def collect_hourly_data(num_hours=36):
     now = time.time()
     lt = time.localtime(now)
     sec_into = lt.tm_min * 60 + lt.tm_sec
@@ -169,15 +169,15 @@ def post_to_discord(content: str):
 
 def send_report():
     now_str = datetime.now().strftime("%Y-%m-%d %H:00:00")
-    timestamps, series_a, series_b, bot_series = collect_hourly_data(num_hours=44)
+    timestamps, series_a, series_b, bot_series = collect_hourly_data(num_hours=36)
     
     # 1) 그룹 메시지
     graph_a = generate_ascii_graph(", ".join(GROUP_A_IDS) + " 봇 집계", series_a, is_group=True)
     graph_b = generate_ascii_graph(", ".join(GROUP_B_IDS) + " 봇 집계", series_b, is_group=True)
     
     msg_groups = (
-        f"📢 **[8888 봇 그룹별 44시간 일평균수익률 추이 리포트]**\n"
-        f"📅 **집계 시각**: `{now_str}` (최근 44시간 정시 추이)\n"
+        f"📢 **[8888 봇 그룹별 36시간 일평균수익률 추이 리포트]**\n"
+        f"📅 **집계 시각**: `{now_str}` (최근 36시간 정시 추이)\n"
         f"--------------------------------------------------\n"
         f"{graph_a}\n\n"
         f"{graph_b}\n"
@@ -188,7 +188,7 @@ def send_report():
     part1_bots = ["8401", "8402", "8404", "8408"]
     graphs_part1 = [generate_ascii_graph(f"{bid} 봇", bot_series[bid], is_group=False) for bid in part1_bots]
     msg_part1 = (
-        f"🤖 **[개별 봇 44시간 일평균수익률 추이 리포트 (1/2)]**\n"
+        f"🤖 **[개별 봇 36시간 일평균수익률 추이 리포트 (1/2)]**\n"
         f"--------------------------------------------------\n"
         + "\n\n".join(graphs_part1) + "\n"
         f"--------------------------------------------------"
@@ -198,7 +198,7 @@ def send_report():
     part2_bots = ["8403", "8405", "8407", "8409"]
     graphs_part2 = [generate_ascii_graph(f"{bid} 봇", bot_series[bid], is_group=False) for bid in part2_bots]
     msg_part2 = (
-        f"🤖 **[개별 봇 44시간 일평균수익률 추이 리포트 (2/2)]**\n"
+        f"🤖 **[개별 봇 36시간 일평균수익률 추이 리포트 (2/2)]**\n"
         f"--------------------------------------------------\n"
         + "\n\n".join(graphs_part2) + "\n"
         f"--------------------------------------------------"
