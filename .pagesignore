@@ -1,0 +1,5 @@
+watchdog_logs/
+run_8888.log
+*.log
+.git/
+__pycache__/
