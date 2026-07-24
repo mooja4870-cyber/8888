@@ -31,7 +31,7 @@ _DIR = os.path.dirname(os.path.abspath(__file__))
 WEBHOOK_FILE = os.path.join(_DIR, "discord_webhook.txt")
 STATE_FILE = os.path.join(_DIR, "discord_state.json")
 
-CHART_WIDTH = 50        # 최근 50포인트(=1분×50=50분)
+CHART_WIDTH = 44        # 최근 44포인트(=1분×44=44분)
 CHART_HEIGHT = 6
 USERNAME = "봇 관제"
 EPS = 0.005             # 이 값 미만 변화는 '변화없음(⚪)'으로 간주
@@ -161,7 +161,7 @@ def build_message(data, prev_total, prev_bots, history, title_suffix="", sub_ass
         lines.append(f"{mode_prefix}{pos_str} {b_name_short}  {b_days:.1f}  {asset_val_str}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}")
         lines.append(f"  ({ent1:02d},{ent4:02d}, {sw:02d}W/{sl:02d}L){seq_str}")
     lines.append("─" * 38)
-    lines.append("최근 50분 전체 일평균 추이(%)")
+    lines.append("최근 44분 전체 일평균 추이(%)")
     lines.append(ascii_chart(history))
     return "```\n" + "\n".join(lines) + "\n```"
 
