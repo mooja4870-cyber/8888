@@ -147,7 +147,7 @@ def get_bot_recent_sequence(bid: str) -> str:
                 
         filtered_oids = [o for o in grp.keys() if round(grp[o], 4) != 0.0]
         sorted_oids = sorted(filtered_oids, key=lambda o: ts_map[o], reverse=True)
-        recent_oids = sorted_oids[:50]
+        recent_oids = sorted_oids[:40]
         
         seq = ""
         for oid in recent_oids:

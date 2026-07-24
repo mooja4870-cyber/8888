@@ -1,5 +1,20 @@
 # 버전 이력 (ver.md)
 
+## v0.9.332
+Date: 2026-07-25
+
+### 변경 내용
+* `send_discord_hourly_graph.py` & `discord_alert.py` 최근 청산 거래 승패 시퀀스(`Oxxxx...`) 표시 개수 40개 변경:
+  * 기존 최근 50건 청산 이력 시퀀스 ➡️ **최근 40건 청산 이력 시퀀스(5개씩 8묶음)**로 조정 및 디스코드 전송 전수 확인
+
+### 수정 파일
+* send_discord_hourly_graph.py
+* discord_alert.py
+* ver.md
+
+### 비고
+* 40개 승패 이력 시퀀스 출력 및 데몬(PID 44028) 상시 가동 완료
+
 ## v0.9.331
 Date: 2026-07-25
 
