@@ -121,7 +121,42 @@ def collect_hourly_data(num_hours=40):
 
     return timestamps, group_a_series, group_b_series, bot_series
 
-def generate_ascii_graph(label: str, values: list, is_group: bool = False) -> str:
+def get_bot_recent_sequence(bid: str) -> str:
+    try:
+        import app
+        path = f"/Users/l/project/{bid}/data/trade_history.csv"
+        if not os.path.exists(path):
+            return ""
+        exits = app._load_exits(path)
+        
+        stats_path = f"/Users/l/project/{bid}/data/stats.json"
+        perf_start = ""
+        if os.path.exists(stats_path):
+            with open(stats_path, "r", encoding="utf-8") as f:
+                s = json.load(f)
+                perf_start = (s.get("perf_start_time") or "").replace("T", " ")[:19]
+        if perf_start:
+            exits = [e for e in exits if e[0] >= perf_start]
+            
+        grp = {}
+        ts_map = {}
+        for ts, pnl, oid in exits:
+            if oid:
+                grp[oid] = grp.get(oid, 0.0) + pnl
+                ts_map[oid] = max(ts_map.get(oid, ""), ts)
+                
+        filtered_oids = [o for o in grp.keys() if round(grp[o], 4) != 0.0]
+        sorted_oids = sorted(filtered_oids, key=lambda o: ts_map[o], reverse=True)
+        recent_oids = sorted_oids[:50]
+        
+        seq = ""
+        for oid in recent_oids:
+            seq += "O" if grp[oid] > 0 else "x"
+        return " ".join([seq[i:i+5] for i in range(0, len(seq), 5)])
+    except Exception:
+        return ""
+
+def generate_ascii_graph(label: str, values: list, is_group: bool = False, seq_str: str = "") -> str:
     if not values:
         return f"{label}\n(데이터 없음)"
         
@@ -144,7 +179,8 @@ def generate_ascii_graph(label: str, values: list, is_group: bool = False) -> st
         
     icon = "📊" if is_group else "🤖"
     lines = []
-    lines.append(f"{icon} **[{label}]** (최신: `{values[-1]:+.2f}%`) ")
+    seq_suffix = f"\n`{seq_str}`" if seq_str else ""
+    lines.append(f"{icon} **[{label}]** (최신: `{values[-1]:+.2f}%`){seq_suffix}")
     lines.append("```")
     for r in range(height):
         row_str = "".join(grid[r])
@@ -186,7 +222,7 @@ def send_report():
     
     # 2) 개별 봇 Part 1 (8401, 8402, 8404, 8408)
     part1_bots = ["8401", "8402", "8404", "8408"]
-    graphs_part1 = [generate_ascii_graph(f"{bid} 봇", bot_series[bid], is_group=False) for bid in part1_bots]
+    graphs_part1 = [generate_ascii_graph(f"{bid} 봇", bot_series[bid], is_group=False, seq_str=get_bot_recent_sequence(bid)) for bid in part1_bots]
     msg_part1 = (
         f"🤖 **[개별 봇 40시간 일평균수익률 추이 리포트 (1/2)]**\n"
         f"--------------------------------------------------\n"
@@ -196,7 +232,7 @@ def send_report():
 
     # 3) 개별 봇 Part 2 (8403, 8405, 8407, 8409)
     part2_bots = ["8403", "8405", "8407", "8409"]
-    graphs_part2 = [generate_ascii_graph(f"{bid} 봇", bot_series[bid], is_group=False) for bid in part2_bots]
+    graphs_part2 = [generate_ascii_graph(f"{bid} 봇", bot_series[bid], is_group=False, seq_str=get_bot_recent_sequence(bid)) for bid in part2_bots]
     msg_part2 = (
         f"🤖 **[개별 봇 40시간 일평균수익률 추이 리포트 (2/2)]**\n"
         f"--------------------------------------------------\n"
