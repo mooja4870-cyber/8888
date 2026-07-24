@@ -204,9 +204,10 @@ def build_message(data, prev_total, prev_bots, history, title_suffix="", sub_ass
             lines.append(ascii_chart(bot_chart_hist))
             lines.append("")
         
-    lines.append("─" * 38)
-    lines.append("최근 40분 전체 일평균 추이(%)")
-    lines.append(ascii_chart(history))
+    if not include_bot_charts:
+        lines.append("─" * 38)
+        lines.append("최근 40분 전체 일평균 추이(%)")
+        lines.append(ascii_chart(history))
     return "```\n" + "\n".join(lines) + "\n```"
 
 
