@@ -1183,7 +1183,7 @@ def discord_loop():
 
 
 def auto_repair_bot(folder):
-    """단일 봇 data/trade_history.csv 진입유실 점검 및 자동 보정/채우기"""
+    """단일 봇 data/trade_history.csv 진입유실 및 수수료 공란/0원 점검 및 자동 보정/채우기"""
     import pandas as pd
     base = os.path.join(BASE, folder)
     csv_path = os.path.join(base, "data", "trade_history.csv")
@@ -1195,10 +1195,24 @@ def auto_repair_bot(folder):
         raw = load_local_trade_history()
         paired = aggregate_and_pair_trades(raw)
         missing = [p for p in paired if not p.get("entry_time") or str(p.get("entry_time")).strip() in ("", "—", "None") or "진입유실" in str(p.get("status"))]
-        if not missing:
-            return 0
-            
+
         df = pd.read_csv(csv_path)
+        if "수수료(USDT)" not in df.columns:
+            df["수수료(USDT)"] = 0.0
+
+        # [수수료 공란/0원 자동 채우기]
+        fee_repaired = 0
+        for idx_row in df.index:
+            try:
+                px = float(df.at[idx_row, "가격"] or 0)
+                amt = float(df.at[idx_row, "수량"] or 0)
+                fee_v = df.at[idx_row, "수수료(USDT)"]
+                if (pd.isna(fee_v) or str(fee_v).strip() in ("", "0", "0.0", "None")) and px > 0 and amt > 0:
+                    df.at[idx_row, "수수료(USDT)"] = round(px * amt * 0.0005, 8)
+                    fee_repaired += 1
+            except Exception:
+                pass
+
         added = 0
         add_rows = []
         for idx, m in enumerate(missing):
@@ -1252,19 +1266,22 @@ def auto_repair_bot(folder):
                 "레버리지": lev,
                 "주문ID": f"ID_AUTO_FIX_{dt_entry.strftime('%Y%m%d%H%M%S')}_{idx}",
                 "체결ID": "",
-                "수수료(USDT)": 0.0
+                "수수료(USDT)": round(entry_px * amt * 0.0005, 8)
             }
             add_rows.append(entry_row)
             added += 1
 
-        if add_rows:
-            final_df = pd.concat([df, pd.DataFrame(add_rows)], ignore_index=True)
+        if add_rows or fee_repaired > 0:
+            if add_rows:
+                final_df = pd.concat([df, pd.DataFrame(add_rows)], ignore_index=True)
+            else:
+                final_df = df
             final_df = final_df.drop_duplicates()
             final_df["dt"] = pd.to_datetime(final_df["시간"], errors="coerce")
             final_df = final_df.sort_values(by="dt", ascending=True).drop(columns=["dt"])
             final_df.to_csv(csv_path, index=False, encoding="utf-8-sig")
-            print(f"[AUTO_REPAIR] {folder}: {added}건 진입유실 자동 복구 저장 완료", flush=True)
-        return added
+            print(f"[AUTO_REPAIR] {folder}: 진입유실 {added}건, 수수료 공란 {fee_repaired}건 자동 복구 저장 완료", flush=True)
+        return added + fee_repaired
     except Exception as e:
         print(f"[AUTO_REPAIR] {folder} 점검 중 예외: {e}", flush=True)
         return 0
