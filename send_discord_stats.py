@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-8개 봇 (8401~8409) 통합 및 봇별 구간(1h, 4h, 12h, 24h) 승패 및 PnL 디스코드 웹훅 알림 스크립트.
+8개 봇 (8401~8409) 통합 및 봇별 구간(1h, 4h, 12h, 24h) 승패 및 매매방향([순]/[역]) 디스코드 웹훅 알림 스크립트.
 - 매 정시 (00분 00초) 자동 발송 스케줄러 포함.
 """
 import csv
@@ -32,12 +32,29 @@ INTERVALS = [
 ]
 
 
+def load_bot_modes():
+    modes = {}
+    for bot_id, name in BOTS:
+        cfg_path = os.path.join(ROOT_DIR, bot_id, "config.json")
+        is_bf = False
+        if os.path.exists(cfg_path):
+            try:
+                with open(cfg_path, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                    is_bf = bool(cfg.get("USE_BLUEFROG", False))
+            except Exception:
+                pass
+        modes[bot_id] = is_bf
+    return modes
+
+
 def collect_stats():
     now_ts = time.time()
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     overall = {key: {"win": 0, "loss": 0, "draw": 0, "pnl": 0.0} for key, _, _ in INTERVALS}
     by_bot = {bot_id: {key: {"win": 0, "loss": 0, "draw": 0, "pnl": 0.0} for key, _, _ in INTERVALS} for bot_id, _ in BOTS}
+    bot_modes = load_bot_modes()
 
     for bot_id, name in BOTS:
         csv_path = os.path.join(ROOT_DIR, bot_id, "data", "trade_history.csv")
@@ -48,7 +65,6 @@ def collect_stats():
             with open(csv_path, "r", encoding="utf-8-sig") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    # '청산' 유형만 체결 승패 집계
                     trade_type = row.get("유형") or row.get("type") or ""
                     if trade_type != "청산" and trade_type != "close":
                         continue
@@ -87,7 +103,7 @@ def collect_stats():
         except Exception as e:
             print(f"[{bot_id}] CSV 읽기 예외: {e}", flush=True)
 
-    return now_str, overall, by_bot
+    return now_str, overall, by_bot, bot_modes
 
 
 def format_rate(win, loss):
@@ -97,17 +113,30 @@ def format_rate(win, loss):
     return (win / total) * 100.0
 
 
-def build_discord_messages(now_str, overall, by_bot):
-    # Message 1: Overall Summary + Bots 8401~8404
-    # Message 2: Bots 8405~8409 (디스코드 메시지 길이 제한 2000자 초과 방지)
-
-    # 1. Overall Section
+def build_discord_messages(now_str, overall, by_bot, bot_modes):
+    # 1. Header & Direction Matrix Section
     ov_lines = [
-        f"📢 **[8개 봇 통합 & 봇별 구간 승패 리포트]**",
+        f"📢 **[8개 봇 통합 & 봇별 구간 승패 및 매매방향 리포트]**",
         f"📅 **집계 시각**: `{now_str}`",
         f"--------------------------------------------------",
-        f"🌐 **[전체 8개 봇 종합 성과]**",
+        f"🧭 **[8개 봇 매매 방향 대조 매트릭스]**",
     ]
+
+    pure_cnt = 0
+    frog_cnt = 0
+    for bot_id, name in BOTS:
+        is_bf = bot_modes.get(bot_id, False)
+        if is_bf:
+            frog_cnt += 1
+            ov_lines.append(f"• `{name}` | **[역]** 🐸 역방향 (원천: 🎯순방향)")
+        else:
+            pure_cnt += 1
+            ov_lines.append(f"• `{name}` | **[순]** 🎯 순방향 (원천: 🎯순방향)")
+
+    ov_lines.append(f"💡 **요약**: 🎯 **[순]** 순방향: `{pure_cnt}개` | 🐸 **[역]** 역방향(청개구리): `{frog_cnt}개`")
+    ov_lines.append(f"--------------------------------------------------")
+    ov_lines.append(f"🌐 **[전체 8개 봇 종합 성과]**")
+
     for key, _, label in INTERVALS:
         w = overall[key]["win"]
         l = overall[key]["loss"]
@@ -120,13 +149,14 @@ def build_discord_messages(now_str, overall, by_bot):
     ov_lines.append(f"--------------------------------------------------")
     ov_lines.append(f"🤖 **[봇별 4개 구간 승패 상세 기록]**")
 
-    # Split bots into two batches
     batch1 = BOTS[:4]
     batch2 = BOTS[4:]
 
     msg1_lines = list(ov_lines)
     for bot_id, name in batch1:
-        msg1_lines.append(f"🔹 **[{name}]**")
+        is_bf = bot_modes.get(bot_id, False)
+        mode_tag = "**[역]** 🐸 역방향(청개구리)" if is_bf else "**[순]** 🎯 순방향(정방향)"
+        msg1_lines.append(f"🔹 **[{name}]** {mode_tag}")
         for key, _, label in INTERVALS:
             b_w = by_bot[bot_id][key]["win"]
             b_l = by_bot[bot_id][key]["loss"]
@@ -137,7 +167,9 @@ def build_discord_messages(now_str, overall, by_bot):
 
     msg2_lines = []
     for bot_id, name in batch2:
-        msg2_lines.append(f"🔹 **[{name}]**")
+        is_bf = bot_modes.get(bot_id, False)
+        mode_tag = "**[역]** 🐸 역방향(청개구리)" if is_bf else "**[순]** 🎯 순방향(정방향)"
+        msg2_lines.append(f"🔹 **[{name}]** {mode_tag}")
         for key, _, label in INTERVALS:
             b_w = by_bot[bot_id][key]["win"]
             b_l = by_bot[bot_id][key]["loss"]
@@ -170,8 +202,8 @@ def send_webhook(content):
 
 
 def run_once():
-    now_str, overall, by_bot = collect_stats()
-    msg1, msg2 = build_discord_messages(now_str, overall, by_bot)
+    now_str, overall, by_bot, bot_modes = collect_stats()
+    msg1, msg2 = build_discord_messages(now_str, overall, by_bot, bot_modes)
     s1 = send_webhook(msg1)
     time.sleep(1)
     s2 = send_webhook(msg2)
@@ -180,11 +212,9 @@ def run_once():
 
 def loop_hourly():
     print("🚀 매 정시(00분 00초) 디스코드 리포트 스케줄러 시작...", flush=True)
-    # 1회 즉시 발송
     run_once()
 
     while True:
-        # 다음 정시 00분 00초까지 남은 초 계산
         now = datetime.now()
         next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
         sleep_sec = (next_hour - now).total_seconds()
