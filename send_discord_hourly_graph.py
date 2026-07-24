@@ -189,8 +189,8 @@ def send_report():
         f"--------------------------------------------------"
     )
     
-    # 2) 개별 봇 Part 1 (8401, 8402, 8403, 8404)
-    part1_bots = ["8401", "8402", "8403", "8404"]
+    # 2) 개별 봇 Part 1 (8401, 8402, 8404, 8408)
+    part1_bots = ["8401", "8402", "8404", "8408"]
     graphs_part1 = [generate_ascii_graph(f"{bid} 봇", bot_series[bid], is_group=False) for bid in part1_bots]
     msg_part1 = (
         f"🤖 **[개별 봇 30시간 일평균수익률 추이 리포트 (1/2)]**\n"
@@ -199,8 +199,8 @@ def send_report():
         f"--------------------------------------------------"
     )
 
-    # 3) 개별 봇 Part 2 (8405, 8407, 8408, 8409)
-    part2_bots = ["8405", "8407", "8408", "8409"]
+    # 3) 개별 봇 Part 2 (8403, 8405, 8407, 8409)
+    part2_bots = ["8403", "8405", "8407", "8409"]
     graphs_part2 = [generate_ascii_graph(f"{bid} 봇", bot_series[bid], is_group=False) for bid in part2_bots]
     msg_part2 = (
         f"🤖 **[개별 봇 30시간 일평균수익률 추이 리포트 (2/2)]**\n"
