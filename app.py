@@ -6,6 +6,7 @@
 - 거래소 호출은 fetch_balance / fetch_positions 조회 전용. 주문 함수 없음.
 실행: python3 app.py  →  http://localhost:8888
 """
+import asyncio
 import csv
 import io
 import json

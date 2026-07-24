@@ -1,5 +1,19 @@
 # 버전 이력 (ver.md)
 
+## v0.9.313
+Date: 2026-07-24
+
+### 변경 내용
+* `app.py` 내 missing `import asyncio` 구문 추가 및 디스코드 리스너 스레드 예외 해제
+* 8888 관제 데몬 프로세스 기동 완료 (PID / http://localhost:8888)
+
+### 수정 파일
+* app.py
+* ver.md
+
+### 비고
+* 백엔드 서버 및 HTTP GET API 정상 렌더링 검증 완료 (200 OK)
+
 ## v0.9.312
 Date: 2026-07-24
 
