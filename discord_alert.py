@@ -85,6 +85,41 @@ def ascii_chart(vals, width=CHART_WIDTH, height=CHART_HEIGHT):
     return "\n".join(out)
 
 
+def get_bot_40min_history(b_obj):
+    import app, time
+    bid = b_obj.get("name", "")
+    folder = b_obj.get("folder") or bid
+    seed = b_obj.get("seed") or 10.0
+    perf_str = b_obj.get("perf_start", "")
+    
+    path = f"/Users/l/project/{folder}/data/trade_history.csv"
+    if not os.path.exists(path):
+        return [(b_obj.get("daily_ret", 0.0) or 0.0)] * CHART_WIDTH
+
+    exits = app._load_exits(path)
+    perf_ts = None
+    if perf_str:
+        try:
+            import send_discord_hourly_graph
+            perf_ts = send_discord_hourly_graph.epoch(perf_str)
+            exits = [e for e in exits if e[0] >= perf_str.replace("T", " ")[:19]]
+        except Exception:
+            pass
+
+    now = time.time()
+    history = []
+    for i in range(CHART_WIDTH):
+        T = now - 60 * (CHART_WIDTH - 1 - i)
+        t_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(T))
+        cum = sum(pnl for ts, pnl, oid in exits if ts <= t_str)
+        cum_ret = (cum / seed) * 100.0 if seed else 0.0
+        days = max(1.0, (T - perf_ts) / 86400.0) if perf_ts else 1.0
+        d_ret = round(cum_ret / days, 2)
+        history.append(d_ret)
+        
+    return history
+
+
 def build_message(data, prev_total, prev_bots, history, title_suffix="", sub_assets=None, sub_total=None, prev_sub_total=None):
     s = data["summary"]
     total = s.get("daily_ret")
@@ -160,8 +195,15 @@ def build_message(data, prev_total, prev_bots, history, title_suffix="", sub_ass
         asset_val_str = f"${b_asset:.2f}" if b_asset is not None else "$0.00"
         lines.append(f"{mode_prefix}{pos_str} {b_name_short}  {b_days:.1f}  {asset_val_str}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}")
         lines.append(f"  ({ent1:02d},{ent4:02d}, {sw:02d}W/{sl:02d}L){seq_str}")
+        
+        # 🤖 개별 봇 40분 파동 곡선 차트 추가
+        bot_chart_hist = get_bot_40min_history(b)
+        lines.append(f"  [최근 40분 추이(%)]")
+        lines.append(ascii_chart(bot_chart_hist))
+        lines.append("")
+        
     lines.append("─" * 38)
-    lines.append("최근 40분 전체 일평균 추이(%)")
+    lines.append("최근 40분 그룹 전체 일평균 추이(%)")
     lines.append(ascii_chart(history))
     return "```\n" + "\n".join(lines) + "\n```"
 
