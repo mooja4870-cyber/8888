@@ -1,5 +1,22 @@
 # 버전 이력 (ver.md)
 
+## v0.9.317
+Date: 2026-07-24
+
+### 변경 내용
+* 5개 봇(8402, 8403, 8405, 8407, 8409) 적응형 자동 스위치 기능 (최근 4전 3패 시 순 ↔ 역 대칭 반전) 객관적 정밀검증 100대 항목 체계 구축 (`verify_100_items.py`)
+* 5개 봇 대상 100대 검증 항목 1:1 전수 검증 및 Pytest 유닛 테스트 수행 완결 (총 500/500 항목 100% PASS 달성)
+
+### 수정 파일
+* verify_100_items.py
+* 8402/tests/test_auto_mode_switch_8402.py
+* 8407/tests/test_auto_mode_switch_8407.py
+* 8409/tests/test_auto_mode_switch_8409.py
+* ver.md
+
+### 비고
+* 5개 봇 전체 `check_auto_mode_switch()` 알고리즘 정합성, 대칭 반전, 2중 관제 가드, 텔레그램/디스코드 알림 100% 검증 완결 (오류 0건)
+
 ## v0.9.316
 Date: 2026-07-24
 
