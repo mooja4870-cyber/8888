@@ -31,7 +31,7 @@ _DIR = os.path.dirname(os.path.abspath(__file__))
 WEBHOOK_FILE = os.path.join(_DIR, "discord_webhook.txt")
 STATE_FILE = os.path.join(_DIR, "discord_state.json")
 
-CHART_WIDTH = 40        # 최근 40포인트(=1분×40=40분)
+CHART_WIDTH = 36        # 최근 36포인트(=1분×36=36분)
 CHART_HEIGHT = 6
 USERNAME = "봇 관제"
 EPS = 0.005             # 이 값 미만 변화는 '변화없음(⚪)'으로 간주
@@ -179,7 +179,7 @@ def build_message(data, prev_total, prev_bots, history, title_suffix="", sub_ass
             
             filtered_oids = [o for o in grp.keys() if round(grp[o], 4) != 0.0]
             sorted_oids = sorted(filtered_oids, key=lambda o: ts_map[o], reverse=True)
-            recent_oids = sorted_oids[:40]
+            recent_oids = sorted_oids[:36]
             
             seq = ""
             for oid in recent_oids:
@@ -196,16 +196,16 @@ def build_message(data, prev_total, prev_bots, history, title_suffix="", sub_ass
         lines.append(f"{mode_prefix}{pos_str} {b_name_short}  {b_days:.1f}  {asset_val_str}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}")
         lines.append(f"  ({ent1:02d},{ent4:02d}, {sw:02d}W/{sl:02d}L){seq_str}")
         
-        # 🤖 5분 정각 알림(include_bot_charts=True)일 때 개별 봇 40분 파동 차트 렌더링
+        # 🤖 5분 정각 알림(include_bot_charts=True)일 때 개별 봇 36분 파동 차트 렌더링
         if include_bot_charts:
             bot_chart_hist = get_bot_40min_history(b)
             lines.append("─" * 38)
-            lines.append("최근 40분 전체 일평균 추이(%)")
+            lines.append("최근 36분 전체 일평균 추이(%)")
             lines.append(ascii_chart(bot_chart_hist))
             lines.append("")
         
     lines.append("─" * 38)
-    lines.append("최근 40분 전체 일평균 추이(%)")
+    lines.append("최근 36분 전체 일평균 추이(%)")
     lines.append(ascii_chart(history))
     return "```\n" + "\n".join(lines) + "\n```"
 
