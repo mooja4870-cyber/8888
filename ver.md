@@ -1,5 +1,20 @@
 # 버전 이력 (ver.md)
 
+## v0.9.305
+Date: 2026-07-24
+
+### 변경 내용
+* Cloudflare Pages 루트 접속 404 에러 원천 해결:  생성 및  라우팅 파일 추가하여  대시보드 라이브 렌더링 100% 정상화.
+* Cloudflare Pages 재배포 성공.
+
+### 수정 파일
+* index.html
+* _redirects
+* ver.md
+
+### 비고
+* Cloudflare Pages 404 해결 및 대시보드 HTML 정상 렌더링 검증 완료
+
 ## v0.9.304
 Date: 2026-07-24
 

@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8888 · 봇 통합 관제</title>
+<style>
+:root{--bg:#0f1115;--card:#181b22;--card2:#252b36;--border:#2a2f3a;--text:#e8eaf0;--muted:#8b93a5;--green:#2dbd85;--amber:#efa027;--red-dot:#e24b4a;--profit:#ff5a5a;--loss:#4d9fff}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:#05070f}
+/* 8401 스타일 배경: 중앙 청색 발광 radial + 38px 격자 그리드 + 영롱~ 펄스(호흡하듯 밝기·채도·색조 흐름) */
+body::before{content:'';position:fixed;inset:0;z-index:-1;
+  background-color:#05070f;
+  background-image:
+    radial-gradient(circle at 50% 42%, rgba(35,60,105,0.85) 0%, rgba(10,15,30,0.95) 55%, rgba(3,4,8,1) 100%),
+    linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size:100% 100%, 38px 38px, 38px 38px;
+  background-attachment:fixed;
+  animation:glowpulse 6s ease-in-out infinite}
+@keyframes glowpulse{0%,100%{opacity:1;filter:brightness(1) saturate(1) hue-rotate(0deg)}50%{opacity:.94;filter:brightness(1.22) saturate(1.3) hue-rotate(18deg)}}
+body{background:transparent;color:var(--text);font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;padding:20px;max-width:1280px;margin:0 auto;zoom:1.2496}
+header{display:flex;align-items:baseline;gap:12px;margin-bottom:18px;position:sticky;top:0;background:rgba(10,14,26,0.55);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:100;padding:10px 0;border-bottom:1px solid var(--border)}
+h1{font-size:27px;font-weight:600}
+#updated{font-size:12px;color:var(--muted);margin-left:10px}
+#sortby,#layout,#viewmode,#botfilter{background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:14.64px;padding:3px 6px;cursor:pointer}
+#viewmode,#botfilter{margin-left:10px;font-weight:600}
+#layout{margin-left:auto}
+#sortby{margin-left:6px}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px;position:sticky;top:49px;background:rgba(10,14,26,0.5);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:99;padding:10px 0}
+.metric{background:rgba(24,27,34,0.66);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px 16px;position:relative;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3)}
+.metric:hover{z-index:100}
+.metric .tiptext{text-align:left}
+.metric .lbl{font-size:12px;color:var(--muted);margin-bottom:4px}
+.metric .val{font-size:22px;font-weight:600}
+.tip{position:relative;display:inline-block;margin-left:4px;color:#6b7280;cursor:help;font-style:normal}
+.tip .tiptext{visibility:hidden;opacity:0;transition:opacity .15s;position:absolute;z-index:20;left:0;top:18px;width:240px;background:#0b0d11;border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:12px;line-height:1.55;color:var(--text);font-weight:400;box-shadow:0 6px 20px rgba(0,0,0,.5);white-space:normal}
+.tip:hover .tiptext{visibility:visible;opacity:1}
+.metric:nth-child(n+3) .tip .tiptext{left:auto;right:0}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--muted);margin-bottom:10px;align-items:center;flex-wrap:wrap}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0}
+.cards{display:flex;flex-direction:column;gap:12px;margin-bottom:22px}
+.cardrow{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color .15s;width:250px}
+.cards.three .card{zoom:.95}
+.cards.four .card{zoom:.85}
+/* 배치/정렬 드롭다운 변경 시 '휘리릭' 재배치 모션(좌→우 슬라이드+페이드, 행별 시차 cascade). 자동 새로고침엔 미적용 */
+@keyframes rowswoosh{0%{opacity:0;transform:translateX(-46px) scale(.97)}60%{opacity:1;transform:translateX(7px) scale(1.005)}100%{opacity:1;transform:translateX(0) scale(1)}}
+.cards.anim .cardrow{animation:rowswoosh .46s cubic-bezier(.22,1,.36,1) both}
+.cards.anim .cardrow:nth-child(2){animation-delay:.07s}
+.cards.anim .cardrow:nth-child(3){animation-delay:.14s}
+.cards.anim .cardrow:nth-child(4){animation-delay:.21s}
+.card:hover{border-color:#4a5364}
+@keyframes blinkgreen{0%,100%{border-color:#a3e635}50%{border-color:transparent}}
+@keyframes miblink{0%,100%{font-size:166%}50%{font-size:184.26%}}
+@keyframes orderblink{0%,100%{transform:scale(1)}50%{transform:scale(1.22)}}
+@keyframes cardblink{0%,100%{opacity:1}50%{opacity:.4}}
+.card.holding{border:0.2mm solid #a3e635;animation:blinkgreen 1s ease-in-out infinite}
+.card .head{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.card .name{font-weight:600;font-size:21.6px}
+.rainbow-text{background:linear-gradient(90deg,#ff5a5a,#fcd162,#4db168,#4d9fff,#8c6cf5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:900 !important;animation:rainbow_anim 4s linear infinite}
+@keyframes rainbow_anim{0%{filter:hue-rotate(0deg)}100%{filter:hue-rotate(360deg)}}
+.badge{margin-left:auto;font-size:15.84px;padding:2px 8px;border-radius:7px;font-weight:600}
+.badge.okx{background:#2e2a55;color:#b9b3f5}
+.badge.bnc{background:#4a3a14;color:#f5cd6e}
+.card table{width:100%;font-size:12.5px;border-collapse:collapse}
+.card td{padding:2px 0}
+.card td:first-child{color:var(--muted)}
+.card td:last-child{text-align:right}
+.profit{color:var(--profit);font-weight:600}
+.loss{color:var(--loss);font-weight:600}
+.flat{color:var(--muted)}
+.warn{color:var(--amber)}
+h2{font-size:14px;font-weight:600;margin:0 0 8px}
+#chartwrap{position:relative;height:240px;background:var(--card);border-radius:12px;padding:12px;margin-bottom:22px}
+#feed{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:22px}
+.row{display:flex;gap:10px;align-items:center;padding:8px 14px;font-size:13px;border-top:1px solid var(--border)}
+.row:first-child{border-top:none}
+.row .t{color:var(--muted);font-family:ui-monospace,monospace;font-size:12px;white-space:nowrap}
+.row .b{font-weight:600}
+.row .pnl{margin-left:auto;white-space:nowrap}
+.offline{opacity:.55}
+</style>
+</head>
+<body>
+<header><h1>봇 통합 관제</h1><span style="font-size:12px;color:var(--muted)">수익 <span style="color:var(--profit)">빨강</span> · 손실 <span style="color:var(--loss)">파랑</span></span><select id="viewmode" onchange="applyView()" title="화면 모드"><option value="base" selected>기본화면</option><option value="name">시간별 봇 이름 순</option></select><select id="botfilter" onchange="if(_lastData)render(_lastData,true)" title="봇 필터 (전체/그룹별)"><option value="all" selected>전체 봇 (8개)</option><option value="group1">8403,5,7,9 (4봇)</option><option value="group2">8401,2,4,8 (4봇)</option></select><select id="layout" onchange="if(_lastData)render(_lastData,true)" title="배치 형태"><option value="pyramid">피라미드(1·2·3·4)</option><option value="three">3개씩(2줄)</option><option value="four" selected>4개씩(2줄)</option></select><select id="sortby" onchange="if(_lastData)render(_lastData,true)" title="정렬 기준(내림차순)"><option value="daily_ret">일평균 수익률</option><option value="cum_ret">누적 수익률</option><option value="ex_balance">총 잔고</option><option value="since_orders">누적 주문수</option><option value="orders_today">당일 주문수</option><option value="elapsed">초기화 후 경과</option><option value="name">봇 번호 순</option></select><span id="updated">불러오는 중…</span></header>
+<div class="summary" id="summary"></div>
+<div class="legend">
+<span><span class="dot" style="background:var(--green)"></span>정상</span>
+<span><span class="dot" style="background:var(--amber)"></span>데이터 갱신 지연 (60분+)</span>
+<span><span class="dot" style="background:var(--red-dot)"></span>다운 (포트 무응답)</span>
+<span style="margin-left:auto">카드 클릭 → 해당 봇 대시보드 열기</span>
+</div>
+<div class="cards" id="cards"></div>
+<div id="timeview" style="display:none;margin-bottom:22px"></div>
+<div id="botModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:999;align-items:center;justify-content:center;padding:20px">
+ <div style="background:#1a1a1a;border:0.1mm solid #1a1a1a;border-radius:18px;padding:32px;max-width:1100px;width:95%;max-height:88vh;overflow:auto;box-shadow:0 20px 100px rgba(45,189,133,0.5)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+   <h3 id="modalTitle" style="font-size:18px;font-weight:700;margin:0;color:var(--green)"></h3>
+   <button onclick="closeBotModal()" style="background:none;border:none;color:var(--text);cursor:pointer;font-size:28px;opacity:0.6;hover:opacity:1">×</button>
+  </div>
+  <div id="modalContent" style="display:flex;flex-direction:column;gap:16px"></div>
+ </div>
+</div>
+<div id="assetModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:999;align-items:center;justify-content:center;padding:20px">
+ <div style="background:#1a1a1a;border:0.1mm solid #1a1a1a;border-radius:18px;padding:24px;width:64vw;aspect-ratio:16/9;max-width:64vw;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 100px rgba(45,189,133,0.5)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+   <h3 style="font-size:18px;font-weight:700;margin:0;color:var(--green)">📈 총자산 · BTC 가격 추이</h3>
+   <button onclick="closeAssetModal()" style="background:none;border:none;color:var(--text);cursor:pointer;font-size:28px;opacity:0.6">×</button>
+  </div>
+  <div id="assetTfBar" style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap"></div>
+  <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center"><span style="font-size:12px;color:var(--muted)">총자산 축 범위(현재값 기준):</span><span id="assetBandBar" style="display:flex;gap:6px;flex-wrap:wrap"></span></div>
+  <div style="font-size:12px;color:var(--muted);margin-bottom:14px"><span style="display:inline-block;width:11px;height:11px;background:#4a6bc6;border-radius:2px;vertical-align:-1px"></span> 막대 = 총자산(USDT, 좌축) &nbsp;·&nbsp; <span style="display:inline-block;width:14px;height:3px;background:#e8eaf0;vertical-align:3px"></span> 꺾은선 = BTC 가격($, 우축) &nbsp;·&nbsp; <span id="assetFrom"></span></div>
+  <div style="position:relative;flex:1;min-height:0"><canvas id="assetChartCanvas"></canvas></div>
+ </div>
+</div>
+<div id="retModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:999;align-items:center;justify-content:center;padding:20px">
+ <div style="background:#1a1a1a;border:0.1mm solid #1a1a1a;border-radius:18px;padding:24px;width:64vw;aspect-ratio:16/9;max-width:64vw;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 100px rgba(45,189,133,0.5)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+   <h3 style="font-size:18px;font-weight:700;margin:0;color:var(--green)">📊 일평균수익률 · BTC 가격 추이</h3>
+   <button onclick="closeRetModal()" style="background:none;border:none;color:var(--text);cursor:pointer;font-size:28px;opacity:0.6">×</button>
+  </div>
+  <div id="retTfBar" style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap"></div>
+  <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center"><span style="font-size:12px;color:var(--muted)">일평균수익률 축 범위(현재값 ±%p):</span><span id="retBandBar" style="display:flex;gap:6px;flex-wrap:wrap"></span></div>
+  <div style="font-size:12px;color:var(--muted);margin-bottom:14px"><span style="display:inline-block;width:11px;height:11px;background:var(--profit);border-radius:2px;vertical-align:-1px"></span> 막대 = 일평균수익률(%, 좌축) <span style="color:var(--profit)">이익</span>/<span style="color:var(--loss)">손실</span> &nbsp;·&nbsp; <span style="display:inline-block;width:14px;height:3px;background:#e8eaf0;vertical-align:3px"></span> 꺾은선 = BTC 가격($, 우축) &nbsp;·&nbsp; <span id="retFrom"></span></div>
+  <div style="position:relative;flex:1;min-height:0"><canvas id="retChartCanvas"></canvas></div>
+ </div>
+</div>
+<h2>기간별 내 진입 수</h2>
+<div id="entryCountTable" style="overflow-x:auto;margin-bottom:22px"></div>
+<h2>봇 효율 지표 <span style="font-size:12px;color:var(--muted);font-weight:400">(Profit Factor · 평균손익비 · Expectancy)</span></h2>
+<div id="efficiencyTable" style="overflow:visible;margin-bottom:22px"></div>
+<h2>최대 낙폭 (Drawdown) <span style="font-size:12px;color:var(--muted);font-weight:400">(위험 조기경보)</span></h2>
+<div id="ddBanner"></div>
+<div id="drawdownTable" style="overflow:visible;margin-bottom:22px"></div>
+<h2>봇별 시간대별 성과 <span style="font-size:12px;color:var(--muted);font-weight:400">(시간별 수익 히트맵 · 최근 7일)</span></h2>
+<div id="heatmapTable" style="overflow-x:auto;margin-bottom:22px"></div>
+
+<h2>매매기법 비교</h2>
+<div id="comparisonTable" style="overflow-x:auto;margin-bottom:22px"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+let chart=null;
+let _lastData=null;
+// 좌측 아코디언: 기본화면 ↔ 시간별(수익율순/봇이름순). 시간별은 /api/snapshots(매시 :00·:30 누적) 표.
+function applyView(){
+ const mode=(document.getElementById('viewmode')||{}).value||'base';
+ const isBase=mode==='base';
+ const cw=document.getElementById('cards'); if(cw)cw.style.display=isBase?'':'none';
+ const tv=document.getElementById('timeview'); if(tv)tv.style.display=isBase?'none':'';
+ // 배치/정렬은 기본화면에서만 의미 → 시간별에선 숨김
+ const ly=document.getElementById('layout'); if(ly)ly.style.display=isBase?'':'none';
+ const sb=document.getElementById('sortby'); if(sb)sb.style.display=isBase?'':'none';
+ if(!isBase)renderTimeView(mode);
+}
+async function renderTimeView(mode){
+ const tv=document.getElementById('timeview'); if(!tv)return;
+ let snaps=[];
+ try{const r=await fetch('/api/snapshots',{cache:'no-store'});if(r.ok)snaps=await r.json();}catch(e){}
+ if(!snaps.length){tv.innerHTML='<div style="color:var(--muted);padding:16px 4px">아직 기록된 스냅샷이 없습니다 — 매시 :00·:30에 누적됩니다.</div>';return;}
+ const names=[...new Set(snaps.flatMap(s=>Object.keys(s.bots||{})))].sort((a,b)=>(+a)-(+b)); // 봇 오름차순 고정
+ // 총자산 보정: 100 이하(또는 누락)는 기록 시점 일부 봇 조회실패로 과소집계 → 인접 정상값(≥100) 선형보간
+ (function(){
+  const n=snaps.length;
+  const ok=i=>{const v=snaps[i].total_assets;return v!=null&&v>=100;};
+  for(let i=0;i<n;i++){
+   const v=snaps[i].total_assets;
+   if(v!=null&&v>=100){snaps[i]._ta=v;snaps[i]._taFix=false;continue;}
+   let p=i-1;while(p>=0&&!ok(p))p--;
+   let q=i+1;while(q<n&&!ok(q))q++;
+   let fx=null;
+   if(p>=0&&q<n){const vp=snaps[p].total_assets,vq=snaps[q].total_assets;fx=vp+(vq-vp)*((i-p)/(q-p));}
+   else if(p>=0)fx=snaps[p].total_assets;
+   else if(q<n)fx=snaps[q].total_assets;
+   snaps[i]._ta=fx;snaps[i]._taFix=(fx!=null);
+  }
+ })();
+ // 총자산 보정: 2026-06-17 22:00 및 그 이전(입금 전)은 +49 가산해 입금 후와 수평 비교 (mooja 지정)
+ (function(){const CUT='2026-06-17 22:00',ADJ=49;
+  snaps.forEach(s=>{if(s._ta!=null&&(s.ts||'')<=CUT)s._ta=+(s._ta+ADJ).toFixed(2);});})();
+ const rows=[...snaps].reverse(); // 최신이 맨 위
+ const cell=(n,v)=>{const rv=(v==null)?null:Math.round(v*100)/100;  // 2자리 반올림 기준으로 색·부호 결정
+  const col=(rv==null)?'var(--muted)':(rv>0?'var(--profit)':(rv<0?'var(--loss)':'var(--muted)'));  // 0.00%=회색(중립)
+  const txt=(rv==null)?'—':((rv>0?'+':'')+rv.toFixed(2)+'%');
+  return '<td style="border:1px solid var(--border);padding:4px 6px;text-align:center"><div style="font-weight:600;font-size:13px">'+n+'</div><div style="font-size:11.5px;color:'+col+'">'+txt+'</div></td>';};
+ const thS='border:1px solid var(--border);padding:4px 6px;color:var(--muted);font-size:12px;font-weight:500';
+ const tdT='border:1px solid var(--border);padding:4px 8px;font-family:ui-monospace,monospace;font-size:12px;color:var(--muted);white-space:nowrap';
+ // ord='rank'(일평균수익률순) | 'name'(봇이름순). 시각칸엔 날짜(MM-DD) 포함.
+ function buildOne(ord){
+  const title=ord==='rank'?'시간별 일 평균수익률 순':'시간별 봇 이름 순';
+  let head='<tr><th style="'+thS+'">'+(ord==='name'?'총 자산':'날짜·시각')+'</th>';
+  for(let c=0;c<names.length;c++)head+='<th style="'+thS+'">'+(ord==='rank'?(c+1)+'위':'#'+(c+1))+'</th>';
+  head+='</tr>';
+  let body='';
+  rows.forEach(s=>{
+   let arr=names.map(n=>({n,v:(s.bots&&s.bots[n]!=null)?s.bots[n]:null}));
+   if(ord==='rank')arr=arr.slice().sort((a,b)=>((b.v==null?-1e9:b.v)-(a.v==null?-1e9:a.v)));
+   let tlab;
+   if(ord==='name'){
+    tlab=(s._ta!=null)?(s._ta.toFixed(2)+(s._taFix?' <span title="보정값: 기록 시점 일부 봇 누락 → 인접 정상값 보간" style="color:var(--muted);cursor:help">*</span>':'')):'—';
+   }else{
+    const dt=(s.ts?s.ts.slice(5):(s.t||'—'));
+    tlab=dt;
+   }
+   tlab=tlab+(s.approx?' <span title="과거 실현손익 기준 근사 복원" style="color:var(--amber)">≈</span>':'');
+   body+='<tr style="'+(s.approx?'opacity:.82':'')+'"><td style="'+tdT+'">'+tlab+'</td>'+arr.map(o=>cell(o.n,o.v)).join('')+'</tr>';
+  });
+  return '<div><div style="font-weight:600;font-size:13px;margin-bottom:6px">'+title+'</div>'
+   +'<table style="border-collapse:collapse;background:var(--card)">'+head+body+'</table></div>';
+ }
+ const note='<div style="color:var(--muted);font-size:12px;margin-bottom:10px"><span style="color:var(--amber)">≈</span> = 과거 실현손익 기준 근사 복원(미실현 제외)</div>';
+ if(mode==='name'){  // 봇이름순 + 오른쪽 빈칸에 일평균수익률순 나란히
+  tv.innerHTML=note+'<div style="display:flex;gap:18px;overflow-x:auto;align-items:flex-start">'+buildOne('name')+buildOne('rank')+'</div>';
+ }else{              // 일평균수익률순 단독
+  tv.innerHTML=note+'<div style="overflow-x:auto">'+buildOne('rank')+'</div>';
+ }
+}
+const elapsed=ps=>{if(!ps)return'—';const t0=new Date(ps.replace(' ','T'));
+ const m=Math.floor((Date.now()-t0.getTime())/60000);if(isNaN(m)||m<0)return'—';
+ return Math.floor(m/1440)+'일 '+Math.floor(m%1440/60)+'시간 '+(m%60)+'분'};
+const fmt=(v,sign)=>{if(v===null||v===undefined)return'<span class="flat">—</span>';
+ const c=v>0?'profit':(v<0?'loss':'flat');const s=v>0&&sign?'+':'';
+ return `<span class="${c}">${s}${(+v).toFixed(2)}</span>`};
+// 봇 필터 (그룹 1: 8403,5,7,9 / 그룹 2: 8401,2,4,8)
+function _applyFilter(d){
+ const selEl=document.getElementById('botfilter');
+ if(!selEl)return d;
+ const sel=selEl.value||'all';
+ localStorage.setItem('botfilter_mode', sel);
+ if(sel==='all'||!d.bots)return d;
+ const copy=JSON.parse(JSON.stringify(d));
+ let targetSet=null;
+ if(sel==='group1') targetSet=new Set(['8403','8405','8407','8409']);
+ else if(sel==='group2') targetSet=new Set(['8401','8402','8404','8408']);
+ if(!targetSet)return d;
+ const filtered=copy.bots.filter(b=>targetSet.has(String(b.name)));
+ copy.bots=filtered;
+ let assets=0.0, seed=0.0;
+ filtered.forEach(b=>{
+  const bal=(b.ex_ok&&b.ex_balance!=null)?b.ex_balance:((b.seed||0)+(b.total||0));
+  const bseed=b.seed?b.seed:bal;
+  assets+=bal;
+  seed+=bseed;
+ });
+ const s=copy.summary||{};
+ let maxDays=1.0;
+ filtered.forEach(b=>{
+  if(b.perf_start){
+   const t0=new Date(b.perf_start.replace(' ','T')).getTime();
+   if(!isNaN(t0)){
+    const d=(Date.now()-t0)/86400000;
+    if(d>maxDays)maxDays=d;
+   }
+  }
+ });
+ const cumRet=seed?Math.round((assets-seed)/seed*10000)/100:0;
+ const validBots=filtered.filter(b=>b.daily_ret!=null&&b.seed);
+ let avgDaily=0.0;
+ if(validBots.length){
+  const totS=validBots.reduce((a,b)=>a+b.seed,0);
+  avgDaily=totS?Math.round((validBots.reduce((a,b)=>a+b.daily_ret*b.seed,0)/totS)*100)/100:0;
+ }else{
+  avgDaily=Math.round((cumRet/maxDays)*100)/100;
+ }
+ s.assets=assets;
+ s.cum_ret=cumRet;
+ s.cum_delta=assets-seed;
+ s.daily_ret=avgDaily;
+ s.days=Math.round(maxDays*10)/10;
+ s.count=filtered.length;
+ const staleArr=s.stale||[];
+ s.alive=filtered.filter(b=>!staleArr.includes(String(b.name))).length;
+ s.with_positions=filtered.filter(b=>(b.ex_poslong||0)>0||(b.ex_posshort||0)>0).length;
+ const posNames=new Set();
+ filtered.forEach(b=>{if((b.ex_poslong||0)===0&&(b.ex_posshort||0)===0)posNames.add(String(b.name));});
+ s.no_positions=Array.from(posNames);
+ return copy;
+}
+window.addEventListener('DOMContentLoaded', ()=>{
+ const saved=localStorage.getItem('botfilter_mode');
+ const el=document.getElementById('botfilter');
+ if(el&&saved&&(saved==='all'||saved==='bluefrog'))el.value=saved;
+});
+function render(d,anim){
+ _lastData=d;
+ d=_applyFilter(JSON.parse(JSON.stringify(d)));
+ const s=d.summary;
+ document.getElementById('updated').textContent='갱신 '+s.updated;
+ const seedSum=(s.assets!==null&&s.cum_delta!==null)?(s.assets-s.cum_delta):null;
+ const f2=v=>(v===null||v===undefined)?'—':(+v).toFixed(2);
+ const tip=t=>`<span class="tip">ℹ<span class="tiptext">${t}</span></span>`;
+ const staleTxt=(s.stale&&s.stale.length)?('갱신 지연: '+s.stale.join(', ')):'전 봇 정상';
+ const _agg=k=>d.bots.reduce((a,b)=>a+(b[k]||0),0);
+ const _so=_agg('since_orders'),_sw=_agg('since_w'),_sl=_agg('since_l'),_oo=_agg('orders_today'),_tw=_agg('today_w'),_tl=_agg('today_l');
+ const _wrM=(w,l)=>(w+l)>0?(w/(w+l)*100).toFixed(1):'0.0';
+ document.getElementById('summary').innerHTML=`
+  <div class="metric" onclick="openAssetModal()" style="cursor:pointer" title="클릭 → 총자산·BTC 추이 그래프"><div class="lbl">📈 총 자산 <span style="font-weight:400;color:var(--muted)">(현재 총잔고 합산)</span>${tip('Σ(각 봇 거래소 실시간 총잔고). 거래소 조회 실패 봇은 초기화잔고+실현손익으로 추정.<br>현재 합산: '+f2(s.assets)+' USDT<br><b>클릭하면 BTC 가격·총자산 추이 그래프</b>')}</div><div class="val">${s.assets===null?'—':s.assets.toFixed(2)} <span style="font-size:13px;color:var(--muted)">USDT</span></div></div>
+  <div class="metric"><div class="lbl">누적수익률${tip('(Σ현재 총잔고 − Σ초기화 잔고) ÷ Σ초기화 잔고.<br>기준금(Σseed) '+f2(seedSum)+' → 현재 '+f2(s.assets)+'<br>증감 '+fmt(s.cum_delta,1)+' USDT')}</div><div class="val">${fmt(s.cum_ret,1)}<span style="font-size:13px;color:var(--muted)">%</span></div><div style="font-size:12px;color:var(--muted);margin-top:2px">기준금 대비 <span style="font-size:133%;animation:cardblink 1s ease-in-out infinite;font-weight:600">${fmt(s.cum_delta,1)}</span> USDT</div></div>
+  <div class="metric" onclick="openRetModal()" style="cursor:pointer" title="클릭 → 일평균수익률·BTC 추이 그래프"><div class="lbl">📊 일 평균수익률 <span style="font-weight:400">(${s.days}일)</span>${tip('누적수익률 ÷ 경과일수.<br>경과: '+s.days+'일 (가장 이른 perf_start 기준, 최소 1일)<br><b>클릭하면 일평균수익률 추이 그래프</b>')}</div><div class="val"><span style="animation:cardblink .5s ease-in-out infinite">${fmt(s.daily_ret,1)}</span><span style="font-size:13px;color:var(--muted)">%/일</span></div></div>
+  <div class="metric"><div class="lbl">가동 중${tip('포트 응답 봇 수 / 전체.<br>🟢 정상 · 🟡 데이터 갱신 지연(60분+) · 🔴 다운<br>'+staleTxt)}</div><div class="val" style="color:${s.alive===s.count?'var(--green)':'var(--red-dot)'}">${s.alive}/${s.count} <span style="color:var(--amber)">(${s.with_positions}/${s.count})</span><br><span style="color:var(--amber)">${s.no_positions.length > 0 ? '<span style="font-size:0.77em">[' + s.no_positions.join(', ') + ']</span>' : ''}${(s.unknown_positions&&s.unknown_positions.length>0) ? ' <span style="font-size:0.77em;color:#888">?[' + s.unknown_positions.join(',') + ']</span>' : ''}</span></div></div>
+  <div class="metric"><div class="lbl">🧾 누적 주문·승률${tip('전 봇 합산 누적 주문수 · 승률(전체 W/L)')}</div><div class="val" style="color:#5cc8ff">${_so}건 · ${_wrM(_sw,_sl)}<span style="font-size:13px;color:#8cd7ff">%</span><br><span style="font-size:12px;font-weight:600"><span style="color:var(--profit)">${_sw}W</span> <span style="color:var(--muted)">/</span> <span style="color:var(--loss)">${_sl}L</span></span></div></div>
+  <div class="metric"><div class="lbl">🧾 당일 주문·승률${tip('전 봇 합산 당일 주문수 · 승률(당일 W/L)')}</div><div class="val" style="color:var(--amber)">${_oo}건 · ${_wrM(_tw,_tl)}<span style="font-size:13px;color:#fcd162">%</span><br><span style="font-size:12px;font-weight:600"><span style="color:var(--profit)">${_tw}W</span> <span style="color:var(--muted)">/</span> <span style="color:var(--loss)">${_tl}L</span></span></div></div>`;
+ // '초기화 후 경과' 최장 봇 = perf_start가 가장 이른(작은) 봇 → 연두 테두리 200%(0.4mm) 강조
+ let _longestBot=null,_minPs=Infinity;
+ d.bots.forEach(b=>{if(b.perf_start){const t=new Date(b.perf_start.replace(' ','T')).getTime();if(!isNaN(t)&&t<_minPs){_minPs=t;_longestBot=b.name;}}});
+ // 카드 정렬: '일 평균수익률' 내림차순(null은 맨 뒤)
+ // 선택한 기준 내림차순 정렬 ('초기화 후 경과'는 perf_start 이를수록 길어 -timestamp로 환산)
+ const _sk=(document.getElementById('sortby')||{}).value||'daily_ret';
+ const _key=b=>{ if(_sk==='name'){return -parseInt(b.name,10);}  /* 봇번호 오름차순 */ if(_sk==='elapsed'){return b.perf_start?-new Date(b.perf_start.replace(' ','T')).getTime():-Infinity;} const v=b[_sk]; return (v==null)?-Infinity:v; };
+ const _sorted=[...d.bots].sort((a,b)=>_key(b)-_key(a));
+ const _cards=_sorted.map((b,i)=>{
+  const stale=b.age_min!==null&&b.age_min>d.stale_min;
+  const dot=!b.alive?'var(--red-dot)':(stale?'var(--amber)':'var(--green)');
+  const usd=v=>(v===null||v===undefined)?'—':'$'+(+v).toFixed(2);
+  const wr=(w,l)=>(w+l)>0?(w/(w+l)*100).toFixed(1)+'% (<span style="color:var(--profit)">'+w+'W</span>/<span style="color:var(--loss)">'+l+'L</span>)':'0.0% (<span style="color:var(--profit)">0W</span>/<span style="color:var(--loss)">0L</span>)';
+  // 주문 증가·승률 상승 시 1시간 깜박(노랑 122% 펄스). localStorage로 1시간 타이머 추적(새로고침 유지).
+  const _BLK='color:#ffd633;animation:orderblink 1s ease-in-out infinite;display:inline-block';
+  const _wrv=(w,l)=>(w+l)>0?w/(w+l)*100:0;   // 승률값(비교용)
+  const _bchk=(name,key,val)=>{try{const k='bl_'+name+'_'+key,o=JSON.parse(localStorage.getItem(k)||'null'),now=Date.now();let ts=o?o.ts:0;if(o&&val>o.v)ts=now;localStorage.setItem(k,JSON.stringify({v:val,ts:ts}));return(now-ts)<3600000;}catch(e){return false}};
+  // 승률: 상승=빨강·하락=파랑으로 1시간 깜박(방향 추적)
+  const _BLKR='color:#ff5a5a;animation:orderblink 1s ease-in-out infinite;display:inline-block';
+  const _BLKB='color:#4d9fff;animation:orderblink 1s ease-in-out infinite;display:inline-block';
+  const _bchkW=(name,key,val)=>{try{const k='bl_'+name+'_'+key,o=JSON.parse(localStorage.getItem(k)||'null'),now=Date.now();let ts=o?o.ts:0,dir=o?(o.dir||''):'';if(o&&val>o.v){ts=now;dir='up';}else if(o&&val<o.v){ts=now;dir='down';}localStorage.setItem(k,JSON.stringify({v:val,ts:ts,dir:dir}));return(now-ts)<3600000?dir:'';}catch(e){return''}};
+  const _wsty=(name,key,w,l)=>{const d=_bchkW(name,key,_wrv(w,l));return d==='up'?_BLKR:(d==='down'?_BLKB:'');};
+  const ex=b.ex_ok;
+  const exwarn=ex?'':' <span class="warn" title="'+(b.ex_err||'')+'">!</span>';
+  const seed=(b.seed===null||b.seed===undefined)?'—':(+b.seed).toFixed(2);
+  const cumtip='기준: '+(b.perf_start||'—')+' 초기화 잔고 '+seed+' USDT 대비 현재 총잔고 증감률'
+   +(b.cum_basis==='pnl'?' (거래소 조회 실패 → 실현손익 기준 추정)':'');
+  // 일평균수익률 순위별 메달 테두리: 1등 황금 / 2·3등 은색 / 4·5·6등 동색 / 나머지 회색
+  const _rc=i===0?'#FFD700':(i<=2?'#C0C0C0':(i<=5?'#CD7F32':'#888888'));
+  const _holding=b.holding===true;  // 거래소 증거금 기준(app.py). null=거래소 미확인(ban 등)
+  const _unknown=b.holding===null;  // 거래소 조회 실패 → 보유여부 미확인
+  // 테두리: 봇 번호별 고정색 (8401·8402 빨강 / 8403·8406 주황 / 8404·8405 밝은회색)
+  // 테두리: 흰색 0.01mm 기본, 무포지션(holding=false)만 빨강 0.1mm (mooja 2026-07-01)
+  const _bc=(b.holding===false)?'#e24b4a':'#ffffff';
+  const _bw='0.66mm';   // 전체 봇 테두리 0.66mm (mooja 2026-07-01), 색은 무포지션 빨강/나머지 흰색
+  const hi='border:'+_bw+' solid '+_bc+';box-shadow:0 4px 11px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.12), inset 0 -2px 4px rgba(0,0,0,.35);';
+  // Expectancy(거래당 평균손익) — 미래수익 최강 예측지표 → 카드 최상단 강조
+  const _ex=b.expectancy;
+  const _exTxt=(_ex==null)?'—':((_ex>0?'+':'')+_ex.toFixed(2));
+  const _exCol=(_ex==null)?'var(--muted)':(_ex>0?'var(--profit)':(_ex<0?'var(--loss)':'var(--muted)'));
+  return `<div class="card${b.alive?'':' offline'}" style="${hi}" onclick="showBotModal('${b.name}', ${b.port})">
+   <div class="head" style="align-items:flex-start;"><span class="dot" style="background:${dot};margin-top:6px;"></span>
+    <div style="display:flex;flex-direction:column;line-height:1.2;">
+     <div><span class="name" style="color:#ffffff; animation:cardblink 1s ease-in-out infinite">${((b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog)?"<span style=\"color:#ff5a5a;font-weight:bold;margin-right:4px;\">[역]</span>":"<span style=\"color:#4d9fff;font-weight:bold;margin-right:4px;\">[순]</span>")+b.name}</span>${b.config&&b.config.timeframe?' <span style="font-size:17px;font-weight:600;color:var(--muted);vertical-align:bottom;">['+b.config.timeframe+']</span>':''}</div>
+    </div>
+    <span class="badge ${b.ex.toLowerCase()}" style="margin-top:3px;">${b.ex}</span>
+   </div>
+   <table>
+    <tr style="background:#11151c;border-bottom:1px solid #2a2f3a;" title="거래당 평균 손익(누적, USDT). 미래수익 최강 예측지표 — 양수=엣지 있음"><td style="color:#cdd3e0;font-weight:600">⭐ Expectancy</td><td><span style="font-size:115.5%;font-weight:bold;color:${_exCol}">${_exTxt}</span></td></tr>
+    <tr style="background:#181b22;"><td>총 잔고${exwarn}</td><td><span style="font-size:155%;font-weight:bold">${usd(b.ex_balance)}</span></td></tr>
+    <tr style="background:#181b22;"><td>미실현 손익</td><td><span style="${b.holding===false?'color:var(--green);animation:miblink 1s ease-in-out infinite;display:inline-block':'font-size:166%'}">${ex?fmt(b.ex_upnl,1):'—'}</span></td></tr>
+    <tr style="background:#252b36;" title="trade_history 청산 합산, 경계 max(오늘 00:00, ${b.perf_start||'—'})"><td>금일 실현 손익</td><td>${fmt(b.today_pnl,1)}</td></tr>
+    <tr style="background:#181b22;" title="${cumtip}"><td>누적 수익률${b.cum_basis==='pnl'?' <span class="warn">~</span>':''}</td><td><span style="font-size:119%;font-weight:bold">${fmt(b.cum_ret,1)}%</span> <span style="color:var(--muted)">(${fmt(b.cum_delta,1)} U)</span></td></tr>
+    <tr style="background:#252b36;" title="누적 수익률 ÷ 경과일수 ${b.days}일"><td>일 평균 수익률</td><td><span style="font-size:155%;animation:cardblink 1s ease-in-out infinite">${fmt(b.daily_ret,1)}%</span></td></tr>
+    <tr style="background:#252b36;" title="order_id 그룹, SINCE ${b.perf_start||'—'}"><td>누적 주문·승률</td><td><span style="${_bchk(b.name,'so',b.since_orders)?_BLK:''}">${b.since_orders}건</span> · <span style="${_wsty(b.name,'sw',b.since_w,b.since_l)}">${wr(b.since_w,b.since_l)}</span></td></tr>
+    <tr style="background:#181b22;"><td>당일 주문·승률</td><td><span style="${_bchk(b.name,'oo',b.orders_today)?_BLK:''}">${b.orders_today}건</span> · <span style="${_wsty(b.name,'ow',b.today_w,b.today_l)}">${wr(b.today_w,b.today_l)}</span></td></tr>
+    <tr style="background:#181b22;" title="초기화(perf_start): ${b.perf_start||'—'}"><td>초기화 후 경과</td><td><span style="font-size:155%">${elapsed(b.perf_start)}</span></td></tr>
+    <tr style="background:#252b36;" title="마지막 진입 이후 경과(초기화 후 진입 없으면 초기화 시점부터). 마지막 진입: ${b.last_entry||'초기화 후 없음'}"><td style="color:#ffd633">⏸무진입</td><td style="color:#ffd633">${b.last_entry?elapsed(b.last_entry):(b.perf_start?elapsed(b.perf_start):'—')}</td></tr>
+    <tr style="background:#181b22;" title="현재 무포지션 지속(거래소 증거금 기준, 초기화 후 보유 없으면 초기화 시점부터). 마지막 청산: ${b.last_flat||'초기화 후 없음'}"><td style="color:#ffd633">⏸무포지션</td><td style="color:#ffd633">${b.holding===null?'<span style="color:#888">거래소 미확인</span>':(b.holding?('🔴'+(b.ex_poslong!=null?b.ex_poslong:0)+'+🔵'+(b.ex_posshort!=null?b.ex_posshort:0)):(b.last_flat?elapsed(b.last_flat):(b.perf_start?elapsed(b.perf_start):'—')))}</td></tr>
+    <tr style="background:#252b36;" title="app.py+core/*.py 최신 수정시각: ${b.app_debug||'—'}"><td>🛠앱 최종 디버깅</td><td>${b.app_debug?elapsed(b.app_debug):'—'}</td></tr>
+   </table></div>`});
+ // 피라미드 배치: 1행 1개(1등) / 2행 2개(2·3등) / 3행 3개(4·5·6등) / 4행 4개(나머지)
+ const _lay=(document.getElementById('layout')||{}).value||'four';  // 디폴트 '4개씩(2줄)'
+ const _rows = _lay==='four' ? [[0,4],[4,8]] : (_lay==='three' ? [[0,3],[3,6],[6,9]] : [[0,1],[1,3],[3,6],[6,10]]);
+ var _cw=document.getElementById('cards');_cw.classList.toggle('three',_lay==='three');_cw.classList.toggle('four',_lay==='four');
+ _cw.classList.remove('anim');  // 자동 새로고침은 조용히(모션 없음) — 먼저 제거 후 재구성
+ _cw.innerHTML=_rows.map(([s,e])=>'<div class="cardrow">'+_cards.slice(s,e).join('')+'</div>').join('');
+ if(anim){void _cw.offsetWidth;_cw.classList.add('anim');}  // 드롭다운 조작 시에만: 리플로우 강제 후 휘리릭 재생
+ const compTable=`<table style="width:100%;border-collapse:collapse;font-size:12px">
+  <thead><tr style="background:var(--card2);border-bottom:1px solid var(--border)">
+   <th style="padding:8px;text-align:center;font-weight:600">봇</th>
+   <th style="padding:8px;text-align:center">거래소</th><th style="padding:8px;text-align:center">레버리지</th>
+   <th style="padding:8px;text-align:center">마진$</th><th style="padding:8px;text-align:center">최대포지션</th>
+   <th style="padding:8px;text-align:center">손절률</th><th style="padding:8px;text-align:center">수익목표</th>
+   <th style="padding:8px;text-align:center">타임프레임</th><th style="padding:8px;text-align:center">지표 설정</th>
+   <th style="padding:8px;text-align:center">전략 (스캐너)</th><th style="padding:8px;text-align:center">스캔 대상</th><th style="padding:8px;text-align:center">최대보유시간</th>
+   <th style="padding:8px;text-align:center">MSDE++ 적용</th></tr></thead>
+  <tbody>${d.bots.map((b,i)=>`<tr style="background:${Math.floor(i/2)%2?'var(--card)':'var(--card2)'};border-top:1px solid var(--border)">
+   <td style="padding:8px;font-weight:600;text-align:center">${((b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog)?"<span style=\"color:#ff5a5a;font-weight:bold;margin-right:3px;\">[역]</span>":"<span style=\"color:#4d9fff;font-weight:bold;margin-right:3px;\">[순]</span>")+b.name}</td>
+   <td style="padding:8px;text-align:center">${b.ex}</td><td style="padding:8px;text-align:center">${b.config.leverage}</td>
+   <td style="padding:8px;text-align:center">${b.config.margin_usdt}</td><td style="padding:8px;text-align:center">${b.config.max_positions}</td>
+   <td style="padding:8px;text-align:center">${b.config.stop_loss_pct}</td><td style="padding:8px;text-align:center">${b.config.take_profit_pct}</td>
+   <td style="padding:8px;text-align:center">${b.config.timeframe}</td><td style="padding:8px;text-align:center">${b.config.indicators}</td>
+   <td style="padding:8px;text-align:center">${b.config.strategy}</td><td style="padding:8px;text-align:center">${b.config.scan_targets}</td><td style="padding:8px;text-align:center">${b.config.max_holding_hours}</td>
+   <td style="padding:8px;text-align:center;color:${String(b.name).includes('8409') ? '#e24b4a' : 'var(--green)'};font-weight:600">${String(b.name).includes('8409') ? 'X' : 'O'}</td></tr>`).join('')}</tbody></table>`;
+ const _periods=[['1h','1시간 내'],['6h','6시간 내'],['12h','12시간 내'],['24h','24시간 내'],['48h','48시간 내'],['72h','72시간 내'],['1w','1주일간']];
+ const entryTable=`<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:14px;font-weight:600">
+  <tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);text-align:center">봇</td>${d.bots.map(b=>'<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border)">'+(((b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog))?'<span style="color:#ff5a5a;font-weight:bold;margin-right:3px;">[역]</span> ':'<span style="color:#4d9fff;font-weight:bold;margin-right:3px;">[순]</span> ')+b.name+'</td>').join('')}</tr>
+  ${_periods.map(([k,lbl],ri)=>'<tr style="background:'+(Math.floor(ri/2)%2?'var(--card)':'var(--card2)')+';border-top:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);white-space:nowrap;text-align:center">'+lbl+' 진입 수</td>'+d.bots.map(b=>{const v=(b.entries_by_period&&b.entries_by_period[k])||0;const col=v===0?'#e24b4a':'var(--text)';return '<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border);color:'+col+'">'+v+'</td>'}).join('')+'</tr>').join('')}
+ </table>`;
+ document.getElementById('entryCountTable').innerHTML=entryTable;
+ // ── 봇 효율 지표 (Profit Factor / 평균손익비 / Expectancy) + 중딩용 친절 툴팁 ──
+ const wtip=t=>`<span class="tip">ℹ<span class="tiptext" style="width:300px">${t}</span></span>`;
+ const _pfTip='<b>번 돈이 잃은 돈의 몇 배인지</b> 알려주는 숫자예요. 봇이 얻은 모든 이익을 더하고, 잃은 모든 손실을 더한 뒤 나눈 값이에요. 적게 잃고 많이 버는 똑똑한 봇일수록 커져요.<br>• 계산: 총이익 ÷ 총손실<br>• 예: 100달러 벌고 50달러 잃음 → 2.0(2배 효율)<br>• 1.5↑ 우수 / 1.0 본전 / 1.0↓ 손해<br>• 낮으면 자원 빼야 할 봇';
+ const _wlTip='<b>한 번 이길 때 버는 돈</b>이 <b>한 번 질 때 잃는 돈</b>보다 얼마나 큰지 비교해요. 승률이 좀 낮아도 이 값이 크면 돈을 벌 수 있어요. 손절은 짧게, 이익은 길게 가져가는 봇이 높게 나와요.<br>• 계산: 평균이익 ÷ 평균손실<br>• 예: 이길 때 평균 3달러, 질 때 평균 1달러 → 3.0<br>• 1.5배↑ 안정(질 때 적게 잃음)<br>• 낮으면 한 번 크게 물려 위험';
+ const _smpTip='이 봇이 <b>지금까지 청산한 거래 횟수</b>예요. 위·아래 지표(PF·승률·Expectancy)가 <b>믿을 만한지 알려주는 신뢰도</b>죠. 거래가 적으면 운에 휘둘려 숫자가 들쭉날쭉해요.<br>• 50건 이상=초록(신뢰 가능)<br>• 10~49건=노랑(참고만)<br>• 10건 미만=빨강(판단 보류)<br>• 예: 5거래 전패는 진짜 나쁜 게 아니라 표본 부족일 수도';
+ const _wrTip='<b>열 번 거래하면 몇 번 이겼는지</b>를 백분율로 보여줘요. 평균손익비와 짝으로 봐야 진짜 실력이 보여요. 승률이 높아도 한 번에 크게 잃으면 손해, 승률이 낮아도 이길 때 크게 벌면 이득이에요.<br>• 계산: 이긴 거래 ÷ 전체 거래 ×100<br>• 예: 10번 중 6번 승 → 60%<br>• 50% 이상=초록 / 미만=빨강<br>• 평균손익비가 낮은데 승률 높으면 OK(8406 사례)';
+ const _exTip='거래를 <b>한 번 할 때 평균 얼마를 버는지(잃는지)</b> 나타내요. 미래 수익을 가장 잘 예측하는 지표로 꼽혀요. 양수면 거래할수록 이득, 음수면 거래할수록 손해라는 뜻이에요.<br>• 계산: 누적 실현손익 ÷ 거래 횟수<br>• 예: 10번 거래해 총 +0.5달러 → 거래당 +0.05<br>• 양수(빨강)=실력 있는 봇<br>• 음수(파랑)=멈추거나 점검할 봇';
+ const _effRows=[
+  ['거래수 (표본)',_smpTip,b=>{const n=(b.since_w||0)+(b.since_l||0);if(n===0)return['—','var(--muted)'];const c=n>=50?'var(--green)':(n<10?'#e24b4a':'var(--amber)');return[n+'건',c]}],
+  ['Profit Factor',_pfTip,b=>{const v=b.profit_factor;if(v==null)return['—','var(--muted)'];return[v.toFixed(2),v>=1.5?'var(--green)':(v<1.0?'#e24b4a':'var(--text)')]}],
+  ['평균손익비',_wlTip,b=>{const v=b.avg_wl;if(v==null)return['—','var(--muted)'];return[v.toFixed(2)+'x',v>=1.5?'var(--green)':(v<1.0?'#e24b4a':'var(--text)')]}],
+  ['누적 승률',_wrTip,b=>{const w=b.since_w||0,l=b.since_l||0,n=w+l;if(n===0)return['—','var(--muted)'];const r=w/n*100;return[r.toFixed(1)+'% ('+w+'W/'+l+'L)',r>=50?'var(--green)':'#e24b4a']}],
+  ['Expectancy',_exTip,b=>{const v=b.expectancy;if(v==null)return['—','var(--muted)'];const sv=(v>0?'+':'')+v.toFixed(2);return[sv,v>0?'var(--profit)':(v<0?'var(--loss)':'var(--muted)')]}],
+  ['일 평균 수익률','',b=>{const v=b.daily_ret;if(v==null)return['—','var(--muted)'];const sv=(v>0?'+':'')+v.toFixed(1)+'%';return[sv,v>0?'var(--profit)':(v<0?'var(--loss)':'var(--muted)')]}]
+ ];
+ const effTable=`<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:14px;font-weight:600">
+  <tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);text-align:center">봇</td>${d.bots.map(b=>'<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border)">'+(((b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog))?'<span style="color:#ff5a5a;font-weight:bold;margin-right:3px;">[역]</span> ':'<span style="color:#4d9fff;font-weight:bold;margin-right:3px;">[순]</span> ')+b.name+'</td>').join('')}</tr>
+  ${_effRows.map(([lbl,tp,fn],ri)=>'<tr style="background:'+(ri%2?'var(--card)':'var(--card2)')+';border-top:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);white-space:nowrap;text-align:center">'+lbl+(tp?' '+wtip(tp):'')+'</td>'+d.bots.map(b=>{const[v,col]=fn(b);return '<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border);color:'+col+'">'+v+'</td>'}).join('')+'</tr>').join('')}
+ </table>`;
+ document.getElementById('efficiencyTable').innerHTML=effTable;
+ // ── [2단계] 최대 낙폭(Drawdown) 경고 배너 + 표 ──
+ const _ddTip='<b>가장 많이 떨어졌을 때 얼마나 깊이 빠졌는지</b> 보여줘요. 봇 잔고가 최고점을 찍은 뒤 바닥까지 떨어진 폭이에요. 깊을수록 위험하고, 한 봇이 크게 무너지면 전체 하루 목표가 흔들려요.<br>• 당일 낙폭: 오늘 고점 대비 현재 하락폭<br>• 최대 낙폭: 시작 후 가장 깊었던 하락폭<br>• 예: 100→90달러면 −10%<br>• −10% 넘으면 빨강 경고(위험)<br>※ 실현 청산 기준(보유중 미반영)';
+ const _dd=(v)=>{if(v==null)return['—','var(--muted)'];const c=v<=-10?'#e24b4a':(v<=-5?'var(--amber)':(v<0?'var(--loss)':'var(--muted)'));return[v.toFixed(1)+'%',c]};
+ const _ddDr=b=>{const v=b.daily_ret;if(v==null)return['—','var(--muted)'];const sv=(v>0?'+':'')+v.toFixed(1)+'%';return[sv,v>0?'var(--profit)':(v<0?'var(--loss)':'var(--muted)')]};
+ const _ddRows=[['당일 낙폭',b=>_dd(b.today_dd)],['최대 낙폭 (누적)',b=>_dd(b.max_dd)],['일 평균 수익률',_ddDr]];
+ let ddBan='';
+ if(s.dd_danger&&s.dd_danger.length)ddBan+='<div style="border-radius:10px;padding:13px 16px;margin-bottom:10px;font-size:13px;font-weight:600;background:rgba(226,75,74,0.13);border-left:3px solid #e24b4a;color:#e24b4a">⚠️ 위험: '+s.dd_danger.map(x=>x.name+' 당일 낙폭 '+x.today_dd.toFixed(1)+'%').join(' · ')+' (한계 −10% 초과)</div>';
+ if(s.dd_warn&&s.dd_warn.length)ddBan+='<div style="border-radius:10px;padding:13px 16px;margin-bottom:10px;font-size:13px;font-weight:600;background:rgba(239,160,39,0.13);border-left:3px solid #efa027;color:#efa027">⚡ 주의: '+s.dd_warn.map(x=>x.name+' '+x.today_dd.toFixed(1)+'%').join(' · ')+' (−5% 초과)</div>';
+ if(!ddBan)ddBan='<div style="border-radius:10px;padding:13px 16px;margin-bottom:10px;font-size:13px;font-weight:600;background:rgba(45,189,133,0.10);border-left:3px solid var(--green);color:var(--green)">✅ 전 봇 당일 낙폭 안전 (−5% 이내)</div>';
+ document.getElementById('ddBanner').innerHTML=ddBan;
+ const ddTable=`<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:14px;font-weight:600">
+  <tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);text-align:center">봇</td>${d.bots.map(b=>'<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border)">'+(((b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog))?'<span style="color:#ff5a5a;font-weight:bold;margin-right:3px;">[역]</span> ':'<span style="color:#4d9fff;font-weight:bold;margin-right:3px;">[순]</span> ')+b.name+'</td>').join('')}</tr>
+  ${_ddRows.map(([lbl,fn],ri)=>'<tr style="background:'+(ri%2?'var(--card)':'var(--card2)')+';border-top:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);white-space:nowrap;text-align:center">'+lbl+(ri===0?' '+wtip(_ddTip):'')+'</td>'+d.bots.map(b=>{const[v,col]=fn(b);return '<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border);color:'+col+'">'+v+'</td>'}).join('')+'</tr>').join('')}
+ </table>`;
+  document.getElementById('drawdownTable').innerHTML=ddTable;
+
+  // ── [3단계] 봇별 시간대별 성과 히트맵 (8시간 구간, 최근 7일) ──
+  const _hmTip='<b>각 봇이 어느 시간에 돈을 벌고 잃는지</b> 색으로 보여줘요. 최근 7일간 실현손익을 요일 무관 시간대별로 합산했어요.<br>• 빨강=수익 / 파랑=손실<br>• 진할수록 금액이 큼';
+  const _bk_labels=['00–03','03–06','06–09','09–12','12–15','15–18','18–21','21–24'];
+  let _hmMx=0;
+  d.bots.forEach(b=>{
+    const hm=b.hm_grid||{};
+    for(let bi=0;bi<8;bi++) {
+      let sum=0; for(let w=0;w<7;w++) sum+=(hm[w+'_'+bi]||0);
+      if(Math.abs(sum)>_hmMx) _hmMx=Math.abs(sum);
+    }
+  });
+  const _hmCell=(v)=>{if(!v)return['background:var(--card2);color:var(--muted)','0'];const t=Math.min(1,Math.abs(v)/(_hmMx||1));const a=(0.18+t*0.62).toFixed(2);const bg=v>0?'rgba(255,90,90,'+a+')':'rgba(77,159,255,'+a+')';const tx=(v>0?'+':'')+v.toFixed(2);return['background:'+bg+';color:#fff',tx]};
+  const hmTable=`<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:14px;font-weight:600">
+   <tr style="border-bottom:1px solid var(--border)">
+    <td style="padding:12px 16px;color:var(--muted);text-align:center;white-space:nowrap">봇 ${wtip(_hmTip)}</td>
+    ${_bk_labels.map(bl=>'<td style="padding:12px 4px;text-align:center;border-left:1px solid var(--border);color:var(--muted)">'+bl+'</td>').join('')}
+   </tr>
+   ${d.bots.map((b,ri)=>{
+     const hm=b.hm_grid||{};
+     let rowHtml = '<tr style="background:'+(ri%2?'var(--card)':'var(--card2)')+';border-top:1px solid var(--border)">';
+     rowHtml += '<td style="padding:12px 16px;color:var(--muted);white-space:nowrap;text-align:center">'+b.name+'</td>';
+     _bk_labels.forEach((bl,bi)=>{
+       let sum=0; for(let w=0;w<7;w++) sum+=(hm[w+'_'+bi]||0);
+       const [st2,tx] = _hmCell(sum);
+       rowHtml += '<td style="padding:12px 2px;text-align:center;border-left:1px solid var(--border);'+st2+'">'+tx+'</td>';
+     });
+     rowHtml += '</tr>';
+     return rowHtml;
+   }).join('')}
+  </table>
+  <div style="font-size:11px;color:var(--muted);margin-top:6px">단위: USDT · <span style="color:var(--profit)">빨강=수익</span> / <span style="color:var(--loss)">파랑=손실</span> (진할수록 큰 금액) · 최근 7일(요일무관) 실현손익 합산</div>`;
+  document.getElementById('heatmapTable').innerHTML=hmTable;
+
+  document.getElementById('comparisonTable').innerHTML=compTable;
+ applyView();  // 시간별 모드면 표 갱신, 기본화면이면 카드 표시 유지
+ // (v0.8.0에서 손익차트 섹션 제거됨 — 관련 차트 JS도 삭제. 잔존 시 new Chart(null) 예외로 render 크래시→오'끊김')
+}
+let _fails=0;
+async function tick(){
+ try{
+  const r=await fetch('/api/status',{cache:'no-store'});
+  if(!r.ok) throw new Error('http '+r.status);
+  render(await r.json());
+  _fails=0;
+ }catch(e){
+  _fails++;
+  const u=document.getElementById('updated');
+  if(_fails<3){ u.textContent='재연결 중… ('+_fails+')'; setTimeout(tick,1500); }   // 일시 단절은 조용히 빠른 재시도
+  else { u.textContent='서버 연결 끊김 — 자동 재시도 중'; }                          // 데이터는 화면에 유지
+ }
+}
+tick();setInterval(tick,5000);
+// ===== 봇 모달 팝업 + 그래프 =====
+let _botGraphChart=null;
+let _botCurrentRange='7d';
+function showBotModal(botName,port){
+ const modal=document.getElementById('botModal');
+ const title=document.getElementById('modalTitle');
+ const content=document.getElementById('modalContent');
+ title.innerHTML=`📈 <span style="color:#fff">${botName}</span> 수익률 추세 차트`;
+ 
+ let bot = null;
+ if(_lastData && _lastData.bots) {
+  bot = _lastData.bots.find(b=>b.name===botName);
+ }
+ let hmHtml = '';
+ if (bot && bot.hm_grid) {
+  const _wd=['월','화','수','목','금','토','일'];
+  const _bk=['00–03','03–06','06–09','09–12','12–15','15–18','18–21','21–24'];
+  const hm=bot.hm_grid||{};
+  let _mx=0; Object.values(hm).forEach(v=>{if(Math.abs(v)>_mx)_mx=Math.abs(v)});
+  const _cell=v=>{if(!v)return['background:#131722;color:var(--muted)','0'];const t=Math.min(1,Math.abs(v)/(_mx||1));const a=(0.18+t*0.62).toFixed(2);const bg=v>0?'rgba(255,90,90,'+a+')':'rgba(77,159,255,'+a+')';const tx=(v>0?'+':'')+v.toFixed(2);return['background:'+bg+';color:#fff',tx]};
+  hmHtml=`<div style="margin-top:20px;background:#131722;border:1px solid #2d3748;border-radius:12px;padding:18px">
+   <div style="font-weight:600;font-size:15px;color:var(--green);margin-bottom:12px">🔥 시간대별 성과 <span style="font-size:12px;color:var(--muted);font-weight:400">(요일×시간 수익 히트맵 · 최근 7일 실현손익)</span></div>
+   <table style="width:100%;border-collapse:collapse;font-size:13px;font-weight:600;table-layout:fixed">
+    <tr><td style="padding:8px;color:var(--muted);text-align:center">시간대</td>${_wd.map(w=>'<td style="padding:8px;text-align:center;color:var(--muted)">'+w+'</td>').join('')}</tr>
+    ${_bk.map((bl,bi)=>'<tr style="border-top:1px solid #2d3748"><td style="padding:10px 8px;text-align:center;color:var(--muted);white-space:nowrap">'+bl+'</td>'+_wd.map((w,wi)=>{const[st2,tx]=_cell(hm[wi+'_'+bi]||0);return '<td style="padding:10px 4px;text-align:center;'+st2+';border-left:1px solid #2d3748">'+tx+'</td>'}).join('')+'</tr>').join('')}
+   </table>
+   <div style="font-size:11px;color:var(--muted);margin-top:8px">단위: USDT · <span style="color:var(--profit)">빨강=수익</span> / <span style="color:var(--loss)">파랑=손실</span> (진할수록 큰 금액)</div>
+  </div>`;
+ }
+
+ content.innerHTML=`
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:8px">
+   <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap" id="botRangeButtons">
+    ${[
+     ['12h','12시간'],['24h','24시간'],['48h','48시간'],['7d','7일'],['15d','15일'],['1m','1개월'],['max','최대']
+    ].map(([k,lbl])=>`<button onclick="setBotRange('${botName}', '${k}')" id="btn_bot_${k}" style="background:${k==='7d'?'var(--green)':'var(--card2)'};color:${k==='7d'?'#04342c':'var(--text)'};border:1px solid var(--border);border-radius:7px;font-size:13px;font-weight:600;padding:6px 14px;cursor:pointer">${lbl}</button>`).join('')}
+   </div>
+   <button onclick="openBotDashboard(${port})" style="background:#1e3a8a;color:#fff;border:1px solid #3b82f6;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px;transition:all 0.2s">📊 ${botName} 대시보드 새창 열기 ↗</button>
+  </div>
+  <div style="background:#131722;border:1px solid #2d3748;border-radius:12px;padding:18px">
+   <canvas id="botGraphCanvas" style="width:100%;height:450px;max-height:65vh;display:block"></canvas>
+  </div>
+  ${hmHtml}
+ `;
+ modal.style.display='flex';
+ _botCurrentRange='7d';
+ updateBotGraph(botName);
+}
+function setBotRange(botName, k){
+ _botCurrentRange=k;
+ ['12h','24h','48h','7d','15d','1m','max'].forEach(rk=>{
+  const b=document.getElementById('btn_bot_'+rk);
+  if(b){
+   b.style.background = (rk===k ? 'var(--green)' : 'var(--card2)');
+   b.style.color = (rk===k ? '#04342c' : 'var(--text)');
+  }
+ });
+ updateBotGraph(botName);
+}
+function closeBotModal(){
+ const modal=document.getElementById('botModal');
+ modal.style.display='none';
+ if(_botGraphChart){_botGraphChart.destroy();_botGraphChart=null;}
+}
+function openBotDashboard(port){
+ window.open('http://localhost:'+port,'_blank');
+ closeBotModal();
+}
+async function showBotGraph(botName){
+ showBotModal(botName, 8402);
+}
+async function updateBotGraph(botName){
+ try{
+  const r=await fetch('/api/snapshots',{cache:'no-store'});
+  if(!r.ok) throw new Error('Snapshots fetch failed');
+  const snaps=await r.json();
+  const range=_botCurrentRange||'7d';
+  const now=new Date();
+  const mins={'12h':720,'24h':1440,'48h':2880,'7d':10080,'15d':21600,'1m':43200,'max':99999999}[range]||10080;
+  const cutoff=new Date(now-mins*60000);
+  const data=snaps
+   .filter(s=>new Date(s.ts)>=cutoff)
+   .map(s=>({ts:s.ts.slice(5),val:parseFloat((s.bots[botName]??0).toFixed(2))}));
+  if(!data.length){
+   document.getElementById('botGraphCanvas').parentElement.innerHTML='<div style="color:#fff;padding:40px;text-align:center;font-size:16px">해당 기간에 데이터가 없습니다</div>';
+   return;
+  }
+  const canvas=document.getElementById('botGraphCanvas');
+  if(!canvas) throw new Error('Canvas not found');
+  const ctx=canvas.getContext('2d');
+  if(_botGraphChart){
+   _botGraphChart.destroy();
+   _botGraphChart=null;
+  }
+  _botGraphChart=new Chart(ctx,{
+   type:'line',
+   data:{
+    labels:data.map(d=>d.ts),
+    datasets:[{
+     label:'일평균 수익률 (%)',
+     data:data.map(d=>d.val),
+     borderColor:'#2dbd85',
+     backgroundColor:'rgba(45,189,133,0.15)',
+     tension:0.3,
+     fill:true,
+     pointRadius:3,
+     pointBackgroundColor:'#2dbd85',
+     pointBorderColor:'#fff',
+     pointBorderWidth:1,
+     borderWidth:3
+    }]
+   },
+   options:{
+    responsive:true,
+    maintainAspectRatio:false,
+    plugins:{
+     tooltip:{enabled:true,backgroundColor:'rgba(0,0,0,0.9)',titleColor:'#2dbd85',bodyColor:'#2dbd85',borderColor:'#2dbd85',borderWidth:2,padding:12,displayColors:false,callbacks:{title:function(t){return t[0].label;},label:function(c){return '일평균 수익률: '+c.parsed.y.toFixed(2)+'%';}}},
+     legend:{display:true,labels:{color:'#fff',font:{size:14,weight:'bold'},padding:20}},
+     filler:{propagate:true}
+    },
+    scales:{
+     y:{
+      ticks:{color:'#888',font:{size:12,weight:'600'}},
+      grid:{color:'#3a4555',drawBorder:false,lineWidth:1},
+      beginAtZero:false
+     },
+     x:{
+      ticks:{color:'#888',font:{size:11}},
+      grid:{display:false,drawBorder:false}
+     }
+    }
+   }
+  });
+ }catch(e){
+  console.error('Graph error:',e);
+  const wrap=document.getElementById('botGraphCanvas').parentElement;
+  wrap.innerHTML='<div style="color:#ff6b6b;padding:40px;text-align:center;font-size:16px;line-height:1.6">그래프 로드 실패<br><small style="font-size:13px">'+e.message+'</small></div>';
+ }
+}
+window.addEventListener('keydown',e=>{if(e.key==='Escape')closeBotModal();});
+document.getElementById('botModal').addEventListener('click',e=>{if(e.target.id==='botModal')closeBotModal();});
+// ===== 총자산·BTC 추이 모달 =====
+let _assetChart=null, _assetTf='5m', _assetBand=0.01, _assetBaseline=null;
+const _assetTfs=[['1m','1분봉'],['5m','5분봉'],['15m','15분봉'],['1h','1시간봉'],['4h','4시간봉'],['1d','일봉'],['1M','월봉']];
+const _assetBands=[0.01,0.02,0.03,0.04,0.05,0.10,0.20,0.30];
+function openAssetModal(){
+ document.getElementById('assetModal').style.display='flex';
+ _renderTfBar();_renderBandBar();
+ loadAssetChart(_assetTf);
+}
+function closeAssetModal(){
+ document.getElementById('assetModal').style.display='none';
+ if(_assetChart){_assetChart.destroy();_assetChart=null;}
+}
+function _renderTfBar(){
+ document.getElementById('assetTfBar').innerHTML=_assetTfs.map(([k,lbl])=>
+  '<button onclick="loadAssetChart(\''+k+'\')" style="background:'+(k===_assetTf?'var(--green)':'var(--card2)')+';color:'+(k===_assetTf?'#04342c':'var(--text)')+';border:1px solid var(--border);border-radius:7px;font-size:13px;font-weight:600;padding:6px 14px;cursor:pointer">'+lbl+'</button>'
+ ).join('');
+}
+function _renderBandBar(){
+ document.getElementById('assetBandBar').innerHTML=_assetBands.map(p=>
+  '<button onclick="setBand('+p+')" style="background:'+(p===_assetBand?'var(--green)':'var(--card2)')+';color:'+(p===_assetBand?'#04342c':'var(--text)')+';border:1px solid var(--border);border-radius:7px;font-size:12px;font-weight:600;padding:5px 11px;cursor:pointer">±'+Math.round(p*100)+'%</button>'
+ ).join('');
+}
+function _applyBand(){
+ // 최신 총자산(baseline)을 기준 100으로 두고 ±_assetBand 범위로 yA 축 고정
+ if(!_assetChart)return;
+ if(_assetBaseline){
+  _assetChart.options.scales.yA.min=+(_assetBaseline*(1-_assetBand)).toFixed(2);
+  _assetChart.options.scales.yA.max=+(_assetBaseline*(1+_assetBand)).toFixed(2);
+ }else{
+  _assetChart.options.scales.yA.min=undefined;
+  _assetChart.options.scales.yA.max=undefined;
+ }
+ _assetChart.update();
+}
+function setBand(p){
+ _assetBand=p;_renderBandBar();_applyBand();
+}
+function _fmtT(ms,tf){
+ const d=new Date(ms);const p=n=>String(n).padStart(2,'0');
+ if(tf==='1M')return d.getFullYear()+'/'+p(d.getMonth()+1);
+ if(tf==='1d')return p(d.getMonth()+1)+'/'+p(d.getDate());
+ if(tf==='1h')return p(d.getMonth()+1)+'/'+p(d.getDate())+' '+p(d.getHours())+'시';
+ return p(d.getHours())+':'+p(d.getMinutes());
+}
+async function loadAssetChart(tf){
+ _assetTf=tf;_renderTfBar();
+ try{
+  const r=await fetch('/api/assetchart?tf='+tf,{cache:'no-store'});
+  const d=await r.json();
+  const pts=d.points||[];
+  const labels=pts.map(p=>_fmtT(p.t,tf));
+  const btc=pts.map(p=>p.btc);
+  const asset=pts.map(p=>p.asset);
+  const _va=asset.filter(v=>v!=null);
+  _assetBaseline=_va.length?_va[_va.length-1]:null;   // 최신(현재) 총자산 = 기준 100
+  document.getElementById('assetFrom').textContent=d.asset_from?('총자산 기록 시작: '+d.asset_from):'총자산 기록 없음';
+  const ctx=document.getElementById('assetChartCanvas').getContext('2d');
+  if(_assetChart)_assetChart.destroy();
+  _assetChart=new Chart(ctx,{
+   data:{labels:labels,datasets:[
+    {type:'bar',label:'총자산(USDT)',data:asset,yAxisID:'yA',backgroundColor:'rgba(74,107,198,0.78)',order:2,borderWidth:0},
+    {type:'line',label:'BTC 가격($)',data:btc,yAxisID:'yB',borderColor:'#e8eaf0',borderWidth:2,pointRadius:0,tension:0.25,order:1,spanGaps:true}
+   ]},
+   options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    scales:{
+     yA:{position:'left',min:_assetBaseline?+(_assetBaseline*(1-_assetBand)).toFixed(2):undefined,max:_assetBaseline?+(_assetBaseline*(1+_assetBand)).toFixed(2):undefined,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#9fb0d8'},title:{display:true,text:'총자산(USDT)',color:'#9fb0d8'}},
+     yB:{position:'right',grid:{display:false},ticks:{color:'#cfcfcf'},title:{display:true,text:'BTC($)',color:'#cfcfcf'}},
+     x:{grid:{display:false},ticks:{color:'#8b93a5',maxTicksLimit:14,autoSkip:true}}
+    },
+    plugins:{legend:{labels:{color:'#e8eaf0',font:{size:13}}},
+     tooltip:{backgroundColor:'rgba(0,0,0,0.85)',titleColor:'#2dbd85',bodyColor:'#fff',borderColor:'#2dbd85',borderWidth:1,padding:10,
+      callbacks:{label:c=>{const v=c.parsed.y;if(v==null)return c.dataset.label+': —';return c.dataset.label+': '+(c.dataset.yAxisID==='yB'?'$'+v.toLocaleString():v.toFixed(2)+' U')}}}}
+   }}
+  );
+ }catch(e){
+  console.error('asset chart error',e);
+  document.getElementById('assetFrom').textContent='그래프 로드 실패: '+e.message;
+ }
+}
+window.addEventListener('keydown',e=>{if(e.key==='Escape')closeAssetModal();});
+document.getElementById('assetModal').addEventListener('click',e=>{if(e.target.id==='assetModal')closeAssetModal();});
+// ===== 일평균수익률·BTC 추이 모달 =====
+let _retChart=null, _retTf='5m', _retBand=1, _retBaseline=null;
+const _retBands=[1,3,5,10,20,30];   // 현재 일평균값 ± N 퍼센트포인트
+function openRetModal(){
+ document.getElementById('retModal').style.display='flex';
+ _renderRetTfBar();_renderRetBandBar();
+ loadRetChart(_retTf);
+}
+function closeRetModal(){
+ document.getElementById('retModal').style.display='none';
+ if(_retChart){_retChart.destroy();_retChart=null;}
+}
+function _renderRetTfBar(){
+ document.getElementById('retTfBar').innerHTML=_assetTfs.map(([k,lbl])=>
+  '<button onclick="loadRetChart(\''+k+'\')" style="background:'+(k===_retTf?'var(--green)':'var(--card2)')+';color:'+(k===_retTf?'#04342c':'var(--text)')+';border:1px solid var(--border);border-radius:7px;font-size:13px;font-weight:600;padding:6px 14px;cursor:pointer">'+lbl+'</button>'
+ ).join('');
+}
+function _renderRetBandBar(){
+ document.getElementById('retBandBar').innerHTML=_retBands.map(p=>
+  '<button onclick="setRetBand('+p+')" style="background:'+(p===_retBand?'var(--green)':'var(--card2)')+';color:'+(p===_retBand?'#04342c':'var(--text)')+';border:1px solid var(--border);border-radius:7px;font-size:12px;font-weight:600;padding:5px 11px;cursor:pointer">±'+p+'%</button>'
+ ).join('');
+}
+function _applyRetBand(){
+ if(!_retChart)return;
+ if(_retBaseline!=null){
+  _retChart.options.scales.yA.min=+(_retBaseline-_retBand).toFixed(2);
+  _retChart.options.scales.yA.max=+(_retBaseline+_retBand).toFixed(2);
+ }else{_retChart.options.scales.yA.min=undefined;_retChart.options.scales.yA.max=undefined;}
+ _retChart.update();
+}
+function setRetBand(p){_retBand=p;_renderRetBandBar();_applyRetBand();}
+async function loadRetChart(tf){
+ _retTf=tf;_renderRetTfBar();
+ try{
+  const r=await fetch('/api/assetchart?tf='+tf,{cache:'no-store'});
+  const d=await r.json();
+  const pts=d.points||[];
+  // 기준금·경과일은 현재 요약에서 (seed=assets-cum_delta, days)
+  const sm=(_lastData&&_lastData.summary)||{};
+  const seed=(sm.assets!=null&&sm.cum_delta!=null)?(sm.assets-sm.cum_delta):151;
+  const days=sm.days||1;
+  const CUT=new Date(2026,5,17,22,0,0).getTime();   // 2026-06-17 22:00 입금 경계(+49 보정)
+  const labels=pts.map(p=>_fmtT(p.t,tf));
+  const btc=pts.map(p=>p.btc);
+  const ret=pts.map(p=>{if(p.asset==null)return null;const a=p.asset+(p.t<=CUT?49:0);return +(((a-seed)/seed*100)/days).toFixed(3);});
+  const cols=ret.map(v=>v==null?'rgba(136,136,136,0.4)':(v>0?'rgba(255,90,90,0.85)':(v<0?'rgba(77,159,255,0.85)':'rgba(136,136,136,0.6)')));
+  const _vr=ret.filter(v=>v!=null);
+  _retBaseline=_vr.length?_vr[_vr.length-1]:null;   // 최신 일평균수익률 = 축 중앙
+  document.getElementById('retFrom').textContent=d.asset_from?('총자산 기록 시작: '+d.asset_from+'  (기준금 '+seed.toFixed(0)+' · 경과 '+days+'일)'):'';
+  const ctx=document.getElementById('retChartCanvas').getContext('2d');
+  if(_retChart)_retChart.destroy();
+  _retChart=new Chart(ctx,{
+   data:{labels:labels,datasets:[
+    {type:'bar',label:'일평균수익률(%)',data:ret,yAxisID:'yA',backgroundColor:cols,order:2,borderWidth:0},
+    {type:'line',label:'BTC 가격($)',data:btc,yAxisID:'yB',borderColor:'#e8eaf0',borderWidth:2,pointRadius:0,tension:0.25,order:1,spanGaps:true}
+   ]},
+   options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    scales:{
+     yA:{position:'left',min:_retBaseline!=null?+(_retBaseline-_retBand).toFixed(2):undefined,max:_retBaseline!=null?+(_retBaseline+_retBand).toFixed(2):undefined,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#9fb0d8'},title:{display:true,text:'일평균수익률(%)',color:'#9fb0d8'}},
+     yB:{position:'right',grid:{display:false},ticks:{color:'#cfcfcf'},title:{display:true,text:'BTC($)',color:'#cfcfcf'}},
+     x:{grid:{display:false},ticks:{color:'#8b93a5',maxTicksLimit:14,autoSkip:true}}
+    },
+    plugins:{legend:{labels:{color:'#e8eaf0',font:{size:13}}},
+     tooltip:{backgroundColor:'rgba(0,0,0,0.85)',titleColor:'#2dbd85',bodyColor:'#fff',borderColor:'#2dbd85',borderWidth:1,padding:10,
+      callbacks:{label:c=>{const v=c.parsed.y;if(v==null)return c.dataset.label+': —';return c.dataset.label+': '+(c.dataset.yAxisID==='yB'?'$'+v.toLocaleString():(v>0?'+':'')+v.toFixed(2)+'%');}}}}
+   }}
+  );
+ }catch(e){
+  console.error('ret chart error',e);
+  document.getElementById('retFrom').textContent='그래프 로드 실패: '+e.message;
+ }
+}
+window.addEventListener('keydown',e=>{if(e.key==='Escape')closeRetModal();});
+document.getElementById('retModal').addEventListener('click',e=>{if(e.target.id==='retModal')closeRetModal();});
+</script>
+</body>
+</html>
