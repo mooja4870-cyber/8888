@@ -147,7 +147,7 @@ def build_discord_messages(now_str, overall, by_bot):
             msg2_lines.append(f"   • {label:>4}: {b_w}승 {b_l}패 ({b_rate:5.1f}%) | PnL: `{p_str}`")
 
     msg2_lines.append("--------------------------------------------------")
-    msg2_lines.append("🔗 *8888 관제 시스템 정시(00분00초) 자동 리포트*")
+    msg2_lines.append("🔗 *8888 관제 시스템 정시(00분00초) 자동 리포트*\n=================================\n=================================")
 
     return "\n".join(msg1_lines), "\n".join(msg2_lines)
 
