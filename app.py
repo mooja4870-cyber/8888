@@ -1161,25 +1161,41 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def discord_loop():
-    """전체 일평균수익률 요약을 디스코드로 발송 (8888 보유 집계 기반).
-       전체는 60초, 선택 3봇은 30초 주기로 발송."""
+    """전체 일평균수익률 요약을 디스코드로 발송 (매 5분 정각: 00분00초, 05분00초, 10분00초...)."""
     import discord_alert
     import importlib
-    time.sleep(35)   # 거래소 캐시(EX_CACHE) 워밍업 후 첫 발송 (콜드값 발송 방지)
+    time.sleep(15)   # 첫 기동 시 캐시 워밍업 후 정각 대기 계산 진입
     loop_count = 0
     while True:
+        now = time.time()
+        dt = datetime.fromtimestamp(now)
+        # 매 5분 정각 시각 계산 (00, 05, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55분 00초)
+        min_mod = dt.minute % 5
+        sec_diff = min_mod * 60 + dt.second + dt.microsecond / 1e6
+        if sec_diff < 0.5:
+            target_time = now
+        else:
+            target_time = now + (300 - sec_diff)
+            
+        sleep_sec = target_time - time.time()
+        if sleep_sec > 0:
+            time.sleep(sleep_sec)
+
         t0 = time.time()
         try:
             importlib.reload(discord_alert)
-            data = collect(); t1 = time.time()
-            ok, info = discord_alert.tick(data, tick_count=loop_count); t2 = time.time()
+            data = collect()
+            t1 = time.time()
+            ok, info = discord_alert.tick(data, tick_count=loop_count)
+            t2 = time.time()
             loop_count += 1
-            print(f"[DISCORD] {time.strftime('%H:%M:%S')} ok={ok} {info} "
+            print(f"[DISCORD 5MIN] {time.strftime('%H:%M:%S')} ok={ok} {info} "
                   f"collect={t1-t0:.1f}s post={t2-t1:.1f}s", flush=True)
         except Exception as e:
-            print(f"[DISCORD] {time.strftime('%H:%M:%S')} 예외: {str(e)[:150]}", flush=True)
-        # 작업 소요를 빼고 30초 주기 유지
-        time.sleep(max(1, 30 - (time.time() - t0)))
+            print(f"[DISCORD 5MIN] {time.strftime('%H:%M:%S')} 예외: {str(e)[:150]}", flush=True)
+        
+        # 중복 발송 방지를 위해 최소 10초 대기 후 다음 5분 정각 대기 루프 진입
+        time.sleep(10)
 
 
 def auto_repair_bot(folder):
@@ -1340,9 +1356,9 @@ def discord_listener_loop():
 
 
 def auto_mode_switch_guard_loop():
-    """8403, 8405, 8407, 8409 4개 봇 적응형 자동 스위처 2중 중앙 관제 루프"""
+    """전체 8개 봇 적응형 자동 스위처 2중 중앙 관제 루프"""
     time.sleep(15)
-    target_bots = ["8402", "8403", "8405", "8407", "8409"]
+    target_bots = ["8401", "8402", "8403", "8404", "8405", "8407", "8408", "8409"]
     while True:
         try:
             for b in target_bots:
