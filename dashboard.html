@@ -579,9 +579,61 @@ function showBotModal(botName,port){
     </tbody>
    </table>
   </div>`;
- }
+  }
 
- content.innerHTML=`
+  if (!mHtml && bot) {
+   const f2 = v => (v == null || v == undefined) ? '—' : (v > 0 ? '+' : '') + Number(v).toFixed(2) + '%';
+   const u2 = v => (v == null || v == undefined) ? '—' : '$' + Number(v).toFixed(2) + ' USDT';
+   const seed = bot.seed || 10;
+   const curr_bal = bot.total || seed;
+   const days = bot.start_time ? Math.max(0.01, (Date.now() - bot.start_time) / (1000*60*60*24)) : 1;
+   const curr_dr = ((curr_bal - seed) / seed * 100) / days;
+   const initStr = bot.start_time ? new Date(bot.start_time).toLocaleString('sv').replace('T',' ') : '—';
+   
+   mHtml = `<div style="background:linear-gradient(135deg,#1e2638,#141923);border:1px solid #3b475d;border-radius:14px;padding:22px;box-shadow:0 8px 30px rgba(0,0,0,0.5);">
+    <div style="font-weight:700;font-size:17px;color:#2dbd85;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #2a2f3a;padding-bottom:12px;">
+     <span>📊 [${botName} 봇] 실자산 잔고($) 기준 정밀 분석 비교표</span>
+     <span style="font-size:13px;color:#8b93a5;font-weight:400">초기화: ${initStr} (${days.toFixed(2)}일 경과)</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px;background:#0f1115;padding:16px 20px;border-radius:10px;font-size:14px;border:1px solid #2a2f3a;">
+     <div><span style="color:#8b93a5">초기 자본금 (Seed):</span> <b style="color:#fff">${u2(seed)}</b></div>
+     <div><span style="color:#8b93a5">💳 현재 실자산 잔고:</span> <b style="color:#ffd633;font-size:15.5px">${u2(curr_bal)}</b></div>
+     <div><span style="color:#8b93a5">🏁 현재 일평균 수익률:</span> <b style="color:${curr_dr>0?'#ff5a5a':(curr_dr<0?'#4d9fff':'#fff')}">${f2(curr_dr)}</b></div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;text-align:left;background:#0f1115;border-radius:10px;overflow:hidden;border:1px solid #2a2f3a;">
+     <thead>
+      <tr style="background:#252b36;color:#8b93a5;font-size:13px;border-bottom:1px solid #2a2f3a;">
+       <th style="padding:11px 16px;">수익률 구분</th>
+       <th style="padding:11px 16px;text-align:right;">일평균 수익률</th>
+       <th style="padding:11px 16px;text-align:center;">달성 일시</th>
+       <th style="padding:11px 16px;text-align:right;">당시 지갑 잔고</th>
+      </tr>
+     </thead>
+     <tbody>
+      <tr style="border-bottom:1px solid #1a1e29;background:rgba(255,90,90,0.08);">
+       <td style="padding:12px 16px;font-weight:700;color:#ff5a5a;">📈 【최고 일평균 수익률】</td>
+       <td style="padding:12px 16px;text-align:right;font-weight:700;color:#ff5a5a;font-size:15px">데이터 수집 중...</td>
+       <td style="padding:12px 16px;text-align:center;color:#e8eaf0;">—</td>
+       <td style="padding:12px 16px;text-align:right;font-weight:600;color:#ffd633;">—</td>
+      </tr>
+      <tr style="border-bottom:1px solid #1a1e29;background:rgba(45,189,133,0.08);">
+       <td style="padding:12px 16px;font-weight:700;color:#2dbd85;">📊 【평균 일평균 수익률】</td>
+       <td style="padding:12px 16px;text-align:right;font-weight:700;color:#2dbd85;font-size:15px">${f2(curr_dr)}</td>
+       <td style="padding:12px 16px;text-align:center;color:#8b93a5;">전체 기간 평균</td>
+       <td style="padding:12px 16px;text-align:right;color:#8b93a5;">—</td>
+      </tr>
+      <tr style="border-bottom:1px solid #1a1e29;background:rgba(77,159,255,0.08);">
+       <td style="padding:12px 16px;font-weight:700;color:#4d9fff;">📉 【최저 일평균 수익률】</td>
+       <td style="padding:12px 16px;text-align:right;font-weight:700;color:#4d9fff;font-size:15px">데이터 수집 중...</td>
+       <td style="padding:12px 16px;text-align:center;color:#e8eaf0;">—</td>
+       <td style="padding:12px 16px;text-align:right;font-weight:600;color:#e8eaf0;">—</td>
+      </tr>
+     </tbody>
+    </table>
+   </div>`;
+  }
+
+  content.innerHTML=`
   ${mHtml}
   <div style="display:flex;justify-content:flex-end;align-items:center;margin-top:16px;">
    <button onclick="openBotDashboard(${port})" style="background:#1e3a8a;color:#fff;border:1px solid #3b82f6;padding:11px 22px;border-radius:10px;cursor:pointer;font-weight:700;font-size:14.5px;transition:all 0.2s;box-shadow:0 4px 14px rgba(59,130,246,0.35)">📊 ${botName} 대시보드 새창 열기 ↗</button>
