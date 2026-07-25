@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 window._FB_DATA = {
   summary: {
@@ -554,7 +555,42 @@ function showBotModal(botName,port){
               <canvas id="modalCanvas_${folder}" style="width:100%;height:100%;display:block;"></canvas>
               <div id="modalTooltip_${folder}" style="position:absolute;display:none;background:rgba(20,25,35,0.95);border:1px solid #4d9fff;color:#fff;padding:6px 12px;border-radius:8px;font-size:12px;pointer-events:none;box-shadow:0 4px 15px rgba(0,0,0,0.6);z-index:100;white-space:nowrap;"></div>
           </div>
-      </div>`;
+      </div>
+      <script>
+      setTimeout(() => {
+          const ctx = document.getElementById('modalCanvas_${folder}');
+          if(ctx) {
+              if (window['chart_${folder}']) window['chart_${folder}'].destroy();
+              window['chart_${folder}'] = new Chart(ctx, {
+                  type: 'line',
+                  data: {
+                      labels: ${JSON.stringify(m.history.map(() => ''))},
+                      datasets: [{
+                          label: '일평균 수익률 (%)',
+                          data: ${JSON.stringify(m.history)},
+                          borderColor: '#ff5a5a',
+                          backgroundColor: 'rgba(255, 90, 90, 0.1)',
+                          borderWidth: 2,
+                          pointRadius: 0,
+                          pointHoverRadius: 4,
+                          fill: true,
+                          tension: 0.4
+                      }]
+                  },
+                  options: {
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: { legend: { display: false } },
+                      scales: {
+                          x: { display: false },
+                          y: { display: true, grid: { color: 'rgba(255, 255, 255, 0.05)' } }
+                      },
+                      interaction: { mode: 'index', intersect: false }
+                  }
+              });
+          }
+      }, 50);
+      </script>`;
   }
   
   mHtml = `<div style="background:linear-gradient(135deg,#1e2638,#141923);border:1px solid #3b475d;border-radius:14px;padding:22px;box-shadow:0 8px 30px rgba(0,0,0,0.5);">
