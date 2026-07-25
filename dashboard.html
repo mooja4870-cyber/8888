@@ -540,56 +540,19 @@ function showBotModal(botName,port){
   
   let chartHtml = '';
   if (m.history && m.history.length > 0) {
-      const vals = m.history;
-      const width = 60;
-      const height = 16;
-      let sample = vals;
-      if (sample.length > width) {
-          const step = Math.ceil(sample.length / width);
-          sample = sample.filter((_, i) => i % step === 0).slice(-width);
-      }
-      const allVals = [...sample, m.max_dr, m.min_dr, m.curr_dr].filter(v => v !== undefined && !isNaN(v));
-      const hi = Math.max(...allVals);
-      const lo = Math.min(...allVals);
-      const rng = (hi - lo) || 1.0;
-      
-      let rows = Array(height).fill(0).map(() => Array(sample.length).fill(' '));
-      let maxMarked = false;
-      let minMarked = false;
-      for (let i = 0; i < sample.length; i++) {
-          let val = sample[i];
-          if (i === sample.length - 1) {
-              val = m.curr_dr; // 현재 시점 지점은 실제 현재 일평균수익률로 고정!
-          }
-
-          let r = Math.round((hi - val) / rng * (height - 1));
-          if (r < 0) r = 0; if (r >= height) r = height - 1;
-          
-          let char = '•';
-          let color = '#8b93a5';
-          if (i === sample.length - 1) {
-              char = '🔶'; color = '#ffd633';
-          } else if (val === m.max_dr && !maxMarked) {
-              char = '🔴'; color = '#ff5a5a'; maxMarked = true;
-          } else if (val === m.min_dr && !minMarked) {
-              char = '🔵'; color = '#4d9fff'; minMarked = true;
-          } else if (Math.abs(val - m.avg_dr) < rng * 0.1) {
-              color = '#2dbd85';
-          }
-          
-          rows[r][i] = `<span style="color:${color}">${char}</span>`;
-      }
-      const asciiStr = rows.map(r => r.join('')).join('\n');
       chartHtml = `
-      <div style="margin-top:20px;">
-          <div style="color:#8b93a5;font-size:12.5px;margin-bottom:8px;font-weight:600;display:flex;gap:15px;align-items:center;">
-              <span>📈 초기화 시점 이후 일평균수익률 추이</span>
-              <span style="color:#ff5a5a">🔴 최고: ${f2(m.max_dr)}</span>
-              <span style="color:#2dbd85">🟢 평균 근접</span>
-              <span style="color:#4d9fff">🔵 최저: ${f2(m.min_dr)}</span>
-              <span style="color:#ffd633">🔶 현재: ${f2(m.curr_dr)}</span>
+      <div style="margin-top:20px;background:#0f1115;padding:18px;border-radius:12px;border:1px solid #2a2f3a;">
+          <div style="color:#8b93a5;font-size:13px;margin-bottom:12px;font-weight:600;display:flex;gap:15px;align-items:center;flex-wrap:wrap;">
+              <span>📈 초기화 시점 이후 일평균수익률 추이 (정통 그래픽 차트)</span>
+              <span style="color:#ff5a5a;background:rgba(255,90,90,0.1);padding:3px 8px;border-radius:6px;">🔴 최고: ${f2(m.max_dr)}</span>
+              <span style="color:#2dbd85;background:rgba(45,189,133,0.1);padding:3px 8px;border-radius:6px;">🟢 평균: ${f2(m.avg_dr)}</span>
+              <span style="color:#4d9fff;background:rgba(77,159,255,0.1);padding:3px 8px;border-radius:6px;">🔵 최저: ${f2(m.min_dr)}</span>
+              <span style="color:#ffd633;background:rgba(255,214,51,0.1);padding:3px 8px;border-radius:6px;">🔶 현재: ${f2(m.curr_dr)}</span>
           </div>
-          <div style="font-family:monospace;font-size:13px;line-height:1.2;background:#0f1115;padding:15px;border-radius:10px;border:1px solid #2a2f3a;overflow-x:auto;white-space:pre;color:#8b93a5;">${asciiStr}</div>
+          <div style="position:relative;width:100%;height:220px;">
+              <canvas id="modalCanvas_${folder}" style="width:100%;height:100%;display:block;"></canvas>
+              <div id="modalTooltip_${folder}" style="position:absolute;display:none;background:rgba(20,25,35,0.95);border:1px solid #4d9fff;color:#fff;padding:6px 12px;border-radius:8px;font-size:12px;pointer-events:none;box-shadow:0 4px 15px rgba(0,0,0,0.6);z-index:100;white-space:nowrap;"></div>
+          </div>
       </div>`;
   }
   
@@ -700,7 +663,220 @@ function showBotModal(botName,port){
  modal.style.display='flex';
  const innerContainer = modal.querySelector('div');
  if(innerContainer) innerContainer.scrollTop = 0;
+ setTimeout(() => renderModernCanvasChart(folder, m), 20);
 }
+function renderModernCanvasChart(folder, m) {
+    if (!m || !m.history || m.history.length === 0) return;
+    const canvas = document.getElementById('modalCanvas_' + folder);
+    const tooltip = document.getElementById('modalTooltip_' + folder);
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+
+    const W = rect.width;
+    const H = rect.height;
+
+    const rawVals = m.history;
+    const maxPts = 60;
+    let sample = rawVals;
+    if (sample.length > maxPts) {
+        const step = Math.ceil(sample.length / maxPts);
+        sample = sample.filter((_, i) => i % step === 0).slice(-maxPts);
+    }
+    if (sample[sample.length - 1] !== m.curr_dr) {
+        sample[sample.length - 1] = m.curr_dr;
+    }
+
+    const allVals = [...sample, m.max_dr, m.min_dr, m.curr_dr].filter(v => v !== undefined && !isNaN(v));
+    const hi = Math.max(...allVals);
+    const lo = Math.min(...allVals);
+    const rng = (hi - lo) || 1.0;
+
+    const padLeft = 50;
+    const padRight = 35;
+    const padTop = 25;
+    const padBottom = 25;
+
+    const plotW = W - padLeft - padRight;
+    const plotH = H - padTop - padBottom;
+
+    function getX(i) {
+        if (sample.length <= 1) return padLeft + plotW / 2;
+        return padLeft + (i / (sample.length - 1)) * plotW;
+    }
+
+    function getY(val) {
+        return padTop + ((hi - val) / rng) * plotH;
+    }
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#1e2430';
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = '#6b7280';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+
+    const gridSteps = 4;
+    for (let g = 0; g <= gridSteps; g++) {
+        const gVal = hi - (g / gridSteps) * rng;
+        const gY = getY(gVal);
+        ctx.beginPath();
+        ctx.moveTo(padLeft, gY);
+        ctx.lineTo(W - padRight, gY);
+        ctx.stroke();
+        ctx.fillText(gVal.toFixed(2) + '%', padLeft - 8, gY);
+    }
+
+    if (m.avg_dr !== undefined) {
+        const avgY = getY(m.avg_dr);
+        ctx.save();
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = 'rgba(45, 189, 133, 0.6)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(padLeft, avgY);
+        ctx.lineTo(W - padRight, avgY);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    const fillGrad = ctx.createLinearGradient(0, padTop, 0, H - padBottom);
+    fillGrad.addColorStop(0, 'rgba(77, 159, 255, 0.35)');
+    fillGrad.addColorStop(1, 'rgba(77, 159, 255, 0.0)');
+
+    ctx.beginPath();
+    ctx.moveTo(getX(0), H - padBottom);
+    for (let i = 0; i < sample.length; i++) {
+        const x = getX(i);
+        const y = getY(sample[i]);
+        if (i === 0) ctx.lineTo(x, y);
+        else {
+            const prevX = getX(i - 1);
+            const prevY = getY(sample[i - 1]);
+            const cpX1 = prevX + (x - prevX) / 2;
+            const cpX2 = prevX + (x - prevX) / 2;
+            ctx.bezierCurveTo(cpX1, prevY, cpX2, y, x, y);
+        }
+    }
+    ctx.lineTo(getX(sample.length - 1), H - padBottom);
+    ctx.closePath();
+    ctx.fillStyle = fillGrad;
+    ctx.fill();
+
+    const lineGrad = ctx.createLinearGradient(padLeft, 0, W - padRight, 0);
+    lineGrad.addColorStop(0, '#4d9fff');
+    lineGrad.addColorStop(0.5, '#2dbd85');
+    lineGrad.addColorStop(1, '#ffd633');
+
+    ctx.beginPath();
+    for (let i = 0; i < sample.length; i++) {
+        const x = getX(i);
+        const y = getY(sample[i]);
+        if (i === 0) ctx.moveTo(x, y);
+        else {
+            const prevX = getX(i - 1);
+            const prevY = getY(sample[i - 1]);
+            const cpX1 = prevX + (x - prevX) / 2;
+            const cpX2 = prevX + (x - prevX) / 2;
+            ctx.bezierCurveTo(cpX1, prevY, cpX2, y, x, y);
+        }
+    }
+    ctx.strokeStyle = lineGrad;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    let maxIndex = -1, minIndex = -1;
+    let maxDist = Infinity, minDist = Infinity;
+    for (let i = 0; i < sample.length - 1; i++) {
+        if (Math.abs(sample[i] - m.max_dr) < maxDist) {
+            maxDist = Math.abs(sample[i] - m.max_dr);
+            maxIndex = i;
+        }
+        if (Math.abs(sample[i] - m.min_dr) < minDist) {
+            minDist = Math.abs(sample[i] - m.min_dr);
+            minIndex = i;
+        }
+    }
+
+    if (minIndex >= 0) {
+        const minX = getX(minIndex);
+        const minY = getY(sample[minIndex]);
+        ctx.beginPath();
+        ctx.arc(minX, minY, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#4d9fff';
+        ctx.shadowColor = '#4d9fff';
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    if (maxIndex >= 0) {
+        const maxX = getX(maxIndex);
+        const maxY = getY(sample[maxIndex]);
+        ctx.beginPath();
+        ctx.arc(maxX, maxY, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#ff5a5a';
+        ctx.shadowColor = '#ff5a5a';
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    const currIndex = sample.length - 1;
+    const currX = getX(currIndex);
+    const currY = getY(sample[currIndex]);
+    const dSize = 7;
+    ctx.beginPath();
+    ctx.moveTo(currX, currY - dSize);
+    ctx.lineTo(currX + dSize, currY);
+    ctx.lineTo(currX, currY + dSize);
+    ctx.lineTo(currX - dSize, currY);
+    ctx.closePath();
+    ctx.fillStyle = '#ffd633';
+    ctx.shadowColor = '#ffd633';
+    ctx.shadowBlur = 12;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    canvas.onmousemove = function(e) {
+        const r = canvas.getBoundingClientRect();
+        const mX = e.clientX - r.left;
+        if (mX < padLeft || mX > W - padRight) {
+            tooltip.style.display = 'none';
+            return;
+        }
+        const relX = (mX - padLeft) / plotW;
+        const idx = Math.min(sample.length - 1, Math.max(0, Math.round(relX * (sample.length - 1))));
+        const pX = getX(idx);
+        const pY = getY(sample[idx]);
+        const pVal = sample[idx];
+
+        tooltip.style.display = 'block';
+        tooltip.style.left = Math.min(W - 130, Math.max(10, pX - 50)) + 'px';
+        tooltip.style.top = Math.max(5, pY - 45) + 'px';
+        tooltip.innerHTML = `<div>일평균수익률: <b>${pVal > 0 ? '+' : ''}${pVal.toFixed(2)}%</b></div>`;
+    };
+
+    canvas.onmouseleave = function() {
+        tooltip.style.display = 'none';
+    };
+}
+
 function closeBotModal(){
  const modal=document.getElementById('botModal');
  modal.style.display='none';

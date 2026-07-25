@@ -1,5 +1,17 @@
 # 버전 이력 (ver.md)
 
+## v0.9.366
+Date: 2026-07-25
+
+### 변경 내용
+* `dashboard.html` 봇 모달 추이 차트 정통 모던 인터랙티브 그래픽 차트(HTML5 Canvas Line Chart)로 대대적 업그레이드:
+  * 기존 아스키 차트를 대체하여 60fps 모던 Canvas 2D 인터랙티브 곡선 라인 차트 구축.
+  * 하단 알파 그라데이션 영역 채우기(Gradient Area Fill), Y축 % 자동 눈금선, 최고점(🔴 Glow Circle), 최저점(🔵 Glow Circle), 평균선(🟢 Dash Line), 현재점(🔶 Glowing Diamond) 정밀 마킹.
+  * 마우스 호버 시 실시간 데이터 지점 탐지 및 실시간 수치 툴팁(Tooltip) 팝업 연동.
+
+### 수정 파일
+* `dashboard.html`
+
 ## v0.9.365
 Date: 2026-07-25
 
