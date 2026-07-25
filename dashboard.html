@@ -538,6 +538,48 @@ function showBotModal(botName,port){
   const f2 = v => (v == null || v == undefined) ? '—' : (v > 0 ? '+' : '') + Number(v).toFixed(2) + '%';
   const u2 = v => (v == null || v == undefined) ? '—' : '$' + Number(v).toFixed(2) + ' USDT';
   
+  let chartHtml = '';
+  if (m.history && m.history.length > 0) {
+      const vals = m.history;
+      const width = 60;
+      const height = 8;
+      let sample = vals;
+      if (sample.length > width) {
+          const step = Math.ceil(sample.length / width);
+          sample = sample.filter((_, i) => i % step === 0).slice(-width);
+      }
+      const hi = Math.max(...sample);
+      const lo = Math.min(...sample);
+      const rng = (hi - lo) || 1.0;
+      
+      let rows = Array(height).fill(0).map(() => Array(sample.length).fill(' '));
+      let maxMarked = false;
+      let minMarked = false;
+      for (let i = 0; i < sample.length; i++) {
+          let r = Math.round((hi - sample[i]) / rng * (height - 1));
+          if (r < 0) r = 0; if (r >= height) r = height - 1;
+          
+          let char = '•';
+          let color = '#8b93a5';
+          if (sample[i] === hi && !maxMarked) { char = '🔴'; color = '#ff5a5a'; maxMarked = true; }
+          else if (sample[i] === lo && !minMarked) { char = '🔵'; color = '#4d9fff'; minMarked = true; }
+          else if (Math.abs(sample[i] - m.avg_dr) < rng * 0.1) { color = '#2dbd85'; }
+          
+          rows[r][i] = `<span style="color:${color}">${char}</span>`;
+      }
+      const asciiStr = rows.map(r => r.join('')).join('\\n');
+      chartHtml = `
+      <div style="margin-top:20px;">
+          <div style="color:#8b93a5;font-size:12.5px;margin-bottom:8px;font-weight:600;display:flex;gap:15px;align-items:center;">
+              <span>📈 초기화 시점 이후 일평균수익률 추이</span>
+              <span style="color:#ff5a5a">🔴 최고: ${f2(m.max_dr)}</span>
+              <span style="color:#2dbd85">🟢 평균 근접</span>
+              <span style="color:#4d9fff">🔵 최저: ${f2(m.min_dr)}</span>
+          </div>
+          <div style="font-family:monospace;font-size:13px;line-height:1.2;background:#0f1115;padding:15px;border-radius:10px;border:1px solid #2a2f3a;overflow-x:auto;white-space:pre;color:#8b93a5;">${asciiStr}</div>
+      </div>`;
+  }
+  
   mHtml = `<div style="background:linear-gradient(135deg,#1e2638,#141923);border:1px solid #3b475d;border-radius:14px;padding:22px;box-shadow:0 8px 30px rgba(0,0,0,0.5);">
    <div style="font-weight:700;font-size:17px;color:#2dbd85;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #2a2f3a;padding-bottom:12px;">
     <span>📊 [${botName} 봇] 실자산 잔고($) 기준 정밀 분석 비교표</span>
@@ -585,48 +627,6 @@ function showBotModal(botName,port){
   if (!mHtml && bot) {
    const f2 = v => (v == null || v == undefined) ? '—' : (v > 0 ? '+' : '') + Number(v).toFixed(2) + '%';
    const u2 = v => (v == null || v == undefined) ? '—' : '$' + Number(v).toFixed(2) + ' USDT';
-   
-   let chartHtml = '';
-   if (m.history && m.history.length > 0) {
-       const vals = m.history;
-       const width = 60;
-       const height = 8;
-       let sample = vals;
-       if (sample.length > width) {
-           const step = Math.ceil(sample.length / width);
-           sample = sample.filter((_, i) => i % step === 0).slice(-width);
-       }
-       const hi = Math.max(...sample);
-       const lo = Math.min(...sample);
-       const rng = (hi - lo) || 1.0;
-       
-       let rows = Array(height).fill(0).map(() => Array(sample.length).fill(' '));
-       let maxMarked = false;
-       let minMarked = false;
-       for (let i = 0; i < sample.length; i++) {
-           let r = Math.round((hi - sample[i]) / rng * (height - 1));
-           if (r < 0) r = 0; if (r >= height) r = height - 1;
-           
-           let char = '•';
-           let color = '#8b93a5';
-           if (sample[i] === hi && !maxMarked) { char = '🔴'; color = '#ff5a5a'; maxMarked = true; }
-           else if (sample[i] === lo && !minMarked) { char = '🔵'; color = '#4d9fff'; minMarked = true; }
-           else if (Math.abs(sample[i] - m.avg_dr) < rng * 0.1) { color = '#2dbd85'; }
-           
-           rows[r][i] = `<span style="color:${color}">${char}</span>`;
-       }
-       const asciiStr = rows.map(r => r.join('')).join('\\n');
-       chartHtml = `
-       <div style="margin-top:20px;">
-           <div style="color:#8b93a5;font-size:12.5px;margin-bottom:8px;font-weight:600;display:flex;gap:15px;align-items:center;">
-               <span>📈 초기화 시점 이후 일평균수익률 추이</span>
-               <span style="color:#ff5a5a">🔴 최고: ${f2(m.max_dr)}</span>
-               <span style="color:#2dbd85">🟢 평균 근접</span>
-               <span style="color:#4d9fff">🔵 최저: ${f2(m.min_dr)}</span>
-           </div>
-           <div style="font-family:monospace;font-size:13px;line-height:1.2;background:#0f1115;padding:15px;border-radius:10px;border:1px solid #2a2f3a;overflow-x:auto;white-space:pre;color:#8b93a5;">${asciiStr}</div>
-       </div>`;
-   }
    
 
    const seed = bot.seed || 10;
