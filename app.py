@@ -863,7 +863,98 @@ def bot_status(folder, port, ex):
             r["holding"] = (r.get("ex_used") or 0) > 0.02 or (r.get("ex_poscount") or 0) > 0
         else:
             r["holding"] = len(r["positions"]) > 0 if r.get("positions") is not None else None
+    
+    r["metrics"] = calc_bot_metrics(folder, r)
     return r
+
+
+def calc_bot_metrics(folder, bot_dict):
+    """초기화 이후 ~ 현재 봇 실자산 잔고($) 기반 최고/평균/최저/현재 일평균 수익률 및 일시 정밀 계산"""
+    try:
+        seed = float(bot_dict.get("seed") or 10.0)
+        perf_start = bot_dict.get("perf_start") or ""
+        days = float(bot_dict.get("days") or 1.0)
+        
+        try:
+            p_clean = str(perf_start).replace("T", " ")[:19]
+            t0 = time.mktime(time.strptime(p_clean, "%Y-%m-%d %H:%M:%S"))
+        except Exception:
+            t0 = time.time() - (86400 * days)
+            p_clean = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t0))
+
+        now_epoch = int(time.time())
+        start_epoch = max(now_epoch - 86400 * 7, int(t0))
+        
+        d = os.path.join(BASE, folder, "data")
+        csv_path = os.path.join(d, "trade_history.csv")
+        exits = sorted(_load_exits(csv_path), key=lambda x: x[0]) if os.path.exists(csv_path) else []
+        if p_clean:
+            exits = [e for e in exits if e[0] >= p_clean]
+
+        snap_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "snapshots.json")
+        snaps = []
+        if os.path.exists(snap_path):
+            with open(snap_path, "r", encoding="utf-8") as f:
+                try: snaps = json.load(f)
+                except Exception: pass
+
+        records = []
+        for t in range(start_epoch, now_epoch + 1, 300):
+            t_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))
+            t_short = time.strftime("%Y-%m-%d %H:%M", time.localtime(t))
+            
+            found_asset = None
+            for s in snaps:
+                st_ts = s.get("ts") or ""
+                if st_ts and st_ts[:15] == t_short[:15]:
+                    bots = s.get("bots") or {}
+                    if isinstance(bots, dict) and folder in bots:
+                        found_asset = float(bots[folder])
+                        break
+            
+            if found_asset is None:
+                cum_pnl = sum(pnl for ex_ts, pnl, oid in exits if ex_ts <= t_str)
+                found_asset = seed + cum_pnl
+
+            cum_delta = found_asset - seed
+            cum_ret = (cum_delta / seed) * 100.0 if seed else 0.0
+            cur_days = max(1.0, (t - t0) / 86400.0)
+            daily_ret = round(cum_ret / cur_days, 2)
+            records.append((t_str, daily_ret, found_asset, cum_delta, round(cur_days, 2)))
+
+        if not records:
+            return None
+
+        vals = [rec[1] for rec in records]
+        max_val = max(vals)
+        min_val = min(vals)
+        avg_val = round(sum(vals) / len(vals), 2)
+        
+        max_recs = [rec for rec in records if rec[1] == max_val]
+        min_recs = [rec for rec in records if rec[1] == min_val]
+        
+        curr_ex_bal = bot_dict.get("ex_balance")
+        if curr_ex_bal is None or float(curr_ex_bal) <= 0:
+            curr_ex_bal = records[-1][2]
+        curr_dr = bot_dict.get("daily_ret") if bot_dict.get("daily_ret") is not None else records[-1][1]
+
+        return {
+            "seed": seed,
+            "perf_start": p_clean,
+            "days": round(days, 2),
+            "curr_bal": round(float(curr_ex_bal), 2),
+            "max_dr": max_val,
+            "max_dr_ts": max_recs[-1][0],
+            "max_dr_bal": round(max_recs[-1][2], 2),
+            "avg_dr": avg_val,
+            "min_dr": min_val,
+            "min_dr_ts": min_recs[0][0],
+            "min_dr_bal": round(min_recs[0][2], 2),
+            "curr_dr": curr_dr
+        }
+    except Exception as e:
+        print(f"[METRICS ERR] {folder}: {e}")
+        return None
 
 
 def bot_days(perf_start):
@@ -1231,6 +1322,8 @@ def auto_repair_bot(folder):
     if not os.path.exists(csv_path):
         return 0
     try:
+        sys.modules.pop("core.history_helper", None)
+        sys.modules.pop("core", None)
         sys.path.insert(0, base)
         from core.history_helper import aggregate_and_pair_trades, load_local_trade_history
         raw = load_local_trade_history()
