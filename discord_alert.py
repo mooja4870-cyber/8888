@@ -120,7 +120,7 @@ def get_bot_40min_history(b_obj):
     return history
 
 
-def build_message(data, prev_total, prev_bots, history, title_suffix="", sub_assets=None, sub_total=None, prev_sub_total=None, include_bot_charts=False):
+def build_message(data, prev_total, prev_bots, history, title_prefix="전체", sub_assets=None, sub_total=None, prev_sub_total=None, include_bot_charts=False):
     s = data["summary"]
     total = s.get("daily_ret")
     days = s.get("days")
@@ -131,8 +131,11 @@ def build_message(data, prev_total, prev_bots, history, title_suffix="", sub_ass
     assets = s.get("assets")
     asset_str = f"[{assets:.2f}] " if assets is not None else ""   # 전체 일평균 줄 앞에 총자산 금액
     
+    bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
+    bots_str = f" [{len(bots)}봇]" if len(bots) != 1 else ""
+    
     lines = [ts,
-             f"📊 전체 일평균수익률 ({head_days}){title_suffix}",
+             f"📊 {title_prefix} 일평균수익률 ({head_days}){bots_str}",
              f"{asset_str}{tot_str}% {icon}{delta:.2f}%{arrow}",
              "─" * 38]
     bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
@@ -250,13 +253,13 @@ def recalc_data(data, exclude_names):
     return d
 
 
-def _process_single(data, path, title_suffix, include_bot_charts=False):
+def _process_single(data, path, title_prefix, include_bot_charts=False):
     prev_total, prev_bots, history, prev_sub_total = _load_state(path)
     total = data["summary"].get("daily_ret")
     history.append(total)
     history = history[-CHART_WIDTH:]
     
-    msg = build_message(data, prev_total, prev_bots, history, title_suffix, include_bot_charts=include_bot_charts)
+    msg = build_message(data, prev_total, prev_bots, history, title_prefix, include_bot_charts=include_bot_charts)
     ok, info = _post(msg)
     if ok:
         new_prev_bots = {b["name"]: (b.get("daily_ret") if b.get("daily_ret") is not None else 0.0)
@@ -265,7 +268,7 @@ def _process_single(data, path, title_suffix, include_bot_charts=False):
     return ok, info
 
 
-def _process_subset(data, target_names, state_suffix, title_suffix, include_bot_charts=False):
+def _process_subset(data, target_names, state_suffix, title_prefix, include_bot_charts=False):
     import copy
     import app
     d_sub = copy.deepcopy(data)
@@ -316,22 +319,23 @@ def _process_subset(data, target_names, state_suffix, title_suffix, include_bot_
         d_sub["summary"]["days"] = round(days, 1)
         
         state_file = STATE_FILE.replace(".json", state_suffix)
-        return _process_single(d_sub, state_file, f" {title_suffix}", include_bot_charts=False)
+        return _process_single(d_sub, state_file, title_prefix, include_bot_charts=False)
 
 
 def tick(data, tick_count=0, include_bot_charts=False):
-    """집계 1건을 받아 지정된 2개 그룹 순서대로 디스코드 알림 발송하고 상태 갱신."""
-    # 1. 첫 번째 알림: 8403, 8405, 8407, 8409 (4봇)
-    grp1_names = {"8403", "8405", "8407", "8409"}
-    grp1_cnt = len([b for b in data.get("bots", []) if str(b.get("name")) in grp1_names])
-    ok1, info1 = _process_subset(data, grp1_names, "_grp1.json", f"[{grp1_cnt}봇]", include_bot_charts=include_bot_charts)
+    """집계 1건을 받아 수익/손실 두 그룹으로 나누어 디스코드 알림 발송하고 상태 갱신."""
+    loss_names = {str(b.get("name")) for b in data.get("bots", []) if b.get("daily_ret", 0.0) < 0}
+    profit_names = {str(b.get("name")) for b in data.get("bots", []) if b.get("daily_ret", 0.0) >= 0}
 
-    # 2. 두 번째 알림: 8401, 8402, 8404, 8408 (4봇)
-    grp2_names = {"8401", "8402", "8404", "8408"}
-    grp2_cnt = len([b for b in data.get("bots", []) if str(b.get("name")) in grp2_names])
-    ok2, info2 = _process_subset(data, grp2_names, "_grp2.json", f"[{grp2_cnt}봇]", include_bot_charts=include_bot_charts)
+    ok1, info1 = False, "No loss bots"
+    if loss_names:
+        ok1, info1 = _process_subset(data, loss_names, "_loss.json", "손실 중인 봇의 전체", include_bot_charts=include_bot_charts)
 
-    return (ok1 or ok2), f"Grp1(8403,5,7,9): {info1} | Grp2(8401,2,4,8): {info2}"
+    ok2, info2 = False, "No profit bots"
+    if profit_names:
+        ok2, info2 = _process_subset(data, profit_names, "_profit.json", "수익 중인 봇의 전체", include_bot_charts=include_bot_charts)
+
+    return (ok1 or ok2), f"Loss({len(loss_names)}봇): {info1} | Profit({len(profit_names)}봇): {info2}"
 
 
 if __name__ == "__main__":

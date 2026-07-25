@@ -1,1 +1,9 @@
-{}
+{
+  "BTC/USDT:USDT": {
+    "strategy_type": "None",
+    "atr_activation": 0.015,
+    "atr_callback": 0.006,
+    "exit_profile": "ATR",
+    "partial_done": false
+  }
+}
