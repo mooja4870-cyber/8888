@@ -298,7 +298,7 @@ function _applyFilter(d){
  s.days=Math.round(maxDays*10)/10;
  s.count=filtered.length;
  const staleArr=s.stale||[];
- s.alive=filtered.filter(b=>!staleArr.includes(String(b.name))).length;
+ s.alive=filtered.filter(b=>b.alive).length;
  s.with_positions=filtered.filter(b=>(b.ex_poslong||0)>0||(b.ex_posshort||0)>0).length;
  const posNames=new Set();
  filtered.forEach(b=>{if((b.ex_poslong||0)===0&&(b.ex_posshort||0)===0)posNames.add(String(b.name));});
