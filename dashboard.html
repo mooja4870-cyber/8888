@@ -530,6 +530,9 @@ function showBotModal(botName,port){
  if(_lastData && _lastData.bots) {
   bot = _lastData.bots.find(b=>b.name===botName);
  }
+ if(!bot && window._FB_DATA && window._FB_DATA.bots) {
+  bot = window._FB_DATA.bots.find(b=>b.name===botName);
+ }
  let hmHtml = '';
  if (bot && bot.hm_grid) {
   const _wd=['월','화','수','목','금','토','일'];

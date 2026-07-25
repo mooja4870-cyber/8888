@@ -1238,7 +1238,18 @@ class Handler(BaseHTTPRequestHandler):
             ctype = "application/json; charset=utf-8"
         elif self.path == "/" or self.path.startswith("/index"):
             with open(HTML_PATH, encoding="utf-8") as f:
-                body = f.read().encode()
+                content = f.read()
+            try:
+                fresh_data = collect()
+                fresh_json = json.dumps(fresh_data, ensure_ascii=False)
+                if "window._FB_DATA = {" in content and "};" in content:
+                    idx1 = content.find("window._FB_DATA = {")
+                    idx2 = content.find("};", idx1)
+                    if idx1 != -1 and idx2 != -1:
+                        content = content[:idx1] + "window._FB_DATA = " + fresh_json + ";" + content[idx2+2:]
+            except Exception as _e:
+                pass
+            body = content.encode()
             ctype = "text/html; charset=utf-8"
         else:
             self.send_error(404)
