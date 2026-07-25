@@ -467,3 +467,6 @@ NameError: name 'datetime' is not defined. Did you forget to import 'datetime'?
 [진입유실 방지 자동보정] SHORT RE/USDT:USDT exit=2026-06-30 18:07:49 미매칭수량=1.00000000 orderID=3701324632653242368 tradeID=None
 [DISCORD 1MIN] 23:03:11 ok=True Loss(4봇): status=204 | Profit(4봇): status=204 collect=0.1s post=0.7s
 [DISCORD 1MIN] 23:04:10 ok=True Loss(4봇): status=204 | Profit(4봇): status=204 collect=0.1s post=0.7s
+[DISCORD 1MIN] 23:05:11 ok=True Loss(4봇): status=204 | Profit(4봇): status=204 collect=0.1s post=0.8s
+[DISCORD 1MIN] 23:06:10 ok=True Loss(4봇): status=204 | Profit(4봇): status=204 collect=0.1s post=0.7s
+[DISCORD 1MIN] 23:07:11 ok=True Loss(4봇): status=204 | Profit(4봇): status=204 collect=0.1s post=0.7s
