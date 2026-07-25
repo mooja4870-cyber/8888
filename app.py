@@ -940,6 +940,8 @@ def calc_bot_metrics(folder, bot_dict):
 
         step = max(1, len(records) // 60)
         history = [rec[1] for rec in records[::step]]
+        if not history or history[-1] != curr_dr:
+            history.append(curr_dr)
 
         return {
             "seed": seed,

@@ -548,24 +548,34 @@ function showBotModal(botName,port){
           const step = Math.ceil(sample.length / width);
           sample = sample.filter((_, i) => i % step === 0).slice(-width);
       }
-      const hi = Math.max(...sample);
-      const lo = Math.min(...sample);
+      const allVals = [...sample, m.max_dr, m.min_dr, m.curr_dr].filter(v => v !== undefined && !isNaN(v));
+      const hi = Math.max(...allVals);
+      const lo = Math.min(...allVals);
       const rng = (hi - lo) || 1.0;
       
       let rows = Array(height).fill(0).map(() => Array(sample.length).fill(' '));
       let maxMarked = false;
       let minMarked = false;
       for (let i = 0; i < sample.length; i++) {
-          let r = Math.round((hi - sample[i]) / rng * (height - 1));
+          let val = sample[i];
+          if (i === sample.length - 1) {
+              val = m.curr_dr; // 현재 시점 지점은 실제 현재 일평균수익률로 고정!
+          }
+
+          let r = Math.round((hi - val) / rng * (height - 1));
           if (r < 0) r = 0; if (r >= height) r = height - 1;
           
           let char = '•';
           let color = '#8b93a5';
-          if (sample[i] === hi && !maxMarked) { char = '🔴'; color = '#ff5a5a'; maxMarked = true; }
-          else if (sample[i] === lo && !minMarked) { char = '🔵'; color = '#4d9fff'; minMarked = true; }
-          else if (Math.abs(sample[i] - m.avg_dr) < rng * 0.1) { color = '#2dbd85'; }
-          
-          if (i === sample.length - 1) { char = '🔶'; color = '#ffd633'; }
+          if (i === sample.length - 1) {
+              char = '🔶'; color = '#ffd633';
+          } else if (val === m.max_dr && !maxMarked) {
+              char = '🔴'; color = '#ff5a5a'; maxMarked = true;
+          } else if (val === m.min_dr && !minMarked) {
+              char = '🔵'; color = '#4d9fff'; minMarked = true;
+          } else if (Math.abs(val - m.avg_dr) < rng * 0.1) {
+              color = '#2dbd85';
+          }
           
           rows[r][i] = `<span style="color:${color}">${char}</span>`;
       }
