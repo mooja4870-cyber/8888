@@ -517,14 +517,12 @@ async function tick(){
 }
 render(window._FB_DATA);
   tick();setInterval(tick,5000);
-// ===== 봇 모달 팝업 + 그래프 =====
-let _botGraphChart=null;
-let _botCurrentRange='7d';
+// ===== 봇 모달 팝업 =====
 function showBotModal(botName,port){
  const modal=document.getElementById('botModal');
  const title=document.getElementById('modalTitle');
  const content=document.getElementById('modalContent');
- title.innerHTML=`📈 <span style="color:#fff">${botName}</span> 수익률 추세 차트`;
+ title.innerHTML=`📊 <span style="color:#fff">${botName} 봇</span> 정밀 분석 비교표`;
  
  let bot = null;
  if(_lastData && _lastData.bots) {
@@ -533,22 +531,6 @@ function showBotModal(botName,port){
  if(!bot && window._FB_DATA && window._FB_DATA.bots) {
   bot = window._FB_DATA.bots.find(b=>b.name===botName);
  }
- let hmHtml = '';
- if (bot && bot.hm_grid) {
-  const _wd=['월','화','수','목','금','토','일'];
-  const _bk=['00–03','03–06','06–09','09–12','12–15','15–18','18–21','21–24'];
-  const hm=bot.hm_grid||{};
-  let _mx=0; Object.values(hm).forEach(v=>{if(Math.abs(v)>_mx)_mx=Math.abs(v)});
-  const _cell=v=>{if(!v)return['background:#131722;color:var(--muted)','0'];const t=Math.min(1,Math.abs(v)/(_mx||1));const a=(0.18+t*0.62).toFixed(2);const bg=v>0?'rgba(255,90,90,'+a+')':'rgba(77,159,255,'+a+')';const tx=(v>0?'+':'')+v.toFixed(2);return['background:'+bg+';color:#fff',tx]};
-  hmHtml=`<div style="margin-top:20px;background:#131722;border:1px solid #2d3748;border-radius:12px;padding:18px">
-   <div style="font-weight:600;font-size:15px;color:var(--green);margin-bottom:12px">🔥 시간대별 성과 <span style="font-size:12px;color:var(--muted);font-weight:400">(요일×시간 수익 히트맵 · 최근 7일 실현손익)</span></div>
-   <table style="width:100%;border-collapse:collapse;font-size:13px;font-weight:600;table-layout:fixed">
-    <tr><td style="padding:8px;color:var(--muted);text-align:center">시간대</td>${_wd.map(w=>'<td style="padding:8px;text-align:center;color:var(--muted)">'+w+'</td>').join('')}</tr>
-    ${_bk.map((bl,bi)=>'<tr style="border-top:1px solid #2d3748"><td style="padding:10px 8px;text-align:center;color:var(--muted);white-space:nowrap">'+bl+'</td>'+_wd.map((w,wi)=>{const[st2,tx]=_cell(hm[wi+'_'+bi]||0);return '<td style="padding:10px 4px;text-align:center;'+st2+';border-left:1px solid #2d3748">'+tx+'</td>'}).join('')+'</tr>').join('')}
-   </table>
-   <div style="font-size:11px;color:var(--muted);margin-top:8px">단위: USDT · <span style="color:var(--profit)">빨강=수익</span> / <span style="color:var(--loss)">파랑=손실</span> (진할수록 큰 금액)</div>
-  </div>`;
- }
 
  let mHtml = '';
  const m = bot ? (bot.metrics || null) : null;
@@ -556,160 +538,66 @@ function showBotModal(botName,port){
   const f2 = v => (v == null || v == undefined) ? '—' : (v > 0 ? '+' : '') + Number(v).toFixed(2) + '%';
   const u2 = v => (v == null || v == undefined) ? '—' : '$' + Number(v).toFixed(2) + ' USDT';
   
-  mHtml = `<div style="background:linear-gradient(135deg,#1e2638,#141923);border:1px solid #3b475d;border-radius:12px;padding:18px;margin-bottom:18px;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
-   <div style="font-weight:700;font-size:16px;color:#2dbd85;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
+  mHtml = `<div style="background:linear-gradient(135deg,#1e2638,#141923);border:1px solid #3b475d;border-radius:14px;padding:22px;box-shadow:0 8px 30px rgba(0,0,0,0.5);">
+   <div style="font-weight:700;font-size:17px;color:#2dbd85;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #2a2f3a;padding-bottom:12px;">
     <span>📊 [${botName} 봇] 실자산 잔고($) 기준 정밀 분석 비교표</span>
-    <span style="font-size:12px;color:#8b93a5;font-weight:400">초기화: ${m.perf_start || '—'} (${m.days}일 경과)</span>
+    <span style="font-size:13px;color:#8b93a5;font-weight:400">초기화: ${m.perf_start || '—'} (${m.days}일 경과)</span>
    </div>
-   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;background:#0f1115;padding:12px 16px;border-radius:8px;font-size:13px;border:1px solid #2a2f3a;">
+   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px;background:#0f1115;padding:16px 20px;border-radius:10px;font-size:14px;border:1px solid #2a2f3a;">
     <div><span style="color:#8b93a5">초기 자본금 (Seed):</span> <b style="color:#fff">${u2(m.seed)}</b></div>
-    <div><span style="color:#8b93a5">💳 현재 실자산 잔고:</span> <b style="color:#ffd633;font-size:14px">${u2(m.curr_bal)}</b></div>
+    <div><span style="color:#8b93a5">💳 현재 실자산 잔고:</span> <b style="color:#ffd633;font-size:15.5px">${u2(m.curr_bal)}</b></div>
     <div><span style="color:#8b93a5">🏁 현재 일평균 수익률:</span> <b style="color:${m.curr_dr>0?'#ff5a5a':(m.curr_dr<0?'#4d9fff':'#fff')}">${f2(m.curr_dr)}</b></div>
    </div>
-   <table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;background:#0f1115;border-radius:8px;overflow:hidden;border:1px solid #2a2f3a;">
+   <table style="width:100%;border-collapse:collapse;font-size:14px;text-align:left;background:#0f1115;border-radius:10px;overflow:hidden;border:1px solid #2a2f3a;">
     <thead>
-     <tr style="background:#252b36;color:#8b93a5;font-size:12px;border-bottom:1px solid #2a2f3a;">
-      <th style="padding:9px 12px;">수익률 구분</th>
-      <th style="padding:9px 12px;text-align:right;">일평균 수익률</th>
-      <th style="padding:9px 12px;text-align:center;">달성 일시</th>
-      <th style="padding:9px 12px;text-align:right;">당시 지갑 잔고</th>
+     <tr style="background:#252b36;color:#8b93a5;font-size:13px;border-bottom:1px solid #2a2f3a;">
+      <th style="padding:11px 16px;">수익률 구분</th>
+      <th style="padding:11px 16px;text-align:right;">일평균 수익률</th>
+      <th style="padding:11px 16px;text-align:center;">달성 일시</th>
+      <th style="padding:11px 16px;text-align:right;">당시 지갑 잔고</th>
      </tr>
     </thead>
     <tbody>
      <tr style="border-bottom:1px solid #1a1e29;background:rgba(255,90,90,0.08);">
-      <td style="padding:10px 12px;font-weight:700;color:#ff5a5a;">📈 【최고 일평균 수익률】</td>
-      <td style="padding:10px 12px;text-align:right;font-weight:700;color:#ff5a5a;font-size:14px">${f2(m.max_dr)}</td>
-      <td style="padding:10px 12px;text-align:center;color:#e8eaf0;">${m.max_dr_ts || '—'}</td>
-      <td style="padding:10px 12px;text-align:right;font-weight:600;color:#ffd633;">${u2(m.max_dr_bal)}</td>
+      <td style="padding:12px 16px;font-weight:700;color:#ff5a5a;">📈 【최고 일평균 수익률】</td>
+      <td style="padding:12px 16px;text-align:right;font-weight:700;color:#ff5a5a;font-size:15px">${f2(m.max_dr)}</td>
+      <td style="padding:12px 16px;text-align:center;color:#e8eaf0;">${m.max_dr_ts || '—'}</td>
+      <td style="padding:12px 16px;text-align:right;font-weight:600;color:#ffd633;">${u2(m.max_dr_bal)}</td>
      </tr>
      <tr style="border-bottom:1px solid #1a1e29;background:rgba(45,189,133,0.08);">
-      <td style="padding:10px 12px;font-weight:700;color:#2dbd85;">📊 【평균 일평균 수익률】</td>
-      <td style="padding:10px 12px;text-align:right;font-weight:700;color:#2dbd85;font-size:14px">${f2(m.avg_dr)}</td>
-      <td style="padding:10px 12px;text-align:center;color:#8b93a5;">전체 기간 평균</td>
-      <td style="padding:10px 12px;text-align:right;color:#8b93a5;">—</td>
+      <td style="padding:12px 16px;font-weight:700;color:#2dbd85;">📊 【평균 일평균 수익률】</td>
+      <td style="padding:12px 16px;text-align:right;font-weight:700;color:#2dbd85;font-size:15px">${f2(m.avg_dr)}</td>
+      <td style="padding:12px 16px;text-align:center;color:#8b93a5;">전체 기간 평균</td>
+      <td style="padding:12px 16px;text-align:right;color:#8b93a5;">—</td>
      </tr>
      <tr style="border-bottom:1px solid #1a1e29;background:rgba(77,159,255,0.08);">
-      <td style="padding:10px 12px;font-weight:700;color:#4d9fff;">📉 【최저 일평균 수익률】</td>
-      <td style="padding:10px 12px;text-align:right;font-weight:700;color:#4d9fff;font-size:14px">${f2(m.min_dr)}</td>
-      <td style="padding:10px 12px;text-align:center;color:#e8eaf0;">${m.min_dr_ts || '—'}</td>
-      <td style="padding:10px 12px;text-align:right;font-weight:600;color:#e8eaf0;">${u2(m.min_dr_bal)}</td>
+      <td style="padding:12px 16px;font-weight:700;color:#4d9fff;">📉 【최저 일평균 수익률】</td>
+      <td style="padding:12px 16px;text-align:right;font-weight:700;color:#4d9fff;font-size:15px">${f2(m.min_dr)}</td>
+      <td style="padding:12px 16px;text-align:center;color:#e8eaf0;">${m.min_dr_ts || '—'}</td>
+      <td style="padding:12px 16px;text-align:right;font-weight:600;color:#e8eaf0;">${u2(m.min_dr_bal)}</td>
      </tr>
     </tbody>
    </table>
   </div>`;
  }
 
-  content.innerHTML=`
-   ${mHtml}
-   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:8px">
-    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap" id="botRangeButtons">
-     ${[
-      ['12h','12시간'],['24h','24시간'],['48h','48시간'],['7d','7일'],['15d','15일'],['1m','1개월'],['max','최대']
-     ].map(([k,lbl])=>`<button onclick="setBotRange('${botName}', '${k}')" id="btn_bot_${k}" style="background:${k==='7d'?'var(--green)':'var(--card2)'};color:${k==='7d'?'#04342c':'var(--text)'};border:1px solid var(--border);border-radius:7px;font-size:13px;font-weight:600;padding:6px 14px;cursor:pointer">${lbl}</button>`).join('')}
-    </div>
-    <button onclick="openBotDashboard(${port})" style="background:#1e3a8a;color:#fff;border:1px solid #3b82f6;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px;transition:all 0.2s">📊 ${botName} 대시보드 새창 열기 ↗</button>
-   </div>
-   <div style="background:#131722;border:1px solid #2d3748;border-radius:12px;padding:18px">
-    <canvas id="botGraphCanvas" style="width:100%;height:450px;max-height:65vh;display:block"></canvas>
-   </div>
-   ${hmHtml}
-  `;
-  modal.style.display='flex';
-  const innerContainer = modal.querySelector('div');
-  if(innerContainer) innerContainer.scrollTop = 0;
-  _botCurrentRange='7d';
-  updateBotGraph(botName);
- }
-function setBotRange(botName, k){
- _botCurrentRange=k;
- ['12h','24h','48h','7d','15d','1m','max'].forEach(rk=>{
-  const b=document.getElementById('btn_bot_'+rk);
-  if(b){
-   b.style.background = (rk===k ? 'var(--green)' : 'var(--card2)');
-   b.style.color = (rk===k ? '#04342c' : 'var(--text)');
-  }
- });
- updateBotGraph(botName);
+ content.innerHTML=`
+  ${mHtml}
+  <div style="display:flex;justify-content:flex-end;align-items:center;margin-top:16px;">
+   <button onclick="openBotDashboard(${port})" style="background:#1e3a8a;color:#fff;border:1px solid #3b82f6;padding:11px 22px;border-radius:10px;cursor:pointer;font-weight:700;font-size:14.5px;transition:all 0.2s;box-shadow:0 4px 14px rgba(59,130,246,0.35)">📊 ${botName} 대시보드 새창 열기 ↗</button>
+  </div>
+ `;
+ modal.style.display='flex';
+ const innerContainer = modal.querySelector('div');
+ if(innerContainer) innerContainer.scrollTop = 0;
 }
 function closeBotModal(){
  const modal=document.getElementById('botModal');
  modal.style.display='none';
- if(_botGraphChart){_botGraphChart.destroy();_botGraphChart=null;}
 }
 function openBotDashboard(port){
  window.open('http://localhost:'+port,'_blank');
  closeBotModal();
-}
-async function showBotGraph(botName){
- showBotModal(botName, 8402);
-}
-async function updateBotGraph(botName){
- try{
-  const r=await fetch('/api/snapshots',{cache:'no-store'});
-  if(!r.ok) throw new Error('Snapshots fetch failed');
-  const snaps=await r.json();
-  const range=_botCurrentRange||'7d';
-  const now=new Date();
-  const mins={'12h':720,'24h':1440,'48h':2880,'7d':10080,'15d':21600,'1m':43200,'max':99999999}[range]||10080;
-  const cutoff=new Date(now-mins*60000);
-  const data=snaps
-   .filter(s=>new Date(s.ts)>=cutoff)
-   .map(s=>({ts:s.ts.slice(5),val:parseFloat((s.bots[botName]??0).toFixed(2))}));
-  if(!data.length){
-   document.getElementById('botGraphCanvas').parentElement.innerHTML='<div style="color:#fff;padding:40px;text-align:center;font-size:16px">해당 기간에 데이터가 없습니다</div>';
-   return;
-  }
-  const canvas=document.getElementById('botGraphCanvas');
-  if(!canvas) throw new Error('Canvas not found');
-  const ctx=canvas.getContext('2d');
-  if(_botGraphChart){
-   _botGraphChart.destroy();
-   _botGraphChart=null;
-  }
-  _botGraphChart=new Chart(ctx,{
-   type:'line',
-   data:{
-    labels:data.map(d=>d.ts),
-    datasets:[{
-     label:'일평균 수익률 (%)',
-     data:data.map(d=>d.val),
-     borderColor:'#2dbd85',
-     backgroundColor:'rgba(45,189,133,0.15)',
-     tension:0.3,
-     fill:true,
-     pointRadius:3,
-     pointBackgroundColor:'#2dbd85',
-     pointBorderColor:'#fff',
-     pointBorderWidth:1,
-     borderWidth:3
-    }]
-   },
-   options:{
-    responsive:true,
-    maintainAspectRatio:false,
-    plugins:{
-     tooltip:{enabled:true,backgroundColor:'rgba(0,0,0,0.9)',titleColor:'#2dbd85',bodyColor:'#2dbd85',borderColor:'#2dbd85',borderWidth:2,padding:12,displayColors:false,callbacks:{title:function(t){return t[0].label;},label:function(c){return '일평균 수익률: '+c.parsed.y.toFixed(2)+'%';}}},
-     legend:{display:true,labels:{color:'#fff',font:{size:14,weight:'bold'},padding:20}},
-     filler:{propagate:true}
-    },
-    scales:{
-     y:{
-      ticks:{color:'#888',font:{size:12,weight:'600'}},
-      grid:{color:'#3a4555',drawBorder:false,lineWidth:1},
-      beginAtZero:false
-     },
-     x:{
-      ticks:{color:'#888',font:{size:11}},
-      grid:{display:false,drawBorder:false}
-     }
-    }
-   }
-  });
- }catch(e){
-  console.error('Graph error:',e);
-  const wrap=document.getElementById('botGraphCanvas').parentElement;
-  wrap.innerHTML='<div style="color:#ff6b6b;padding:40px;text-align:center;font-size:16px;line-height:1.6">그래프 로드 실패<br><small style="font-size:13px">'+e.message+'</small></div>';
- }
 }
 window.addEventListener('keydown',e=>{if(e.key==='Escape')closeBotModal();});
 document.getElementById('botModal').addEventListener('click',e=>{if(e.target.id==='botModal')closeBotModal();});
