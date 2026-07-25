@@ -1,5 +1,15 @@
 # 버전 이력 (ver.md)
 
+## v0.9.367
+Date: 2026-07-25
+
+### 변경 내용
+* `dashboard.html` 봇 카드 클릭 모달 먹통 버그 긴급 픽스:
+  * `showBotModal()` 자바스크립트 함수 내 미선언 `folder` 변수 참조로 인한 `ReferenceError`를 즉시 교정하여, 봇 카드 클릭 시 정밀 분석 모달 팝업 및 HTML5 Canvas 모던 라이브 차트가 즉시 정상 오픈되도록 수정.
+
+### 수정 파일
+* `dashboard.html`
+
 ## v0.9.366
 Date: 2026-07-25
 

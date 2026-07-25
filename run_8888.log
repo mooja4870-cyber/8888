@@ -319,7 +319,5 @@ NameError: name 'datetime' is not defined. Did you forget to import 'datetime'?
 자동 모드 스위칭 검사 중 예외: name 'os' is not defined
 8888 통합 관제 대시보드: http://localhost:8888
 [DISCORD BOT] Token not found in discord_bot_token.txt or env. Listener waiting for token.
-[DISCORD 1MIN] 23:29:43 ok=True Loss(4봇): status=204 | Profit(4봇): status=204 collect=0.2s post=0.7s
-[DISCORD 1MIN] 23:30:43 ok=True Loss(4봇): status=204 | Profit(4봇): status=204 collect=0.1s post=0.7s
-[DISCORD 1MIN] 23:31:43 ok=True Loss(4봇): status=204 | Profit(4봇): status=204 collect=0.1s post=0.8s
-[DISCORD 1MIN] 23:32:43 ok=True Loss(4봇): status=204 | Profit(4봇): status=204 collect=0.1s post=0.7s
+[DISCORD 1MIN] 23:34:01 ok=True Loss(4봇): status=204 | Profit(4봇): status=204 collect=0.2s post=1.2s
+[DISCORD 1MIN] 23:35:01 ok=True Loss(4봇): status=204 | Profit(4봇): status=204 collect=0.1s post=1.0s

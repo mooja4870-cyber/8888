@@ -532,9 +532,10 @@ function showBotModal(botName,port){
   bot = window._FB_DATA.bots.find(b=>b.name===botName);
  }
 
- let mHtml = '';
- const m = bot ? (bot.metrics || null) : null;
- if (m) {
+  let mHtml = '';
+  const m = bot ? (bot.metrics || null) : null;
+  const folder = (bot && (bot.folder || bot.id)) ? (bot.folder || bot.id) : String(port);
+  if (m) {
   const f2 = v => (v == null || v == undefined) ? '—' : (v > 0 ? '+' : '') + Number(v).toFixed(2) + '%';
   const u2 = v => (v == null || v == undefined) ? '—' : '$' + Number(v).toFixed(2) + ' USDT';
   
