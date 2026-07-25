@@ -567,7 +567,7 @@ function showBotModal(botName,port){
           
           rows[r][i] = `<span style="color:${color}">${char}</span>`;
       }
-      const asciiStr = rows.map(r => r.join('')).join('\\n');
+      const asciiStr = rows.map(r => r.join('')).join('\n');
       chartHtml = `
       <div style="margin-top:20px;">
           <div style="color:#8b93a5;font-size:12.5px;margin-bottom:8px;font-weight:600;display:flex;gap:15px;align-items:center;">
