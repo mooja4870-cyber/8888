@@ -291,11 +291,33 @@ function _applyFilter(d){
  }else{
   avgDaily=Math.round((cumRet/maxDays)*100)/100;
  }
+
+ const profitBots=validBots.filter(b=>b.daily_ret>0);
+ const lossBots=validBots.filter(b=>b.daily_ret<=0);
+ let avgDailyP=0.0, avgDailyL=0.0;
+ let maxDaysP=1.0, maxDaysL=1.0;
+ if(profitBots.length){
+  const tS=profitBots.reduce((a,b)=>a+b.seed,0);
+  avgDailyP=tS?Math.round((profitBots.reduce((a,b)=>a+b.daily_ret*b.seed,0)/tS)*100)/100:0;
+  maxDaysP=Math.max(...profitBots.map(b=>{const t0=new Date(b.perf_start.replace(' ','T')).getTime();return !isNaN(t0)?(Date.now()-t0)/86400000:1.0;}));
+ }
+ if(lossBots.length){
+  const tS=lossBots.reduce((a,b)=>a+b.seed,0);
+  avgDailyL=tS?Math.round((lossBots.reduce((a,b)=>a+b.daily_ret*b.seed,0)/tS)*100)/100:0;
+  maxDaysL=Math.max(...lossBots.map(b=>{const t0=new Date(b.perf_start.replace(' ','T')).getTime();return !isNaN(t0)?(Date.now()-t0)/86400000:1.0;}));
+ }
+
  s.assets=assets;
  s.cum_ret=cumRet;
  s.cum_delta=assets-seed;
  s.daily_ret=avgDaily;
  s.days=Math.round(maxDays*10)/10;
+ s.cnt_p=profitBots.length;
+ s.dr_p=avgDailyP;
+ s.days_p=Math.max(0.0, Math.round(maxDaysP*10)/10);
+ s.cnt_l=lossBots.length;
+ s.dr_l=avgDailyL;
+ s.days_l=Math.max(0.0, Math.round(maxDaysL*10)/10);
  s.count=filtered.length;
  const staleArr=s.stale||[];
  s.alive=filtered.filter(b=>!staleArr.includes(String(b.name))).length;
@@ -329,7 +351,8 @@ function render(d,anim){
  document.getElementById('summary').innerHTML=`
   <div class="metric" onclick="openAssetModal()" style="cursor:pointer" title="클릭 → 총자산·BTC 추이 그래프"><div class="lbl">📈 총 자산 <span style="font-weight:400;color:var(--muted)">(현재 총잔고 합산)</span>${tip('Σ(각 봇 거래소 실시간 총잔고). 거래소 조회 실패 봇은 초기화잔고+실현손익으로 추정.<br>현재 합산: '+f2(s.assets)+' USDT<br><b>클릭하면 BTC 가격·총자산 추이 그래프</b>')}</div><div class="val">${s.assets===null?'—':s.assets.toFixed(2)} <span style="font-size:13px;color:var(--muted)">USDT</span></div></div>
   <div class="metric"><div class="lbl">누적수익률${tip('(Σ현재 총잔고 − Σ초기화 잔고) ÷ Σ초기화 잔고.<br>기준금(Σseed) '+f2(seedSum)+' → 현재 '+f2(s.assets)+'<br>증감 '+fmt(s.cum_delta,1)+' USDT')}</div><div class="val">${fmt(s.cum_ret,1)}<span style="font-size:13px;color:var(--muted)">%</span></div><div style="font-size:12px;color:var(--muted);margin-top:2px">기준금 대비 <span style="font-size:133%;animation:cardblink 1s ease-in-out infinite;font-weight:600">${fmt(s.cum_delta,1)}</span> USDT</div></div>
-  <div class="metric" onclick="openRetModal()" style="cursor:pointer" title="클릭 → 일평균수익률·BTC 추이 그래프"><div class="lbl">📊 일 평균수익률 <span style="font-weight:400">(${s.days}일)</span>${tip('누적수익률 ÷ 경과일수.<br>경과: '+s.days+'일 (가장 이른 perf_start 기준, 최소 1일)<br><b>클릭하면 일평균수익률 추이 그래프</b>')}</div><div class="val"><span style="animation:cardblink .5s ease-in-out infinite">${fmt(s.daily_ret,1)}</span><span style="font-size:13px;color:var(--muted)">%/일</span></div></div>
+  <div class="metric" onclick="openRetModal()" style="cursor:pointer" title="클릭 → 일평균수익률·BTC 추이 그래프"><div class="lbl">📊 손실 봇 평균 <span style="font-weight:400">(${s.days_l}일) [${s.cnt_l}봇]</span>${tip('손실 중인 봇들의 시드 가중 평균 일평균수익률')}</div><div class="val"><span style="animation:cardblink .5s ease-in-out infinite">${fmt(s.dr_l,1)}</span><span style="font-size:13px;color:var(--muted)">%/일</span></div></div>
+  <div class="metric" onclick="openRetModal()" style="cursor:pointer" title="클릭 → 일평균수익률·BTC 추이 그래프"><div class="lbl">📊 수익 봇 평균 <span style="font-weight:400">(${s.days_p}일) [${s.cnt_p}봇]</span>${tip('수익 중인 봇들의 시드 가중 평균 일평균수익률')}</div><div class="val"><span style="animation:cardblink .5s ease-in-out infinite">${fmt(s.dr_p,1)}</span><span style="font-size:13px;color:var(--muted)">%/일</span></div></div>
   <div class="metric"><div class="lbl">가동 중${tip('포트 응답 봇 수 / 전체.<br>🟢 정상 · 🟡 데이터 갱신 지연(60분+) · 🔴 다운<br>'+staleTxt)}</div><div class="val" style="color:${s.alive===s.count?'var(--green)':'var(--red-dot)'}">${s.alive}/${s.count} <span style="color:var(--amber)">(${s.with_positions}/${s.count})</span><br><span style="color:var(--amber)">${s.no_positions.length > 0 ? '<span style="font-size:0.77em">[' + s.no_positions.join(', ') + ']</span>' : ''}${(s.unknown_positions&&s.unknown_positions.length>0) ? ' <span style="font-size:0.77em;color:#888">?[' + s.unknown_positions.join(',') + ']</span>' : ''}</span></div></div>
   <div class="metric"><div class="lbl">🧾 누적 주문·승률${tip('전 봇 합산 누적 주문수 · 승률(전체 W/L)')}</div><div class="val" style="color:#5cc8ff">${_so}건 · ${_wrM(_sw,_sl)}<span style="font-size:13px;color:#8cd7ff">%</span><br><span style="font-size:12px;font-weight:600"><span style="color:var(--profit)">${_sw}W</span> <span style="color:var(--muted)">/</span> <span style="color:var(--loss)">${_sl}L</span></span></div></div>
   <div class="metric"><div class="lbl">🧾 당일 주문·승률${tip('전 봇 합산 당일 주문수 · 승률(당일 W/L)')}</div><div class="val" style="color:var(--amber)">${_oo}건 · ${_wrM(_tw,_tl)}<span style="font-size:13px;color:#fcd162">%</span><br><span style="font-size:12px;font-weight:600"><span style="color:var(--profit)">${_tw}W</span> <span style="color:var(--muted)">/</span> <span style="color:var(--loss)">${_tl}L</span></span></div></div>`;
