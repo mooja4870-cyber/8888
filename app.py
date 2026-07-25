@@ -1238,14 +1238,7 @@ class Handler(BaseHTTPRequestHandler):
             ctype = "application/json; charset=utf-8"
         elif self.path == "/" or self.path.startswith("/index"):
             with open(HTML_PATH, encoding="utf-8") as f:
-                content = f.read()
-            try:
-                fresh_data = collect()
-                fresh_json = json.dumps(fresh_data, ensure_ascii=False)
-                content = content.replace("/*INITIAL_DATA_PLACEHOLDER*/", f"window._FB_DATA = {fresh_json};")
-            except Exception as _e:
-                pass
-            body = content.encode()
+                body = f.read().encode()
             ctype = "text/html; charset=utf-8"
         else:
             self.send_error(404)
