@@ -565,6 +565,8 @@ function showBotModal(botName,port){
           else if (sample[i] === lo && !minMarked) { char = '🔵'; color = '#4d9fff'; minMarked = true; }
           else if (Math.abs(sample[i] - m.avg_dr) < rng * 0.1) { color = '#2dbd85'; }
           
+          if (i === sample.length - 1) { char = '🔶'; color = '#ffd633'; }
+          
           rows[r][i] = `<span style="color:${color}">${char}</span>`;
       }
       const asciiStr = rows.map(r => r.join('')).join('\n');
@@ -575,6 +577,7 @@ function showBotModal(botName,port){
               <span style="color:#ff5a5a">🔴 최고: ${f2(m.max_dr)}</span>
               <span style="color:#2dbd85">🟢 평균 근접</span>
               <span style="color:#4d9fff">🔵 최저: ${f2(m.min_dr)}</span>
+              <span style="color:#ffd633">🔶 현재: ${f2(m.curr_dr)}</span>
           </div>
           <div style="font-family:monospace;font-size:13px;line-height:1.2;background:#0f1115;padding:15px;border-radius:10px;border:1px solid #2a2f3a;overflow-x:auto;white-space:pre;color:#8b93a5;">${asciiStr}</div>
       </div>`;
