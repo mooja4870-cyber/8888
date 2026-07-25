@@ -938,6 +938,9 @@ def calc_bot_metrics(folder, bot_dict):
             curr_ex_bal = records[-1][2]
         curr_dr = bot_dict.get("daily_ret") if bot_dict.get("daily_ret") is not None else records[-1][1]
 
+        step = max(1, len(records) // 60)
+        history = [rec[1] for rec in records[::step]]
+
         return {
             "seed": seed,
             "perf_start": p_clean,
@@ -950,7 +953,8 @@ def calc_bot_metrics(folder, bot_dict):
             "min_dr": min_val,
             "min_dr_ts": min_recs[0][0],
             "min_dr_bal": round(min_recs[0][2], 2),
-            "curr_dr": curr_dr
+            "curr_dr": curr_dr,
+            "history": history
         }
     except Exception as e:
         print(f"[METRICS ERR] {folder}: {e}")
