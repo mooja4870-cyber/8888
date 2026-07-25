@@ -1,5 +1,22 @@
 # 버전 이력 (ver.md)
 
+## v0.9.363
+Date: 2026-07-25
+
+### 변경 내용
+* 봇 엔진 프로세스 재기동(Restart) 시 과거 스위칭 키 재감지로 인한 중복 알림 발송 방지 픽스:
+  * `core/engine.py` 내 `_last_switched_trade_keys`를 `data/switched_keys.json` 파일로 영구 저장 및 로드하도록 보강하여, 봇 재시작 후 첫 스캔 시 과거 5전 3패 이력으로 알림 메시지가 재생되는 현상 완전 해결.
+
+### 수정 파일
+* `8401/core/engine.py`
+* `8402/core/engine.py`
+* `8403/core/engine.py`
+* `8404/core/engine.py`
+* `8405/core/engine.py`
+* `8407/core/engine.py`
+* `8408/core/engine.py`
+* `8409/core/engine.py`
+
 ## v0.9.362
 Date: 2026-07-25
 
