@@ -1,0 +1,4 @@
+{"timestamp": 1784880782.922297, "symbol": "BTC/USDT", "event": "STOP_UPDATED", "side": "long", "old_stop": null, "new_stop": 49700.0, "mode": "chandelier"}
+{"timestamp": 1784880782.922616, "symbol": "BTC/USDT", "event": "STOP_UPDATED", "side": "long", "old_stop": 49700.0, "new_stop": 50200.0, "mode": "chandelier"}
+{"timestamp": 1784880782.922791, "symbol": "BTC/USDT", "event": "STATE_TRANSITION", "old_state": "NORMAL", "new_state": "CLOSING"}
+{"timestamp": 1784880782.922869, "symbol": "BTC/USDT", "event": "STATE_TRANSITION", "old_state": "CLOSING", "new_state": "CLOSED"}
