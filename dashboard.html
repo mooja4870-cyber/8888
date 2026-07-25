@@ -559,8 +559,8 @@ function showBotModal(botName,port){
   
   mHtml = `<div style="background:linear-gradient(135deg,#1e2638,#141923);border:1px solid #3b475d;border-radius:14px;padding:22px;box-shadow:0 8px 30px rgba(0,0,0,0.5);">
    <div style="font-weight:700;font-size:17px;color:#2dbd85;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #2a2f3a;padding-bottom:12px;">
-    <span>📊 [${botName} 봇] 실자산 잔고($) 기준 정밀 분석 비교표</span>
-    <span style="font-size:13px;color:#8b93a5;font-weight:400">초기화: ${m.perf_start || '—'} (${m.days}일 경과)</span>
+    <span>📊 [${botName} 봇] 실자산 잔고($) 기준 정밀 분석 비교표 [${m.days ? Number(m.days).toFixed(1) : '0.0'}일]</span>
+    <span style="font-size:13px;color:#8b93a5;font-weight:400">초기화: ${m.perf_start || '—'}</span>
    </div>
    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px;background:#0f1115;padding:16px 20px;border-radius:10px;font-size:14px;border:1px solid #2a2f3a;">
     <div><span style="color:#8b93a5">초기 자본금 (Seed):</span> <b style="color:#fff">${u2(m.seed)}</b></div>
@@ -614,8 +614,8 @@ function showBotModal(botName,port){
 
    mHtml = `<div style="background:linear-gradient(135deg,#1e2638,#141923);border:1px solid #3b475d;border-radius:14px;padding:22px;box-shadow:0 8px 30px rgba(0,0,0,0.5);">
     <div style="font-weight:700;font-size:17px;color:#2dbd85;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #2a2f3a;padding-bottom:12px;">
-     <span>📊 [${botName} 봇] 실자산 잔고($) 기준 정밀 분석 비교표</span>
-     <span style="font-size:13px;color:#8b93a5;font-weight:400">초기화: ${initStr} (${days.toFixed(2)}일 경과)</span>
+     <span>📊 [${botName} 봇] 실자산 잔고($) 기준 정밀 분석 비교표 [${days.toFixed(1)}일]</span>
+     <span style="font-size:13px;color:#8b93a5;font-weight:400">초기화: ${initStr}</span>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px;background:#0f1115;padding:16px 20px;border-radius:10px;font-size:14px;border:1px solid #2a2f3a;">
      <div><span style="color:#8b93a5">초기 자본금 (Seed):</span> <b style="color:#fff">${u2(seed)}</b></div>
