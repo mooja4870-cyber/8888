@@ -323,19 +323,23 @@ def _process_subset(data, target_names, state_suffix, title_prefix, include_bot_
 
 
 def tick(data, tick_count=0, include_bot_charts=False):
-    """집계 1건을 받아 수익/손실 두 그룹으로 나누어 디스코드 알림 발송하고 상태 갱신."""
-    loss_names = {str(b.get("name")) for b in data.get("bots", []) if b.get("daily_ret", 0.0) < 0}
-    profit_names = {str(b.get("name")) for b in data.get("bots", []) if b.get("daily_ret", 0.0) >= 0}
+    """집계 1건을 받아 봇 그룹(A, B)으로 나누어 디스코드 알림 발송하고 상태 갱신."""
+    group_a_names = {"8401", "8403", "8405", "8407", "8409"}
+    group_b_names = {"8402", "8404", "8408"}
+    
+    # 실제 data.get("bots")에 존재하는 봇만 필터링
+    actual_a = {str(b.get("name")) for b in data.get("bots", []) if str(b.get("name")) in group_a_names}
+    actual_b = {str(b.get("name")) for b in data.get("bots", []) if str(b.get("name")) in group_b_names}
 
-    ok1, info1 = False, "No loss bots"
-    if loss_names:
-        ok1, info1 = _process_subset(data, loss_names, "_loss.json", "손실 중인 봇의 전체", include_bot_charts=include_bot_charts)
+    ok1, info1 = False, "No bots in Group A"
+    if actual_a:
+        ok1, info1 = _process_subset(data, actual_a, "_group_a.json", "그룹 A (8401,3,5,7,9) 전체", include_bot_charts=include_bot_charts)
 
-    ok2, info2 = False, "No profit bots"
-    if profit_names:
-        ok2, info2 = _process_subset(data, profit_names, "_profit.json", "수익 중인 봇의 전체", include_bot_charts=include_bot_charts)
+    ok2, info2 = False, "No bots in Group B"
+    if actual_b:
+        ok2, info2 = _process_subset(data, actual_b, "_group_b.json", "그룹 B (8402,4,8) 전체", include_bot_charts=include_bot_charts)
 
-    return (ok1 or ok2), f"Loss({len(loss_names)}봇): {info1} | Profit({len(profit_names)}봇): {info2}"
+    return (ok1 or ok2), f"Group A({len(actual_a)}봇): {info1} | Group B({len(actual_b)}봇): {info2}"
 
 
 if __name__ == "__main__":
