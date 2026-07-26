@@ -199,7 +199,7 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
         b_asset = b.get("ex_balance") if b.get("ex_balance") is not None else (b.get("balance") if b.get("balance") is not None else b.get("seed", 0.0))
         asset_val_str = f"${b_asset:.2f}" if b_asset is not None else "$0.00"
         lines.append(f"{mode_prefix}{pos_str} {b_name_short}  {b_days:.1f}  {asset_val_str}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}")
-        lines.append(f"  ({ent1:02d},{ent4:02d},{ent12:02d},{ent24:02d} {sw:02d}W/{sl:02d}L){seq_str}")
+        lines.append(f"  ({ent1:02d}/{ent4:02d}|{ent12:02d}/{ent24:02d} {sw:02d}W/{sl:02d}L){seq_str}")
         
         # 🤖 5분 정각 알림(include_bot_charts=True)일 때 개별 봇 40분 파동 차트 렌더링
         if include_bot_charts:
