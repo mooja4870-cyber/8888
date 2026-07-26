@@ -734,6 +734,26 @@ def app_debug_time(folder):
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(latest)) if latest else None
 
 
+import hashlib
+
+GOLDEN_HASHES = {
+    "8402": {
+        "config.json": "a06b6e128edbcb39c578db25c5535883d57dc5f548cd9d2aa6f8873ab0f1765d",
+        "core/engine.py": "f1b19da6e1a26f0bbf7295db2ae528d581f12368937f492dc6677de0687d1004",
+        "core/trader.py": "dcb11c4ad055451ebe0e11d19b04c8e55afa0d24b6e4477abfd2913291ab815c"
+    },
+    "8404": {
+        "config.json": "f528ddee31f1c29563bba4a245a6d89bd86e21825d63b26b663f90befb568dc3",
+        "core/engine.py": "fdd155725a11d370a29d63aa81c3d0d641a4f69032725c345e24aee7927ca7ac",
+        "core/trader.py": "e2327818faf04dbf5af562a778d2bf79c2f4cac0783e2dcebbedc7b3e01dfa35"
+    },
+    "8408": {
+        "config.json": "2185f67d3d6dd517f6f4c4ff9f3fc5cbb16d7f14adc3213efcc00d37ba523878",
+        "core/engine.py": "cdd84d7590cb5971b2bd6c1e6692e9a1748ee702ddd4d8e4cfb2c871a421fcb1",
+        "core/trader.py": "c69ed8f2864095d584a99f693b59fa62c22cce1e5cad83bc6a48eb46125ab511"
+    }
+}
+
 def bot_status(folder, port, ex):
     # port로 정확하게 봇 ID 추출, 포트-폴더 매칭 명시
     bot_id = str(port)  # port 8401 → bot_id "8401"
@@ -742,6 +762,23 @@ def bot_status(folder, port, ex):
          "alive": port_alive(port), "daily": None, "total": None, "wins": 0,
          "losses": 0, "seed": None, "perf_start": None, "orders_today": 0,
          "total_trades": 0, "age_min": None, "positions": [], "trades": []}
+
+    # 무결성 검사 (Integrity Checker)
+    r["golden_compromised"] = False
+    r["compromised_files"] = []
+    if bot_id in GOLDEN_HASHES:
+        for tfile, expected_hash in GOLDEN_HASHES[bot_id].items():
+            fpath = os.path.join(BASE, folder, tfile)
+            if os.path.exists(fpath):
+                try:
+                    with open(fpath, "rb") as f:
+                        content = f.read().replace(b"\\r\\n", b"\\n")
+                        h = hashlib.sha256(content).hexdigest()
+                        if h != expected_hash:
+                            r["golden_compromised"] = True
+                            r["compromised_files"].append(tfile)
+                except Exception:
+                    pass
 
     # 실시간 메모리 / stats.json 데이터 로딩
     sp = os.path.join(d, "stats.json")

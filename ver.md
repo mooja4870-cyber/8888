@@ -12,6 +12,21 @@ Date: 2026-07-25
 ### 수정 파일
 * `dashboard.html`
 
+## v0.9.370
+Date: 2026-07-26
+
+### 변경 내용
+* `app.py` & `dashboard.html`: 황금 거위 봇(8402, 8404, 8408) 로직 동결 및 무결성 감시자 탑재
+  * OS 레벨에서 봇 핵심 로직 파일(`config.json`, `engine.py`, `trader.py`) 잠금 설정(chflags uchg).
+  * 8888 백엔드에 SHA-256 Checksum 검사 로직(`GOLDEN_HASHES`) 이식. 무결성 훼손 시 대시보드 봇 카드 내부에 강력한 적색 경고 알람 렌더링.
+
+### 수정 파일
+* `app.py`
+* `dashboard.html`
+
+### 비고
+* 오케스트레이션 과정 중 우수 로직 보호 하네스 적용 완료.
+
 ## v0.9.369
 Date: 2026-07-26
 

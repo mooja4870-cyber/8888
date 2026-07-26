@@ -374,7 +374,9 @@ function render(d,anim){
   const _ex=b.expectancy;
   const _exTxt=(_ex==null)?'—':((_ex>0?'+':'')+_ex.toFixed(2));
   const _exCol=(_ex==null)?'var(--muted)':(_ex>0?'var(--profit)':(_ex<0?'var(--loss)':'var(--muted)'));
+  const _goldenWarn = b.golden_compromised ? '<div style="background:var(--red-dot);color:#fff;font-weight:bold;font-size:12.5px;padding:6px;border-radius:6px;margin-bottom:10px;text-align:center;animation:cardblink 0.5s infinite;box-shadow:0 0 15px rgba(226,75,74,0.6)">🚨 로직 무결성 훼손!<br>['+(b.compromised_files||[]).join(', ')+']</div>' : '';
   return `<div class="card${b.alive?'':' offline'}" style="${hi}" onclick="showBotModal('${b.name}', ${b.port})">
+   ${_goldenWarn}
    <div class="head" style="align-items:flex-start;"><span class="dot" style="background:${dot};margin-top:6px;"></span>
     <div style="display:flex;flex-direction:column;line-height:1.2;">
      <div><span class="name" style="color:#ffffff; animation:cardblink 1s ease-in-out infinite">${((b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog)?"<span style=\"color:#ff5a5a;font-weight:bold;margin-right:4px;\">[역]</span>":"<span style=\"color:#4d9fff;font-weight:bold;margin-right:4px;\">[순]</span>")+b.name}</span>${b.config&&b.config.timeframe?' <span style="font-size:17px;font-weight:600;color:var(--muted);vertical-align:bottom;">['+b.config.timeframe+']</span>':''}</div>
