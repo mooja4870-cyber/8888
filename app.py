@@ -280,7 +280,7 @@ def hist_metrics(path, perf_start, pos_count=0):
     if total_holding_sec > 0:
         profit_per_hour = round((gross_win - gross_loss) / (total_holding_sec / 3600), 4)
 
-    # 기간별 진입 수 = 현재 시각 기준 직전 N시간 롤링 윈도우 내 고유 주문ID의 진입 수 (SINCE 시점 고려)
+    # 기간별 진입 수 = 직전 N시간 롤링 윈도우 내 실제 진입 건수 (청산 완료 고유 거래 수 + 현재 오픈 포지션 수)
     now = time.time()
     periods = {"1h": 3600, "4h": 14400, "6h": 21600, "12h": 43200, "24h": 86400,
                "48h": 172800, "72h": 259200, "1w": 604800}
@@ -289,16 +289,19 @@ def hist_metrics(path, perf_start, pos_count=0):
         cutoff = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now - secs))
         if ps and cutoff < ps:
             cutoff = ps
-        # 최초 출현(진입) 시각이 cutoff 이후인 고유 주문 수
-        entry_count = sum(1 for ts, oid in entries if ts >= cutoff)
-        # 윈도우가 초기화 시점(ps)에 도달했거나 포함된 경우 보조 카운트
+        # 1. 해당 윈도우 내 실현손익이 0이 아닌 청산 완료된 고유 거래 건수
         period_grp = {}
         for ts, pnl, oid in exits:
             if ts >= cutoff and oid:
                 period_grp[oid] = period_grp.get(oid, 0.0) + pnl
         completed_trades = sum(1 for oid, v in period_grp.items() if round(v, 4) != 0.0)
-        min_entries = completed_trades + (pos_count if (ps and cutoff <= ps) else 0)
-        entries_by_period[key] = max(entry_count, min_entries)
+        
+        # 2. 해당 윈도우 내에 존재하는 현재 오픈 포지션 건수 (1h는 최근 진입이 있는 경우만 합산)
+        if key == "1h":
+            recent_open = pos_count if (entries and max(e[0] for e in entries) >= cutoff) else 0
+            entries_by_period[key] = completed_trades + recent_open
+        else:
+            entries_by_period[key] = completed_trades + pos_count
 
     return {"today_pnl": round(today_pnl, 4), "today_w": tw, "today_l": tl,
             "since_w": sw, "since_l": sl, "since_orders": sw + sl,
