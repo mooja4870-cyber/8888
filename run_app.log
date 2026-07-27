@@ -24,3 +24,266 @@ OSError: [Errno 48] Address already in[AUTO-RELOAD] app.py 소스 변경 감지!
 8888 통합 관제 대시보드: http://localhost:8888
 [DISCORD BOT] Token not found in discord_bot_token.txt or env. Listener waiting for token.
 [DISCORD 1MIN] 17:54:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=1.1s
+[DISCORD 1MIN] 17:55:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.6s
+[DISCORD 1MIN] 17:56:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 17:57:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 17:58:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 17:59:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.6s
+[DISCORD 1MIN] 18:00:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 18:01:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.9s post=1.2s
+[DISCORD 1MIN] 18:02:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.9s post=0.7s
+[DISCORD 1MIN] 18:03:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 18:04:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 18:05:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.2s post=0.7s
+[DISCORD 1MIN] 18:06:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 18:07:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.8s
+[DISCORD 1MIN] 18:08:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 18:09:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.9s post=0.7s
+[DISCORD 1MIN] 18:10:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.8s
+[DISCORD 1MIN] 18:11:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.9s post=0.6s
+[DISCORD 1MIN] 18:12:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 18:13:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 18:14:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.6s
+[DISCORD 1MIN] 18:15:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 18:16:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.9s post=0.7s
+[DISCORD 1MIN] 18:17:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 18:18:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.9s post=0.7s
+[DISCORD 1MIN] 18:19:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.9s
+[DISCORD 1MIN] 18:20:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 18:21:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.9s post=0.8s
+[DISCORD 1MIN] 18:22:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.9s post=0.8s
+[DISCORD 1MIN] 18:23:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.9s post=0.8s
+[DISCORD 1MIN] 18:24:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 18:25:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.9s
+[DISCORD 1MIN] 18:26:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.9s
+[DISCORD 1MIN] 18:27:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.9s post=0.7s
+[DISCORD 1MIN] 18:28:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 18:29:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.6s
+[DISCORD 1MIN] 18:30:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 18:31:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 18:32:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 18:33:54 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=3.3s
+[DISCORD 1MIN] 18:34:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.6s
+[DISCORD 1MIN] 18:35:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 18:36:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 18:37:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 18:38:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 18:39:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 18:40:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 18:41:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 18:42:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.9s
+[DISCORD 1MIN] 18:43:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 18:44:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.9s
+[DISCORD 1MIN] 18:45:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 18:46:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 18:47:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.6s
+[DISCORD 1MIN] 18:48:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.9s post=0.6s
+[DISCORD 1MIN] 18:49:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 18:50:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.2s post=0.7s
+[DISCORD 1MIN] 18:51:51 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.9s post=0.7s
+[DISCORD 1MIN] 18:52:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 18:53:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 18:54:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 18:55:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 18:56:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 18:57:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.5s post=0.6s
+[DISCORD 1MIN] 18:58:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 18:59:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:00:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.9s
+[DISCORD 1MIN] 19:01:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:02:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:03:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:04:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 19:05:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:06:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:07:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 19:08:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:09:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 19:10:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 19:11:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:12:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:13:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:14:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 19:15:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 19:16:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 19:17:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:18:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.6s
+[DISCORD 1MIN] 19:19:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 19:20:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:21:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.9s
+[DISCORD 1MIN] 19:22:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:23:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:24:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 19:25:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=1.0s
+[DISCORD 1MIN] 19:26:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.6s
+[DISCORD 1MIN] 19:27:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.6s
+[DISCORD 1MIN] 19:28:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 19:29:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:30:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.8s
+[DISCORD 1MIN] 19:31:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:32:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 19:33:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:34:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:35:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.3s post=0.7s
+[DISCORD 1MIN] 19:36:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 19:37:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.6s
+[DISCORD 1MIN] 19:38:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.6s
+[DISCORD 1MIN] 19:39:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:40:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 19:41:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 19:42:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.6s
+[DISCORD 1MIN] 19:43:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:44:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 19:45:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 19:46:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:47:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 19:48:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 19:49:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:50:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.8s
+[DISCORD 1MIN] 19:51:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 19:52:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:53:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:54:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 19:55:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.6s
+[DISCORD 1MIN] 19:56:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:57:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:58:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 19:59:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.9s
+[DISCORD 1MIN] 20:00:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.9s
+[DISCORD 1MIN] 20:01:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 20:02:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.9s
+[DISCORD 1MIN] 20:03:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.9s post=0.7s
+[DISCORD 1MIN] 20:04:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:05:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:06:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.8s
+[DISCORD 1MIN] 20:07:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.9s post=0.7s
+[DISCORD 1MIN] 20:08:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=1.2s
+[DISCORD 1MIN] 20:09:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 20:10:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:11:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:12:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.6s
+[DISCORD 1MIN] 20:13:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.8s
+[DISCORD 1MIN] 20:14:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:15:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 20:16:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:17:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:18:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 20:19:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.6s
+[DISCORD 1MIN] 20:20:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 20:21:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:22:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 20:23:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:24:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:25:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.8s
+[DISCORD 1MIN] 20:26:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:27:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 20:28:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:29:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.6s
+[DISCORD 1MIN] 20:30:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 20:31:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:32:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.2s post=0.6s
+[DISCORD 1MIN] 20:33:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.6s
+[DISCORD 1MIN] 20:34:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 20:35:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.9s
+[DISCORD 1MIN] 20:36:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.9s
+[DISCORD 1MIN] 20:37:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 20:38:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.6s
+[DISCORD 1MIN] 20:39:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.6s
+[DISCORD 1MIN] 20:40:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:41:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.9s post=0.7s
+[DISCORD 1MIN] 20:42:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:43:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:44:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 20:45:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:46:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:47:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:48:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.9s post=0.7s
+[DISCORD 1MIN] 20:49:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:50:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 20:51:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 20:52:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:53:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:54:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:55:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 20:56:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.6s
+[DISCORD 1MIN] 20:57:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 20:58:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.2s post=0.8s
+[DISCORD 1MIN] 20:59:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 21:00:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 21:01:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 21:02:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 21:03:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 21:04:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 21:05:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.9s
+[DISCORD 1MIN] 21:06:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.4s post=0.7s
+[DISCORD 1MIN] 21:07:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.4s post=0.7s
+[DISCORD 1MIN] 21:08:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.4s post=0.7s
+[DISCORD 1MIN] 21:09:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.4s post=0.7s
+[DISCORD 1MIN] 21:10:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.6s post=0.6s
+[DISCORD 1MIN] 21:11:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.4s post=0.9s
+[DISCORD 1MIN] 21:12:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.7s post=0.6s
+[DISCORD 1MIN] 21:13:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.4s post=0.7s
+[DISCORD 1MIN] 21:14:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.5s post=0.6s
+[DISCORD 1MIN] 21:15:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.4s post=0.8s
+[DISCORD 1MIN] 21:16:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.4s post=0.6s
+[DISCORD 1MIN] 21:17:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.5s post=0.6s
+[DISCORD 1MIN] 21:18:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.4s post=0.9s
+[DISCORD 1MIN] 21:19:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.6s post=0.7s
+[DISCORD 1MIN] 21:20:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.5s post=0.8s
+[DISCORD 1MIN] 21:21:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.5s post=0.7s
+[DISCORD 1MIN] 21:22:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.5s post=0.7s
+[DISCORD 1MIN] 21:23:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.4s post=0.7s
+[DISCORD 1MIN] 21:24:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.4s post=0.7s
+[DISCORD 1MIN] 21:25:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.4s post=0.7s
+[DISCORD 1MIN] 21:26:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.4s post=0.8s
+[DISCORD 1MIN] 21:27:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.4s post=0.6s
+[DISCORD 1MIN] 21:28:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.7s post=0.7s
+[DISCORD 1MIN] 21:29:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.4s post=0.6s
+[DISCORD 1MIN] 21:30:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.6s post=0.7s
+[DISCORD 1MIN] 21:31:55 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.4s post=2.7s
+[DISCORD 1MIN] 21:32:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.4s post=0.6s
+[DISCORD 1MIN] 21:33:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.3s post=0.7s
+[DISCORD 1MIN] 21:34:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.8s
+[DISCORD 1MIN] 21:35:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.6s
+[DISCORD 1MIN] 21:36:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 21:37:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.9s
+[DISCORD 1MIN] 21:38:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 21:39:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.8s
+[DISCORD 1MIN] 21:40:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.6s
+[DISCORD 1MIN] 21:41:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 21:42:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 21:43:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.6s
+[DISCORD 1MIN] 21:44:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 21:45:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 21:46:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.6s
+[DISCORD 1MIN] 21:47:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.9s
+[DISCORD 1MIN] 21:48:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 21:49:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 21:50:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 21:51:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 21:52:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[DISCORD 1MIN] 21:53:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.3s post=0.8s
+[CHECKSUM_GUARD] 🚨 **[8401] 로직 오염 감지!**
+`bot.py` 파일이 변조되었습니다.
+즉시 Golden Backup(원본)으로 롤백 복구를 완료했습니다.
+[CHECKSUM_GUARD] 🚨 **[8402] 로직 오염 감지!**
+`bot.py` 파일이 변조되었습니다.
+즉시 Golden Backup(원본)으로 롤백 복구를 완료했습니다.
+[CHECKSUM_GUARD] 🚨 **[8403] 로직 오염 감지!**
+`bot.py` 파일이 변조되었습니다.
+즉시 Golden Backup(원본)으로 롤백 복구를 완료했습니다.
+[CHECKSUM_GUARD] 🚨 **[8404] 로직 오염 감지!**
+`bot.py` 파일이 변조되었습니다.
+즉시 Golden Backup(원본)으로 롤백 복구를 완료했습니다.
+[CHECKSUM_GUARD] 🚨 **[8405] 로직 오염 감지!**
+`bot.py` 파일이 변조되었습니다.
+즉시 Golden Backup(원본)으로 롤백 복구를 완료했습니다.
+[CHECKSUM_GUARD] 🚨 **[8407] 로직 오염 감지!**
+`bot.py` 파일이 변조되었습니다.
+즉시 Golden Backup(원본)으로 롤백 복구를 완료했습니다.
+[CHECKSUM_GUARD] 🚨 **[8408] 로직 오염 감지!**
+`bot.py` 파일이 변조되었습니다.
+즉시 Golden Backup(원본)으로 롤백 복구를 완료했습니다.
+[CHECKSUM_GUARD] 🚨 **[8409] 로직 오염 감지!**
+`bot.py` 파일이 변조되었습니다.
+즉시 Golden Backup(원본)으로 롤백 복구를 완료했습니다.
