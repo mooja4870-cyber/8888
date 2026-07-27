@@ -83,7 +83,7 @@ _ENTRY_CACHE = {}  # path -> (mtime, size, entries[])  ;  entries = [(ts19, oid)
 
 
 def _load_entries(path):
-    """trade_history.csv의 진입 행 전체를 (시각, 주문ID)로 파싱. mtime 캐시."""
+    """trade_history.csv에서 각 주문ID(order ID)별 최초 출현 시각을 진입 시각으로 파싱. mtime 캐시."""
     try:
         mt = os.path.getmtime(path)
         sz = os.path.getsize(path)
@@ -92,17 +92,19 @@ def _load_entries(path):
     c = _ENTRY_CACHE.get(path)
     if c and c[0] == mt and c[1] == sz:
         return c[2]
-    entries = []
+    oid_min_ts = {}
     try:
         with open(path, encoding="utf-8-sig", errors="replace") as f:
-            for r in csv.reader(f):
-                if len(r) < 3 or r[2] != "진입":
+            for i, r in enumerate(csv.reader(f)):
+                if len(r) < 3:
                     continue
                 ts = r[0].strip()[:19]
                 if not ts[:4].isdigit():
                     continue
-                oid = r[10].strip() if len(r) > 10 else ""
-                entries.append((ts, oid))
+                oid = r[10].strip() if len(r) > 10 and r[10].strip() else f"unk_entry_{ts}_{i}"
+                if oid not in oid_min_ts or ts < oid_min_ts[oid]:
+                    oid_min_ts[oid] = ts
+        entries = sorted([(ts, oid) for oid, ts in oid_min_ts.items()])
     except OSError:
         return []
     _ENTRY_CACHE[path] = (mt, sz, entries)
@@ -278,7 +280,7 @@ def hist_metrics(path, perf_start, pos_count=0):
     if total_holding_sec > 0:
         profit_per_hour = round((gross_win - gross_loss) / (total_holding_sec / 3600), 4)
 
-    # 기간별 진입 수 = 현재 시각 기준 직전 N시간 롤링 윈도우 내 진입/청산 주문의 고유 수 (청산만 있고 진입 누락된 경우도 보정)
+    # 기간별 진입 수 = 현재 시각 기준 직전 N시간 롤링 윈도우 내 고유 주문ID의 진입 수 (SINCE 시점 고려)
     now = time.time()
     periods = {"1h": 3600, "4h": 14400, "6h": 21600, "12h": 43200, "24h": 86400,
                "48h": 172800, "72h": 259200, "1w": 604800}
@@ -287,11 +289,15 @@ def hist_metrics(path, perf_start, pos_count=0):
         cutoff = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now - secs))
         if ps and cutoff < ps:
             cutoff = ps
-        # 진입 행 개수
+        # 최초 출현(진입) 시각이 cutoff 이후인 고유 주문 수
         entry_count = sum(1 for ts, oid in entries if ts >= cutoff)
-        # 해당 기간 내 청산 완료된 주문 수 + 현재 보유 오픈 포지션 수 (진입 누락 시 최소 진입 수 보정)
-        exit_oids = len(set(oid for ts, pnl, oid in exits if ts >= cutoff and oid))
-        min_entries = exit_oids + (pos_count if (ps and cutoff <= ps) or key in ("4h", "6h", "12h", "24h", "48h", "72h", "1w") else 0)
+        # 윈도우가 초기화 시점(ps)에 도달했거나 포함된 경우 보조 카운트
+        period_grp = {}
+        for ts, pnl, oid in exits:
+            if ts >= cutoff and oid:
+                period_grp[oid] = period_grp.get(oid, 0.0) + pnl
+        completed_trades = sum(1 for oid, v in period_grp.items() if round(v, 4) != 0.0)
+        min_entries = completed_trades + (pos_count if (ps and cutoff <= ps) else 0)
         entries_by_period[key] = max(entry_count, min_entries)
 
     return {"today_pnl": round(today_pnl, 4), "today_w": tw, "today_l": tl,
@@ -885,28 +891,6 @@ def bot_status(folder, port, ex):
     r["last_entry"], r["last_flat"] = last_entry_exit(hist, r["perf_start"])
     r["config"] = read_bot_config(folder)
     r["app_debug"] = app_debug_time(folder)   # 앱 최종 디버깅(app.py+core/*.py 최신 mtime)
-    pos_count = (r.get("ex_poslong", 0) or 0) + (r.get("ex_posshort", 0) or 0) if r.get("ex_poslong") is not None else len(r.get("positions") or [])
-    m = hist_metrics(hist, r["perf_start"], pos_count=pos_count)
-    r["perf_start"] = m.get("adjusted_perf_start", r["perf_start"])  # 과거 복구 데이터 반영
-    r["today_pnl"] = m["today_pnl"]            # 금일 실현 손익 (봇 화면값)
-    r["today_w"], r["today_l"] = m["today_w"], m["today_l"]
-    r["orders_today"] = m["today_w"] + m["today_l"]
-    r["since_w"], r["since_l"] = m["since_w"], m["since_l"]
-    r["since_orders"] = m["since_orders"]
-    r["since_pnl"] = m["since_pnl"]   # 초기화 이후 실현손익(봇 앱 누적손익)
-    r["entries_24h"] = m["entries_24h"]   # 24시간 내 진입 수 (청산 무관, 롤링 윈도우)
-    r["entries_by_period"] = m["entries_by_period"]   # 기간별 진입 수(1h~1w 롤링)
-    r["profit_factor"] = m["profit_factor"]   # 봇 효율: 총이익÷총손실 (1.5+ 우수)
-    r["avg_wl"] = m["avg_wl"]                  # 봇 효율: 평균이익÷평균손실 (1.5x+ 안정)
-    r["expectancy"] = m["expectancy"]         # 봇 효율: 거래당 평균 손익 (양수=엣지)
-    r["sqn"] = m.get("sqn")
-    r["sortino"] = m.get("sortino")
-    r["avg_holding_hours"] = m.get("avg_holding_hours")
-    r["profit_per_hour"] = m.get("profit_per_hour")
-    dd = drawdown_metrics(hist, r["perf_start"], r["seed"])
-    r["max_dd"] = dd["max_dd"]                 # [2단계] 최대 낙폭(누적, %)
-    r["today_dd"] = dd["today_dd"]             # [2단계] 당일 낙폭(%)
-    r["hm_grid"] = heatmap_grid(hist, r["perf_start"])   # [3단계] 요일×시간대 실현손익(7일)
     r.update({"ex_" + k: v for k, v in EX_CACHE.get(folder, {"ok": False, "err": "조회 전"}).items()})
     if not r.get("positions") and r.get("ex_pos_symbols"):
         r["positions"] = r["ex_pos_symbols"]
@@ -931,6 +915,29 @@ def bot_status(folder, port, ex):
                 r["ex_poslong"] = len(r["positions"])
                 r["ex_posshort"] = 0
                 r["holding"] = True
+
+    pos_count = (r.get("ex_poslong", 0) or 0) + (r.get("ex_posshort", 0) or 0) if r.get("ex_poslong") is not None else len(r.get("positions") or [])
+    m = hist_metrics(hist, r["perf_start"], pos_count=pos_count)
+    r["perf_start"] = m.get("adjusted_perf_start", r["perf_start"])  # 과거 복구 데이터 반영
+    r["today_pnl"] = m["today_pnl"]            # 금일 실현 손익 (봇 화면값)
+    r["today_w"], r["today_l"] = m["today_w"], m["today_l"]
+    r["orders_today"] = m["today_w"] + m["today_l"]
+    r["since_w"], r["since_l"] = m["since_w"], m["since_l"]
+    r["since_orders"] = m["since_orders"]
+    r["since_pnl"] = m["since_pnl"]   # 초기화 이후 실현손익(봇 앱 누적손익)
+    r["entries_24h"] = m["entries_24h"]   # 24시간 내 진입 수 (청산 무관, 롤링 윈도우)
+    r["entries_by_period"] = m["entries_by_period"]   # 기간별 진입 수(1h~1w 롤링)
+    r["profit_factor"] = m["profit_factor"]   # 봇 효율: 총이익÷총손실 (1.5+ 우수)
+    r["avg_wl"] = m["avg_wl"]                  # 봇 효율: 평균이익÷평균손실 (1.5x+ 안정)
+    r["expectancy"] = m["expectancy"]         # 봇 효율: 거래당 평균 손익 (양수=엣지)
+    r["sqn"] = m.get("sqn")
+    r["sortino"] = m.get("sortino")
+    r["avg_holding_hours"] = m.get("avg_holding_hours")
+    r["profit_per_hour"] = m.get("profit_per_hour")
+    dd = drawdown_metrics(hist, r["perf_start"], r["seed"])
+    r["max_dd"] = dd["max_dd"]                 # [2단계] 최대 낙폭(누적, %)
+    r["today_dd"] = dd["today_dd"]             # [2단계] 당일 낙폭(%)
+    r["hm_grid"] = heatmap_grid(hist, r["perf_start"])   # [3단계] 요일×시간대 실현손익(7일)
 
     # 누적 수익률 = (현재 총잔고 - 초기화 잔고) / 초기화 잔고  ← 봇 대시보드 툴팁과 동일
     #   일시   = perf_start_time(stats.json),  초기화 잔고 = seed_money(stats.json)
