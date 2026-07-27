@@ -1,5 +1,20 @@
 # 버전 이력 (ver.md)
 
+## v2.2.19
+Date: 2026-07-27
+
+### 변경 내용
+* 8401 봇 스캐너 오류 원천 해결 및 정상 복구:
+  1. `8401/core/strategy.py` 에 `generate_signal` 메서드 바인딩 누락 결함 조치 ➔ `'StrategyEngine' object has no attribute 'generate_signal'` 오류 해결
+  2. 30개 타겟 심볼 캔들 스캔 100% 정상 작동 및 진입 대기 상태 복구 완료
+
+### 수정 파일
+* `8401/core/strategy.py`
+* `ver.md`
+
+### 비고
+* 8401 봇 스캐너 정상 작동 및 PID 77724 재기동 확인 완료
+
 ## v2.2.18
 Date: 2026-07-27
 
