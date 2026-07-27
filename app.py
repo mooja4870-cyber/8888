@@ -1411,6 +1411,7 @@ def discord_1min_loop():
         t0 = time.time()
         try:
             _check_and_reload_if_modified()
+            run_check_auto_mode_switch_all()
             importlib.reload(discord_alert)
             data = collect()
             t1 = time.time()
@@ -1622,29 +1623,34 @@ def discord_listener_loop():
         print(f"[DISCORD_LISTENER] 스레드 예외: {e}", flush=True)
 
 
-def auto_mode_switch_guard_loop():
-    """전체 8개 봇 적응형 자동 스위처 2중 중앙 관제 루프"""
-    time.sleep(15)
+def run_check_auto_mode_switch_all():
+    """전체 8개 봇 실시간 매매방향 자동 스위칭(최근 5전 중 2패 이상 시 대칭 반전) 즉시 실행 함수"""
     target_bots = ["8401", "8402", "8403", "8404", "8405", "8407", "8408", "8409"]
+    for b in target_bots:
+        bot_path = f"/Users/l/project/{b}"
+        if os.path.exists(f"{bot_path}/core/engine.py"):
+            try:
+                sys.path.insert(0, bot_path)
+                import core.config
+                import core.engine
+                engine = core.engine.QuantumEngine()
+                engine.check_auto_mode_switch()
+            except Exception:
+                pass
+            finally:
+                if sys.path and sys.path[0] == bot_path:
+                    sys.path.pop(0)
+
+
+def auto_mode_switch_guard_loop():
+    """전체 8개 봇 적응형 자동 스위처 2중 중앙 관제 루프 (30초 정속 실시간 감시)"""
+    time.sleep(10)
     while True:
         try:
-            for b in target_bots:
-                bot_path = f"/Users/l/project/{b}"
-                if os.path.exists(f"{bot_path}/core/engine.py"):
-                    try:
-                        sys.path.insert(0, bot_path)
-                        import core.config
-                        import core.engine
-                        engine = core.engine.QuantumEngine()
-                        engine.check_auto_mode_switch()
-                    except Exception:
-                        pass
-                    finally:
-                        if sys.path and sys.path[0] == bot_path:
-                            sys.path.pop(0)
+            run_check_auto_mode_switch_all()
         except Exception as e:
             print(f"[AUTO_SWITCH_GUARD] 스레드 예외: {e}", flush=True)
-        time.sleep(300)
+        time.sleep(30)
 
 
 
