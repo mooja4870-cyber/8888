@@ -1541,7 +1541,63 @@ def auto_mode_switch_guard_loop():
         time.sleep(300)
 
 
+
+import hashlib
+import shutil
+
+def get_file_hash(path):
+    if not os.path.exists(path):
+        return None
+    hasher = hashlib.sha256()
+    with open(path, 'rb') as f:
+        hasher.update(f.read())
+    return hasher.hexdigest()
+
+def checksum_guard_loop():
+    """8개 봇의 핵심 로직 파일 변조 감시 및 자동 롤백 스레드"""
+    time.sleep(10)
+    target_bots = ["8401", "8402", "8403", "8404", "8405", "8407", "8408", "8409"]
+    target_files = ["bot.py", "core/strategy.py", "core/trader.py"]
+    
+    while True:
+        try:
+            for b in target_bots:
+                bot_path = f"/Users/l/project/{b}"
+                golden_dir = f"{bot_path}/.golden"
+                if not os.path.exists(golden_dir):
+                    continue
+                
+                for tf in target_files:
+                    golden_file = f"{golden_dir}/{tf}"
+                    live_file = f"{bot_path}/{tf}"
+                    
+                    golden_hash = get_file_hash(golden_file)
+                    if not golden_hash:
+                        continue
+                        
+                    live_hash = get_file_hash(live_file)
+                    
+                    if golden_hash != live_hash:
+                        # 롤백 수행
+                        try:
+                            shutil.copy2(golden_file, live_file)
+                            alert_msg = f"🚨 **[{b}] 로직 오염 감지!**\n`{tf}` 파일이 변조되었습니다.\n즉시 Golden Backup(원본)으로 롤백 복구를 완료했습니다."
+                            print(f"[CHECKSUM_GUARD] {alert_msg}", flush=True)
+                            try:
+                                import discord_alert
+                                discord_alert._post(alert_msg)
+                            except:
+                                pass
+                        except Exception as e:
+                            print(f"[CHECKSUM_GUARD] 롤백 실패: {e}")
+        except Exception as e:
+            print(f"[CHECKSUM_GUARD] 스레드 예외: {e}", flush=True)
+            
+        time.sleep(60)
+
 if __name__ == "__main__":
+    threading.Thread(target=checksum_guard_loop, daemon=True).start()  # 파일 변조 감시 및 자동 롤백 스레드
+
     threading.Thread(target=exchange_loop, daemon=True).start()
     threading.Thread(target=snapshot_loop, daemon=True).start()
     threading.Thread(target=asset_loop, daemon=True).start()   # [B안] 총자산 1분 기록
