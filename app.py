@@ -176,7 +176,7 @@ def last_entry_exit(path, perf_start=None):
     return res
 
 
-def hist_metrics(path, perf_start):
+def hist_metrics(path, perf_start, pos_count=0):
     """봇 대시보드와 동일하게 trade_history.csv에서 당일/누적 지표 재계산.
     - 금일 실현 손익 = Σ(청산 수익), 경계 = 오늘 00:00 KST.
     - 당일/누적 주문·승률 = order_id별로 묶어 합산 > 0 승 / < 0 패. (부분청산 승패 왜곡 방지)
@@ -187,13 +187,11 @@ def hist_metrics(path, perf_start):
     exits = _load_exits(path)
     entries = _load_entries(path)
 
-    # 옵션 A: 과거 복구 데이터 100% 반영을 위해, CSV에 더 옛날 데이터가 있으면 기준점을 가장 과거로 당김
-    if entries or exits:
+    # 옵션 A: 사용자가 설정한 초기화 시점(ps)이 없을 때만 CSV의 가장 과거 시각을 기준점으로 사용
+    if not ps and (entries or exits):
         all_ts = [x[0] for x in entries] + [x[0] for x in exits]
         if all_ts:
-            earliest_ts = min(all_ts)
-            if ps and earliest_ts < ps:
-                ps = earliest_ts
+            ps = min(all_ts)
 
     b_today = today0  # 초기화 시점과 무관하게 당일(00:00 이후) 모든 수익 집계
     b_since = ps or today0
@@ -291,9 +289,10 @@ def hist_metrics(path, perf_start):
             cutoff = ps
         # 진입 행 개수
         entry_count = sum(1 for ts, oid in entries if ts >= cutoff)
-        # 해당 기간 내 청산 완료된 고유 주문 수 (진입 누락 시 최소 진입 수 보정)
+        # 해당 기간 내 청산 완료된 주문 수 + 현재 보유 오픈 포지션 수 (진입 누락 시 최소 진입 수 보정)
         exit_oids = len(set(oid for ts, pnl, oid in exits if ts >= cutoff and oid))
-        entries_by_period[key] = max(entry_count, exit_oids)
+        min_entries = exit_oids + (pos_count if (ps and cutoff <= ps) or key in ("4h", "6h", "12h", "24h", "48h", "72h", "1w") else 0)
+        entries_by_period[key] = max(entry_count, min_entries)
 
     return {"today_pnl": round(today_pnl, 4), "today_w": tw, "today_l": tl,
             "since_w": sw, "since_l": sl, "since_orders": sw + sl,
@@ -886,8 +885,8 @@ def bot_status(folder, port, ex):
     r["last_entry"], r["last_flat"] = last_entry_exit(hist, r["perf_start"])
     r["config"] = read_bot_config(folder)
     r["app_debug"] = app_debug_time(folder)   # 앱 최종 디버깅(app.py+core/*.py 최신 mtime)
-    # 금일 실현 손익·당일/누적 주문·승률을 봇 화면과 동일하게 trade_history에서 재계산
-    m = hist_metrics(hist, r["perf_start"])
+    pos_count = (r.get("ex_poslong", 0) or 0) + (r.get("ex_posshort", 0) or 0) if r.get("ex_poslong") is not None else len(r.get("positions") or [])
+    m = hist_metrics(hist, r["perf_start"], pos_count=pos_count)
     r["perf_start"] = m.get("adjusted_perf_start", r["perf_start"])  # 과거 복구 데이터 반영
     r["today_pnl"] = m["today_pnl"]            # 금일 실현 손익 (봇 화면값)
     r["today_w"], r["today_l"] = m["today_w"], m["today_l"]
