@@ -191,10 +191,25 @@ def hist_metrics(path, perf_start):
 
     today_pnl = 0.0
     today_grp, since_grp = {}, {}
+    entry_dict = {}
+    for ts, oid in entries:
+        if oid and oid not in entry_dict:
+            entry_dict[oid] = ts  # 첫 진입 시각 기준
+
+    holding_times = []
     for ts, pnl, oid in exits:
         if ts >= b_since:
             if oid:
                 since_grp[oid] = since_grp.get(oid, 0.0) + pnl
+                if oid in entry_dict:
+                    try:
+                        import time
+                        t_in = time.mktime(time.strptime(entry_dict[oid], "%Y-%m-%d %H:%M:%S"))
+                        t_out = time.mktime(time.strptime(ts, "%Y-%m-%d %H:%M:%S"))
+                        ht = max(0, t_out - t_in)
+                        holding_times.append(ht)
+                    except Exception:
+                        pass
             if ts >= b_today:
                 today_pnl += pnl
                 if oid:
@@ -219,6 +234,35 @@ def hist_metrics(path, perf_start):
     n_grp = len(since_grp)
     expectancy = round(sum(since_grp.values()) / n_grp, 4) if n_grp else None
 
+    # SQN (System Quality Number) 산출
+    # SQN = (기대수익 / 손익의 표준편차) * sqrt(거래수)
+    sqn = None
+    if n_grp > 1 and expectancy is not None:
+        import math
+        pnls = list(since_grp.values())
+        mean_pnl = sum(pnls) / n_grp
+        variance = sum((p - mean_pnl)**2 for p in pnls) / (n_grp - 1)
+        std_dev = math.sqrt(variance)
+        if std_dev > 0:
+            sqn = round((expectancy / std_dev) * math.sqrt(n_grp), 2)
+
+    # 소르티노 비율 (Sortino Ratio) 산출
+    # Sortino = 기대수익 / 하방편차(Downside Deviation)
+    sortino = None
+    if n_grp > 0 and expectancy is not None and losses:
+        import math
+        downside_variance = sum(l**2 for l in losses) / n_grp
+        down_dev = math.sqrt(downside_variance)
+        if down_dev > 0:
+            sortino = round(expectancy / down_dev, 2)
+
+    # Time-in-Market 효율성 지표
+    total_holding_sec = sum(holding_times)
+    avg_holding_hours = round((total_holding_sec / len(holding_times)) / 3600, 2) if holding_times else None
+    profit_per_hour = None
+    if total_holding_sec > 0:
+        profit_per_hour = round((gross_win - gross_loss) / (total_holding_sec / 3600), 4)
+
     # 기간별 진입 수 = 현재 시각 기준 직전 N시간 롤링 윈도우 내 진입 기록 수 (청산 무관)
     now = time.time()
     periods = {"1h": 3600, "4h": 14400, "6h": 21600, "12h": 43200, "24h": 86400,
@@ -231,7 +275,8 @@ def hist_metrics(path, perf_start):
     return {"today_pnl": round(today_pnl, 4), "today_w": tw, "today_l": tl,
             "since_w": sw, "since_l": sl, "since_orders": sw + sl,
             "since_pnl": round(sum(since_grp.values()), 4),   # 초기화(perf_start) 이후 실현손익 = 봇 앱 누적손익
-            "profit_factor": profit_factor, "avg_wl": avg_wl, "expectancy": expectancy,
+            "profit_factor": profit_factor, "avg_wl": avg_wl, "expectancy": expectancy, "sqn": sqn, "sortino": sortino,
+            "avg_holding_hours": avg_holding_hours, "profit_per_hour": profit_per_hour,
             "entries_24h": entries_by_period["24h"], "entries_by_period": entries_by_period}
 
 
@@ -831,6 +876,10 @@ def bot_status(folder, port, ex):
     r["profit_factor"] = m["profit_factor"]   # 봇 효율: 총이익÷총손실 (1.5+ 우수)
     r["avg_wl"] = m["avg_wl"]                  # 봇 효율: 평균이익÷평균손실 (1.5x+ 안정)
     r["expectancy"] = m["expectancy"]         # 봇 효율: 거래당 평균 손익 (양수=엣지)
+    r["sqn"] = m.get("sqn")
+    r["sortino"] = m.get("sortino")
+    r["avg_holding_hours"] = m.get("avg_holding_hours")
+    r["profit_per_hour"] = m.get("profit_per_hour")
     dd = drawdown_metrics(hist, r["perf_start"], r["seed"])
     r["max_dd"] = dd["max_dd"]                 # [2단계] 최대 낙폭(누적, %)
     r["today_dd"] = dd["today_dd"]             # [2단계] 당일 낙폭(%)

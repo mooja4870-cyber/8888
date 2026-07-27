@@ -164,6 +164,7 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
 <div id="ddBanner"></div>
 <div id="drawdownTable" style="overflow:visible;margin-bottom:22px"></div>
 <h2>봇별 시간대별 성과 <span style="font-size:12px;color:var(--muted);font-weight:400">(시간별 수익 히트맵 · 최근 7일)</span></h2>
+<div id="regimeBanner" style="border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:13px;font-weight:600;background:rgba(255,255,255,0.05);border-left:3px solid var(--accent);color:var(--text)"></div>
 <div id="heatmapTable" style="overflow-x:auto;margin-bottom:22px"></div>
 
 <h2>매매기법 비교</h2>
@@ -374,9 +375,7 @@ function render(d,anim){
   const _ex=b.expectancy;
   const _exTxt=(_ex==null)?'—':((_ex>0?'+':'')+_ex.toFixed(2));
   const _exCol=(_ex==null)?'var(--muted)':(_ex>0?'var(--profit)':(_ex<0?'var(--loss)':'var(--muted)'));
-  const _goldenWarn = b.golden_compromised ? '<div style="background:var(--red-dot);color:#fff;font-weight:bold;font-size:12.5px;padding:6px;border-radius:6px;margin-bottom:10px;text-align:center;animation:cardblink 0.5s infinite;box-shadow:0 0 15px rgba(226,75,74,0.6)">🚨 로직 무결성 훼손!<br>['+(b.compromised_files||[]).join(', ')+']</div>' : '';
   return `<div class="card${b.alive?'':' offline'}" style="${hi}" onclick="showBotModal('${b.name}', ${b.port})">
-   ${_goldenWarn}
    <div class="head" style="align-items:flex-start;"><span class="dot" style="background:${dot};margin-top:6px;"></span>
     <div style="display:flex;flex-direction:column;line-height:1.2;">
      <div><span class="name" style="color:#ffffff; animation:cardblink 1s ease-in-out infinite">${((b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog)?"<span style=\"color:#ff5a5a;font-weight:bold;margin-right:4px;\">[역]</span>":"<span style=\"color:#4d9fff;font-weight:bold;margin-right:4px;\">[순]</span>")+b.name}</span>${b.config&&b.config.timeframe?' <span style="font-size:17px;font-weight:600;color:var(--muted);vertical-align:bottom;">['+b.config.timeframe+']</span>':''}</div>
@@ -499,6 +498,18 @@ function render(d,anim){
   </table>
   <div style="font-size:11px;color:var(--muted);margin-top:6px">단위: USDT · <span style="color:var(--profit)">빨강=수익</span> / <span style="color:var(--loss)">파랑=손실</span> (진할수록 큰 금액) · 최근 7일(요일무관) 실현손익 합산</div>`;
   document.getElementById('heatmapTable').innerHTML=hmTable;
+
+  // Market Regime (BTC 일일 수익률 기반 단순 추정)
+  let regimeDesc = '분석 불가';
+  if (d.btc_ret !== undefined) {
+    if (d.btc_ret >= 2.0) regimeDesc = '🚀 강한 상승장 (추세)';
+    else if (d.btc_ret <= -2.0) regimeDesc = '🩸 강한 하락장 (역추세)';
+    else if (d.btc_ret > 0.5) regimeDesc = '📈 약한 상승장';
+    else if (d.btc_ret < -0.5) regimeDesc = '📉 약한 하락장';
+    else regimeDesc = '⚖️ 횡보장 (박스권)';
+  }
+  const rb = document.getElementById('regimeBanner');
+  if (rb) rb.innerHTML = '💡 현재 시장 국면(Regime) 추정: ' + regimeDesc + ' <span style="font-weight:400;color:var(--muted);font-size:11px">(24h BTC 변동폭 기준)</span>';
 
   document.getElementById('comparisonTable').innerHTML=compTable;
  applyView();  // 시간별 모드면 표 갱신, 기본화면이면 카드 표시 유지
