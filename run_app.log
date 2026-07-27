@@ -355,3 +355,47 @@ OSError: [Errno 48] Address already in[AUTO-RELOAD] app.py 소스 변경 감지!
 [DISCORD 1MIN] 22:47:54 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.6s post=0.7s
 [DISCORD 1MIN] 22:48:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.4s post=0.7s
 [DISCORD 1MIN] 22:49:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.8s
+[CHECKSUM_GUARD] 🚨 **[8401] 로직 오염 감지!**
+`core/strategy.py` 파일이 변조되었습니다.
+즉시 Golden Backup(원본)으로 롤백 복구를 완료했습니다.
+[DISCORD 1MIN] 22:50:52 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.2s post=0.8s
+[DISCORD 1MIN] 22:51:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.8s
+[DISCORD 1MIN] 22:52:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.9s post=0.6s
+[DISCORD 1MIN] 22:53:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.7s post=0.6s
+[DISCORD 1MIN] 22:54:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.8s post=0.8s
+[DISCORD 1MIN] 22:55:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 22:56:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 22:57:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.5s post=0.8s
+[DISCORD 1MIN] 22:58:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[CHECKSUM_GUARD] 🚨 **[8401] 로직 오염 감지!**
+`core/strategy.py` 파일이 변조되었습니다.
+즉시 Golden Backup(원본)으로 롤백 복구를 완료했습니다.
+[DISCORD 1MIN] 22:59:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 23:00:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.6s
+[DISCORD 1MIN] 23:01:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.9s post=0.7s
+[DISCORD 1MIN] 23:02:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.8s
+[DISCORD 1MIN] 23:03:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.2s post=0.7s
+[DISCORD 1MIN] 23:04:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.9s post=0.7s
+[DISCORD 1MIN] 23:05:55 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=2.6s
+[DISCORD 1MIN] 23:06:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
+[CHECKSUM_GUARD] 🚨 **[8401] 로직 오염 감지!**
+`core/strategy.py` 파일이 변조되었습니다.
+즉시 Golden Backup(원본)으로 롤백 복구를 완료했습니다.
+[DISCORD 1MIN] 23:07:54 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=9.0s post=0.7s
+[DISCORD 1MIN] 23:08:54 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.5s post=0.8s
+[CHECKSUM_GUARD] 🚨 **[8401] 로직 오염 감지!**
+`core/strategy.py` 파일이 변조되었습니다.
+즉시 Golden Backup(원본)으로 롤백 복구를 완료했습니다.
+[DISCORD 1MIN] 23:09:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.8s post=0.7s
+[DISCORD 1MIN] 23:10:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.8s
+[DISCORD 1MIN] 23:11:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.1s post=0.7s
+[DISCORD 1MIN] 23:12:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.9s post=0.9s
+[CHECKSUM_GUARD] 🚨 **[8401] 로직 오염 감지!**
+`core/strategy.py` 파일이 변조되었습니다.
+즉시 Golden Backup(원본)으로 롤백 복구를 완료했습니다.
+[DISCORD 1MIN] 23:13:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.7s post=0.7s
+[DISCORD 1MIN] 23:14:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=7.7s post=0.6s
+[DISCORD 1MIN] 23:15:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.3s post=0.6s
+[DISCORD 1MIN] 23:16:54 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.5s post=0.7s
+[DISCORD 1MIN] 23:17:54 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.6s post=0.9s
+[DISCORD 1MIN] 23:18:53 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=8.0s post=0.7s
