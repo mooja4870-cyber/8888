@@ -14,7 +14,7 @@ import time
 import urllib.request
 from datetime import datetime, timedelta
 
-WEBHOOK_URL = "https://discord.com/api/webhooks/1479512076585144372/gOAz4w-a8htQvE0a92CZCMItHdeaGucSXe_4yWirbQYzXAjI_VorbjlI2JjzYXpJlGZy"
+WEBHOOK_URL = ""  # 알림 중단
 ROOT_DIR = "/Users/l/project"
 SNAP_FILE = os.path.join(ROOT_DIR, "8888", "snapshots.json")
 
@@ -189,6 +189,9 @@ def generate_ascii_graph(label: str, values: list, is_group: bool = False, seq_s
     return "\n".join(lines)
 
 def post_to_discord(content: str):
+    if not WEBHOOK_URL:
+        print("[DISCORD POST] WEBHOOK_URL 미설정 (알림 중단 상태)", flush=True)
+        return False
     data = {"content": content}
     json_data = json.dumps(data).encode("utf-8")
     req = urllib.request.Request(

@@ -11,7 +11,7 @@ import time
 import urllib.request
 from datetime import datetime, timedelta
 
-WEBHOOK_URL = "https://discord.com/api/webhooks/1479512076585144372/gOAz4w-a8htQvE0a92CZCMItHdeaGucSXe_4yWirbQYzXAjI_VorbjlI2JjzYXpJlGZy"
+WEBHOOK_URL = ""  # 알림 중단
 ROOT_DIR = "/Users/l/project"
 BOTS = [
     ("8401", "8401_OKX"),
@@ -185,6 +185,9 @@ def build_discord_messages(now_str, overall, by_bot, bot_modes):
 
 
 def send_webhook(content):
+    if not WEBHOOK_URL:
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] WEBHOOK_URL 미설정 (알림 중단 상태)", flush=True)
+        return False
     payload = json.dumps({"content": content}).encode("utf-8")
     req = urllib.request.Request(
         WEBHOOK_URL,

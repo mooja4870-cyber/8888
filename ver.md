@@ -1,5 +1,20 @@
 # 버전 이력 (ver.md)
 
+## v2.2.15
+Date: 2026-07-27
+
+### 변경 내용
+* 지정된 디스코드 웹훅(`https://discord.com/api/webhooks/1479512076585144372/...`) 알림 발송 중단 및 URL 비활성화 처리
+* `send_discord_stats.py` 및 `send_discord_hourly_graph.py` 웹훅 설정 해제 및 예외 검증 강화
+
+### 수정 파일
+* `send_discord_stats.py`
+* `send_discord_hourly_graph.py`
+* `ver.md`
+
+### 비고
+* 디스코드 정시 자동 알림 웹훅 중단 반영 완료
+
 ## v2.2.14
 Date: 2026-07-27
 
