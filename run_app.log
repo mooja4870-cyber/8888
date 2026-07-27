@@ -1,6 +1,15 @@
 8888 통합 관제 대시보드: http://localhost:8888
-[DISCORD BOT] Token not found in discord_bot_token.txt or env. Listener waiting for token.
-[DISCORD 1MIN] 17:40:43 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=0.1s post=0.8s
-[DISCORD 1MIN] 17:41:43 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=0.0s post=0.6s
-[DISCORD 1MIN] 17:42:43 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=0.0s post=0.9s
-[DISCORD 1MIN] 17:43:43 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=0.0s post=0.7s
+Traceback (most recent call last):
+  File "/Users/l/project/8888/app.py", line 1711, in <module>
+    ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socketserver.py", line 457, in __init__
+    self.server_bind()
+    ~~~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/server.py", line 148, in server_bind
+    socketserver.TCPServer.server_bind(self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socketserver.py", line 478, in server_bind
+    self.socket.bind(self.server_address)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+OSError: [Errno 48] Address already in use

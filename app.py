@@ -950,27 +950,17 @@ def bot_status(folder, port, ex):
     r["days"] = round(days, 2)
     if r["seed"]:
         # 봇 앱과 동일하게 '실제 잔고 변화 ÷ 기준금' 누적 (수수료·펀딩 반영된 실잔고 기준).
-        #   조회 실패 시에만 실현손익(total)으로 폴백.
         ex_bal = r.get("ex_balance")
         if ex_bal is not None and float(ex_bal) > 0:
-            upnl = r.get("ex_upnl")
-            if upnl is None:
-                upnl = estimate_bot_upnl(folder, r.get("positions"))
-            tot_bal = float(ex_bal) + (upnl or 0.0)
+            tot_bal = float(ex_bal)
             r["cum_delta"] = round(tot_bal - r["seed"], 4)
-            r["cum_basis"] = "balance_with_upnl"
+            r["cum_basis"] = "balance"
         else:
-            est_upnl = estimate_bot_upnl(folder, r.get("positions"))
-            if est_upnl != 0.0 or (r.get("positions") and len(r["positions"]) > 0):
-                r["ex_upnl"] = est_upnl
-                base_pnl = (r["total"] or 0) + est_upnl
-                r["cum_delta"] = round(base_pnl, 4)
-                r["cum_basis"] = "estimated_pnl"
-            else:
-                r["cum_delta"] = round(r["total"] or 0, 4)
-                r["cum_basis"] = "pnl"
+            r["cum_delta"] = round(r["total"] or 0, 4)
+            r["cum_basis"] = "pnl"
         r["cum_ret"] = round(r["cum_delta"] / r["seed"] * 100, 2)
-        r["daily_ret"] = round(r["cum_ret"] / days, 2)
+        eff_days = max(days, 1.0)
+        r["daily_ret"] = round(r["cum_ret"] / eff_days, 2)
     else:
         r["cum_ret"] = r["daily_ret"] = r["cum_delta"] = None
         r["cum_basis"] = None
