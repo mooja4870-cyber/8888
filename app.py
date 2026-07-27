@@ -178,45 +178,62 @@ def last_entry_exit(path, perf_start=None):
 
 def hist_metrics(path, perf_start):
     """봇 대시보드와 동일하게 trade_history.csv에서 당일/누적 지표 재계산.
-    - 금일 실현 손익 = Σ(청산 수익), 경계 = max(오늘 00:00 KST, perf_start). 행 단위 합산.
-    - 당일/누적 주문·승률 = order_id별로 묶어 합산 > 0 승 / < 0 패 (봇 방식).
-    - 24시간 내 진입 수 = 현재 시각 기준 직전 24시간 롤링 윈도우 내 진입 기록 수 (청산 무관).
+    - 금일 실현 손익 = Σ(청산 수익), 경계 = 오늘 00:00 KST.
+    - 당일/누적 주문·승률 = order_id별로 묶어 합산 > 0 승 / < 0 패. (부분청산 승패 왜곡 방지)
+    - 24시간 내 진입 수 = 현재 시각 기준 직전 24시간 롤링 윈도우 내 진입 기록 수.
     """
     today0 = time.strftime("%Y-%m-%d 00:00:00")
     ps = (perf_start or "")[:19]
-    b_today = max(today0, ps) if ps else today0
-    b_since = ps or today0
     exits = _load_exits(path)
     entries = _load_entries(path)
+
+    # 옵션 A: 과거 복구 데이터 100% 반영을 위해, CSV에 더 옛날 데이터가 있으면 기준점을 가장 과거로 당김
+    if entries or exits:
+        all_ts = [x[0] for x in entries] + [x[0] for x in exits]
+        if all_ts:
+            earliest_ts = min(all_ts)
+            if ps and earliest_ts < ps:
+                ps = earliest_ts
+
+    b_today = today0  # 초기화 시점과 무관하게 당일(00:00 이후) 모든 수익 집계
+    b_since = ps or today0
 
     today_pnl = 0.0
     today_grp, since_grp = {}, {}
     entry_dict = {}
-    for ts, oid in entries:
-        if oid and oid not in entry_dict:
+    
+    # OID 누락 방지 (빈 문자열이면 가상 ID 부여)
+    for i, (ts, oid) in enumerate(entries):
+        if not oid:
+            oid = f"unk_entry_{ts}_{i}"
+            entries[i] = (ts, oid)
+        if oid not in entry_dict:
             entry_dict[oid] = ts  # 첫 진입 시각 기준
 
     holding_times = []
-    for ts, pnl, oid in exits:
+    for i in range(len(exits)):
+        ts, pnl, oid = exits[i]
+        if not oid:
+            oid = f"unk_exit_{ts}_{i}"  # 빈 OID 누락 방지
+            exits[i] = (ts, pnl, oid)
+            
         if ts >= b_since:
-            if oid:
-                since_grp[oid] = since_grp.get(oid, 0.0) + pnl
-                if oid in entry_dict:
-                    try:
-                        import time
-                        t_in = time.mktime(time.strptime(entry_dict[oid], "%Y-%m-%d %H:%M:%S"))
-                        t_out = time.mktime(time.strptime(ts, "%Y-%m-%d %H:%M:%S"))
-                        ht = max(0, t_out - t_in)
-                        holding_times.append(ht)
-                    except Exception:
-                        pass
+            since_grp[oid] = since_grp.get(oid, 0.0) + pnl
+            if oid in entry_dict:
+                try:
+                    t_in = time.mktime(time.strptime(entry_dict[oid], "%Y-%m-%d %H:%M:%S"))
+                    t_out = time.mktime(time.strptime(ts, "%Y-%m-%d %H:%M:%S"))
+                    ht = max(0, t_out - t_in)
+                    holding_times.append(ht)
+                except Exception:
+                    pass
             if ts >= b_today:
                 today_pnl += pnl
-                if oid:
-                    today_grp[oid] = today_grp.get(oid, 0.0) + pnl
+                today_grp[oid] = today_grp.get(oid, 0.0) + pnl
 
-    tw = sum(1 for v in today_grp.values() if v > 0)
-    tl = sum(1 for v in today_grp.values() if v < 0)
+    # 부분청산된 경우, 오늘 판정은 해당 거래의 '전체 누적손익(since_grp)'을 기준으로 하여 승패 왜곡 방지
+    tw = sum(1 for oid, v in today_grp.items() if since_grp.get(oid, v) > 0)
+    tl = sum(1 for oid, v in today_grp.items() if since_grp.get(oid, v) < 0)
     sw = sum(1 for v in since_grp.values() if v > 0)
     sl = sum(1 for v in since_grp.values() if v < 0)
 
@@ -274,11 +291,11 @@ def hist_metrics(path, perf_start):
 
     return {"today_pnl": round(today_pnl, 4), "today_w": tw, "today_l": tl,
             "since_w": sw, "since_l": sl, "since_orders": sw + sl,
-            "since_pnl": round(sum(since_grp.values()), 4),   # 초기화(perf_start) 이후 실현손익 = 봇 앱 누적손익
+            "since_pnl": round(sum(since_grp.values()), 4),   # 초기화 이후 실현손익 = 봇 앱 누적손익
             "profit_factor": profit_factor, "avg_wl": avg_wl, "expectancy": expectancy, "sqn": sqn, "sortino": sortino,
             "avg_holding_hours": avg_holding_hours, "profit_per_hour": profit_per_hour,
-            "entries_24h": entries_by_period["24h"], "entries_by_period": entries_by_period}
-
+            "entries_24h": entries_by_period["24h"], "entries_by_period": entries_by_period,
+            "adjusted_perf_start": ps}
 
 def drawdown_metrics(path, perf_start, seed):
     """[2단계] 실현손익 equity curve로 최대낙폭(누적)·당일낙폭 계산 (seed 대비 %).
@@ -865,6 +882,7 @@ def bot_status(folder, port, ex):
     r["app_debug"] = app_debug_time(folder)   # 앱 최종 디버깅(app.py+core/*.py 최신 mtime)
     # 금일 실현 손익·당일/누적 주문·승률을 봇 화면과 동일하게 trade_history에서 재계산
     m = hist_metrics(hist, r["perf_start"])
+    r["perf_start"] = m.get("adjusted_perf_start", r["perf_start"])  # 과거 복구 데이터 반영
     r["today_pnl"] = m["today_pnl"]            # 금일 실현 손익 (봇 화면값)
     r["today_w"], r["today_l"] = m["today_w"], m["today_l"]
     r["orders_today"] = m["today_w"] + m["today_l"]
