@@ -1,4 +1,20 @@
 # 버전 이력 (ver.md)
+## v2.2.22
+Date: 2026-07-27
+
+### 변경 내용
+* 8888 관제 대시보드 UI에 무결성 검증(Golden Backup) 켜기/끄기 토글 추가
+* app.py 내 /api/integrity_status 및 /api/integrity_toggle 엔드포인트 구현
+* checksum_guard_loop 감시 스레드에 토글 상태 연동 (OFF 시 변조 검증 및 롤백 생략)
+
+### 수정 파일
+* dashboard.html
+* app.py
+* ver.md
+
+### 비고
+* 무결성 검증 강제 롤백 방지 기능 구현 완료
+
 
 ## v2.2.21
 Date: 2026-07-27

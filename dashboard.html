@@ -119,7 +119,12 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
 <span><span class="dot" style="background:var(--green)"></span>정상</span>
 <span><span class="dot" style="background:var(--amber)"></span>데이터 갱신 지연 (60분+)</span>
 <span><span class="dot" style="background:var(--red-dot)"></span>다운 (포트 무응답)</span>
-<span style="margin-left:auto">카드 클릭 → 해당 봇 대시보드 열기</span>
+<div style="margin-left:auto; display:flex; gap:16px; align-items:center;">
+    <label style="display:flex; align-items:center; gap:5px; cursor:pointer; color:var(--text);" title="파일 변조 시 자동 복구 기능 켜기/끄기">
+      <input type="checkbox" id="integrityToggle" onchange="toggleIntegrity(this.checked)" checked> 🛡️ 무결성 검증(Golden Backup) 켬
+    </label>
+    <span>카드 클릭 → 해당 봇 대시보드 열기</span>
+</div>
 </div>
 <div class="cards" id="cards"></div>
 <div id="timeview" style="display:none;margin-bottom:22px"></div>
@@ -311,7 +316,19 @@ window.addEventListener('DOMContentLoaded', ()=>{
  const saved=localStorage.getItem('botfilter_mode');
  const el=document.getElementById('botfilter');
  if(el&&saved&&(saved==='all'||saved==='bluefrog'))el.value=saved;
+ 
+ fetch('/api/integrity_status').then(r=>r.json()).then(d=>{
+  const tel = document.getElementById('integrityToggle');
+  if(tel) tel.checked = d.enabled;
+ }).catch(e=>{});
 });
+function toggleIntegrity(checked) {
+ fetch('/api/integrity_toggle', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ enabled: checked })
+ }).catch(e=>{ alert("상태 변경에 실패했습니다."); });
+}
 function render(d,anim){
  if(!d || !d.bots || !d.bots.length){
   if(window._FB_DATA) d = window._FB_DATA;

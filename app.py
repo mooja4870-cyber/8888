@@ -1352,6 +1352,17 @@ class Handler(BaseHTTPRequestHandler):
             tf = (parse_qs(urlparse(self.path).query).get("tf") or ["1h"])[0]
             body = json.dumps(asset_chart(tf), ensure_ascii=False).encode()
             ctype = "application/json; charset=utf-8"
+        elif self.path == "/api/integrity_status":
+            state_file = os.path.join(BASE, "data", "integrity_toggle.json")
+            enabled = True
+            if os.path.exists(state_file):
+                try:
+                    with open(state_file, "r", encoding="utf-8") as f:
+                        enabled = json.load(f).get("enabled", True)
+                except:
+                    pass
+            body = json.dumps({"enabled": enabled}).encode()
+            ctype = "application/json; charset=utf-8"
         elif self.path == "/" or self.path.startswith("/index"):
             with open(HTML_PATH, encoding="utf-8") as f:
                 body = f.read().encode()
@@ -1365,6 +1376,30 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
+
+    def do_POST(self):
+        if self.path == "/api/integrity_toggle":
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                post_data = self.rfile.read(content_length)
+                data = json.loads(post_data.decode('utf-8'))
+                enabled = bool(data.get("enabled", True))
+                
+                state_file = os.path.join(BASE, "data", "integrity_toggle.json")
+                os.makedirs(os.path.dirname(state_file), exist_ok=True)
+                with open(state_file, "w", encoding="utf-8") as f:
+                    json.dump({"enabled": enabled}, f)
+                
+                body = json.dumps({"status": "ok", "enabled": enabled}).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except Exception as e:
+                self.send_error(400, f"Bad Request: {e}")
+        else:
+            self.send_error(404)
 
     def log_message(self, fmt, *args):
         pass
@@ -1658,6 +1693,19 @@ def checksum_guard_loop():
     
     while True:
         try:
+            # 토글 상태 확인
+            state_file = os.path.join(BASE, "data", "integrity_toggle.json")
+            is_enabled = True
+            if os.path.exists(state_file):
+                try:
+                    with open(state_file, "r", encoding="utf-8") as f:
+                        is_enabled = json.load(f).get("enabled", True)
+                except:
+                    pass
+            if not is_enabled:
+                time.sleep(60)
+                continue
+                
             for b in target_bots:
                 bot_path = f"/Users/l/project/{b}"
                 golden_dir = f"{bot_path}/.golden"
