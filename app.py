@@ -280,14 +280,20 @@ def hist_metrics(path, perf_start):
     if total_holding_sec > 0:
         profit_per_hour = round((gross_win - gross_loss) / (total_holding_sec / 3600), 4)
 
-    # 기간별 진입 수 = 현재 시각 기준 직전 N시간 롤링 윈도우 내 진입 기록 수 (청산 무관)
+    # 기간별 진입 수 = 현재 시각 기준 직전 N시간 롤링 윈도우 내 진입/청산 주문의 고유 수 (청산만 있고 진입 누락된 경우도 보정)
     now = time.time()
     periods = {"1h": 3600, "4h": 14400, "6h": 21600, "12h": 43200, "24h": 86400,
                "48h": 172800, "72h": 259200, "1w": 604800}
     entries_by_period = {}
     for key, secs in periods.items():
         cutoff = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now - secs))
-        entries_by_period[key] = sum(1 for ts, oid in entries if ts >= cutoff)
+        if ps and cutoff < ps:
+            cutoff = ps
+        # 진입 행 개수
+        entry_count = sum(1 for ts, oid in entries if ts >= cutoff)
+        # 해당 기간 내 청산 완료된 고유 주문 수 (진입 누락 시 최소 진입 수 보정)
+        exit_oids = len(set(oid for ts, pnl, oid in exits if ts >= cutoff and oid))
+        entries_by_period[key] = max(entry_count, exit_oids)
 
     return {"today_pnl": round(today_pnl, 4), "today_w": tw, "today_l": tl,
             "since_w": sw, "since_l": sl, "since_orders": sw + sl,
