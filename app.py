@@ -1707,8 +1707,7 @@ if __name__ == "__main__":
     threading.Thread(target=exchange_loop, daemon=True).start()
     threading.Thread(target=snapshot_loop, daemon=True).start()
     threading.Thread(target=asset_loop, daemon=True).start()   # [B안] 총자산 1분 기록
-    threading.Thread(target=discord_1min_loop, daemon=True).start()  # 디스코드 매 1분 실시간 알림 스레드
-    threading.Thread(target=discord_5min_loop, daemon=True).start()  # 디스코드 매 5분 정각 8개 봇 파동 알림 스레드
+    threading.Thread(target=discord_1min_loop, daemon=True).start()   # 매 1분 디스코드 2개 그룹(그룹 1, 그룹 2) 실시간 관제 알림 스레드
     threading.Thread(target=auto_repair_loop, daemon=True).start()  # 매 5분 매매이력 자동 점검 스레드
     threading.Thread(target=discord_listener_loop, daemon=True).start()  # 디스코드 양방향 원격 제어 봇 스레드
     threading.Thread(target=auto_mode_switch_guard_loop, daemon=True).start()  # 8403,5,7,9 2중 자동 스위칭 중앙 관제 스레드

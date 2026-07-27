@@ -57576,3 +57576,54 @@ Traceback (most recent call last):
 OSError: [Errno 48] Address already in use
 8888 통합 관제 대시보드: http://localhost:8888
 [DISCORD BOT] Token not found in discord_bot_token.txt or env. Listener waiting for token.
+[DISCORD 1MIN] 16:08:38 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.2s
+[DISCORD 1MIN] 16:09:38 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.2s
+[DISCORD 5MIN] 16:10:08 ok=True Group A(5): 5Min Per-Bot Split Sent (5 bots) | Group B(3): 5Min Per-Bot Split Sent (3 bots) | Group C(2): 5Min Per-Bot Split Sent (2 bots) collect=0.0s post=8.8s
+[DISCORD 1MIN] 16:10:38 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.1s
+[DISCORD 1MIN] 16:11:38 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.2s
+[DISCORD 1MIN] 16:12:38 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.4s
+[DISCORD 1MIN] 16:13:38 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.1s
+[DISCORD 1MIN] 16:14:38 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.4s
+[DISCORD 5MIN] 16:15:10 ok=True Group A(5): 5Min Per-Bot Split Sent (5 bots) | Group B(3): 5Min Per-Bot Split Sent (3 bots) | Group C(2): 5Min Per-Bot Split Sent (2 bots) collect=0.0s post=10.5s
+[DISCORD 1MIN] 16:15:38 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.2s
+[DISCORD 1MIN] 16:16:38 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.5s
+[DISCORD 1MIN] 16:17:38 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.2s
+[DISCORD 1MIN] 16:18:38 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.3s
+[DISCORD 1MIN] 16:19:38 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.2s
+[DISCORD 5MIN] 16:20:09 ok=True Group A(5): 5Min Per-Bot Split Sent (5 bots) | Group B(3): 5Min Per-Bot Split Sent (3 bots) | Group C(2): 5Min Per-Bot Split Sent (2 bots) collect=0.0s post=9.5s
+[DISCORD 1MIN] 16:20:39 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.8s
+[DISCORD 1MIN] 16:21:38 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.1s
+[DISCORD 1MIN] 16:22:39 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.5s
+[DISCORD 1MIN] 16:23:38 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.3s
+[DISCORD 1MIN] 16:24:38 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.2s
+[DISCORD 5MIN] 16:25:10 ok=True Group A(5): 5Min Per-Bot Split Sent (5 bots) | Group B(3): 5Min Per-Bot Split Sent (3 bots) | Group C(2): 5Min Per-Bot Split Sent (2 bots) collect=0.0s post=10.7s
+[DISCORD 1MIN] 16:25:38 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.3s
+[DISCORD 1MIN] 16:26:38 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.1s
+[DISCORD 1MIN] 16:27:38 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.2s
+[DISCORD 1MIN] 16:28:39 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.8s
+[DISCORD 1MIN] 16:29:39 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.5s
+[DISCORD 5MIN] 16:30:11 ok=True Group A(5): 5Min Per-Bot Split Sent (5 bots) | Group B(3): 5Min Per-Bot Split Sent (3 bots) | Group C(2): 5Min Per-Bot Split Sent (2 bots) collect=0.0s post=11.6s
+[DISCORD 1MIN] 16:30:40 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=2.6s
+[DISCORD 1MIN] 16:31:40 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=3.2s
+[DISCORD 1MIN] 16:32:39 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=2.1s
+[AUTO-RELOAD] discord_alert.py 소스 변경 감지! (mtime: 1785071618.6984115 -> 1785137605.932841). 프로세스를 자동 재기동합니다...
+8888 통합 관제 대시보드: http://localhost:8888
+[DISCORD BOT] Token not found in discord_bot_token.txt or env. Listener waiting for token.
+[DISCORD 1MIN] 16:34:09 ok=True Group 1(5): status=204 | Group 2(3): status=204 collect=0.0s post=1.3s
+8888 통합 관제 대시보드: http://localhost:8888
+Traceback (most recent call last):
+  File "/Users/l/project/8888/app.py", line 1715, in <module>
+    ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socketserver.py", line 457, in __init__
+    self.server_bind()
+    ~~~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/server.py", line 148, in server_bind
+    socketserver.TCPServer.server_bind(self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socketserver.py", line 478, in server_bind
+    self.socket.bind(self.server_address)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+OSError: [Errno 48] Address already in use
+8888 통합 관제 대시보드: http://localhost:8888
+[DISCORD BOT] Token not found in discord_bot_token.txt or env. Listener waiting for token.

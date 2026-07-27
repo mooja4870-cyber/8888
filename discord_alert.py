@@ -325,29 +325,23 @@ def _process_subset(data, target_names, state_suffix, title_prefix, include_bot_
 
 
 def tick(data, tick_count=0, include_bot_charts=False):
-    """집계 1건을 받아 봇 그룹(A, B, C)으로 나누어 디스코드 알림 발송하고 상태 갱신."""
-    group_a_names = {"8401", "8403", "8405", "8407", "8409"}
-    group_b_names = {"8402", "8404", "8408"}
-    group_c_names = {"8402", "8408"}
+    """집계 1건을 받아 매 1분마다 2개 봇 그룹(그룹 1: 8401,2,3,4,5 / 그룹 2: 8407,8,9)으로 나누어 디스코드 알림 발송 및 상태 갱신."""
+    group_1_names = {"8401", "8402", "8403", "8404", "8405"}
+    group_2_names = {"8407", "8408", "8409"}
     
     # 실제 data.get("bots")에 존재하는 봇만 필터링
-    actual_a = {str(b.get("name")) for b in data.get("bots", []) if str(b.get("name")) in group_a_names}
-    actual_b = {str(b.get("name")) for b in data.get("bots", []) if str(b.get("name")) in group_b_names}
-    actual_c = {str(b.get("name")) for b in data.get("bots", []) if str(b.get("name")) in group_c_names}
+    actual_1 = {str(b.get("name")) for b in data.get("bots", []) if str(b.get("name")) in group_1_names}
+    actual_2 = {str(b.get("name")) for b in data.get("bots", []) if str(b.get("name")) in group_2_names}
 
-    ok1, info1 = False, "No bots in Group A"
-    if actual_a:
-        ok1, info1 = _process_subset(data, actual_a, "_group_a.json", "그룹 A (8401,3,5,7,9) 전체", include_bot_charts=include_bot_charts)
+    ok1, info1 = False, "No bots in Group 1"
+    if actual_1:
+        ok1, info1 = _process_subset(data, actual_1, "_group_1.json", "그룹 1 전체", include_bot_charts=False)
 
-    ok2, info2 = False, "No bots in Group B"
-    if actual_b:
-        ok2, info2 = _process_subset(data, actual_b, "_group_b.json", "그룹 B (8402,4,8) 전체", include_bot_charts=include_bot_charts)
-        
-    ok3, info3 = False, "No bots in Group C"
-    if actual_c:
-        ok3, info3 = _process_subset(data, actual_c, "_group_c.json", "📊 그룹 C (8402,8) 전체", include_bot_charts=include_bot_charts)
+    ok2, info2 = False, "No bots in Group 2"
+    if actual_2:
+        ok2, info2 = _process_subset(data, actual_2, "_group_2.json", "그룹 2 전체", include_bot_charts=False)
 
-    return (ok1 or ok2 or ok3), f"Group A({len(actual_a)}): {info1} | Group B({len(actual_b)}): {info2} | Group C({len(actual_c)}): {info3}"
+    return (ok1 or ok2), f"Group 1({len(actual_1)}): {info1} | Group 2({len(actual_2)}): {info2}"
 
 
 if __name__ == "__main__":
