@@ -8,6 +8,7 @@
 """
 import asyncio
 import csv
+from datetime import datetime
 import io
 import json
 import os
@@ -1379,6 +1380,27 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 
+_WATCH_FILES = ["app.py", "discord_alert.py"]
+_FILE_MTIMES = {}
+
+def _check_and_reload_if_modified():
+    """소스 파일(app.py, discord_alert.py 등) 변경 시 프로세스를 자동 자가 재기동(os.execv)하여 메모리 구버전 잔존을 원천 차단"""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    for fname in _WATCH_FILES:
+        fpath = os.path.join(base_dir, fname)
+        if os.path.exists(fpath):
+            try:
+                mt = os.path.getmtime(fpath)
+                if fname in _FILE_MTIMES:
+                    if _FILE_MTIMES[fname] != mt:
+                        print(f"[AUTO-RELOAD] {fname} 소스 변경 감지! (mtime: {_FILE_MTIMES[fname]} -> {mt}). 프로세스를 자동 재기동합니다...", flush=True)
+                        os.execv(sys.executable, [sys.executable] + sys.argv)
+                else:
+                    _FILE_MTIMES[fname] = mt
+            except Exception as e:
+                pass
+
+
 def discord_1min_loop():
     """기존 매 1분(60초) 간격 디스코드 실시간 관제 알림 스레드 (기존 깔끔한 2개 그룹 양식)."""
     import discord_alert
@@ -1388,6 +1410,7 @@ def discord_1min_loop():
     while True:
         t0 = time.time()
         try:
+            _check_and_reload_if_modified()
             importlib.reload(discord_alert)
             data = collect()
             t1 = time.time()
@@ -1424,6 +1447,7 @@ def discord_5min_loop():
 
         t0 = time.time()
         try:
+            _check_and_reload_if_modified()
             importlib.reload(discord_alert)
             data = collect()
             t1 = time.time()

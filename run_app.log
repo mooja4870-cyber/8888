@@ -57522,3 +57522,57 @@ NameError: name 'datetime' is not defined. Did you forget to import 'datetime'?
 [DISCORD 1MIN] 15:59:09 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.2s
 [DISCORD 1MIN] 16:00:09 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.7s
 [DISCORD 1MIN] 16:01:09 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.3s
+[DISCORD 1MIN] 16:02:09 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.2s
+[DISCORD 1MIN] 16:03:09 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.1s
+8888 통합 관제 대시보드: http://localhost:8888
+[DISCORD BOT] Token not found in discord_bot_token.txt or env. Listener waiting for token.
+Exception in thread Thread-6 (discord_5min_loop):
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/threading.py", line 1082, in _bootstrap_inner
+    self._context.run(self.run)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/threading.py", line 1024, in run
+    self._target(*self._args, **self._kwargs)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/l/project/8888/app.py", line 1412, in discord_5min_loop
+    dt = datetime.fromtimestamp(now)
+         ^^^^^^^^
+NameError: name 'datetime' is not defined. Did you forget to import 'datetime'?
+[DISCORD 1MIN] 16:04:27 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.3s
+8888 통합 관제 대시보드: http://localhost:8888
+Traceback (most recent call last):
+  File "/Users/l/project/8888/app.py", line 1693, in <module>
+    ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socketserver.py", line 457, in __init__
+    self.server_bind()
+    ~~~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/server.py", line 148, in server_bind
+    socketserver.TCPServer.server_bind(self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socketserver.py", line 478, in server_bind
+    self.socket.bind(self.server_address)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+OSError: [Errno 48] Address already in use
+8888 통합 관제 대시보드: http://localhost:8888
+[DISCORD BOT] Token not found in discord_bot_token.txt or env. Listener waiting for token.
+[DISCORD 1MIN] 16:05:43 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.2s
+[DISCORD 1MIN] 16:06:43 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.1s
+[DISCORD 1MIN] 16:07:43 ok=True Group A(5): status=204 | Group B(3): status=204 | Group C(2): status=204 collect=0.0s post=1.1s
+8888 통합 관제 대시보드: http://localhost:8888
+Traceback (most recent call last):
+  File "/Users/l/project/8888/app.py", line 1716, in <module>
+    ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socketserver.py", line 457, in __init__
+    self.server_bind()
+    ~~~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/server.py", line 148, in server_bind
+    socketserver.TCPServer.server_bind(self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socketserver.py", line 478, in server_bind
+    self.socket.bind(self.server_address)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+OSError: [Errno 48] Address already in use
+8888 통합 관제 대시보드: http://localhost:8888
+[DISCORD BOT] Token not found in discord_bot_token.txt or env. Listener waiting for token.
