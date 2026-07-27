@@ -1,5 +1,19 @@
 # 버전 이력 (ver.md)
 
+## v2.2.6
+Date: 2026-07-27
+
+### 변경 내용
+* 글로벌 퀀트 투자사 수준의 5대 핵심 모니터링 데몬(`quant_watchdog.py`) 신설 (State Reconciliation, JSON 무결성 및 Deadlock 자가 치유, -5% 글로벌 서킷 브레이커, API Latency 및 429 Rate Limit 방어, OOM 리소스 킬러)
+* 크론탭 통합 워치독(`global_watchdog.sh`)에 마스터 데몬 생존 보장 및 서킷 브레이커 감지 시 재기동 방어 로직 추가
+
+### 수정 파일
+* `../quant_watchdog.py` (신규)
+* `../global_watchdog.sh`
+
+### 비고
+* 8개 봇 통합 무결성 및 자본 보호 체계 구축 완료
+
 ## v2.2.5
 Date: 2026-07-27
 
