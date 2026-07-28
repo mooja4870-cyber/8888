@@ -847,7 +847,7 @@ GOLDEN_HASHES = {
         "core/strategy.py": "db10a58a12bc9b9dc6dfb6e15054a562d6712703dfda12a09b962166d780c687",
         "core/trader.py": "cc3622757083a474528e6944d5cc8a38f339d48e6c6b2c933c422e5ec488466e",
         "core/engine.py": "ba3a908e311d45368f55d6cc067338e6e557872446d637db6f7a69b994ff696b",
-        "config.json": "2909899d6116ce4671230ac610c134954f9494dc9b915f4a73b467a9d89e7be5"
+        "config.json": "9020da96bc9f64f62c82b5d12b8523e76e5d364ae6fac6ce56b796773f4806ef"
     },
     "8407": {
         "bot.py": "a5516663cd4a902dbd28fccaaad94c6a5aa05fbe857c6346f370b952c5e9633d",
