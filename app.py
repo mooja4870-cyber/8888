@@ -814,20 +814,61 @@ def app_debug_time(folder):
 import hashlib
 
 GOLDEN_HASHES = {
+    "8401": {
+        "bot.py": "8825baa1c8110ab2df77788a74d7e69e3c918bf7b1e1ebe43f2a02e99a5305b5",
+        "core/strategy.py": "e763290eb4382ecf64f0eada9768d403bc0156006688aa3727a318a291d29d80",
+        "core/trader.py": "634017d4d54f8eeb9c8a5f0c72fce9be04ce098f9417ce6c6d689dff193c0cc6",
+        "core/engine.py": "f97fb1547b409d26760085fcbfb6efea9c9277b0cf257299fd65f7bcb48f2c79",
+        "config.json": "46e31f7ad408a0c4f98c3187e99678df1c1925a1c3ad929d4e1b69f30f33be2e"
+    },
     "8402": {
-        "config.json": "a06b6e128edbcb39c578db25c5535883d57dc5f548cd9d2aa6f8873ab0f1765d",
-        "core/engine.py": "f1b19da6e1a26f0bbf7295db2ae528d581f12368937f492dc6677de0687d1004",
-        "core/trader.py": "dcb11c4ad055451ebe0e11d19b04c8e55afa0d24b6e4477abfd2913291ab815c"
+        "bot.py": "2aee40d126d83edd2aabb33738a42bad668eb0ccaf81991cc60c95dfed417dd8",
+        "core/strategy.py": "06f5ebaa1376490fa25f7628be1e2b17e66ab9561e2e0c804b73b1046d1a5bd2",
+        "core/trader.py": "dcb11c4ad055451ebe0e11d19b04c8e55afa0d24b6e4477abfd2913291ab815c",
+        "core/engine.py": "e2a1f1223f89c961a31a9b1a2d3dab70a02f2f02a1213f08b24f57873d7f77a4",
+        "config.json": "8167a5953319faeebf57be1504e5a6f8299521a9b314468fd9390743d021dbc3"
+    },
+    "8403": {
+        "bot.py": "ba9ef51b74b584ffb6fe3d7c3424644a1b34f87b93b503b168c5e8194ab7938d",
+        "core/strategy.py": "455906856c4bcbf9cf61729fd8a498bcd61fcff8bb5fddf25177beb4133b8c58",
+        "core/trader.py": "634017d4d54f8eeb9c8a5f0c72fce9be04ce098f9417ce6c6d689dff193c0cc6",
+        "core/engine.py": "f97fb1547b409d26760085fcbfb6efea9c9277b0cf257299fd65f7bcb48f2c79",
+        "config.json": "096723337ae54be37cac8bbaa28627e3f1960f575fc9a2ffd06ae7213ea2822d"
     },
     "8404": {
-        "config.json": "f528ddee31f1c29563bba4a245a6d89bd86e21825d63b26b663f90befb568dc3",
-        "core/engine.py": "fdd155725a11d370a29d63aa81c3d0d641a4f69032725c345e24aee7927ca7ac",
-        "core/trader.py": "e2327818faf04dbf5af562a778d2bf79c2f4cac0783e2dcebbedc7b3e01dfa35"
+        "bot.py": "2aee40d126d83edd2aabb33738a42bad668eb0ccaf81991cc60c95dfed417dd8",
+        "core/strategy.py": "60bfd9b1f7171586fdaf949cd6b9e77144eb52bac38e2c71164e9719b93c558e",
+        "core/trader.py": "06128649e213ae32525277ae04c56533bc62bb71882ac8750993bec9da3cc231",
+        "core/engine.py": "eadd784ab8f6200d611553916da43617d449dd1881271df876a9448aadc8e944",
+        "config.json": "b0992951e4a0a25a70767df41bdb4f5a3251331fd608d119a1402032e98b474a"
+    },
+    "8405": {
+        "bot.py": "1c4f88e3bcf84e4e4f529177cdb56cfcc638b83d1d99ee8a37fb730e1c653b02",
+        "core/strategy.py": "db10a58a12bc9b9dc6dfb6e15054a562d6712703dfda12a09b962166d780c687",
+        "core/trader.py": "cc3622757083a474528e6944d5cc8a38f339d48e6c6b2c933c422e5ec488466e",
+        "core/engine.py": "ba3a908e311d45368f55d6cc067338e6e557872446d637db6f7a69b994ff696b",
+        "config.json": "2909899d6116ce4671230ac610c134954f9494dc9b915f4a73b467a9d89e7be5"
+    },
+    "8407": {
+        "bot.py": "a5516663cd4a902dbd28fccaaad94c6a5aa05fbe857c6346f370b952c5e9633d",
+        "core/strategy.py": "44e6af3659348e795236d1cf0a7bc223d46bab4b3e482a53453007f32d197809",
+        "core/trader.py": "f8b042a36cfd24a6b4e5823eb57ee08b136083e3d0d37589c41749ac0ceccbf0",
+        "core/engine.py": "ba3a908e311d45368f55d6cc067338e6e557872446d637db6f7a69b994ff696b",
+        "config.json": "d168663772eeb4d48c01a232a12c047ecb9f66f8a2324bbe9471c81e6f4950c7"
     },
     "8408": {
-        "config.json": "2185f67d3d6dd517f6f4c4ff9f3fc5cbb16d7f14adc3213efcc00d37ba523878",
-        "core/engine.py": "cdd84d7590cb5971b2bd6c1e6692e9a1748ee702ddd4d8e4cfb2c871a421fcb1",
-        "core/trader.py": "c69ed8f2864095d584a99f693b59fa62c22cce1e5cad83bc6a48eb46125ab511"
+        "bot.py": "aa33ed4b424ad181b8674f9ac9987fd35b4550c788a2ad267698456219b0d5bd",
+        "core/strategy.py": "455906856c4bcbf9cf61729fd8a498bcd61fcff8bb5fddf25177beb4133b8c58",
+        "core/trader.py": "e2b18aa796e83d14ff10bb3d7da29c4dfdc518755e7fa66247a91af8611ea46c",
+        "core/engine.py": "f203f6275a0d6d3db3d62f9597b3216015f6687828fd675c9617d9064ec5045f",
+        "config.json": "78bad555fb0d84b44e09ecce849a5533c613d2646c43303721350256641dac52"
+    },
+    "8409": {
+        "bot.py": "b631a73c62c23ed9b55d0bd3a0ae0f6ca71b2b304c88a97575b29593e414cede",
+        "core/strategy.py": "0496d01585ce2a0aa30a69ceaff8eff0e81e01ee63fb56624bd10a79df45e424",
+        "core/trader.py": "a8c7fe59925bd8a3633e068342681a6491fafebdc2c30e4bd41d40b8857c5826",
+        "core/engine.py": "4b34588942e02919552d27913c8f83a542e2d27ce24083685761d398f29ed382",
+        "config.json": "6a434bdf8424574738d660435a6dbb1ad0696a2c6ba70f4926ed77cbb1c9bd19"
     }
 }
 
@@ -840,17 +881,26 @@ def bot_status(folder, port, ex):
          "losses": 0, "seed": None, "perf_start": None, "orders_today": 0,
          "total_trades": 0, "age_min": None, "positions": [], "trades": []}
 
-    # 무결성 검사 (Integrity Checker)
+    # 무결성 검사 (Integrity Checker) - 토글(integrity_toggle.json)이 켜져 있을 때만 실행
     r["golden_compromised"] = False
     r["compromised_files"] = []
-    if bot_id in GOLDEN_HASHES:
+    state_file = os.path.join(BASE, "data", "integrity_toggle.json")
+    is_integrity_enabled = True
+    if os.path.exists(state_file):
+        try:
+            with open(state_file, "r", encoding="utf-8") as f:
+                is_integrity_enabled = json.load(f).get("enabled", True)
+        except Exception:
+            pass
+
+    if is_integrity_enabled and (bot_id in GOLDEN_HASHES):
         for tfile, expected_hash in GOLDEN_HASHES[bot_id].items():
             fpath = os.path.join(BASE, folder, tfile)
             if os.path.exists(fpath):
                 try:
                     with open(fpath, "rb") as f:
-                        content = f.read().replace(b"\\r\\n", b"\\n")
-                        h = hashlib.sha256(content).hexdigest()
+                        f_content = f.read().replace(b"\r\n", b"\n")
+                        h = hashlib.sha256(f_content).hexdigest()
                         if h != expected_hash:
                             r["golden_compromised"] = True
                             r["compromised_files"].append(tfile)
@@ -1682,14 +1732,14 @@ def get_file_hash(path):
         return None
     hasher = hashlib.sha256()
     with open(path, 'rb') as f:
-        hasher.update(f.read())
+        hasher.update(f.read().replace(b"\r\n", b"\n"))
     return hasher.hexdigest()
 
 def checksum_guard_loop():
     """8개 봇의 핵심 로직 파일 변조 감시 및 자동 롤백 스레드"""
     time.sleep(10)
     target_bots = ["8401", "8402", "8403", "8404", "8405", "8407", "8408", "8409"]
-    target_files = ["bot.py", "core/strategy.py", "core/trader.py"]
+    target_files = ["bot.py", "core/strategy.py", "core/trader.py", "core/engine.py", "config.json"]
     
     while True:
         try:
