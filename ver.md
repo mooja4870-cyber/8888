@@ -1,3 +1,18 @@
+## v2.2.28
+Date: 2026-07-28
+
+### 변경 내용
+* [UI 연동] 봇 파일 위변조(`golden_compromised: true`) 감지 시 대시보드 상단 긴급 붉은색 경고 배너(`integrityBanner`) 및 카드 테두리 붉은색 강조·경고 배지 표출 기능 연동
+* [이식성 향상] `checksum_guard_loop` 내 하드코딩된 로컬 경로(`/Users/l/project/...`) 제거 및 `BASE` 기반 동적 경로 연동으로 리눅스 VPS 이식성 확보
+
+### 수정 파일
+* app.py
+* dashboard.html
+* ver.md
+
+### 비고
+* Claude 검증 사항 완벽 반영 및 3중 자체 검증 완료
+
 ## v2.2.27
 Date: 2026-07-28
 

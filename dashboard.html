@@ -126,6 +126,7 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
     <span>카드 클릭 → 해당 봇 대시보드 열기</span>
 </div>
 </div>
+<div id="integrityBanner"></div>
 <div class="cards" id="cards"></div>
 <div id="timeview" style="display:none;margin-bottom:22px"></div>
 <div id="botModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:999;align-items:center;justify-content:center;padding:20px">
@@ -356,8 +357,18 @@ function render(d,anim){
  let _longestBot=null,_minPs=Infinity;
  d.bots.forEach(b=>{if(b.perf_start){const t=new Date(b.perf_start.replace(' ','T')).getTime();if(!isNaN(t)&&t<_minPs){_minPs=t;_longestBot=b.name;}}});
  // 카드 정렬: '일 평균수익률' 내림차순(null은 맨 뒤)
- // 선택한 기준 내림차순 정렬 ('초기화 후 경과'는 perf_start 이를수록 길어 -timestamp로 환산)
- const _sk=(document.getElementById('sortby')||{}).value||'daily_ret';
+  // 무결성 위변조 긴급 경고 배너 렌더링
+  const compBots = d.bots.filter(b => b.golden_compromised);
+  const ibEl = document.getElementById('integrityBanner');
+  if (ibEl) {
+    if (compBots.length > 0) {
+      ibEl.innerHTML = `<div style="border-radius:10px;padding:14px 18px;margin-bottom:14px;font-size:14px;font-weight:700;background:rgba(226,75,74,0.22);border:2px solid #e24b4a;color:#ff5a5a;animation:cardblink 1s ease-in-out infinite;">🚨 [위변조 긴급 경고] 다음 봇의 핵심 로직 파일 변조가 감지되어 Golden Backup 복구 프로토콜이 작동 중입니다: ${compBots.map(b => `${b.name} (${(b.compromised_files||[]).join(', ')})`).join(' · ')}</div>`;
+    } else {
+      ibEl.innerHTML = '';
+    }
+  }
+  // 선택한 기준 내림차순 정렬 ('초기화 후 경과'는 perf_start 이를수록 길어 -timestamp로 환산)
+  const _sk=(document.getElementById('sortby')||{}).value||'daily_ret';
  const _key=b=>{ if(_sk==='name'){return -parseInt(b.name,10);}  /* 봇번호 오름차순 */ if(_sk==='elapsed'){return b.perf_start?-new Date(b.perf_start.replace(' ','T')).getTime():-Infinity;} const v=b[_sk]; return (v==null)?-Infinity:v; };
  const _sorted=[...d.bots].sort((a,b)=>_key(b)-_key(a));
  const _cards=_sorted.map((b,i)=>{
@@ -385,8 +396,8 @@ function render(d,anim){
   const _unknown=b.holding===null;  // 거래소 조회 실패 → 보유여부 미확인
   // 테두리: 봇 번호별 고정색 (8401·8402 빨강 / 8403·8406 주황 / 8404·8405 밝은회색)
   // 테두리: 흰색 0.01mm 기본, 무포지션(holding=false)만 빨강 0.1mm (mooja 2026-07-01)
-  const _bc=(b.holding===false)?'#e24b4a':'#ffffff';
-  const _bw='0.66mm';   // 전체 봇 테두리 0.66mm (mooja 2026-07-01), 색은 무포지션 빨강/나머지 흰색
+  const _bc=b.golden_compromised?'#ff0000':((b.holding===false)?'#e24b4a':'#ffffff');
+  const _bw=b.golden_compromised?'2.5mm':'0.66mm';   // 전체 봇 테두리 0.66mm (mooja 2026-07-01), 색은 무포지션 빨강/나머지 흰색
   const hi='border:'+_bw+' solid '+_bc+';box-shadow:0 4px 11px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.12), inset 0 -2px 4px rgba(0,0,0,.35);';
   // Expectancy(거래당 평균손익) — 미래수익 최강 예측지표 → 카드 최상단 강조
   const _ex=b.expectancy;
@@ -399,6 +410,7 @@ function render(d,anim){
     </div>
     <span class="badge ${b.ex.toLowerCase()}" style="margin-top:3px;">${b.ex}</span>
    </div>
+   ${b.golden_compromised ? `<div style="background:#e24b4a;color:#fff;padding:6px 10px;border-radius:6px;font-weight:bold;margin:4px 0 8px 0;font-size:13px;text-align:center;animation:cardblink 0.8s ease-in-out infinite;">🚨 로직 변조 감지: ${(b.compromised_files||[]).join(', ')} → 복구 중</div>` : ''}
    <table>
     <tr style="background:#11151c;border-bottom:1px solid #2a2f3a;" title="거래당 평균 손익(누적, USDT). 미래수익 최강 예측지표 — 양수=엣지 있음"><td style="color:#cdd3e0;font-weight:600">⭐ Expectancy</td><td><span style="font-size:115.5%;font-weight:bold;color:${_exCol}">${_exTxt}</span></td></tr>
     <tr style="background:#181b22;"><td>총 잔고${exwarn}</td><td><span style="font-size:155%;font-weight:bold">${usd(b.ex_balance)}</span></td></tr>

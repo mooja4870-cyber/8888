@@ -1703,7 +1703,7 @@ def run_check_auto_mode_switch_all():
     import subprocess
     target_bots = ["8401", "8402", "8403", "8404", "8405", "8407", "8408", "8409"]
     for b in target_bots:
-        bot_path = f"/Users/l/project/{b}"
+        bot_path = os.path.join(os.path.dirname(BASE), str(b))
         if os.path.exists(f"{bot_path}/core/engine.py"):
             try:
                 cmd = [sys.executable, "-c", "import core.engine; e=core.engine.QuantumEngine(); e.check_auto_mode_switch()"]
@@ -1757,7 +1757,7 @@ def checksum_guard_loop():
                 continue
                 
             for b in target_bots:
-                bot_path = f"/Users/l/project/{b}"
+                bot_path = os.path.join(os.path.dirname(BASE), str(b))
                 golden_dir = f"{bot_path}/.golden"
                 if not os.path.exists(golden_dir):
                     continue
