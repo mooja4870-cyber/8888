@@ -858,7 +858,7 @@ GOLDEN_HASHES = {
         "bot.py": "ba9ef51b74b584ffb6fe3d7c3424644a1b34f87b93b503b168c5e8194ab7938d",
         "core/strategy.py": "455906856c4bcbf9cf61729fd8a498bcd61fcff8bb5fddf25177beb4133b8c58",
         "core/trader.py": "634017d4d54f8eeb9c8a5f0c72fce9be04ce098f9417ce6c6d689dff193c0cc6",
-        "core/engine.py": "f97fb1547b409d26760085fcbfb6efea9c9277b0cf257299fd65f7bcb48f2c79",
+        "core/engine.py": "539f4c31d6ca053b0763188e62a31ac3a430343a45193d2adb61c8137c852002",
         "config.json": "096723337ae54be37cac8bbaa28627e3f1960f575fc9a2ffd06ae7213ea2822d"
     },
     "8404": {
@@ -872,14 +872,14 @@ GOLDEN_HASHES = {
         "bot.py": "1c4f88e3bcf84e4e4f529177cdb56cfcc638b83d1d99ee8a37fb730e1c653b02",
         "core/strategy.py": "db10a58a12bc9b9dc6dfb6e15054a562d6712703dfda12a09b962166d780c687",
         "core/trader.py": "cc3622757083a474528e6944d5cc8a38f339d48e6c6b2c933c422e5ec488466e",
-        "core/engine.py": "ba3a908e311d45368f55d6cc067338e6e557872446d637db6f7a69b994ff696b",
+        "core/engine.py": "66dbf9c2c7224f97bdf36a981ba97ab9e16becbc743846bcdfd2bc7640c6c78e",
         "config.json": "9020da96bc9f64f62c82b5d12b8523e76e5d364ae6fac6ce56b796773f4806ef"
     },
     "8407": {
         "bot.py": "a5516663cd4a902dbd28fccaaad94c6a5aa05fbe857c6346f370b952c5e9633d",
         "core/strategy.py": "44e6af3659348e795236d1cf0a7bc223d46bab4b3e482a53453007f32d197809",
         "core/trader.py": "f8b042a36cfd24a6b4e5823eb57ee08b136083e3d0d37589c41749ac0ceccbf0",
-        "core/engine.py": "ba3a908e311d45368f55d6cc067338e6e557872446d637db6f7a69b994ff696b",
+        "core/engine.py": "66dbf9c2c7224f97bdf36a981ba97ab9e16becbc743846bcdfd2bc7640c6c78e",
         "config.json": "5d0117c9781e74925911486bbb75d51d4de4fe62179754834374c040db062e77"
     },
     "8408": {
@@ -893,10 +893,11 @@ GOLDEN_HASHES = {
         "bot.py": "b631a73c62c23ed9b55d0bd3a0ae0f6ca71b2b304c88a97575b29593e414cede",
         "core/strategy.py": "0496d01585ce2a0aa30a69ceaff8eff0e81e01ee63fb56624bd10a79df45e424",
         "core/trader.py": "a8c7fe59925bd8a3633e068342681a6491fafebdc2c30e4bd41d40b8857c5826",
-        "core/engine.py": "4b34588942e02919552d27913c8f83a542e2d27ce24083685761d398f29ed382",
+        "core/engine.py": "d1d991d6d6a733b9aa12dfd2a426b884c7c179d2877ceeab8a7ecffb75ea4fa6",
         "config.json": "6651230be45af216cc23eb8f7c32b24328c123142871f5a08e199c1fbad755d7"
     }
 }
+
 
 def bot_status(folder, port, ex):
     # port로 정확하게 봇 ID 추출, 포트-폴더 매칭 명시
