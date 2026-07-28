@@ -1,3 +1,18 @@
+## v2.2.29
+Date: 2026-07-28
+
+### 변경 내용
+* [안정성 강화] JSON 파일 원자적 저장(`atomic_save_json`: 임시 파일 `.tmp` 기록 후 `os.replace` 교체) 기법 적용으로 크래시·정전 시 파일 파손(`JSONDecodeError`) 원천 차단
+* [백업 복구] JSON 저장 성공 시 최근 정상 백업본(`*.bak`) 자동 생성 및 파일 파손 시 자동으로 백업본을 롤백 로드하는 Fail-safe 핸들러(`safe_load_json`) 전면 적용
+* [적용 범위] `seeds.json`, `snapshots.json`, `asset_history.json`, `ex_cache_persistent.json`, `integrity_toggle.json`, 봇별 `stats.json`, `active_positions.json`, `config.json` 조회 및 저장 전반
+
+### 수정 파일
+* app.py
+* ver.md
+
+### 비고
+* Gemini 검증 의견(Atomic Write 및 Corrupted State Fallback) 완벽 반영 및 3중 자체 검증 완료
+
 ## v2.2.28
 Date: 2026-07-28
 

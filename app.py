@@ -17,6 +17,50 @@ import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import tempfile
+import shutil
+
+def atomic_save_json(path, data, indent=None):
+    """원자적 JSON 파일 저장 (Atomic Write + 안전 .bak 백업 생성)"""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    dir_name = os.path.dirname(path)
+    tmp_fd, tmp_path = tempfile.mkstemp(dir=dir_name, prefix=os.path.basename(path) + ".", suffix=".tmp")
+    try:
+        with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=indent)
+        bak_path = path + ".bak"
+        if os.path.exists(path):
+            try:
+                shutil.copy2(path, bak_path)
+            except Exception:
+                pass
+        os.replace(tmp_path, path)
+    except Exception as e:
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+        raise e
+
+def safe_load_json(path, default=None):
+    """JSON 파일 안전 로드 (파일 파손 시 .bak 자동 롤백 로드)"""
+    if not os.path.exists(path):
+        return default
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        bak_path = path + ".bak"
+        if os.path.exists(bak_path):
+            try:
+                with open(bak_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                atomic_save_json(path, data)
+                return data
+            except Exception:
+                pass
+        return default
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PORT = 8888
@@ -397,8 +441,7 @@ def read_bot_config(folder):
     """각 봇의 config.json 읽기 → 비교표용 핵심변수 추출"""
     cfg_path = os.path.join(BASE, folder, "config.json")
     try:
-        with open(cfg_path, encoding="utf-8") as f:
-            cfg = json.load(f)
+        cfg = safe_load_json(cfg_path, {})
         # 전략명: 하드코딩 override 전면 제거(mooja 지시 2026-06-25) → config STRATEGY_MODE 실시간 우선.
         # 'None'·빈값이면 STRATEGY_TYPE → 실거래 active_positions strategy_type → '—' 순 폴백.
         mode = cfg.get("STRATEGY_MODE")
@@ -406,11 +449,11 @@ def read_bot_config(folder):
             mode = None
         live = ""
         try:
-            pos = json.load(open(os.path.join(BASE, folder, "data", "active_positions.json"), encoding="utf-8"))
+            pos = safe_load_json(os.path.join(BASE, folder, "data", "active_positions.json"), {})
             stset = sorted({v.get("strategy_type") for v in pos.values()
                             if isinstance(v, dict) and v.get("strategy_type")})
             live = "/".join(stset)
-        except (OSError, json.JSONDecodeError, ValueError, AttributeError):
+        except Exception:
             pass
         strategy = mode or cfg.get("STRATEGY_TYPE") or live or "—"
         if strategy == "—":
@@ -530,21 +573,13 @@ def parse_api_md_bnc(folder):
 def load_okx_keys():
     """mooja 지정 봇별 OKX 키 매핑(okx_keys.json, .gitignore). 매 호출 파일 읽기(키 변경 즉시 반영)."""
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "okx_keys.json")
-    try:
-        with open(path, encoding="utf-8") as f:
-            return json.load(f)
-    except (OSError, ValueError):
-        return {}
+    return safe_load_json(path, {})
 
 
 def load_seeds():
     """봇별 기준금·초기화일시 수동 지정(seeds.json). 봇 stats.json 부재 시 누적/일평균 계산 폴백."""
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seeds.json")
-    try:
-        with open(path, encoding="utf-8") as f:
-            return json.load(f)
-    except (OSError, ValueError):
-        return {}
+    return safe_load_json(path, {})
 
 
 def sync_seed_info(folder, seed, perf_start):
@@ -557,10 +592,7 @@ def sync_seed_info(folder, seed, perf_start):
         curr = seeds.get(folder, {})
         if curr.get("seed") != float(seed) or curr.get("perf_start") != str(perf_start):
             seeds[folder] = {"seed": float(seed), "perf_start": str(perf_start)}
-            tmp = seeds_path + ".tmp"
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump(seeds, f, ensure_ascii=False, indent=2)
-            os.replace(tmp, seeds_path)
+            atomic_save_json(seeds_path, seeds, indent=2)
     except Exception:
         pass
 
@@ -597,22 +629,16 @@ PERSIST_EX_CACHE_PATH = os.path.join(BASE, "data", "ex_cache_persistent.json")
 
 def _load_persistent_ex_cache():
     try:
-        if os.path.exists(PERSIST_EX_CACHE_PATH):
-            with open(PERSIST_EX_CACHE_PATH, encoding="utf-8") as f:
-                data = json.load(f)
-                if isinstance(data, dict):
-                    EX_CACHE.update(data)
+        data = safe_load_json(PERSIST_EX_CACHE_PATH, {})
+        if isinstance(data, dict):
+            EX_CACHE.update(data)
     except Exception:
         pass
 
 
 def _save_persistent_ex_cache():
     try:
-        os.makedirs(os.path.dirname(PERSIST_EX_CACHE_PATH), exist_ok=True)
-        tmp = PERSIST_EX_CACHE_PATH + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(EX_CACHE, f, ensure_ascii=False)
-        os.replace(tmp, PERSIST_EX_CACHE_PATH)
+        atomic_save_json(PERSIST_EX_CACHE_PATH, EX_CACHE)
     except Exception:
         pass
 
@@ -885,13 +911,7 @@ def bot_status(folder, port, ex):
     r["golden_compromised"] = False
     r["compromised_files"] = []
     state_file = os.path.join(BASE, "data", "integrity_toggle.json")
-    is_integrity_enabled = True
-    if os.path.exists(state_file):
-        try:
-            with open(state_file, "r", encoding="utf-8") as f:
-                is_integrity_enabled = json.load(f).get("enabled", True)
-        except Exception:
-            pass
+    is_integrity_enabled = safe_load_json(state_file, {"enabled": True}).get("enabled", True)
 
     if is_integrity_enabled and (bot_id in GOLDEN_HASHES):
         for tfile, expected_hash in GOLDEN_HASHES[bot_id].items():
@@ -910,8 +930,7 @@ def bot_status(folder, port, ex):
     # 실시간 메모리 / stats.json 데이터 로딩
     sp = os.path.join(d, "stats.json")
     try:
-        with open(sp, encoding="utf-8") as f:
-            s = json.load(f)
+        s = safe_load_json(sp, {})
         r["daily"] = s.get("daily_pnl_usdt")
         r["total"] = s.get("total_pnl_usdt")
         r["wins"] = s.get("total_wins") or 0
@@ -920,8 +939,9 @@ def bot_status(folder, port, ex):
         r["perf_start"] = s.get("perf_start_time")
         r["orders_today"] = s.get("orders_today") or 0
         r["total_trades"] = s.get("total_trades") or 0
-        r["age_min"] = round((time.time() - os.path.getmtime(sp)) / 60, 1)
-    except (OSError, ValueError):
+        if os.path.exists(sp):
+            r["age_min"] = round((time.time() - os.path.getmtime(sp)) / 60, 1)
+    except Exception:
         pass
 
     # 기준금(seed)·초기화일시(perf_start)는 stats.json의 실시간 seed_money/perf_start_time을 1순위로 사용.
@@ -935,9 +955,9 @@ def bot_status(folder, port, ex):
             r["perf_start"] = sd.get("perf_start")
     sync_seed_info(folder, r.get("seed"), r.get("perf_start"))
     try:
-        with open(os.path.join(d, "active_positions.json"), encoding="utf-8") as f:
-            r["positions"] = [k.split("/")[0] for k in json.load(f)]
-    except (OSError, ValueError):
+        pos_data = safe_load_json(os.path.join(d, "active_positions.json"), {})
+        r["positions"] = [k.split("/")[0] for k in pos_data]
+    except Exception:
         pass
     hist = os.path.join(d, "trade_history.csv")
     r["trades"] = tail_trades(hist)
@@ -1052,11 +1072,7 @@ def calc_bot_metrics(folder, bot_dict):
             exits = [e for e in exits if e[0] >= p_clean]
 
         snap_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "snapshots.json")
-        snaps = []
-        if os.path.exists(snap_path):
-            with open(snap_path, "r", encoding="utf-8") as f:
-                try: snaps = json.load(f)
-                except Exception: pass
+        snaps = safe_load_json(snap_path, [])
 
         records = []
         for t in range(start_epoch, now_epoch + 1, 300):
@@ -1204,11 +1220,7 @@ SNAP_LOCK = threading.Lock()
 
 
 def load_snapshots():
-    try:
-        with open(SNAP_PATH, encoding="utf-8") as f:
-            return json.load(f)
-    except (OSError, ValueError):
-        return []
+    return safe_load_json(SNAP_PATH, [])
 
 
 def record_snapshot():
@@ -1229,10 +1241,7 @@ def record_snapshot():
         else:
             snaps.append(row)
         snaps = snaps[-SNAP_KEEP:]
-        tmp = SNAP_PATH + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(snaps, f, ensure_ascii=False)
-        os.replace(tmp, SNAP_PATH)
+        atomic_save_json(SNAP_PATH, snaps)
     return row
 
 
@@ -1257,11 +1266,7 @@ ASSET_LOCK = threading.Lock()
 
 
 def load_asset_history():
-    try:
-        with open(ASSET_PATH, encoding="utf-8") as f:
-            return json.load(f)
-    except (OSError, ValueError):
-        return []
+    return safe_load_json(ASSET_PATH, [])
 
 
 def _seed_asset_history():
@@ -1278,10 +1283,7 @@ def _seed_asset_history():
         seed.append({"ts": ts, "v": r["total_assets"]})
     if seed:
         with ASSET_LOCK:
-            tmp = ASSET_PATH + ".tmp"
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump(seed[-ASSET_KEEP:], f, ensure_ascii=False)
-            os.replace(tmp, ASSET_PATH)
+            atomic_save_json(ASSET_PATH, seed[-ASSET_KEEP:])
 
 
 def record_asset():
@@ -1296,10 +1298,7 @@ def record_asset():
         hist = load_asset_history()
         hist.append({"ts": ts, "v": assets})
         hist = hist[-ASSET_KEEP:]
-        tmp = ASSET_PATH + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(hist, f, ensure_ascii=False)
-        os.replace(tmp, ASSET_PATH)
+        atomic_save_json(ASSET_PATH, hist)
 
 
 def asset_loop():
@@ -1404,13 +1403,7 @@ class Handler(BaseHTTPRequestHandler):
             ctype = "application/json; charset=utf-8"
         elif self.path == "/api/integrity_status":
             state_file = os.path.join(BASE, "data", "integrity_toggle.json")
-            enabled = True
-            if os.path.exists(state_file):
-                try:
-                    with open(state_file, "r", encoding="utf-8") as f:
-                        enabled = json.load(f).get("enabled", True)
-                except:
-                    pass
+            enabled = safe_load_json(state_file, {"enabled": True}).get("enabled", True)
             body = json.dumps({"enabled": enabled}).encode()
             ctype = "application/json; charset=utf-8"
         elif self.path == "/" or self.path.startswith("/index"):
@@ -1436,9 +1429,7 @@ class Handler(BaseHTTPRequestHandler):
                 enabled = bool(data.get("enabled", True))
                 
                 state_file = os.path.join(BASE, "data", "integrity_toggle.json")
-                os.makedirs(os.path.dirname(state_file), exist_ok=True)
-                with open(state_file, "w", encoding="utf-8") as f:
-                    json.dump({"enabled": enabled}, f)
+                atomic_save_json(state_file, {"enabled": enabled})
                 
                 body = json.dumps({"status": "ok", "enabled": enabled}).encode()
                 self.send_response(200)
@@ -1745,13 +1736,7 @@ def checksum_guard_loop():
         try:
             # 토글 상태 확인
             state_file = os.path.join(BASE, "data", "integrity_toggle.json")
-            is_enabled = True
-            if os.path.exists(state_file):
-                try:
-                    with open(state_file, "r", encoding="utf-8") as f:
-                        is_enabled = json.load(f).get("enabled", True)
-                except:
-                    pass
+            is_enabled = safe_load_json(state_file, {"enabled": True}).get("enabled", True)
             if not is_enabled:
                 time.sleep(60)
                 continue
