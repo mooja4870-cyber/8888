@@ -854,7 +854,7 @@ GOLDEN_HASHES = {
         "core/strategy.py": "44e6af3659348e795236d1cf0a7bc223d46bab4b3e482a53453007f32d197809",
         "core/trader.py": "f8b042a36cfd24a6b4e5823eb57ee08b136083e3d0d37589c41749ac0ceccbf0",
         "core/engine.py": "ba3a908e311d45368f55d6cc067338e6e557872446d637db6f7a69b994ff696b",
-        "config.json": "d168663772eeb4d48c01a232a12c047ecb9f66f8a2324bbe9471c81e6f4950c7"
+        "config.json": "5d0117c9781e74925911486bbb75d51d4de4fe62179754834374c040db062e77"
     },
     "8408": {
         "bot.py": "aa33ed4b424ad181b8674f9ac9987fd35b4550c788a2ad267698456219b0d5bd",
@@ -868,7 +868,7 @@ GOLDEN_HASHES = {
         "core/strategy.py": "0496d01585ce2a0aa30a69ceaff8eff0e81e01ee63fb56624bd10a79df45e424",
         "core/trader.py": "a8c7fe59925bd8a3633e068342681a6491fafebdc2c30e4bd41d40b8857c5826",
         "core/engine.py": "4b34588942e02919552d27913c8f83a542e2d27ce24083685761d398f29ed382",
-        "config.json": "6a434bdf8424574738d660435a6dbb1ad0696a2c6ba70f4926ed77cbb1c9bd19"
+        "config.json": "6651230be45af216cc23eb8f7c32b24328c123142871f5a08e199c1fbad755d7"
     }
 }
 
