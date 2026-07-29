@@ -1020,15 +1020,9 @@ def bot_status(folder, port, ex):
     days = bot_days(r["perf_start"])
     r["days"] = round(days, 2)
     if r["seed"]:
-        # 봇 앱과 동일하게 '실제 잔고 변화 ÷ 기준금' 누적 (수수료·펀딩 반영된 실잔고 기준).
-        ex_bal = r.get("ex_balance")
-        if ex_bal is not None and float(ex_bal) > 0:
-            tot_bal = float(ex_bal)
-            r["cum_delta"] = round(tot_bal - r["seed"], 4)
-            r["cum_basis"] = "balance"
-        else:
-            r["cum_delta"] = round(r["total"] or 0, 4)
-            r["cum_basis"] = "pnl"
+        # 실현손익(since_pnl/total) 기준으로 누적손익 및 일평균수익률 산출 (미실현·수수료 튀기 현상 방지)
+        r["cum_delta"] = round(r.get("since_pnl", r["total"]) or 0, 4)
+        r["cum_basis"] = "pnl"
         r["cum_ret"] = round(r["cum_delta"] / r["seed"] * 100, 2)
         eff_days = max(days, 1.0)
         r["daily_ret"] = round(r["cum_ret"] / eff_days, 2)
