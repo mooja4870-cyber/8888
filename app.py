@@ -1558,69 +1558,9 @@ def auto_repair_bot(folder):
             except Exception:
                 pass
 
-        added = 0
-        add_rows = []
-        for idx, m in enumerate(missing):
-            exit_time_str = str(m.get("exit_time", ""))
-            sym = str(m.get("symbol", ""))
-            direction_str = str(m.get("direction", ""))
-            is_long = "LONG" in direction_str.upper() or "🟢" in direction_str
-            entry_side = "long" if is_long else "short"
-            exit_px = float(m.get("exit_price", 0.0) or 0.0)
-            amt = float(m.get("amount", 0.0) or 0.0)
-            status_str = str(m.get("status", ""))
-            if "미매칭수량=" in status_str:
-                try:
-                    amt = float(status_str.split("미매칭수량=")[1].split()[0])
-                except Exception:
-                    pass
-            if amt <= 0:
-                amt = 0.01
-
-            match_df = df[(df["시간"] == exit_time_str) & (df["심볼"] == sym)]
-            pnl_pct = 0.0
-            lev = 5
-            if not match_df.empty:
-                pnl_pct = float(match_df.iloc[0].get("수익률(%)", 0.0) or 0.0)
-                lev = int(float(match_df.iloc[0].get("레버리지", 5) or 5))
-
-            if pnl_pct != 0.0:
-                pct = pnl_pct / 100.0
-                entry_px = round(exit_px / (1.0 + pct), 5) if is_long else round(exit_px / (1.0 - pct), 5)
-            else:
-                entry_px = exit_px
-
-            try:
-                dt_exit = pd.to_datetime(exit_time_str)
-                dt_entry = dt_exit - pd.Timedelta(seconds=10)
-                entry_time_str = dt_entry.strftime("%Y-%m-%d %H:%M:%S")
-            except Exception:
-                entry_time_str = exit_time_str
-                dt_entry = pd.Timestamp.now()
-
-            entry_row = {
-                "시간": entry_time_str,
-                "심볼": sym,
-                "유형": "진입",
-                "방향": entry_side,
-                "가격": entry_px,
-                "수량": amt,
-                "수익(USDT)": 0.0,
-                "수익률(%)": 0.0,
-                "청산유형": "ATR",
-                "레버리지": lev,
-                "주문ID": f"ID_AUTO_FIX_{dt_entry.strftime('%Y%m%d%H%M%S')}_{idx}",
-                "체결ID": "",
-                "수수료(USDT)": round(entry_px * amt * 0.0005, 8)
-            }
-            add_rows.append(entry_row)
-            added += 1
-
-        if add_rows or fee_repaired > 0:
-            if add_rows:
-                final_df = pd.concat([df, pd.DataFrame(add_rows)], ignore_index=True)
-            else:
-                final_df = df
+        # [가상 10초 전 진입행 강제 생성 금지] 실측되지 않은 ID_AUTO_FIX_ 진입행 삽입 차단
+        if fee_repaired > 0:
+            final_df = df
             final_df = final_df.drop_duplicates()
             final_df["dt"] = pd.to_datetime(final_df["시간"], errors="coerce")
             final_df = final_df.sort_values(by="dt", ascending=True).drop(columns=["dt"])
