@@ -1,3 +1,17 @@
+## v2.2.33
+Date: 2026-07-29
+
+### 변경 내용
+* 8개 봇(8401~8409)의 5대 핵심 파일(`bot.py`, `core/strategy.py`, `core/trader.py`, `core/engine.py`, `config.json`)의 최신 고도화 버전 SHA-256 해시값 전수 추출 및 `GOLDEN_HASHES` 기준표 100% 동기화
+* 최신 로직 개선 사항(8409 5분봉 전환, 수수료 패치, 매매이력 Reconciler 등) 반영 상태를 정품 지문으로 확정하여, 무결성 보호모드 'ON' 시 발생하던 구버전 대조 위변조 긴급 경고 및 알람 전면 해소
+
+### 수정 파일
+* app.py
+* ver.md
+
+### 비고
+* 8개 봇 전수 3중 검증(`golden_compromised = False`) 완료 및 위변조 경고 배너 소멸 확인
+
 ## v2.2.32
 Date: 2026-07-29
 

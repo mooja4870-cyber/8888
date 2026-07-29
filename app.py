@@ -841,60 +841,60 @@ import hashlib
 
 GOLDEN_HASHES = {
     "8401": {
-        "bot.py": "8825baa1c8110ab2df77788a74d7e69e3c918bf7b1e1ebe43f2a02e99a5305b5",
+        "bot.py": "66ae45514f5f35dcfacdc854cee9f425a8af57ef88b3ab564f07e8bfe464f1b6",
         "core/strategy.py": "e763290eb4382ecf64f0eada9768d403bc0156006688aa3727a318a291d29d80",
         "core/trader.py": "634017d4d54f8eeb9c8a5f0c72fce9be04ce098f9417ce6c6d689dff193c0cc6",
-        "core/engine.py": "f97fb1547b409d26760085fcbfb6efea9c9277b0cf257299fd65f7bcb48f2c79",
-        "config.json": "46e31f7ad408a0c4f98c3187e99678df1c1925a1c3ad929d4e1b69f30f33be2e"
+        "core/engine.py": "28a23a33325096ffb21304890e3b91ac250595cdec825e70206432d5757ae6c2",
+        "config.json": "52ecce4e79b69284921255de7f15354aa54555beeff7d71dbfa8f33270bad6fb"
     },
     "8402": {
-        "bot.py": "2aee40d126d83edd2aabb33738a42bad668eb0ccaf81991cc60c95dfed417dd8",
-        "core/strategy.py": "06f5ebaa1376490fa25f7628be1e2b17e66ab9561e2e0c804b73b1046d1a5bd2",
-        "core/trader.py": "dcb11c4ad055451ebe0e11d19b04c8e55afa0d24b6e4477abfd2913291ab815c",
-        "core/engine.py": "e2a1f1223f89c961a31a9b1a2d3dab70a02f2f02a1213f08b24f57873d7f77a4",
-        "config.json": "8167a5953319faeebf57be1504e5a6f8299521a9b314468fd9390743d021dbc3"
+        "bot.py": "71f7dd2d5be721843b2b57055cc94df6c8afd9c1cdf7e455eb131ae478124762",
+        "core/strategy.py": "20aeec2414df2256b60944ae4f96212659332a10016a4630f9c424710cf7661d",
+        "core/trader.py": "9f43bbb01990f9c960b2bd3424b0731bcdc6341227e39ae968df9938746350f2",
+        "core/engine.py": "46fabe0a7d7348cee8968b47a726daaedecdb28a159150a7c1ed432822535635",
+        "config.json": "f5b98a3dc74e53851aabe2dd3023cb873e9f4e938ee81c7e81fc27230b1d5757"
     },
     "8403": {
-        "bot.py": "ba9ef51b74b584ffb6fe3d7c3424644a1b34f87b93b503b168c5e8194ab7938d",
-        "core/strategy.py": "455906856c4bcbf9cf61729fd8a498bcd61fcff8bb5fddf25177beb4133b8c58",
+        "bot.py": "7dac57591d2ef0ad0366ccef79aa97e5d0c9bdc99ccf7ea5d6446c4e400cbd81",
+        "core/strategy.py": "30664ba53e2102eb990d122085e25461b851f540e90004dfe13eb8fb41cc78b4",
         "core/trader.py": "634017d4d54f8eeb9c8a5f0c72fce9be04ce098f9417ce6c6d689dff193c0cc6",
-        "core/engine.py": "539f4c31d6ca053b0763188e62a31ac3a430343a45193d2adb61c8137c852002",
+        "core/engine.py": "e39284086c1db21545728280118c670bdc1d360371ecdf03adcea95c0778132e",
         "config.json": "096723337ae54be37cac8bbaa28627e3f1960f575fc9a2ffd06ae7213ea2822d"
     },
     "8404": {
-        "bot.py": "2aee40d126d83edd2aabb33738a42bad668eb0ccaf81991cc60c95dfed417dd8",
-        "core/strategy.py": "60bfd9b1f7171586fdaf949cd6b9e77144eb52bac38e2c71164e9719b93c558e",
+        "bot.py": "71f7dd2d5be721843b2b57055cc94df6c8afd9c1cdf7e455eb131ae478124762",
+        "core/strategy.py": "fc00849f544329a29092c1952d0af654b679881998ebfff7ee212cdcf8872d15",
         "core/trader.py": "06128649e213ae32525277ae04c56533bc62bb71882ac8750993bec9da3cc231",
-        "core/engine.py": "eadd784ab8f6200d611553916da43617d449dd1881271df876a9448aadc8e944",
-        "config.json": "b0992951e4a0a25a70767df41bdb4f5a3251331fd608d119a1402032e98b474a"
+        "core/engine.py": "8c7a297d8216ba9396d0ecdf714286b96d5c55af901904411d0f40be6a6e43e0",
+        "config.json": "01a76f3fc51fee099af970a532a851a1b611732f230f4dfd23a9b1651513b226"
     },
     "8405": {
-        "bot.py": "1c4f88e3bcf84e4e4f529177cdb56cfcc638b83d1d99ee8a37fb730e1c653b02",
+        "bot.py": "f5d97ac4b649533f8084286e5695c8dc70cc05c0716dd2f22d7e9e14166d7f2a",
         "core/strategy.py": "db10a58a12bc9b9dc6dfb6e15054a562d6712703dfda12a09b962166d780c687",
         "core/trader.py": "cc3622757083a474528e6944d5cc8a38f339d48e6c6b2c933c422e5ec488466e",
-        "core/engine.py": "66dbf9c2c7224f97bdf36a981ba97ab9e16becbc743846bcdfd2bc7640c6c78e",
-        "config.json": "9020da96bc9f64f62c82b5d12b8523e76e5d364ae6fac6ce56b796773f4806ef"
+        "core/engine.py": "d1b2fb7fff8f4470a175d15fcbafd2e212043d16aef8735987dc4c4de430a384",
+        "config.json": "c624a1b235357f90d1d7664b2eb5cf8e0a5ad003c1d5c0ff84cd72a5f228a6d2"
     },
     "8407": {
-        "bot.py": "a5516663cd4a902dbd28fccaaad94c6a5aa05fbe857c6346f370b952c5e9633d",
+        "bot.py": "8f6da5469282fae440d680db7ff44821e5305944ecc04d0a6727a0e3b26a23db",
         "core/strategy.py": "44e6af3659348e795236d1cf0a7bc223d46bab4b3e482a53453007f32d197809",
         "core/trader.py": "f8b042a36cfd24a6b4e5823eb57ee08b136083e3d0d37589c41749ac0ceccbf0",
-        "core/engine.py": "66dbf9c2c7224f97bdf36a981ba97ab9e16becbc743846bcdfd2bc7640c6c78e",
-        "config.json": "5d0117c9781e74925911486bbb75d51d4de4fe62179754834374c040db062e77"
+        "core/engine.py": "d1b2fb7fff8f4470a175d15fcbafd2e212043d16aef8735987dc4c4de430a384",
+        "config.json": "08fcf8fdb81d08ecce8190baa3d8ba8b1df663f4c3837eedfd2ac9c184458c5f"
     },
     "8408": {
-        "bot.py": "aa33ed4b424ad181b8674f9ac9987fd35b4550c788a2ad267698456219b0d5bd",
-        "core/strategy.py": "455906856c4bcbf9cf61729fd8a498bcd61fcff8bb5fddf25177beb4133b8c58",
+        "bot.py": "2064a2525bf530da85ef267247483d220735bb60a0c9a969d0c739b9e84a3e79",
+        "core/strategy.py": "30664ba53e2102eb990d122085e25461b851f540e90004dfe13eb8fb41cc78b4",
         "core/trader.py": "e2b18aa796e83d14ff10bb3d7da29c4dfdc518755e7fa66247a91af8611ea46c",
-        "core/engine.py": "f203f6275a0d6d3db3d62f9597b3216015f6687828fd675c9617d9064ec5045f",
-        "config.json": "78bad555fb0d84b44e09ecce849a5533c613d2646c43303721350256641dac52"
+        "core/engine.py": "26e94cf7f2c7c078f94c719d7485e9ec0e1d2e7a537c0c0485a7ffdbd94ea19e",
+        "config.json": "e57338cbbf0121d9e0be3035bc1ae794ac8c5f68885535115ae8a9c37bcbd126"
     },
     "8409": {
-        "bot.py": "b631a73c62c23ed9b55d0bd3a0ae0f6ca71b2b304c88a97575b29593e414cede",
-        "core/strategy.py": "0496d01585ce2a0aa30a69ceaff8eff0e81e01ee63fb56624bd10a79df45e424",
-        "core/trader.py": "a8c7fe59925bd8a3633e068342681a6491fafebdc2c30e4bd41d40b8857c5826",
-        "core/engine.py": "d1d991d6d6a733b9aa12dfd2a426b884c7c179d2877ceeab8a7ecffb75ea4fa6",
-        "config.json": "6651230be45af216cc23eb8f7c32b24328c123142871f5a08e199c1fbad755d7"
+        "bot.py": "41dc06cc1886a660335c52c5156eade962a162bb3e1e4c6ef46fbb828d2de711",
+        "core/strategy.py": "411b1a8ea5902cc511ce06d6d63a6dfd0e0b145e19e549e27b6bba94b7ee695c",
+        "core/trader.py": "99765b12b117dcfd5f17db25034fe67f868c9009ddbfa8a9cce496c73ad714e3",
+        "core/engine.py": "af53761e8175c8fda6b3db69790af48d6aef9e797a180f2904081851f5cf9306",
+        "config.json": "7d41cdfad04150368f9aa40f11ba4e51dfcbffebdd93540da1c33abe19020286"
     }
 }
 
