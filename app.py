@@ -851,19 +851,19 @@ GOLDEN_HASHES = {
         "bot.py": "71f7dd2d5be721843b2b57055cc94df6c8afd9c1cdf7e455eb131ae478124762",
         "core/strategy.py": "20aeec2414df2256b60944ae4f96212659332a10016a4630f9c424710cf7661d",
         "core/trader.py": "9f43bbb01990f9c960b2bd3424b0731bcdc6341227e39ae968df9938746350f2",
-        "core/engine.py": "46fabe0a7d7348cee8968b47a726daaedecdb28a159150a7c1ed432822535635"
+        "core/engine.py": "d2bf5bea1ee33f2fea5bed3f2eb8709631d7346ae9d8f79b17be36ab55904b24"
     },
     "8403": {
         "bot.py": "7dac57591d2ef0ad0366ccef79aa97e5d0c9bdc99ccf7ea5d6446c4e400cbd81",
         "core/strategy.py": "30664ba53e2102eb990d122085e25461b851f540e90004dfe13eb8fb41cc78b4",
-        "core/trader.py": "634017d4d54f8eeb9c8a5f0c72fce9be04ce098f9417ce6c6d689dff193c0cc6",
+        "core/trader.py": "37b3757844a7c13c7a00a79d746ff27314cfc23324ddbdbd4a5d67b506965798",
         "core/engine.py": "e39284086c1db21545728280118c670bdc1d360371ecdf03adcea95c0778132e"
     },
     "8404": {
         "bot.py": "71f7dd2d5be721843b2b57055cc94df6c8afd9c1cdf7e455eb131ae478124762",
         "core/strategy.py": "fc00849f544329a29092c1952d0af654b679881998ebfff7ee212cdcf8872d15",
         "core/trader.py": "06128649e213ae32525277ae04c56533bc62bb71882ac8750993bec9da3cc231",
-        "core/engine.py": "8c7a297d8216ba9396d0ecdf714286b96d5c55af901904411d0f40be6a6e43e0"
+        "core/engine.py": "394b8e0a5c5bf805c0b6d31b816a56cc63147ef1dcc33872171f5901668946a3"
     },
     "8405": {
         "bot.py": "f5d97ac4b649533f8084286e5695c8dc70cc05c0716dd2f22d7e9e14166d7f2a",
@@ -881,7 +881,7 @@ GOLDEN_HASHES = {
         "bot.py": "2064a2525bf530da85ef267247483d220735bb60a0c9a969d0c739b9e84a3e79",
         "core/strategy.py": "30664ba53e2102eb990d122085e25461b851f540e90004dfe13eb8fb41cc78b4",
         "core/trader.py": "e2b18aa796e83d14ff10bb3d7da29c4dfdc518755e7fa66247a91af8611ea46c",
-        "core/engine.py": "26e94cf7f2c7c078f94c719d7485e9ec0e1d2e7a537c0c0485a7ffdbd94ea19e"
+        "core/engine.py": "ae41b9a237630c4f2c41457805c076904fda3cd5e7419d7e7d55a0e01d93aa42"
     },
     "8409": {
         "bot.py": "41dc06cc1886a660335c52c5156eade962a162bb3e1e4c6ef46fbb828d2de711",
