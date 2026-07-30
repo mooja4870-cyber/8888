@@ -1091,7 +1091,9 @@ def calc_bot_metrics(folder, bot_dict):
             cum_ret = (cum_delta / seed) * 100.0 if seed else 0.0
             cur_days = max(1.0, (t - t0) / 86400.0)
             daily_ret = round(cum_ret / cur_days, 2)
-            records.append((t_str, daily_ret, found_asset, cum_delta, round(cur_days, 2)))
+            # 자본금 추가 등 일시적 수치로 인한 -10 이하 비정상 좌표 삭제
+            if daily_ret > -10.0:
+                records.append((t_str, daily_ret, found_asset, cum_delta, round(cur_days, 2)))
 
         if not records:
             return None
@@ -1108,6 +1110,8 @@ def calc_bot_metrics(folder, bot_dict):
         if curr_ex_bal is None or float(curr_ex_bal) <= 0:
             curr_ex_bal = records[-1][2]
         curr_dr = bot_dict.get("daily_ret") if bot_dict.get("daily_ret") is not None else records[-1][1]
+        if curr_dr <= -10.0:
+            curr_dr = records[-1][1]
 
         step = max(1, len(records) // 60)
         history = [rec[1] for rec in records[::step]]
