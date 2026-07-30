@@ -843,7 +843,8 @@ GOLDEN_HASHES = {
     "8401": {
         "bot.py": "66ae45514f5f35dcfacdc854cee9f425a8af57ef88b3ab564f07e8bfe464f1b6",
         "core/strategy.py": "e763290eb4382ecf64f0eada9768d403bc0156006688aa3727a318a291d29d80",
-        "core/trader.py": "634017d4d54f8eeb9c8a5f0c72fce9be04ce098f9417ce6c6d689dff193c0cc6",
+        # 8401 v9.3.0: 역방향 진입행 방향 오기록 + sl/tp 포맷 TypeError 수정 반영
+        "core/trader.py": "37b3757844a7c13c7a00a79d746ff27314cfc23324ddbdbd4a5d67b506965798",
         "core/engine.py": "28a23a33325096ffb21304890e3b91ac250595cdec825e70206432d5757ae6c2"
     },
     "8402": {
