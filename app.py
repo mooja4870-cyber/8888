@@ -1520,8 +1520,92 @@ def discord_5min_loop():
         time.sleep(10)
 
 
-def auto_repair_bot(folder):
-    """단일 봇 data/trade_history.csv 진입유실 및 수수료 공란/0원 점검 및 자동 보정/채우기"""
+# ── 계약승수(contractSize) 캐시 ────────────────────────────────────────────
+# OKX 스왑은 종목마다 계약승수가 다르다(ALLO=10, DOGE=1000, PEPE=1e7, ETH=0.1, OKB=0.01).
+# 수수료를 가격×수량×수수료율로만 계산하면 이 승수배만큼 틀어진다
+# (ALLO는 10배 축소, OKB는 100배 과대, PEPE는 0으로 반올림되어 매 주기 무한 재복구).
+# 퍼블릭 마켓 정보라 API 키가 필요 없으므로 1회 조회 후 파일 캐시로 재사용한다.
+_CT_CACHE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "contract_sizes.json")
+_CT_TTL_SEC = 24 * 3600     # 캐시 유효기간
+_CT_MISS_TTL_SEC = 3600     # 캐시에 없는 신규 종목 재조회 간격
+_CT_FAIL_BACKOFF_SEC = 600  # 조회 실패 시 재시도 보류
+TAKER_FEE_RATE = 0.0005     # 테이커 0.05% (OKX 실측 체결 수수료와 일치 확인)
+
+_ct_cache = None
+_ct_fail_until = {}
+_ct_lock = threading.Lock()
+
+
+def _ct_load():
+    global _ct_cache
+    if _ct_cache is None:
+        try:
+            with open(_CT_CACHE_PATH, encoding="utf-8") as f:
+                _ct_cache = json.load(f)
+        except Exception:
+            _ct_cache = {}
+    return _ct_cache
+
+
+def _ct_fetch(ex_id):
+    """거래소 퍼블릭 마켓 정보로 계약승수 일괄 갱신. 실패 시 일정 시간 재시도 보류."""
+    now = time.time()
+    if now < _ct_fail_until.get(ex_id, 0):
+        return False
+    try:
+        import ccxt
+        client = ccxt.binanceusdm() if ex_id == "BNC" else ccxt.okx({"options": {"defaultType": "swap"}})
+        markets = client.load_markets()
+    except Exception as e:
+        _ct_fail_until[ex_id] = now + _CT_FAIL_BACKOFF_SEC
+        print(f"[CONTRACT_SIZE] {ex_id} 마켓 조회 실패(재시도 보류): {str(e)[:120]}", flush=True)
+        return False
+
+    bucket = {}
+    for sym, m in (markets or {}).items():
+        try:
+            cs = float(m.get("contractSize") or 0)
+            if cs > 0:
+                bucket[sym] = cs
+        except Exception:
+            pass
+    if not bucket:
+        _ct_fail_until[ex_id] = now + _CT_FAIL_BACKOFF_SEC
+        return False
+
+    cache = _ct_load()
+    cache[ex_id] = bucket
+    cache.setdefault("_fetched_at", {})[ex_id] = now
+    try:
+        os.makedirs(os.path.dirname(_CT_CACHE_PATH), exist_ok=True)
+        with open(_CT_CACHE_PATH, "w", encoding="utf-8") as f:
+            json.dump(cache, f, ensure_ascii=False)
+    except Exception:
+        pass
+    print(f"[CONTRACT_SIZE] {ex_id} 계약승수 {len(bucket)}종목 캐시 갱신", flush=True)
+    return True
+
+
+def contract_size(ex_id, symbol):
+    """계약승수 반환. 모르면 None — 틀린 수수료를 기록하는 것보다 건너뛰는 편이 안전하다."""
+    if not symbol:
+        return None
+    with _ct_lock:
+        cache = _ct_load()
+        bucket = cache.get(ex_id) or {}
+        fetched = (cache.get("_fetched_at") or {}).get(ex_id, 0)
+        age = time.time() - fetched
+        if symbol in bucket and age <= _CT_TTL_SEC:
+            return bucket[symbol]
+        # 캐시가 없거나 만료됐거나, 처음 보는 종목이면 갱신 시도
+        if not bucket or age > _CT_TTL_SEC or (symbol not in bucket and age > _CT_MISS_TTL_SEC):
+            if _ct_fetch(ex_id):
+                return (_ct_load().get(ex_id) or {}).get(symbol)
+        return bucket.get(symbol)
+
+
+def auto_repair_bot(folder, ex_id="OKX"):
+    """단일 봇 data/trade_history.csv 진입유실 탐지 및 수수료 공란/0원 자동 보정"""
     import pandas as pd
     base = os.path.join(BASE, folder)
     csv_path = os.path.join(base, "data", "trade_history.csv")
@@ -1540,28 +1624,49 @@ def auto_repair_bot(folder):
         if "수수료(USDT)" not in df.columns:
             df["수수료(USDT)"] = 0.0
 
-        # [수수료 공란/0원 자동 채우기]
+        # [수수료 공란/0원 자동 채우기] 계약승수를 곱해야 거래소 실제 체결 수수료와 일치한다.
+        #  - 승수 미확인 종목은 건너뛴다(틀린 값을 기록하지 않는다).
+        #  - 계산값이 0으로 반올림되면 기록하지 않는다(다음 주기에 또 공란으로 잡혀 무한 재복구되는 것을 차단).
         fee_repaired = 0
+        ct_missing = set()
         for idx_row in df.index:
             try:
+                fee_v = df.at[idx_row, "수수료(USDT)"]
+                if not (pd.isna(fee_v) or str(fee_v).strip() in ("", "0", "0.0", "None")):
+                    continue
                 px = float(df.at[idx_row, "가격"] or 0)
                 amt = float(df.at[idx_row, "수량"] or 0)
-                fee_v = df.at[idx_row, "수수료(USDT)"]
-                if (pd.isna(fee_v) or str(fee_v).strip() in ("", "0", "0.0", "None")) and px > 0 and amt > 0:
-                    df.at[idx_row, "수수료(USDT)"] = round(px * amt * 0.0005, 8)
-                    fee_repaired += 1
+                if px <= 0 or amt <= 0:
+                    continue
+                sym = str(df.at[idx_row, "심볼"] or "").strip()
+                ct = contract_size(ex_id, sym)
+                if not ct:
+                    ct_missing.add(sym)
+                    continue
+                fee_calc = round(px * amt * ct * TAKER_FEE_RATE, 8)
+                if fee_calc <= 0:
+                    continue
+                df.at[idx_row, "수수료(USDT)"] = fee_calc
+                fee_repaired += 1
             except Exception:
                 pass
+        if ct_missing:
+            print(f"[AUTO_REPAIR] {folder}: 계약승수 미확인 {len(ct_missing)}종목 수수료 보정 보류 "
+                  f"({', '.join(sorted(ct_missing)[:5])})", flush=True)
 
-        # [가상 10초 전 진입행 강제 생성 금지] 실측되지 않은 ID_AUTO_FIX_ 진입행 삽입 차단
+        # [가상 10초 전 진입행 강제 생성 금지] 실측되지 않은 ID_AUTO_FIX_ 진입행 삽입 차단.
+        #  진입유실은 '탐지·보고'만 하고 CSV에 임의 행을 만들지 않는다.
+        #  (주의: missing 집계는 봇측 aggregate_and_pair_trades가 미매칭 청산에 역산 진입값을
+        #   붙여 '청산 완료'로 반환하는 동안은 실제 유실을 과소 계상한다 — 봇측 수정 후 정확해진다.)
         if fee_repaired > 0:
-            final_df = df
-            final_df = final_df.drop_duplicates()
+            final_df = df.drop_duplicates()
             final_df["dt"] = pd.to_datetime(final_df["시간"], errors="coerce")
             final_df = final_df.sort_values(by="dt", ascending=True).drop(columns=["dt"])
             final_df.to_csv(csv_path, index=False, encoding="utf-8-sig")
-            print(f"[AUTO_REPAIR] {folder}: 진입유실 {added}건, 수수료 공란 {fee_repaired}건 자동 복구 저장 완료", flush=True)
-        return added + fee_repaired
+        if fee_repaired > 0 or missing:
+            print(f"[AUTO_REPAIR] {folder}: 진입유실 {len(missing)}건 탐지(임의보정 없음), "
+                  f"수수료 {fee_repaired}건 보정 저장", flush=True)
+        return fee_repaired
     except Exception as e:
         print(f"[AUTO_REPAIR] {folder} 점검 중 예외: {e}", flush=True)
         return 0
@@ -1571,11 +1676,11 @@ def auto_repair_bot(folder):
 
 
 def auto_repair_all_bots():
-    """전체 8개 봇의 매매이력 CSV 진입유실 점검 및 자동 보정 (봇별 복구 결과 리턴)"""
+    """전체 8개 봇의 매매이력 CSV 진입유실 점검 및 수수료 보정 (봇별 보정 건수 리턴)"""
     res = {}
     tot = 0
     for folder, _port, _ex in BOTS:
-        cnt = auto_repair_bot(folder)
+        cnt = auto_repair_bot(folder, _ex)
         if cnt > 0:
             res[folder] = cnt
             tot += cnt
@@ -1591,16 +1696,17 @@ def auto_repair_loop():
             cnt, details = auto_repair_all_bots()
             if cnt > 0:
                 detail_str = ", ".join([f"{k}: {v}건" for k, v in details.items()])
-                log_msg = f"[AUTO_REPAIR] {time.strftime('%H:%M:%S')} 전체 봇 점검 완료: 총 {cnt}건 진입유실 자동 채우기 완료 ({detail_str}) ({time.time()-t0:.2f}초)"
+                log_msg = f"[AUTO_REPAIR] {time.strftime('%H:%M:%S')} 전체 봇 점검 완료: 수수료 총 {cnt}건 보정 ({detail_str}) ({time.time()-t0:.2f}초)"
                 print(log_msg, flush=True)
 
                 # 디스코드 알림 발송
                 try:
                     import discord_alert
                     alert_msg = (
-                        f"🛠️ **[8888 스마트 힐링] 매매이력 진입유실 자동 복구 완료!**\n"
-                        f"• **총 복구 건수**: **{cnt}건** ({detail_str})\n"
-                        f"• `trade_history.csv` 진입시각 및 실현손익 정합성 100% 자동 채우기 완료!"
+                        f"🛠️ **[8888 스마트 힐링] 매매이력 수수료 공란 자동 보정 완료**\n"
+                        f"• **보정 건수**: **{cnt}건** ({detail_str})\n"
+                        f"• 계약승수(contractSize) 반영 테이커 {TAKER_FEE_RATE*100:.2f}% 기준\n"
+                        f"• 진입유실 행은 임의 생성하지 않습니다(실측 데이터만 기록)"
                     )
                     discord_alert._post(alert_msg)
                 except Exception as _e:
