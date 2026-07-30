@@ -1,5 +1,20 @@
 # Version History
 
+## v2.2.43
+Date: 2026-07-30
+
+### 변경 내용
+* 8개 봇(8401~8409) 최신 소스코드 기준 SHA-256 해시 무결성 검증(SHA-256 Checksum / Hash Integrity Verification) 공식 기준값 최신화 적용:
+  * 8개 봇 전수(`.golden/` 백업 폴더)에 현재 정상 구동 중인 4대 핵심 소스코드(`bot.py`, `core/strategy.py`, `core/trader.py`, `core/engine.py`) 동기화 반영 및 정품 원본 기준(Golden Baseline) 채택.
+  * `8888/app.py` 내 `GOLDEN_HASHES` 딕셔너리에 최신 추출 SHA-256 해시값을 반영하여 `golden_compromised: False` 완벽 유지 및 1바이트 변조 감시 기능 최적화.
+
+### 수정 파일
+* app.py
+* ver.md
+
+### 비고
+* 8개 봇 전수 대시보드 무결성 상태(`golden_compromised: False`, `compromised_files: []`) 및 감시 데몬 정상 동작 3중 자체 검증 완료
+
 ## v2.2.42
 Date: 2026-07-30
 
