@@ -993,14 +993,14 @@ def bot_status(folder, port, ex):
     r["today_pnl"] = r["daily"] if r.get("daily") is not None else m["today_pnl"]            # 금일 실현 손익 (봇 화면 stats.json 1순위)
     r["today_w"], r["today_l"] = m["today_w"], m["today_l"]
     r["orders_today"] = m["today_w"] + m["today_l"]
-    if r.get("wins") is not None and r.get("losses") is not None:
-        r["since_w"] = r["wins"]
-        r["since_l"] = r["losses"]
-        r["since_orders"] = r["wins"] + r["losses"]
+    r["since_w"], r["since_l"] = m["since_w"], m["since_l"]
+    r["since_orders"] = m["since_orders"]
+    if r.get("ex_balance") is not None and r.get("seed") and float(r.get("seed", 0)) > 0 and float(r.get("ex_balance", 0)) > 0:
+        r["since_pnl"] = round(float(r["ex_balance"]) - float(r["seed"]), 4)  # 개별 봇 UI 공통 공식과 100% 일치
+    elif r.get("total") is not None:
+        r["since_pnl"] = r["total"]
     else:
-        r["since_w"], r["since_l"] = m["since_w"], m["since_l"]
-        r["since_orders"] = m["since_orders"]
-    r["since_pnl"] = r["total"] if r.get("total") is not None else m["since_pnl"]   # 초기화 이후 실현손익(봇 앱 stats.json 1순위)
+        r["since_pnl"] = m["since_pnl"]
     r["entries_24h"] = m["entries_24h"]   # 24시간 내 진입 수 (청산 무관, 롤링 윈도우)
     r["entries_by_period"] = m["entries_by_period"]   # 기간별 진입 수(1h~1w 롤링)
     r["profit_factor"] = m["profit_factor"]   # 봇 효율: 총이익÷총손실 (1.5+ 우수)
