@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
-8402 / 8403 봇 앱 자동복구 watchdog (mooja 승인 2026-06-25).
+8888 앱 및 8개 봇 (app.py + bot.py) 자동복구 & 중복방지 watchdog (mooja 지시/승인).
 
-매 60초 TCP 포트를 점검해 죽은 봇만 재실행한다.
-  - 살아있는 봇은 절대 건드리지/죽이지 않는다 (down일 때만 기동, 기동 전용).
-  - 8888 폴더에서만 동작하며 다른 폴더의 소스는 일절 수정하지 않는다.
-  - 각 봇은 자체 venv python으로 해당 폴더(cwd)에서 분리(start_new_session) 실행
-    → watchdog 종료와 무관하게 생존.
+매 5분(300초)마다 전체 타겟(8888 app.py 및 8401~8409의 app.py, bot.py 16개 쌍)을 점검:
+  - 중복 실행(PID 2개 이상) 감지 시 중복 프로세스 정리 후 단일 정상 기동 보장.
+  - DOWN 감지 시 즉시 해당 폴더(cwd) 및 venv python으로 분리(start_new_session) 기동.
+  - 살아있는 단일 정상 프로세스는 절대 건드리지 않는다.
+  - 8888 폴더에서만 동작하며 타 봇 폴더의 소스코드는 일절 수정하지 않는다.
 """
 import os
+import signal
 import socket
 import subprocess
 import sys
@@ -20,10 +21,10 @@ for _s in (sys.stdout, sys.stderr):
     except Exception:
         pass
 
-CHECK_INTERVAL = 60           # 1분 점검 주기
-WARMUP_AFTER_LAUNCH = 18      # 기동 후 포트 바인딩 대기(중복 기동 방지 확인)
+CHECK_INTERVAL = 300           # 5분(300초) 점검 주기
+WARMUP_AFTER_LAUNCH = 15       # 기동 후 포트 바인딩 대기
 _DIR = os.path.dirname(os.path.abspath(__file__))
-_ROOT = os.path.dirname(_DIR)   # /Users/l/project
+_ROOT = os.path.dirname(_DIR)  # /Users/l/project
 LOG_FILE = os.path.join(_DIR, "watchdog.log")
 LOG_DIR = os.path.join(_DIR, "watchdog_logs")
 
@@ -34,13 +35,46 @@ def _venv_py(folder):
     return p if os.path.exists(p) else sys.executable
 
 
-# (포트, cwd, python, argv)  — 8402·8403만 감시
-TARGETS = [
-    (8402, os.path.join(_ROOT, "8402"), _venv_py("8402"),
-     ["-m", "streamlit", "run", "app.py", "--server.port", "8402", "--server.headless", "true"]),
-    (8403, os.path.join(_ROOT, "8403"), _venv_py("8403"),
-     ["-m", "streamlit", "run", "app.py", "--server.port", "8403", "--server.headless", "true"]),
-]
+# 감시 대상 구성: 8888 app + 8개 봇(8401, 8402, 8403, 8404, 8405, 8407, 8408, 8409)의 (app.py, bot.py)
+BOTS = ["8401", "8402", "8403", "8404", "8405", "8407", "8408", "8409"]
+
+def build_targets():
+    targets = []
+    # 1. 8888 통합 관제 대시보드
+    targets.append({
+        "name": "8888_app",
+        "port": 8888,
+        "cwd": _DIR,
+        "py": sys.executable,
+        "argv": ["-u", os.path.join(_DIR, "app.py")],
+        "pattern": f"{_DIR}/app.py",
+        "log_name": "8888.log"
+    })
+    # 2. 8개 봇의 app.py (UI) + bot.py (엔진)
+    for b in BOTS:
+        cwd_path = os.path.join(_ROOT, b)
+        py_path = _venv_py(b)
+        # UI
+        targets.append({
+            "name": f"{b}_ui",
+            "port": int(b),
+            "cwd": cwd_path,
+            "py": py_path,
+            "argv": ["-u", "-m", "streamlit", "run", "app.py", "--server.port", str(b), "--server.headless", "true"],
+            "pattern": f"--server.port {b}",
+            "log_name": f"{b}_ui.log"
+        })
+        # Engine
+        targets.append({
+            "name": f"{b}_bot",
+            "port": None,
+            "cwd": cwd_path,
+            "py": py_path,
+            "argv": ["-u", os.path.join(cwd_path, "bot.py")],
+            "pattern": f"/{b}/bot.py",
+            "log_name": f"{b}_bot.log"
+        })
+    return targets
 
 
 def now():
@@ -61,38 +95,140 @@ def log(msg):
 
 
 def port_alive(port):
+    if port is None:
+        return True
     try:
-        with socket.create_connection(("127.0.0.1", port), timeout=1.0):
+        with socket.create_connection(("127.0.0.1", port), timeout=1.5):
             return True
     except OSError:
         return False
 
 
-def launch(port, cwd, py, argv):
-    """해당 폴더에서 봇 venv python으로 분리 실행. 출력은 watchdog_logs/<port>.log."""
+def find_pids(pattern, name):
+    """ps 출력에서 command에 pattern이 포함된 실제 타겟 PID 목록 반환."""
+    pids = []
+    try:
+        out = subprocess.check_output(["ps", "-eo", "pid,command"], text=True, errors="replace")
+        for line in out.splitlines()[1:]:
+            parts = line.strip().split(maxsplit=1)
+            if len(parts) == 2:
+                pid_str, cmd = parts
+                match = False
+                if name == "8888_app":
+                    if "app.py" in cmd and "--server.port" not in cmd and "streamlit" not in cmd and "watchdog" not in cmd and "grep" not in cmd:
+                        match = True
+                else:
+                    if pattern in cmd and "watchdog.py" not in cmd and "grep" not in cmd and "ps -eo" not in cmd:
+                        match = True
+                if match:
+                    try:
+                        pids.append(int(pid_str))
+                    except ValueError:
+                        pass
+    except Exception as e:
+        log(f"find_pids 오류: {e}")
+    return pids
+
+
+def kill_pids(pids, name):
+    for pid in pids:
+        try:
+            os.kill(pid, signal.SIGKILL)
+            log(f"🛑 [{name}] PID {pid} 종료 완료")
+        except OSError:
+            pass
+    time.sleep(1.5)
+
+
+def kill_port(port):
+    if port is None:
+        return
+    try:
+        out = subprocess.check_output(["lsof", "-tiTCP:" + str(port), "-sTCP:LISTEN"], text=True, errors="replace")
+        for line in out.splitlines():
+            pid_str = line.strip()
+            if pid_str:
+                try:
+                    os.kill(int(pid_str), signal.SIGKILL)
+                    log(f"🛑 포트 {port} 점유 PID {pid_str} 종료 완료")
+                except OSError:
+                    pass
+    except Exception:
+        pass
+    time.sleep(1.5)
+
+
+def launch(target):
+    """해당 폴더에서 분리(start_new_session) 실행."""
     os.makedirs(LOG_DIR, exist_ok=True)
-    out = open(os.path.join(LOG_DIR, f"{port}.log"), "a", encoding="utf-8")
-    out.write(f"\n===== [{now()}] watchdog 재실행: port {port} =====\n")
+    out_path = os.path.join(LOG_DIR, target["log_name"])
+    out = open(out_path, "a", encoding="utf-8")
+    out.write(f"\n===== [{now()}] watchdog 실행: {target['name']} =====\n")
     out.flush()
-    subprocess.Popen([py] + argv, cwd=cwd, stdout=out, stderr=subprocess.STDOUT,
+    subprocess.Popen([target["py"]] + target["argv"], cwd=target["cwd"], stdout=out, stderr=subprocess.STDOUT,
                      stdin=subprocess.DEVNULL, start_new_session=True, close_fds=True)
 
 
-def main():
-    log(f"watchdog 시작 — 대상 {[t[0] for t in TARGETS]}, 주기 {CHECK_INTERVAL}s (기동 전용, 종료 안 함)")
-    while True:
-        for port, cwd, py, argv in TARGETS:
+def check_and_manage(target):
+    name = target["name"]
+    port = target["port"]
+    pattern = target["pattern"]
+
+    pids = find_pids(pattern, name)
+
+    # 1. 중복 실행 (2개 이상의 PID 감지)
+    if len(pids) > 1:
+        log(f"⚠️ [{name}] 중복 실행 감지 ({len(pids)}개 PID: {pids}) -> 전체 종료 후 단일 클린 재기동")
+        kill_pids(pids, name)
+        if port is not None:
+            kill_port(port)
+        launch(target)
+        return True
+
+    # 2. 1개 PID 존재
+    if len(pids) == 1:
+        if port is not None:
             if port_alive(port):
-                continue
-            log(f"❌ {port} DOWN 감지 → 즉시 재실행 ({cwd})")
+                return False  # 정상 유지
+            else:
+                log(f"⚠️ [{name}] PID({pids[0]}) 존재하나 포트({port}) DOWN -> 프로세스 종료 후 재기동")
+                kill_pids(pids, name)
+                kill_port(port)
+                launch(target)
+                return True
+        else:
+            return False  # 엔진(bot.py) 1개 정상 유지
+
+    # 3. 0개 PID
+    if port is not None and port_alive(port):
+        log(f"⚠️ [{name}] PID는 없으나 포트({port})가 사용 중 -> 해당 포트 점유 프로세스 종료 후 정상 단일 기동")
+        kill_port(port)
+    else:
+        log(f"❌ [{name}] DOWN 감지 -> 즉시 단일 기동")
+    launch(target)
+    return True
+
+
+def main():
+    targets = build_targets()
+    log(f"🚀 watchdog 시작 — 감시 대상 총 {len(targets)}개 (8888 + 8개 봇 쌍), 주기 {CHECK_INTERVAL}초 (5분)")
+    while True:
+        launched_any = False
+        for t in targets:
             try:
-                launch(port, cwd, py, argv)
+                if check_and_manage(t):
+                    launched_any = True
             except Exception as e:
-                log(f"⚠️ {port} 재실행 실패: {str(e)[:150]}")
-                continue
+                log(f"⚠️ [{t['name']}] 검사/조치 중 오류: {str(e)[:150]}")
+        if launched_any:
+            log(f"⏳ 신규 기동 타겟 안정화 대기 ({WARMUP_AFTER_LAUNCH}초)...")
             time.sleep(WARMUP_AFTER_LAUNCH)
-            log(f"{'✅' if port_alive(port) else '⏳'} {port} 재실행 후: "
-                f"{'UP' if port_alive(port) else '기동 중(다음 주기 재확인)'}")
+            for t in targets:
+                pids = find_pids(t["pattern"], t["name"])
+                status = f"PID {pids}" if pids else "DOWN"
+                if t["port"]:
+                    status += f" / PORT {'UP' if port_alive(t['port']) else 'WAIT/DOWN'}"
+                log(f"  - [{t['name']}] 상태: {status}")
         time.sleep(CHECK_INTERVAL)
 
 
