@@ -841,11 +841,11 @@ import hashlib
 
 GOLDEN_HASHES = {
     "8401": {
-        "bot.py": "66ae45514f5f35dcfacdc854cee9f425a8af57ef88b3ab564f07e8bfe464f1b6",
+        "bot.py": "48fc076808f8e5efcf067aafb54784d8330ca03cfdd26b4eb7176a83771bc372",
         "core/strategy.py": "e763290eb4382ecf64f0eada9768d403bc0156006688aa3727a318a291d29d80",
         # 8401 v9.3.0: 역방향 진입행 방향 오기록 + sl/tp 포맷 TypeError 수정 반영
-        "core/trader.py": "37b3757844a7c13c7a00a79d746ff27314cfc23324ddbdbd4a5d67b506965798",
-        "core/engine.py": "28a23a33325096ffb21304890e3b91ac250595cdec825e70206432d5757ae6c2"
+        "core/trader.py": "ddc909ca6229c9b121c2d2d353c86559d709d27a04c20254aa5104c14f53bcf6",
+        "core/engine.py": "20f22587f32bfafb22545640f613d6fe8570bd276d6789a6ed0ca73a0b6b2b1d"
     },
     "8402": {
         "bot.py": "71f7dd2d5be721843b2b57055cc94df6c8afd9c1cdf7e455eb131ae478124762",
@@ -854,10 +854,10 @@ GOLDEN_HASHES = {
         "core/engine.py": "d2bf5bea1ee33f2fea5bed3f2eb8709631d7346ae9d8f79b17be36ab55904b24"
     },
     "8403": {
-        "bot.py": "7dac57591d2ef0ad0366ccef79aa97e5d0c9bdc99ccf7ea5d6446c4e400cbd81",
+        "bot.py": "821fef7378822793d14db43882a892d9c861d856f5bf6a1efa57bda78869db83",
         "core/strategy.py": "30664ba53e2102eb990d122085e25461b851f540e90004dfe13eb8fb41cc78b4",
-        "core/trader.py": "37b3757844a7c13c7a00a79d746ff27314cfc23324ddbdbd4a5d67b506965798",
-        "core/engine.py": "e39284086c1db21545728280118c670bdc1d360371ecdf03adcea95c0778132e"
+        "core/trader.py": "ddc909ca6229c9b121c2d2d353c86559d709d27a04c20254aa5104c14f53bcf6",
+        "core/engine.py": "4cecfc05f0e6292166f9fb838ac235e09bfaa6043ee0b2307a328629378cbb27"
     },
     "8404": {
         "bot.py": "71f7dd2d5be721843b2b57055cc94df6c8afd9c1cdf7e455eb131ae478124762",

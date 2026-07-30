@@ -1,5 +1,22 @@
 # Version History
 
+## v2.2.38
+Date: 2026-07-30
+
+### 변경 내용
+* 8401·8403 GOLDEN_HASHES 지문 동기화 (8401 v9.5.0 / 8403 v9.5.0-8403 반영)
+  * 대상: `bot.py`, `core/trader.py`, `core/engine.py` × 2봇 = 6개 파일
+  * 변경 내용: 고아 포지션 자동 보호 감시 도입 (헤드리스 `on_scan_done` 연결,
+    `guard_position_protection()`, 이익구간 재무장 실패 수정)
+
+### 수정 파일
+* app.py
+* ver.md
+
+### 비고
+* 8개 봇 전수 32개 감시 파일 재대조 → 불일치 0개
+* 미동기화 시 대시보드 위변조 오진 알람 발생
+
 ## v2.2.37
 Date: 2026-07-30
 
