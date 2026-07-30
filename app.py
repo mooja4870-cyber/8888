@@ -124,6 +124,7 @@ def tail_trades(path, n=5):
 
 
 _HIST_CACHE = {}   # path -> (mtime, size, exits[])  ;  exits = [(ts19, pnl, oid), ...]
+_HIST_MODE_CACHE = {}   # path -> (mtime, size, exits[])  ;  exits = [(ts19, pnl, oid, mode), ...]
 _ENTRY_CACHE = {}  # path -> (mtime, size, entries[])  ;  entries = [(ts19, oid), ...]
 
 
@@ -183,6 +184,34 @@ def _load_exits(path):
     return exits
 
 
+def _load_exits_modes(path):
+    """trade_history.csv의 청산 행 전체를 (시각, 수익, 주문ID, 매매모드)로 파싱. mtime 캐시."""
+    try:
+        mt = os.path.getmtime(path)
+        sz = os.path.getsize(path)
+    except OSError:
+        return []
+    c = _HIST_MODE_CACHE.get(path)
+    if c and c[0] == mt and c[1] == sz:
+        return c[2]
+    exits = []
+    try:
+        with open(path, encoding="utf-8-sig", errors="replace") as f:
+            for r in csv.reader(f):
+                if len(r) < 7 or r[2] != "청산":
+                    continue
+                ts = r[0].strip()[:19]
+                if not ts[:4].isdigit():
+                    continue
+                oid = r[10].strip() if len(r) > 10 else ""
+                mode = r[13].strip() if len(r) > 13 else "순방향"
+                exits.append((ts, _pnl(r), oid, mode))
+    except OSError:
+        return []
+    _HIST_MODE_CACHE[path] = (mt, sz, exits)
+    return exits
+
+
 _EVT_CACHE = {}
 
 
@@ -232,6 +261,7 @@ def hist_metrics(path, perf_start, pos_count=0):
     today0 = time.strftime("%Y-%m-%d 00:00:00")
     ps = (perf_start or "")[:19]
     exits = _load_exits(path)
+    exits_modes = _load_exits_modes(path)
     entries = _load_entries(path)
 
     # 옵션 A: 사용자가 설정한 초기화 시점(ps)이 없을 때만 CSV의 가장 과거 시각을 기준점으로 사용
@@ -281,6 +311,19 @@ def hist_metrics(path, perf_start, pos_count=0):
     tl = sum(1 for oid, v in today_grp.items() if since_grp.get(oid, v) < 0)
     sw = sum(1 for v in since_grp.values() if v > 0)
     sl = sum(1 for v in since_grp.values() if v < 0)
+    oid_mode_map = {}
+    for row in exits_modes:
+        oid = row[2]
+        mode = row[3] if len(row) > 3 else "순방향"
+        if oid:
+            if mode == "역방향":
+                oid_mode_map[oid] = "역방향"
+            elif oid not in oid_mode_map:
+                oid_mode_map[oid] = mode
+    sw_sun = sum(1 for oid, v in since_grp.items() if v > 0 and oid_mode_map.get(oid, "순방향") != "역방향")
+    sl_sun = sum(1 for oid, v in since_grp.items() if v < 0 and oid_mode_map.get(oid, "순방향") != "역방향")
+    sw_yeok = sum(1 for oid, v in since_grp.items() if v > 0 and oid_mode_map.get(oid, "순방향") == "역방향")
+    sl_yeok = sum(1 for oid, v in since_grp.items() if v < 0 and oid_mode_map.get(oid, "순방향") == "역방향")
 
     # 봇 효율 지표 (누적 perf_start 이후, order_id 그룹 손익 기준) ── TradeZella 8대 KPI 일부
     #   profit_factor = 총이익 ÷ 총손실(절대값)  [1.5+ 우수]
@@ -350,6 +393,8 @@ def hist_metrics(path, perf_start, pos_count=0):
 
     return {"today_pnl": round(today_pnl, 4), "today_w": tw, "today_l": tl,
             "since_w": sw, "since_l": sl, "since_orders": sw + sl,
+            "since_w_sun": sw_sun, "since_l_sun": sl_sun,
+            "since_w_yeok": sw_yeok, "since_l_yeok": sl_yeok,
             "since_pnl": round(sum(since_grp.values()), 4),   # 초기화 이후 실현손익 = 봇 앱 누적손익
             "profit_factor": profit_factor, "avg_wl": avg_wl, "expectancy": expectancy, "sqn": sqn, "sortino": sortino,
             "avg_holding_hours": avg_holding_hours, "profit_per_hour": profit_per_hour,
@@ -994,6 +1039,8 @@ def bot_status(folder, port, ex):
     r["orders_today"] = m["today_w"] + m["today_l"]
     r["since_w"], r["since_l"] = m["since_w"], m["since_l"]
     r["since_orders"] = m["since_orders"]
+    r["since_w_sun"], r["since_l_sun"] = m.get("since_w_sun", 0), m.get("since_l_sun", 0)
+    r["since_w_yeok"], r["since_l_yeok"] = m.get("since_w_yeok", 0), m.get("since_l_yeok", 0)
     if r.get("ex_balance") is not None and r.get("seed") and float(r.get("seed", 0)) > 0 and float(r.get("ex_balance", 0)) > 0:
         r["since_pnl"] = round(float(r["ex_balance"]) - float(r["seed"]), 4)  # 개별 봇 UI 공통 공식과 100% 일치
     elif r.get("total") is not None:
