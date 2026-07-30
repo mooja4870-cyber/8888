@@ -844,13 +844,13 @@ GOLDEN_HASHES = {
         "bot.py": "48fc076808f8e5efcf067aafb54784d8330ca03cfdd26b4eb7176a83771bc372",
         "core/strategy.py": "e763290eb4382ecf64f0eada9768d403bc0156006688aa3727a318a291d29d80",
         # 8401 v9.3.0: 역방향 진입행 방향 오기록 + sl/tp 포맷 TypeError 수정 반영
-        "core/trader.py": "ddc909ca6229c9b121c2d2d353c86559d709d27a04c20254aa5104c14f53bcf6",
+        "core/trader.py": "1b10cd44db91bc4b1bc41a1caf9d9293a048618bf62bafddedb92b5953a6a50f",
         "core/engine.py": "20f22587f32bfafb22545640f613d6fe8570bd276d6789a6ed0ca73a0b6b2b1d"
     },
     "8402": {
-        "bot.py": "71f7dd2d5be721843b2b57055cc94df6c8afd9c1cdf7e455eb131ae478124762",
+        "bot.py": "334e79cfe50aed2d0cb9355e24bc9005859aaa936e7e03d99b48200b2d9dbb89",
         "core/strategy.py": "20aeec2414df2256b60944ae4f96212659332a10016a4630f9c424710cf7661d",
-        "core/trader.py": "9f43bbb01990f9c960b2bd3424b0731bcdc6341227e39ae968df9938746350f2",
+        "core/trader.py": "ea0750798c6b77a275fb3f7cd8bf03c53e0285ace1ea5aa5db2bcbee463e86ae",
         "core/engine.py": "d2bf5bea1ee33f2fea5bed3f2eb8709631d7346ae9d8f79b17be36ab55904b24"
     },
     "8403": {
@@ -866,21 +866,21 @@ GOLDEN_HASHES = {
         "core/engine.py": "394b8e0a5c5bf805c0b6d31b816a56cc63147ef1dcc33872171f5901668946a3"
     },
     "8405": {
-        "bot.py": "f5d97ac4b649533f8084286e5695c8dc70cc05c0716dd2f22d7e9e14166d7f2a",
+        "bot.py": "64f544079422e7c89e1837c96436b9eacd7a90afbb08537586f98d968b801fbf",
         "core/strategy.py": "db10a58a12bc9b9dc6dfb6e15054a562d6712703dfda12a09b962166d780c687",
-        "core/trader.py": "cc3622757083a474528e6944d5cc8a38f339d48e6c6b2c933c422e5ec488466e",
+        "core/trader.py": "33207bccc25d5c44f736f5fcbd28ed1b7f95c70a6b6ee67c0288740fa629c0e8",
         "core/engine.py": "d1b2fb7fff8f4470a175d15fcbafd2e212043d16aef8735987dc4c4de430a384"
     },
     "8407": {
-        "bot.py": "8f6da5469282fae440d680db7ff44821e5305944ecc04d0a6727a0e3b26a23db",
+        "bot.py": "f504777384b0fb2e55403ee141f0a1e3d985dc4f013d8eed10c2394df648251a",
         "core/strategy.py": "44e6af3659348e795236d1cf0a7bc223d46bab4b3e482a53453007f32d197809",
-        "core/trader.py": "f8b042a36cfd24a6b4e5823eb57ee08b136083e3d0d37589c41749ac0ceccbf0",
+        "core/trader.py": "93ad007d55b7e7538a9772c44d31356dba35acde9cc34b1a2afc468fb2e410bd",
         "core/engine.py": "d1b2fb7fff8f4470a175d15fcbafd2e212043d16aef8735987dc4c4de430a384"
     },
     "8408": {
-        "bot.py": "2064a2525bf530da85ef267247483d220735bb60a0c9a969d0c739b9e84a3e79",
+        "bot.py": "56f3be5900bb66fff4710517fabd0c41af0df3a222a517cfed1fc9c6bbc2ee75",
         "core/strategy.py": "30664ba53e2102eb990d122085e25461b851f540e90004dfe13eb8fb41cc78b4",
-        "core/trader.py": "e2b18aa796e83d14ff10bb3d7da29c4dfdc518755e7fa66247a91af8611ea46c",
+        "core/trader.py": "d2f27ee52f1b2aa4d37c194342f12904defebb70d9df12e953add3bd05f87623",
         "core/engine.py": "ae41b9a237630c4f2c41457805c076904fda3cd5e7419d7e7d55a0e01d93aa42"
     },
     "8409": {
