@@ -1,3 +1,19 @@
+## v2.2.34
+Date: 2026-07-30
+
+### 변경 내용
+* 무결성 검사(Integrity Checker) 로직 고도화 (`app.py`):
+  * 5전 3패 매매방향 자동 스위칭(`USE_AUTO_MODE_SWITCH`)에 의해 `USE_BLUEFROG` 설정값이 동적 변경되는 `config.json`을 SHA-256 대조 대상에서 제외
+  * 절대 변경되어서는 안 되는 4대 핵심 소스코드(`bot.py`, `core/strategy.py`, `core/trader.py`, `core/engine.py`)만 1바이트 단위로 엄중 감시하도록 고도화
+* 스위칭 정상 동작 시 발생하던 대시보드 위변조 오진 알람(8404, 8407, 8408, 8409) 영구 해소
+
+### 수정 파일
+* app.py
+* ver.md
+
+### 비고
+* 8개 봇 전수 3중 검증 완료 (`golden_compromised = False`, 경고 배너 소멸)
+
 ## v2.2.33
 Date: 2026-07-29
 

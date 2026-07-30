@@ -844,57 +844,49 @@ GOLDEN_HASHES = {
         "bot.py": "66ae45514f5f35dcfacdc854cee9f425a8af57ef88b3ab564f07e8bfe464f1b6",
         "core/strategy.py": "e763290eb4382ecf64f0eada9768d403bc0156006688aa3727a318a291d29d80",
         "core/trader.py": "634017d4d54f8eeb9c8a5f0c72fce9be04ce098f9417ce6c6d689dff193c0cc6",
-        "core/engine.py": "28a23a33325096ffb21304890e3b91ac250595cdec825e70206432d5757ae6c2",
-        "config.json": "52ecce4e79b69284921255de7f15354aa54555beeff7d71dbfa8f33270bad6fb"
+        "core/engine.py": "28a23a33325096ffb21304890e3b91ac250595cdec825e70206432d5757ae6c2"
     },
     "8402": {
         "bot.py": "71f7dd2d5be721843b2b57055cc94df6c8afd9c1cdf7e455eb131ae478124762",
         "core/strategy.py": "20aeec2414df2256b60944ae4f96212659332a10016a4630f9c424710cf7661d",
         "core/trader.py": "9f43bbb01990f9c960b2bd3424b0731bcdc6341227e39ae968df9938746350f2",
-        "core/engine.py": "46fabe0a7d7348cee8968b47a726daaedecdb28a159150a7c1ed432822535635",
-        "config.json": "f5b98a3dc74e53851aabe2dd3023cb873e9f4e938ee81c7e81fc27230b1d5757"
+        "core/engine.py": "46fabe0a7d7348cee8968b47a726daaedecdb28a159150a7c1ed432822535635"
     },
     "8403": {
         "bot.py": "7dac57591d2ef0ad0366ccef79aa97e5d0c9bdc99ccf7ea5d6446c4e400cbd81",
         "core/strategy.py": "30664ba53e2102eb990d122085e25461b851f540e90004dfe13eb8fb41cc78b4",
         "core/trader.py": "634017d4d54f8eeb9c8a5f0c72fce9be04ce098f9417ce6c6d689dff193c0cc6",
-        "core/engine.py": "e39284086c1db21545728280118c670bdc1d360371ecdf03adcea95c0778132e",
-        "config.json": "096723337ae54be37cac8bbaa28627e3f1960f575fc9a2ffd06ae7213ea2822d"
+        "core/engine.py": "e39284086c1db21545728280118c670bdc1d360371ecdf03adcea95c0778132e"
     },
     "8404": {
         "bot.py": "71f7dd2d5be721843b2b57055cc94df6c8afd9c1cdf7e455eb131ae478124762",
         "core/strategy.py": "fc00849f544329a29092c1952d0af654b679881998ebfff7ee212cdcf8872d15",
         "core/trader.py": "06128649e213ae32525277ae04c56533bc62bb71882ac8750993bec9da3cc231",
-        "core/engine.py": "8c7a297d8216ba9396d0ecdf714286b96d5c55af901904411d0f40be6a6e43e0",
-        "config.json": "01a76f3fc51fee099af970a532a851a1b611732f230f4dfd23a9b1651513b226"
+        "core/engine.py": "8c7a297d8216ba9396d0ecdf714286b96d5c55af901904411d0f40be6a6e43e0"
     },
     "8405": {
         "bot.py": "f5d97ac4b649533f8084286e5695c8dc70cc05c0716dd2f22d7e9e14166d7f2a",
         "core/strategy.py": "db10a58a12bc9b9dc6dfb6e15054a562d6712703dfda12a09b962166d780c687",
         "core/trader.py": "cc3622757083a474528e6944d5cc8a38f339d48e6c6b2c933c422e5ec488466e",
-        "core/engine.py": "d1b2fb7fff8f4470a175d15fcbafd2e212043d16aef8735987dc4c4de430a384",
-        "config.json": "c624a1b235357f90d1d7664b2eb5cf8e0a5ad003c1d5c0ff84cd72a5f228a6d2"
+        "core/engine.py": "d1b2fb7fff8f4470a175d15fcbafd2e212043d16aef8735987dc4c4de430a384"
     },
     "8407": {
         "bot.py": "8f6da5469282fae440d680db7ff44821e5305944ecc04d0a6727a0e3b26a23db",
         "core/strategy.py": "44e6af3659348e795236d1cf0a7bc223d46bab4b3e482a53453007f32d197809",
         "core/trader.py": "f8b042a36cfd24a6b4e5823eb57ee08b136083e3d0d37589c41749ac0ceccbf0",
-        "core/engine.py": "d1b2fb7fff8f4470a175d15fcbafd2e212043d16aef8735987dc4c4de430a384",
-        "config.json": "08fcf8fdb81d08ecce8190baa3d8ba8b1df663f4c3837eedfd2ac9c184458c5f"
+        "core/engine.py": "d1b2fb7fff8f4470a175d15fcbafd2e212043d16aef8735987dc4c4de430a384"
     },
     "8408": {
         "bot.py": "2064a2525bf530da85ef267247483d220735bb60a0c9a969d0c739b9e84a3e79",
         "core/strategy.py": "30664ba53e2102eb990d122085e25461b851f540e90004dfe13eb8fb41cc78b4",
         "core/trader.py": "e2b18aa796e83d14ff10bb3d7da29c4dfdc518755e7fa66247a91af8611ea46c",
-        "core/engine.py": "26e94cf7f2c7c078f94c719d7485e9ec0e1d2e7a537c0c0485a7ffdbd94ea19e",
-        "config.json": "e57338cbbf0121d9e0be3035bc1ae794ac8c5f68885535115ae8a9c37bcbd126"
+        "core/engine.py": "26e94cf7f2c7c078f94c719d7485e9ec0e1d2e7a537c0c0485a7ffdbd94ea19e"
     },
     "8409": {
         "bot.py": "41dc06cc1886a660335c52c5156eade962a162bb3e1e4c6ef46fbb828d2de711",
         "core/strategy.py": "411b1a8ea5902cc511ce06d6d63a6dfd0e0b145e19e549e27b6bba94b7ee695c",
         "core/trader.py": "99765b12b117dcfd5f17db25034fe67f868c9009ddbfa8a9cce496c73ad714e3",
-        "core/engine.py": "af53761e8175c8fda6b3db69790af48d6aef9e797a180f2904081851f5cf9306",
-        "config.json": "7d41cdfad04150368f9aa40f11ba4e51dfcbffebdd93540da1c33abe19020286"
+        "core/engine.py": "af53761e8175c8fda6b3db69790af48d6aef9e797a180f2904081851f5cf9306"
     }
 }
 
@@ -909,6 +901,7 @@ def bot_status(folder, port, ex):
          "total_trades": 0, "age_min": None, "positions": [], "trades": []}
 
     # 무결성 검사 (Integrity Checker) - 토글(integrity_toggle.json)이 켜져 있을 때만 실행
+    # (주의: 자동 모드 스위칭으로 USE_BLUEFROG 등이 동적 변동되는 config.json은 검사 대상에서 제외하고 4대 핵심 소스코드만 100% SHA-256 엄중 대조)
     r["golden_compromised"] = False
     r["compromised_files"] = []
     state_file = os.path.join(BASE, "data", "integrity_toggle.json")
@@ -916,6 +909,8 @@ def bot_status(folder, port, ex):
 
     if is_integrity_enabled and (bot_id in GOLDEN_HASHES):
         for tfile, expected_hash in GOLDEN_HASHES[bot_id].items():
+            if tfile == "config.json":
+                continue
             fpath = os.path.join(BASE, folder, tfile)
             if os.path.exists(fpath):
                 try:
