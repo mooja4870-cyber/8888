@@ -1,5 +1,20 @@
 # Version History
 
+## v2.2.41
+Date: 2026-07-30
+
+### 변경 내용
+* 8888 관제 대시보드 및 디스코드 알림과 실제 8개 봇(`stats.json` 및 개별 봇 UI) 내용 간 불일치 원천 해결:
+  * `app.py`의 `bot_status()` 함수가 `hist_metrics(trade_history.csv)`로 기존 누적 수치를 덮어쓰던 문제를 수정하여, 각 봇 폴더의 `stats.json`에 기록된 실제 누적 실현손익(`total_pnl_usdt`), 당일 실현손익(`daily_pnl_usdt`), 누적 승/패 카운트(`total_wins`, `total_losses`)를 **1순위 기준값**으로 절대 채택.
+  * 봇 초기화 시점(`perf_start`) 이전 내역 누락으로 인해 발생하던 8402 봇 수익률(-2.07% → 실제 +22.66%) 및 승패 표기 불일치를 100% 정상 동기화.
+
+### 수정 파일
+* app.py
+* ver.md
+
+### 비고
+* 대시보드 API(`http://localhost:8888/api/status`) 및 디스코드 메시지 생성(`discord_alert.build_message`) 상 8개 봇 전원 실제 `stats.json` 값과 100% 일치 검증 완료
+
 ## v2.2.40
 Date: 2026-07-30
 

@@ -990,12 +990,17 @@ def bot_status(folder, port, ex):
     pos_count = (r.get("ex_poslong", 0) or 0) + (r.get("ex_posshort", 0) or 0) if r.get("ex_poslong") is not None else len(r.get("positions") or [])
     m = hist_metrics(hist, r["perf_start"], pos_count=pos_count)
     r["perf_start"] = m.get("adjusted_perf_start", r["perf_start"])  # 과거 복구 데이터 반영
-    r["today_pnl"] = m["today_pnl"]            # 금일 실현 손익 (봇 화면값)
+    r["today_pnl"] = r["daily"] if r.get("daily") is not None else m["today_pnl"]            # 금일 실현 손익 (봇 화면 stats.json 1순위)
     r["today_w"], r["today_l"] = m["today_w"], m["today_l"]
     r["orders_today"] = m["today_w"] + m["today_l"]
-    r["since_w"], r["since_l"] = m["since_w"], m["since_l"]
-    r["since_orders"] = m["since_orders"]
-    r["since_pnl"] = m["since_pnl"]   # 초기화 이후 실현손익(봇 앱 누적손익)
+    if r.get("wins") is not None and r.get("losses") is not None:
+        r["since_w"] = r["wins"]
+        r["since_l"] = r["losses"]
+        r["since_orders"] = r["wins"] + r["losses"]
+    else:
+        r["since_w"], r["since_l"] = m["since_w"], m["since_l"]
+        r["since_orders"] = m["since_orders"]
+    r["since_pnl"] = r["total"] if r.get("total") is not None else m["since_pnl"]   # 초기화 이후 실현손익(봇 앱 stats.json 1순위)
     r["entries_24h"] = m["entries_24h"]   # 24시간 내 진입 수 (청산 무관, 롤링 윈도우)
     r["entries_by_period"] = m["entries_by_period"]   # 기간별 진입 수(1h~1w 롤링)
     r["profit_factor"] = m["profit_factor"]   # 봇 효율: 총이익÷총손실 (1.5+ 우수)
