@@ -2342,3 +2342,23 @@ Date: 2026-07-31
 
 ### 비고
 * 실매매 테스트 및 백그라운드 재가동 완료
+
+## v9.8.2
+Date: 2026-07-31
+
+### 변경 내용
+* 무결성 보호모드(Integrity Protection Mode) 기능 전체 완전 삭제
+  - `GOLDEN_HASHES` 기준값 제거
+  - `/api/integrity_status`, `/api/integrity_toggle` 엔드포인트 제거
+  - `checksum_guard_loop` 감시 및 자동 롤백 데몬 제거
+  - 대시보드 UI(`dashboard.html`) 내 무결성 토글 및 경고 배너 제거
+  - 개별 봇 내 `.golden` (원본 백업) 폴더 일괄 정리
+
+### 수정 파일
+* app.py
+* templates/dashboard.html (-> dashboard.html)
+* (삭제) data/integrity_toggle.json
+* (삭제) 각 봇의 .golden 폴더
+
+### 비고
+* 무결성 모드 삭제로 인한 서버 오버헤드 감소

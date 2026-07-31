@@ -884,58 +884,6 @@ def app_debug_time(folder):
 
 import hashlib
 
-GOLDEN_HASHES = {
-    "8401": {
-        "bot.py": "48fc076808f8e5efcf067aafb54784d8330ca03cfdd26b4eb7176a83771bc372",
-        "core/strategy.py": "e763290eb4382ecf64f0eada9768d403bc0156006688aa3727a318a291d29d80",
-        "core/trader.py": "1b10cd44db91bc4b1bc41a1caf9d9293a048618bf62bafddedb92b5953a6a50f",
-        "core/engine.py": "9b90d2fc6469dd49b357343d4fb88b93c533aa72dcb761be9394a20578fadc25"
-    },
-    "8402": {
-        "bot.py": "334e79cfe50aed2d0cb9355e24bc9005859aaa936e7e03d99b48200b2d9dbb89",
-        "core/strategy.py": "20aeec2414df2256b60944ae4f96212659332a10016a4630f9c424710cf7661d",
-        "core/trader.py": "ea0750798c6b77a275fb3f7cd8bf03c53e0285ace1ea5aa5db2bcbee463e86ae",
-        "core/engine.py": "3ee0da2ba0a003b5445301af76d3f292e2ad2574f6f0bc13fa555041e9c2fc10"
-    },
-    "8403": {
-        "bot.py": "821fef7378822793d14db43882a892d9c861d856f5bf6a1efa57bda78869db83",
-        "core/strategy.py": "30664ba53e2102eb990d122085e25461b851f540e90004dfe13eb8fb41cc78b4",
-        "core/trader.py": "ddc909ca6229c9b121c2d2d353c86559d709d27a04c20254aa5104c14f53bcf6",
-        "core/engine.py": "c033a072129c56fcddda3480daf21f76c75d160137abfdae1665ef423caef7b7"
-    },
-    "8404": {
-        "bot.py": "71f7dd2d5be721843b2b57055cc94df6c8afd9c1cdf7e455eb131ae478124762",
-        "core/strategy.py": "fc00849f544329a29092c1952d0af654b679881998ebfff7ee212cdcf8872d15",
-        "core/trader.py": "06128649e213ae32525277ae04c56533bc62bb71882ac8750993bec9da3cc231",
-        "core/engine.py": "2560e5c6a5ed9cd7b16103e45305d2f1b29cf78a4c94e5b2450be05ef5add083"
-    },
-    "8405": {
-        "bot.py": "64f544079422e7c89e1837c96436b9eacd7a90afbb08537586f98d968b801fbf",
-        "core/strategy.py": "db10a58a12bc9b9dc6dfb6e15054a562d6712703dfda12a09b962166d780c687",
-        "core/trader.py": "82f5e0258b5873b365e554b04e5a577319038614e5e0cde668441053cf4cd98a",
-        "core/engine.py": "405724e0b27ff7a08393f65fcc3335498df383b211e2aff50d88815071a25c20"
-    },
-    "8407": {
-        "bot.py": "f504777384b0fb2e55403ee141f0a1e3d985dc4f013d8eed10c2394df648251a",
-        "core/strategy.py": "44e6af3659348e795236d1cf0a7bc223d46bab4b3e482a53453007f32d197809",
-        "core/trader.py": "93ad007d55b7e7538a9772c44d31356dba35acde9cc34b1a2afc468fb2e410bd",
-        "core/engine.py": "54273885050ebd67e3ed0145a834598e7efe13d185f493684efc792093456378"
-    },
-    "8408": {
-        "bot.py": "56f3be5900bb66fff4710517fabd0c41af0df3a222a517cfed1fc9c6bbc2ee75",
-        "core/strategy.py": "30664ba53e2102eb990d122085e25461b851f540e90004dfe13eb8fb41cc78b4",
-        "core/trader.py": "d2f27ee52f1b2aa4d37c194342f12904defebb70d9df12e953add3bd05f87623",
-        "core/engine.py": "2915997daacdd1460c62d2bc46dc69fd65d03bee39b2aa5df21ba65af4da344c"
-    },
-    "8409": {
-        "bot.py": "8b75b104ca4b4264a019cc6f65805daf75daae58d8198b3392624ce5cad4e0cc",
-        "core/strategy.py": "411b1a8ea5902cc511ce06d6d63a6dfd0e0b145e19e549e27b6bba94b7ee695c",
-        "core/trader.py": "4ede3eec9ce820722428f036a0f53b43f5bd58223750fd92d0e860d44aa86fab",
-        "core/engine.py": "8b2ce9b0d3ba1d24f2f35f02158180af97defb9054fcc5059198e6457c88e694"
-    }
-}
-
-
 def bot_status(folder, port, ex):
     # port로 정확하게 봇 ID 추출, 포트-폴더 매칭 명시
     bot_id = str(port)  # port 8401 → bot_id "8401"
@@ -945,28 +893,9 @@ def bot_status(folder, port, ex):
          "losses": 0, "seed": None, "perf_start": None, "orders_today": 0,
          "total_trades": 0, "age_min": None, "positions": [], "trades": []}
 
-    # 무결성 검사 (Integrity Checker) - 토글(integrity_toggle.json)이 켜져 있을 때만 실행
-    # (주의: 자동 모드 스위칭으로 USE_BLUEFROG 등이 동적 변동되는 config.json은 검사 대상에서 제외하고 4대 핵심 소스코드만 100% SHA-256 엄중 대조)
     r["golden_compromised"] = False
     r["compromised_files"] = []
-    state_file = os.path.join(BASE, "data", "integrity_toggle.json")
-    is_integrity_enabled = safe_load_json(state_file, {"enabled": True}).get("enabled", True)
 
-    if is_integrity_enabled and (bot_id in GOLDEN_HASHES):
-        for tfile, expected_hash in GOLDEN_HASHES[bot_id].items():
-            if tfile == "config.json":
-                continue
-            fpath = os.path.join(BASE, folder, tfile)
-            if os.path.exists(fpath):
-                try:
-                    with open(fpath, "rb") as f:
-                        f_content = f.read().replace(b"\r\n", b"\n")
-                        h = hashlib.sha256(f_content).hexdigest()
-                        if h != expected_hash:
-                            r["golden_compromised"] = True
-                            r["compromised_files"].append(tfile)
-                except Exception:
-                    pass
 
     # 실시간 메모리 / stats.json 데이터 로딩
     sp = os.path.join(d, "stats.json")
@@ -1447,11 +1376,7 @@ class Handler(BaseHTTPRequestHandler):
             tf = (parse_qs(urlparse(self.path).query).get("tf") or ["1h"])[0]
             body = json.dumps(asset_chart(tf), ensure_ascii=False).encode()
             ctype = "application/json; charset=utf-8"
-        elif self.path == "/api/integrity_status":
-            state_file = os.path.join(BASE, "data", "integrity_toggle.json")
-            enabled = safe_load_json(state_file, {"enabled": True}).get("enabled", True)
-            body = json.dumps({"enabled": enabled}).encode()
-            ctype = "application/json; charset=utf-8"
+
         elif self.path == "/" or self.path.startswith("/index"):
             with open(HTML_PATH, encoding="utf-8") as f:
                 body = f.read().encode()
@@ -1467,24 +1392,8 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
-        if self.path == "/api/integrity_toggle":
-            try:
-                content_length = int(self.headers.get('Content-Length', 0))
-                post_data = self.rfile.read(content_length)
-                data = json.loads(post_data.decode('utf-8'))
-                enabled = bool(data.get("enabled", True))
-                
-                state_file = os.path.join(BASE, "data", "integrity_toggle.json")
-                atomic_save_json(state_file, {"enabled": enabled})
-                
-                body = json.dumps({"status": "ok", "enabled": enabled}).encode()
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json; charset=utf-8")
-                self.send_header("Content-Length", str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
-            except Exception as e:
-                self.send_error(400, f"Bad Request: {e}")
+        if False:
+            pass
         else:
             self.send_error(404)
 
