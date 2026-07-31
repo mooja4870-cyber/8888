@@ -167,10 +167,7 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
         b_name_short = b['name']
         b_days = b.get('days', 1.0)
         
-        sw_sun = b.get("since_w_sun")
-        sl_sun = b.get("since_l_sun")
-        sw_yeok = b.get("since_w_yeok")
-        sl_yeok = b.get("since_l_yeok")
+
         
         try:
             import app
@@ -207,25 +204,20 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
             seq_grouped = " ".join([seq[i:i+5] for i in range(0, len(seq), 5)])
             seq_str = f" {seq_grouped}" if seq_grouped else ""
 
-            if sw_sun is None or sw_yeok is None:
-                sw_sun = sum(1 for oid, v in grp.items() if v > 0 and oid_mode.get(oid, "순방향") != "역방향")
-                sl_sun = sum(1 for oid, v in grp.items() if v < 0 and oid_mode.get(oid, "순방향") != "역방향")
-                sw_yeok = sum(1 for oid, v in grp.items() if v > 0 and oid_mode.get(oid, "순방향") == "역방향")
-                sl_yeok = sum(1 for oid, v in grp.items() if v < 0 and oid_mode.get(oid, "순방향") == "역방향")
+            last_20_oids = sorted_oids[:20]
+            sun20 = sum(1 for oid in last_20_oids if oid_mode.get(oid, "순방향") != "역방향")
+            yeok20 = sum(1 for oid in last_20_oids if oid_mode.get(oid, "순방향") == "역방향")
         except Exception:
             seq_str = ""
-        
-        sw_sun = sw_sun or 0
-        sl_sun = sl_sun or 0
-        sw_yeok = sw_yeok or 0
-        sl_yeok = sl_yeok or 0
+            sun20 = 0
+            yeok20 = 0
         
         is_bf = bool(b.get("config", {}).get("USE_BLUEFROG", False)) if isinstance(b.get("config"), dict) else False
         mode_prefix = "역 " if is_bf else "순 "
         b_asset = b.get("ex_balance") if b.get("ex_balance") is not None else (b.get("balance") if b.get("balance") is not None else b.get("seed", 0.0))
         asset_val_str = f"${b_asset:.2f}" if b_asset is not None else "$0.00"
         lines.append(f"{mode_prefix}{pos_str} {b_name_short}  {b_days:.1f}  {asset_val_str}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}")
-        lines.append(f"  ({ent1:02d}/{ent4:02d}|{ent12:02d}/{ent24:02d} {sw:02d}W/{sl:02d}L={sw_sun}+{sw_yeok}/{sl_sun}+{sl_yeok}){seq_str}")
+        lines.append(f"  ({ent1:02d}/{ent4:02d}|{ent12:02d}/{ent24:02d} {sw:02d}W/{sl:02d}L : 순{sun20}+역{yeok20}){seq_str}")
         
         # 🤖 5분 정각 알림(include_bot_charts=True)일 때 개별 봇 40분 파동 차트 렌더링
         if include_bot_charts:

@@ -317,7 +317,8 @@ window.addEventListener('DOMContentLoaded', ()=>{
  const saved=localStorage.getItem('botfilter_mode');
  const el=document.getElementById('botfilter');
  if(el&&saved&&(saved==='all'||saved==='bluefrog'))el.value=saved;
- 
+});
+
 function render(d,anim){
  if(!d || !d.bots || !d.bots.length){
   if(window._FB_DATA) d = window._FB_DATA;
@@ -345,8 +346,7 @@ function render(d,anim){
  let _longestBot=null,_minPs=Infinity;
  d.bots.forEach(b=>{if(b.perf_start){const t=new Date(b.perf_start.replace(' ','T')).getTime();if(!isNaN(t)&&t<_minPs){_minPs=t;_longestBot=b.name;}}});
  // 카드 정렬: '일 평균수익률' 내림차순(null은 맨 뒤)
-  // 무결성 위변조 긴급 경고 배너 렌더링
-  }
+
   // 선택한 기준 내림차순 정렬 ('초기화 후 경과'는 perf_start 이를수록 길어 -timestamp로 환산)
   const _sk=(document.getElementById('sortby')||{}).value||'daily_ret';
  const _key=b=>{ if(_sk==='name'){return -parseInt(b.name,10);}  /* 봇번호 오름차순 */ if(_sk==='elapsed'){return b.perf_start?-new Date(b.perf_start.replace(' ','T')).getTime():-Infinity;} const v=b[_sk]; return (v==null)?-Infinity:v; };
