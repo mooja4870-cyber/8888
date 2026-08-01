@@ -185,7 +185,7 @@ def _load_exits(path):
 
 
 def _load_exits_modes(path):
-    """trade_history.csv의 청산 행 전체를 (시각, 수익, 주문ID, 매매모드)로 파싱. mtime 캐시."""
+    """trade_history.csv의 청산 행을 파싱. 진입 시 기록된 매매모드(순방향/역방향)를 우선 적용함. mtime 캐시."""
     try:
         mt = os.path.getmtime(path)
         sz = os.path.getsize(path)
@@ -194,18 +194,27 @@ def _load_exits_modes(path):
     c = _HIST_MODE_CACHE.get(path)
     if c and c[0] == mt and c[1] == sz:
         return c[2]
+        
+    entry_modes = {}
     exits = []
     try:
         with open(path, encoding="utf-8-sig", errors="replace") as f:
             for r in csv.reader(f):
-                if len(r) < 7 or r[2] != "청산":
+                if len(r) < 7:
                     continue
                 ts = r[0].strip()[:19]
                 if not ts[:4].isdigit():
                     continue
+                type_ = r[2].strip()
                 oid = r[10].strip() if len(r) > 10 else ""
                 mode = r[13].strip() if len(r) > 13 else "순방향"
-                exits.append((ts, _pnl(r), oid, mode))
+                
+                if type_ == "진입" and oid:
+                    entry_modes[oid] = mode
+                elif type_ == "청산":
+                    # 청산 행의 모드가 잘못 기록되었을 경우 대비, 진입 시점의 모드를 최우선 사용
+                    actual_mode = entry_modes.get(oid, mode)
+                    exits.append((ts, _pnl(r), oid, actual_mode))
     except OSError:
         return []
     _HIST_MODE_CACHE[path] = (mt, sz, exits)
