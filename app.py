@@ -206,14 +206,15 @@ def _load_exits_modes(path):
                 if not ts[:4].isdigit():
                     continue
                 type_ = r[2].strip()
+                sym = r[1].strip()
                 oid = r[10].strip() if len(r) > 10 else ""
                 mode = r[13].strip() if len(r) > 13 else "순방향"
                 
-                if type_ == "진입" and oid:
-                    entry_modes[oid] = mode
+                if type_ == "진입" and sym:
+                    entry_modes[sym] = mode
                 elif type_ == "청산":
                     # 청산 행의 모드가 잘못 기록되었을 경우 대비, 진입 시점의 모드를 최우선 사용
-                    actual_mode = entry_modes.get(oid, mode)
+                    actual_mode = entry_modes.get(sym, mode)
                     exits.append((ts, _pnl(r), oid, actual_mode))
     except OSError:
         return []
