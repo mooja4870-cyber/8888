@@ -321,19 +321,30 @@ def hist_metrics(path, perf_start, pos_count=0):
     tl = sum(1 for oid, v in today_grp.items() if since_grp.get(oid, v) < 0)
     sw = sum(1 for v in since_grp.values() if v > 0)
     sl = sum(1 for v in since_grp.values() if v < 0)
-    oid_mode_map = {}
-    for row in exits_modes:
-        oid = row[2]
-        mode = row[3] if len(row) > 3 else "순방향"
-        if oid:
-            if mode == "역방향":
-                oid_mode_map[oid] = "역방향"
-            elif oid not in oid_mode_map:
-                oid_mode_map[oid] = mode
-    sw_sun = sum(1 for oid, v in since_grp.items() if v > 0 and oid_mode_map.get(oid, "순방향") != "역방향")
-    sl_sun = sum(1 for oid, v in since_grp.items() if v < 0 and oid_mode_map.get(oid, "순방향") != "역방향")
-    sw_yeok = sum(1 for oid, v in since_grp.items() if v > 0 and oid_mode_map.get(oid, "순방향") == "역방향")
-    sl_yeok = sum(1 for oid, v in since_grp.items() if v < 0 and oid_mode_map.get(oid, "순방향") == "역방향")
+    sw_sun, sl_sun, sw_yeok, sl_yeok = 0, 0, 0, 0
+    seq_str, sun20, yeok20 = "", 0, 0
+    
+    # 헬퍼 스크립트를 통해 개별 봇의 실제 통합(grouped by entry) 내역을 가져온다
+    bot_folder = os.path.dirname(os.path.dirname(path))
+    import subprocess, json
+    try:
+        helper_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "extract_bot_metrics.py")
+        out = subprocess.check_output(["python3", helper_path, bot_folder, ps], stderr=subprocess.DEVNULL, timeout=2)
+        res = json.loads(out.decode('utf-8').strip().split('\n')[-1])
+        if "error" not in res:
+            tw = res.get("today_w", tw)
+            tl = res.get("today_l", tl)
+            sw = res.get("since_w", sw)
+            sl = res.get("since_l", sl)
+            sw_sun = res.get("since_w_sun", sw_sun)
+            sl_sun = res.get("since_l_sun", sl_sun)
+            sw_yeok = res.get("since_w_yeok", sw_yeok)
+            sl_yeok = res.get("since_l_yeok", sl_yeok)
+            seq_str = res.get("seq", "")
+            sun20 = res.get("sun20", 0)
+            yeok20 = res.get("yeok20", 0)
+    except Exception:
+        pass
 
     # 봇 효율 지표 (누적 perf_start 이후, order_id 그룹 손익 기준) ── TradeZella 8대 KPI 일부
     #   profit_factor = 총이익 ÷ 총손실(절대값)  [1.5+ 우수]
@@ -405,6 +416,7 @@ def hist_metrics(path, perf_start, pos_count=0):
             "since_w": sw, "since_l": sl, "since_orders": sw + sl,
             "since_w_sun": sw_sun, "since_l_sun": sl_sun,
             "since_w_yeok": sw_yeok, "since_l_yeok": sl_yeok,
+            "seq": seq_str, "sun20": sun20, "yeok20": yeok20,
             "since_pnl": round(sum(since_grp.values()), 4),   # 초기화 이후 실현손익 = 봇 앱 누적손익
             "profit_factor": profit_factor, "avg_wl": avg_wl, "expectancy": expectancy, "sqn": sqn, "sortino": sortino,
             "avg_holding_hours": avg_holding_hours, "profit_per_hour": profit_per_hour,
@@ -980,6 +992,9 @@ def bot_status(folder, port, ex):
     r["since_orders"] = m["since_orders"]
     r["since_w_sun"], r["since_l_sun"] = m.get("since_w_sun", 0), m.get("since_l_sun", 0)
     r["since_w_yeok"], r["since_l_yeok"] = m.get("since_w_yeok", 0), m.get("since_l_yeok", 0)
+    r["seq"] = m.get("seq", "")
+    r["sun20"] = m.get("sun20", 0)
+    r["yeok20"] = m.get("yeok20", 0)
     if r.get("ex_balance") is not None and r.get("seed") and float(r.get("seed", 0)) > 0 and float(r.get("ex_balance", 0)) > 0:
         r["since_pnl"] = round(float(r["ex_balance"]) - float(r["seed"]), 4)  # 개별 봇 UI 공통 공식과 100% 일치
     elif r.get("total") is not None:

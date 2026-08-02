@@ -169,48 +169,10 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
         
 
         
-        try:
-            import app
-            path = f"/Users/l/project/{b['folder']}/data/trade_history.csv"
-            exits = app._load_exits_modes(path) if hasattr(app, '_load_exits_modes') else []
-            if not exits:
-                raw_exits = app._load_exits(path)
-                exits = [(e[0], e[1], e[2], "순방향") for e in raw_exits]
-            perf_start = b.get("perf_start", "")
-            if perf_start:
-                exits = [e for e in exits if e[0] >= perf_start]
-            
-            grp = {}
-            ts_map = {}
-            oid_mode = {}
-            for row in exits:
-                ts, pnl, oid = row[0], row[1], row[2]
-                mode = row[3] if len(row) > 3 else "순방향"
-                if oid:
-                    grp[oid] = grp.get(oid, 0.0) + pnl
-                    ts_map[oid] = max(ts_map.get(oid, ""), ts)
-                    if mode == "역방향":
-                        oid_mode[oid] = "역방향"
-                    elif oid not in oid_mode:
-                        oid_mode[oid] = mode
-            
-            filtered_oids = [o for o in grp.keys() if round(grp[o], 4) != 0.0]
-            sorted_oids = sorted(filtered_oids, key=lambda o: ts_map[o], reverse=True)
-            recent_oids = sorted_oids[:40]
-            
-            seq = ""
-            for oid in recent_oids:
-                seq += "O" if grp[oid] > 0 else "x"
-            seq_grouped = " ".join([seq[i:i+5] for i in range(0, len(seq), 5)])
-            seq_str = f" {seq_grouped}" if seq_grouped else ""
-
-            last_20_oids = sorted_oids[:20]
-            sun20 = sum(1 for oid in last_20_oids if oid_mode.get(oid, "순방향") != "역방향")
-            yeok20 = sum(1 for oid in last_20_oids if oid_mode.get(oid, "순방향") == "역방향")
-        except Exception:
-            seq_str = ""
-            sun20 = 0
-            yeok20 = 0
+        seq_grouped = " ".join([b.get("seq", "")[i:i+5] for i in range(0, len(b.get("seq", "")), 5)])
+        seq_str = f" {seq_grouped}" if seq_grouped else ""
+        sun20 = b.get("sun20", 0)
+        yeok20 = b.get("yeok20", 0)
         
         is_bf = bool(b.get("config", {}).get("USE_BLUEFROG", False)) if isinstance(b.get("config"), dict) else False
         mode_prefix = "역 " if is_bf else "순 "
