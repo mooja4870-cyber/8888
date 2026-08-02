@@ -1,5 +1,30 @@
 # Version History
 
+## v2.3.2
+Date: 2026-08-03
+
+### 변경 내용
+* 헤드리스 환경(run_headless.py)에서 대시보드의 환경설정(config.json) 변경 사항을 실시간 반영하지 못하는 치명적 버그 픽스
+* 8개 봇(8401~8409)의 run_headless.py 내 무한루프에 5초 주기의 config.json 폴링(Polling) 로직 일괄 이식
+* 대시보드에서 AUTO_TRADING OFF 시 실매매(trader) 비활성화 및 스캐너 중지 실시간 처리
+* 대시보드에서 USE_BLUEFROG 및 TIMEFRAME 설정 변경 시 엔진(CFG) 실시간 갱신 처리
+* 60초 주기의 [ALIVE] 로그 유지
+
+### 수정 파일
+* /8401/run_headless.py
+* /8402/run_headless.py
+* /8403/run_headless.py
+* /8404/run_headless.py
+* /8405/run_headless.py
+* /8407/run_headless.py
+* /8408/run_headless.py
+* /8409/run_headless.py
+* /8888/ver.md
+
+### 비고
+* 설정 파일 실시간 연동 및 매매 차단 기능 정상 작동 3중 검증 완료
+
+
 ## v2.3.1
 Date: 2026-07-31
 
