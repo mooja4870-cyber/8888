@@ -147,10 +147,12 @@ def build_discord_messages(now_str, overall, by_bot, bot_modes):
         ov_lines.append(f"⏱️ **{label:>4}** | 거래 {w+l+d:2d}건 ({w:2d}승 {l:2d}패, {rate:5.1f}%) | PnL: `{pnl_str}`")
 
     ov_lines.append(f"--------------------------------------------------")
-    ov_lines.append(f"🤖 **[봇별 4개 구간 승패 상세 기록]**")
+    ov_lines.append(f"🤖 **[1그룹 (8402,4,5,7,9) 봇별 4개 구간 승패 상세]**")
 
-    batch1 = BOTS[:4]
-    batch2 = BOTS[4:]
+    g1_ids = {"8402", "8404", "8405", "8407", "8409"}
+    g2_ids = {"8401", "8403", "8408"}
+    batch1 = [b for b in BOTS if b[0] in g1_ids]
+    batch2 = [b for b in BOTS if b[0] in g2_ids]
 
     msg1_lines = list(ov_lines)
     for bot_id, name in batch1:
@@ -165,7 +167,7 @@ def build_discord_messages(now_str, overall, by_bot, bot_modes):
             p_str = f"+${b_pnl:.2f}" if b_pnl >= 0 else f"-${abs(b_pnl):.2f}"
             msg1_lines.append(f"   • {label:>4}: {b_w}승 {b_l}패 ({b_rate:5.1f}%) | PnL: `{p_str}`")
 
-    msg2_lines = []
+    msg2_lines = [f"🤖 **[2그룹 (8401,3,8) 봇별 4개 구간 승패 상세]**"]
     for bot_id, name in batch2:
         is_bf = bot_modes.get(bot_id, False)
         mode_tag = "**[역]** 🐸 역방향(청개구리)" if is_bf else "**[순]** 🎯 순방향(정방향)"

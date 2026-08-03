@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 8888 그룹별 및 8개 개별 봇 30시간 일평균수익률 추이 아스키 그래프 디스코드 웹훅 알림 스크립트.
-- 그룹 A: 8401, 8402, 8404, 8408
-- 그룹 B: 8403, 8405, 8407, 8409
+- 그룹 A: 8402, 8404, 8405, 8407, 8409
+- 그룹 B: 8401, 8403, 8408
 - 개별 봇: 8401, 8402, 8403, 8404, 8405, 8407, 8408, 8409
 - 매시 00분 00초 정시 자동 발송 스케줄러 포함.
 """
@@ -18,8 +18,8 @@ WEBHOOK_URL = ""  # 알림 중단
 ROOT_DIR = "/Users/l/project"
 SNAP_FILE = os.path.join(ROOT_DIR, "8888", "snapshots.json")
 
-GROUP_A_IDS = ["8401", "8402", "8404", "8408"]
-GROUP_B_IDS = ["8403", "8405", "8407", "8409"]
+GROUP_A_IDS = ["8402", "8404", "8405", "8407", "8409"]
+GROUP_B_IDS = ["8401", "8403", "8408"]
 ALL_BOT_IDS = ["8401", "8402", "8403", "8404", "8405", "8407", "8408", "8409"]
 
 BOT_FOLDERS = {
@@ -211,8 +211,8 @@ def send_report():
     timestamps, series_a, series_b, bot_series = collect_hourly_data(num_hours=40)
     
     # 1) 그룹 메시지
-    graph_a = generate_ascii_graph(", ".join(GROUP_A_IDS) + " 봇 집계", series_a, is_group=True)
-    graph_b = generate_ascii_graph(", ".join(GROUP_B_IDS) + " 봇 집계", series_b, is_group=True)
+    graph_a = generate_ascii_graph("1그룹(" + ", ".join(GROUP_A_IDS) + ") 봇 집계", series_a, is_group=True)
+    graph_b = generate_ascii_graph("2그룹(" + ", ".join(GROUP_B_IDS) + ") 봇 집계", series_b, is_group=True)
     
     msg_groups = (
         f"📢 **[8888 봇 그룹별 40시간 일평균수익률 추이 리포트]**\n"
@@ -223,21 +223,21 @@ def send_report():
         f"--------------------------------------------------"
     )
     
-    # 2) 개별 봇 Part 1 (8401, 8402, 8404, 8408)
-    part1_bots = ["8401", "8402", "8404", "8408"]
+    # 2) 개별 봇 Part 1 (1그룹: 8402, 8404, 8405, 8407, 8409)
+    part1_bots = ["8402", "8404", "8405", "8407", "8409"]
     graphs_part1 = [generate_ascii_graph(f"{bid} 봇", bot_series[bid], is_group=False, seq_str=get_bot_recent_sequence(bid)) for bid in part1_bots]
     msg_part1 = (
-        f"🤖 **[개별 봇 40시간 일평균수익률 추이 리포트 (1/2)]**\n"
+        f"🤖 **[1그룹 (8402,4,5,7,9) 40시간 일평균수익률 추이 리포트 (1/2)]**\n"
         f"--------------------------------------------------\n"
         + "\n\n".join(graphs_part1) + "\n"
         f"--------------------------------------------------"
     )
 
-    # 3) 개별 봇 Part 2 (8403, 8405, 8407, 8409)
-    part2_bots = ["8403", "8405", "8407", "8409"]
+    # 3) 개별 봇 Part 2 (2그룹: 8401, 8403, 8408)
+    part2_bots = ["8401", "8403", "8408"]
     graphs_part2 = [generate_ascii_graph(f"{bid} 봇", bot_series[bid], is_group=False, seq_str=get_bot_recent_sequence(bid)) for bid in part2_bots]
     msg_part2 = (
-        f"🤖 **[개별 봇 40시간 일평균수익률 추이 리포트 (2/2)]**\n"
+        f"🤖 **[2그룹 (8401,3,8) 40시간 일평균수익률 추이 리포트 (2/2)]**\n"
         f"--------------------------------------------------\n"
         + "\n\n".join(graphs_part2) + "\n"
         f"--------------------------------------------------"
