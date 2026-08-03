@@ -1092,8 +1092,8 @@ def calc_bot_metrics(folder, bot_dict):
             cum_ret = (cum_delta / seed) * 100.0 if seed else 0.0
             cur_days = max(1.0, (t - t0) / 86400.0)
             daily_ret = round(cum_ret / cur_days, 2)
-            # 자본금 추가/일시적 스파이크 등 비정상 이상치(-10 이하, 30 초과) 필터링
-            if -10.0 < daily_ret < 30.0:
+            # 자본금 추가/일시적 스파이크 등 비정상 이상치(-10 이하, 15 초과) 필터링
+            if -10.0 < daily_ret < 15.0:
                 records.append((t_str, daily_ret, found_asset, cum_delta, round(cur_days, 2)))
 
         if not records:
