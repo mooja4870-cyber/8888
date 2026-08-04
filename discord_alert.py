@@ -168,8 +168,8 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
         b_days = b.get('days', 1.0)
         
 
-        
-        seq_grouped = " ".join([b.get("seq", "")[i:i+5] for i in range(0, len(b.get("seq", "")), 5)])
+        raw_seq = (b.get("seq", "") or "")[:30]
+        seq_grouped = " ".join([raw_seq[i:i+5] for i in range(0, len(raw_seq), 5)])
         seq_str = f" {seq_grouped}" if seq_grouped else ""
         sun20 = b.get("sun20", 0)
         yeok20 = b.get("yeok20", 0)

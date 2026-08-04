@@ -31,11 +31,11 @@ try:
     since_orders = len(closed)
 
     # sequence and 20 stats for discord alert
-    recent_40 = closed[-40:]
+    recent_30 = closed[-30:]
     last_20 = closed[-20:]
 
     seq = ""
-    for r in recent_40:
+    for r in recent_30:
         pnl = float(r.get('pnl_usdt') or 0.0)
         seq += "O" if pnl > 0 else "x"
 
