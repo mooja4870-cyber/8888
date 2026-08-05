@@ -267,8 +267,8 @@ function _applyFilter(d){
  if(sel==='all'||!d.bots)return d;
  const copy=JSON.parse(JSON.stringify(d));
  let filtered=copy.bots;
- if(sel==='profit') filtered=copy.bots.filter(b=>(b.total||0)>=0);
- else if(sel==='loss') filtered=copy.bots.filter(b=>(b.total||0)<0);
+ if(sel==='profit') filtered=copy.bots.filter(b=>(b.daily_ret||0)>0);
+ else if(sel==='loss') filtered=copy.bots.filter(b=>(b.daily_ret||0)<0);
  if(filtered.length === copy.bots.length) return d;
  copy.bots=filtered;
  let assets=0.0, seed=0.0;
