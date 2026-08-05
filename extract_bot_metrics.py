@@ -16,11 +16,34 @@ try:
     trades = load_local_trade_history()
     dt = datetime.datetime.strptime(perf_start[:19], '%Y-%m-%d %H:%M:%S') if perf_start else None
     closed = closed_trades_since(trades, dt)
-    closed.sort(key=lambda x: x.get('close_dt', ''))
+
+    # closed_trades_since()가 돌려주는 청산시각 키는 'exit_time'(pandas Timestamp)이다.
+    # 종전엔 존재하지 않는 'close_dt'를 참조해 기본값 ''만 돌아왔고, 그 결과
+    #   ① 정렬이 전량 동일 키('')로 무효화되어 승패 시퀀스가 시간순이 아니었으며
+    #   ② 오늘 필터('' >= '2026-..')가 항상 False라 today_w/today_l이 늘 0이었다.
+    def _exit_dt(r):
+        et = r.get('exit_time')
+        if et is None:
+            return datetime.datetime.min
+        try:
+            et = et.to_pydatetime()          # pandas Timestamp
+        except AttributeError:
+            pass
+        if isinstance(et, str):
+            try:
+                et = datetime.datetime.strptime(et[:19], '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                return datetime.datetime.min
+        try:
+            return et.replace(tzinfo=None)
+        except Exception:
+            return datetime.datetime.min
+
+    closed.sort(key=_exit_dt)                 # 과거 → 최신
 
     # today stats
-    today_str = datetime.datetime.now().strftime("%Y-%m-%d 00:00:00")
-    today_closed = [r for r in closed if r.get('close_dt', '') >= today_str]
+    today_start = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_closed = [r for r in closed if _exit_dt(r) >= today_start]
     today_pnl = sum([float(r.get('pnl_usdt') or 0.0) for r in today_closed])
     today_w = sum(1 for r in today_closed if float(r.get('pnl_usdt') or 0.0) > 0)
     today_l = sum(1 for r in today_closed if float(r.get('pnl_usdt') or 0.0) < 0)
@@ -30,7 +53,7 @@ try:
     since_l = sum(1 for r in closed if float(r.get('pnl_usdt') or 0.0) < 0)
     since_orders = len(closed)
 
-    # sequence and 20 stats for discord alert
+    # sequence and 20 stats for discord alert — 정렬이 과거→최신이므로 꼬리가 최근분
     recent_30 = closed[-30:]
     last_20 = closed[-20:]
 

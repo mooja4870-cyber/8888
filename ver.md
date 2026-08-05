@@ -1,5 +1,39 @@
 # Version History
 
+## v2.3.14
+Date: 2026-08-06
+
+### 버그 수정 — 승패 시퀀스(O/x)가 시간순이 아니었고, 오늘 승패는 항상 0이었음
+
+**증상**
+* 8408의 최근 7건이 전부 패배인데 알림 시퀀스는 `xOxxO xxx…`로 승리(O)가 섞여 표기됨
+* 모든 봇의 '오늘 승/패'가 실제 매매와 무관하게 항상 `0승 0패`로 표기됨
+
+**원인**
+`extract_bot_metrics.py`가 `closed_trades_since()` 결과에서 **존재하지 않는 키 `close_dt`** 를 참조했다.
+실제 청산시각 키는 `exit_time`(pandas Timestamp)이다. `dict.get('close_dt','')`가 전량 `''`를 돌려주어
+
+1. `closed.sort(key=...)` — 모든 정렬 키가 동일(`''`)해져 **정렬이 무효화**됨
+   → `closed[-30:]`이 "최근 30건"이 아니라 파일에서 읽힌 임의 순서의 30건이 됨
+2. `'' >= '2026-08-06 00:00:00'` 이 항상 False
+   → **today_w / today_l / today_pnl 이 전 봇에서 항상 0**
+
+봇 폴더의 `core/history_helper.py`는 8개 봇 모두 정상(`exit_time` 반환)이며 **수정 대상이 아니었다.**
+
+**수정**
+* `extract_bot_metrics.py` — `_exit_dt()` 정규화 함수 추가(Timestamp/str/None 대응) 후 정렬·오늘 필터에 적용
+* `send_discord_hourly_graph.py` — `get_bot_recent_sequence()`의 `reverse=True`(최신이 왼쪽) 제거.
+  알림 본문 시퀀스(과거→최신)와 방향이 정반대여서 같은 화면의 두 시퀀스가 서로 다르게 읽히던 문제 해소
+* `discord_alert.py` — 헤더에 `승패 O/x : 왼쪽=과거 → 오른쪽=최신` 방향 안내 추가
+
+**검증**
+* 8408 시퀀스 꼬리 7글자가 `xxxxxxx` — 실제 7연패와 일치
+* 두 생성기 시퀀스 방향 일치 확인
+* 전 봇 '오늘 승패'가 실제값으로 표기됨 (예: 8402 0승5패, 8403 2승2패, 8404 2승1패 — 수정 전 전부 0승0패)
+
+### 수정 파일
+* `extract_bot_metrics.py`, `send_discord_hourly_graph.py`, `discord_alert.py`
+
 ## v2.3.13
 Date: 2026-08-05
 

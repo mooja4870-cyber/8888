@@ -137,7 +137,8 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
     lines = [ts,
              f"📊 {title_prefix} 일평균수익률 ({head_days}){bots_str}",
              f"{asset_str}{tot_str}% {icon}{delta:.2f}%{arrow}",
-             "─" * 38]
+             "─" * 38,
+             "승패 O/x : 왼쪽=과거 → 오른쪽=최신"]
     bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
     for b in bots:
         dr = b.get("daily_ret")

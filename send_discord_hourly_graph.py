@@ -146,8 +146,10 @@ def get_bot_recent_sequence(bid: str) -> str:
                 ts_map[oid] = max(ts_map.get(oid, ""), ts)
                 
         filtered_oids = [o for o in grp.keys() if round(grp[o], 4) != 0.0]
-        sorted_oids = sorted(filtered_oids, key=lambda o: ts_map[o], reverse=True)
-        recent_oids = sorted_oids[:40]
+        # 종전 reverse=True(최신이 왼쪽)는 알림 본문의 시퀀스(과거→최신)와 방향이 정반대여서
+        # 같은 화면의 두 시퀀스가 서로 다르게 읽혔다. 좌→우 시간 진행으로 통일한다.
+        sorted_oids = sorted(filtered_oids, key=lambda o: ts_map[o])
+        recent_oids = sorted_oids[-40:]
         
         seq = ""
         for oid in recent_oids:
