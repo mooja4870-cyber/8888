@@ -425,7 +425,7 @@ function render(d,anim){
      const isbf=(cfg.USE_BLUEFROG)||(b.is_bluefrog);
      return `<tr style="background:${Math.floor(i/2)%2?"var(--card)":"var(--card2)"};border-top:1px solid var(--border)">
     <td style="padding:8px;font-weight:600;text-align:center">${isbf?"<span style=\"color:#ff5a5a;font-weight:bold;margin-right:3px;\">[역]</span>":"<span style=\"color:#4d9fff;font-weight:bold;margin-right:3px;\">[순]</span>"}${b.name}</td>
-     <td style="padding:8px;text-align:center">$${(b.seed||0).toFixed(2)}</td><td style="padding:8px;text-align:center">${b.ex||"OKX"}</td><td style="padding:8px;text-align:center">${cfg.leverage!=null?cfg.leverage:"10x"}</td>
+     <td style="padding:8px;text-align:center">${(b.seed===null||b.seed===undefined)?"—":"$"+(+b.seed).toFixed(2)}</td><td style="padding:8px;text-align:center">${b.ex||"OKX"}</td><td style="padding:8px;text-align:center">${cfg.leverage!=null?cfg.leverage:"10x"}</td>
     <td style="padding:8px;text-align:center">${cfg.margin_usdt!=null?cfg.margin_usdt:"$10"}</td><td style="padding:8px;text-align:center">${cfg.max_positions!=null?cfg.max_positions:"3"}</td>
     <td style="padding:8px;text-align:center">${cfg.stop_loss_pct!=null?cfg.stop_loss_pct:"-2.0%"}</td><td style="padding:8px;text-align:center">${cfg.take_profit_pct!=null?cfg.take_profit_pct:"+3.0%"}</td>
     <td style="padding:8px;text-align:center">${cfg.timeframe||"1h"}</td><td style="padding:8px;text-align:center">${cfg.indicators||"RSI/BB"}</td>
