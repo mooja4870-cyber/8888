@@ -54,6 +54,7 @@ def collect_stats():
 
     overall = {key: {"win": 0, "loss": 0, "draw": 0, "pnl": 0.0} for key, _, _ in INTERVALS}
     by_bot = {bot_id: {key: {"win": 0, "loss": 0, "draw": 0, "pnl": 0.0} for key, _, _ in INTERVALS} for bot_id, _ in BOTS}
+    bot_seq = {bot_id: "" for bot_id, _ in BOTS}
     bot_modes = load_bot_modes()
 
     for bot_id, name in BOTS:
@@ -64,6 +65,8 @@ def collect_stats():
         try:
             with open(csv_path, "r", encoding="utf-8-sig") as f:
                 reader = csv.DictReader(f)
+                all_pnls = []
+
                 for row in reader:
                     trade_type = row.get("유형") or row.get("type") or ""
                     if trade_type != "청산" and trade_type != "close":
@@ -100,10 +103,18 @@ def collect_stats():
                                 overall[key]["draw"] += 1
 
                             by_bot[bot_id][key]["pnl"] += pnl
+                    
+                    all_pnls.append(pnl)
+
+                # Generate sequence string from last 30 trades
+                recent = all_pnls[-30:]
+                seq_str = "".join(["O" if p > 0 else "x" for p in recent])
+                bot_seq[bot_id] = seq_str
+
         except Exception as e:
             print(f"[{bot_id}] CSV 읽기 예외: {e}", flush=True)
 
-    return now_str, overall, by_bot, bot_modes
+    return now_str, overall, by_bot, bot_modes, bot_seq
 
 
 def format_rate(win, loss):
@@ -113,20 +124,18 @@ def format_rate(win, loss):
     return (win / total) * 100.0
 
 
-def build_discord_messages(now_str, overall, by_bot, bot_modes):
-    # 1. Header & Direction Matrix Section
-    ov_lines = [
-        f"📢 **[8개 봇 통합 & 봇별 구간 승패 및 매매방향 리포트]**",
-        f"📅 **집계 시각**: `{now_str}`",
-        f"--------------------------------------------------",
-        f"🧭 **[8개 봇 매매 방향 대조 매트릭스]**",
-    ]
-
-    pure_cnt = 0
-    frog_cnt = 0
+def build_discord_messages(now_str, overall, by_bot, bot_modes, bot_seq):
+    ov_lines = []
+    ov_lines.append(f"📊 **정시 자동 리포트 종합 통계**")
+    ov_lines.append(f"🕒 기준: {now_str}")
+    ov_lines.append(f"--------------------------------------------------")
+    
+    # [순]/[역] 전체 카운트
+    pure_cnt, frog_cnt = 0, 0
     for bot_id, name in BOTS:
         is_bf = bot_modes.get(bot_id, False)
         if is_bf:
+
             frog_cnt += 1
             ov_lines.append(f"• `{name}` | **[역]** 🐸 역방향 (원천: 🎯순방향)")
         else:
@@ -166,6 +175,10 @@ def build_discord_messages(now_str, overall, by_bot, bot_modes):
             b_rate = format_rate(b_w, b_l)
             p_str = f"+${b_pnl:.2f}" if b_pnl >= 0 else f"-${abs(b_pnl):.2f}"
             msg1_lines.append(f"   • {label:>4}: {b_w}승 {b_l}패 ({b_rate:5.1f}%) | PnL: `{p_str}`")
+        raw_seq = bot_seq.get(bot_id, "")
+        seq_grouped = " ".join([raw_seq[i:i+5] for i in range(0, len(raw_seq), 5)])
+        if seq_grouped:
+            msg1_lines.append(f"   • 승패흐름: {seq_grouped}")
 
     msg2_lines = [f"🤖 **[2그룹 (8401,3,8) 봇별 4개 구간 승패 상세]**"]
     for bot_id, name in batch2:
@@ -179,6 +192,10 @@ def build_discord_messages(now_str, overall, by_bot, bot_modes):
             b_rate = format_rate(b_w, b_l)
             p_str = f"+${b_pnl:.2f}" if b_pnl >= 0 else f"-${abs(b_pnl):.2f}"
             msg2_lines.append(f"   • {label:>4}: {b_w}승 {b_l}패 ({b_rate:5.1f}%) | PnL: `{p_str}`")
+        raw_seq = bot_seq.get(bot_id, "")
+        seq_grouped = " ".join([raw_seq[i:i+5] for i in range(0, len(raw_seq), 5)])
+        if seq_grouped:
+            msg2_lines.append(f"   • 승패흐름: {seq_grouped}")
 
     msg2_lines.append("--------------------------------------------------")
     msg2_lines.append("🔗 *8888 관제 시스템 정시(00분00초) 자동 리포트*\n=================================\n=================================")
