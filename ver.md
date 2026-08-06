@@ -1,5 +1,20 @@
 # Version History
 
+## v2.3.18
+Date: 2026-08-06
+
+### 변경 내용
+* 대시보드 '가동 중' 항목에서 무포지션 봇 목록([8402, 8403...]) 표출 폰트 색상을 라이트그레이(lightgray)로 변경 (사용자 요청)
+
+### 수정 파일
+* dashboard.html
+* index.html
+* dashboard_cloud.html
+* ver.md
+
+### 비고
+* 무포지션 봇 목록 시인성 완화
+
 ## v2.3.17
 Date: 2026-08-06
 
