@@ -14,7 +14,17 @@ try:
     from core.history_helper import load_local_trade_history, closed_trades_since
 
     trades = load_local_trade_history()
-    dt = datetime.datetime.strptime(perf_start[:19], '%Y-%m-%d %H:%M:%S') if perf_start else None
+    dt = None
+    if perf_start:
+        ps_str = perf_start[:19].replace('T', ' ')
+        if len(ps_str) == 10:
+            ps_str += " 00:00:00"
+        elif len(ps_str) == 16:
+            ps_str += ":00"
+        try:
+            dt = datetime.datetime.strptime(ps_str, '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            pass
     closed = closed_trades_since(trades, dt)
 
     # closed_trades_since()가 돌려주는 청산시각 키는 'exit_time'(pandas Timestamp)이다.

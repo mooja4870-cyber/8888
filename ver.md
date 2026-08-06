@@ -1,5 +1,19 @@
 # Version History
 
+## v2.3.22
+Date: 2026-08-06
+
+### 변경 내용
+* 디스코드 1분 단위 요약 알림(`discord_alert.py`)에서 봇별 최근 승패 시퀀스(`OxOxx...`)가 누락되어 표출되지 않던 현상 수정
+
+### 수정 파일
+* extract_bot_metrics.py
+* ver.md
+
+### 비고
+* 원인: `extract_bot_metrics.py`에서 `perf_start` 인자에 `T`가 포함된 datetime 포맷이 들어올 때 파싱 에러 발생
+* 조치: `T`를 공백으로 치환하고 포맷 길이에 따라 보정하도록 예외 처리 강화하여, `app.py`를 거쳐 `discord_alert.py`까지 정상적으로 시퀀스 값이 전달되게 수정
+
 ## v2.3.21
 Date: 2026-08-06
 
