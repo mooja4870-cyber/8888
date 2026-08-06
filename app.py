@@ -572,11 +572,13 @@ def read_bot_config(folder):
             "scan_targets": scan_targets,
             "max_holding_hours": cfg.get("MAX_HOLDING_HOURS", "—"),
             "USE_BLUEFROG": bool(use_bf),
+            "USE_AUTO_COMPOUND": cfg.get("USE_AUTO_COMPOUND", False),
+            "AUTO_COMPOUND_PCT": cfg.get("AUTO_COMPOUND_PCT", 0.0),
         }
     except (OSError, json.JSONDecodeError, ValueError):
         return {k: "—" for k in ["leverage", "margin_usdt", "max_positions", "stop_loss_pct",
                                   "take_profit_pct", "timeframe", "indicators", "strategy", "scan_targets",
-                                  "strategy", "max_holding_hours"]}
+                                  "strategy", "max_holding_hours", "USE_AUTO_COMPOUND", "AUTO_COMPOUND_PCT"]}
 
 
 def parse_api_md_okx(folder):
@@ -1030,6 +1032,13 @@ def bot_status(folder, port, ex):
     else:
         r["cum_ret"] = r["daily_ret"] = r["cum_delta"] = None
         r["cum_basis"] = None
+
+    if r.get("config", {}).get("USE_AUTO_COMPOUND"):
+        pct = float(r["config"].get("AUTO_COMPOUND_PCT", 0.0))
+        bal = float(r.get("ex_balance") or (float(r.get("seed", 0)) + float(r.get("since_pnl", 0))))
+        if bal > 0 and pct > 0:
+            dyn_margin = round(bal * (pct / 100.0), 2)
+            r["config"]["margin_usdt"] = f"{dyn_margin:.2f} (복리)"
     # 보유 여부 = 거래소 실제 증거금 사용(ex_used>0) 기준. 조회 실패 시에만 active_positions 파일 폴백.
     # (봇이 청산 후 active_positions.json을 안 지워 생기는 '유령 포지션' 오집계 방지 — 예: 8501)
     # 보유 판정: 거래소 증거금(ex_used) 기준이 가장 정확.
