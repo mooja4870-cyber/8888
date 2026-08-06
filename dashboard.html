@@ -420,7 +420,7 @@ function render(d,anim){
     <th style="padding:8px;text-align:center">손절률</th><th style="padding:8px;text-align:center">수익목표</th>
     <th style="padding:8px;text-align:center">타임프레임</th><th style="padding:8px;text-align:center">지표 설정</th>
     <th style="padding:8px;text-align:center">전략 (스캐너)</th><th style="padding:8px;text-align:center">스캔 대상</th><th style="padding:8px;text-align:center">최대보유시간</th>
-    <th style="padding:8px;text-align:center">MSDE++ 적용</th></tr></thead>
+    <th style="padding:8px;text-align:center">자동반전</th></tr></thead>
    <tbody>${d.bots.map((b,i)=>{
      const cfg=b.config||{};
      const isbf=(cfg.USE_BLUEFROG)||(b.is_bluefrog);
@@ -431,7 +431,7 @@ function render(d,anim){
     <td style="padding:8px;text-align:center">${cfg.stop_loss_pct!=null?cfg.stop_loss_pct:"-2.0%"}</td><td style="padding:8px;text-align:center">${cfg.take_profit_pct!=null?cfg.take_profit_pct:"+3.0%"}</td>
     <td style="padding:8px;text-align:center">${cfg.timeframe||"1h"}</td><td style="padding:8px;text-align:center">${cfg.indicators||"RSI/BB"}</td>
     <td style="padding:8px;text-align:center">${cfg.strategy||"스캐너"}</td><td style="padding:8px;text-align:center">${cfg.scan_targets||"TOP20"}</td><td style="padding:8px;text-align:center">${cfg.max_holding_hours||"24h"}</td>
-    <td style="padding:8px;text-align:center;color:${String(b.name).includes("8409") ? "#e24b4a" : "var(--green)"};font-weight:600">${String(b.name).includes("8409") ? "X" : "O"}</td></tr>`;
+    <td style="padding:8px;text-align:center;color:${cfg.use_auto_mode_switch ? 'var(--green)' : '#e24b4a'};font-weight:600">${cfg.use_auto_mode_switch ? 'O' : 'X'}</td></tr>`;
    }).join("")}</tbody></table>`;
   const _periods=[['1h','1시간 내'],['6h','6시간 내'],['12h','12시간 내'],['24h','24시간 내'],['48h','48시간 내'],['72h','72시간 내'],['1w','1주일간']];
  const entryTable=`<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:14px;font-weight:600">

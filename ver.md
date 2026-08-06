@@ -1,5 +1,20 @@
 # Version History
 
+## v2.3.20
+Date: 2026-08-06
+
+### 변경 내용
+* 대시보드의 '매매기법 비교' 테이블에서 기존 'MSDE++ 적용' 컬럼을 삭제하고 '자동반전' 적용 여부를 O/X로 표출하도록 변경 (사용자 요청)
+
+### 수정 파일
+* app.py
+* dashboard.html
+* index.html
+* ver.md
+
+### 비고
+* 각 봇의 `USE_AUTO_MODE_SWITCH` 설정값 연동
+
 ## v2.3.19
 Date: 2026-08-06
 
