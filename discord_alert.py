@@ -129,14 +129,16 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
     tot_str = f"{total:+.2f}" if total is not None else "—"
     ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())   # 매 알림 첫 라인 = 시스템 시각
     assets = s.get("assets")
+    cum_delta = s.get("cum_delta")
     asset_str = f"[{assets:.2f}] " if assets is not None else ""   # 전체 일평균 줄 앞에 총자산 금액
+    delta_str = f"{cum_delta:+.2f} " if cum_delta is not None else ""
     
     bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
     bots_str = f" [{len(bots)}봇]" if len(bots) != 1 else ""
     
     lines = [ts,
              f"📊 {title_prefix} 일평균수익률 ({head_days}){bots_str}",
-             f"{asset_str}{tot_str}% {icon}{delta:.2f}%{arrow}",
+             f"{asset_str}{delta_str}{tot_str}% {icon}{delta:.2f}%{arrow}",
              "─" * 38]
     bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
     for b in bots:
@@ -266,7 +268,10 @@ def _process_subset(data, target_names, state_suffix, title_prefix, include_bot_
         for b_item in d_sub["bots"]:
             d_single = copy.deepcopy(d_sub)
             d_single["bots"] = [b_item]
-            d_single["summary"]["assets"] = b_item.get("ex_balance") or b_item.get("seed") or 0.0
+            b_asset = b_item.get("ex_balance") if (b_item.get("ex_ok") and b_item.get("ex_balance") is not None) else ((b_item.get("seed") or 0) + (b_item.get("total") or 0))
+            b_seed = b_item.get("seed") if b_item.get("seed") else b_asset
+            d_single["summary"]["assets"] = b_asset
+            d_single["summary"]["cum_delta"] = round(b_asset - b_seed, 2)
             d_single["summary"]["daily_ret"] = b_item.get("daily_ret") or 0.0
             d_single["summary"]["days"] = b_item.get("days", 1.0)
             
