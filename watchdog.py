@@ -209,10 +209,36 @@ def check_and_manage(target):
     return True
 
 
+PGUARD_INTERVAL = 3600          # 수익성 점검 주기(초) — 1시간
+_last_pguard = 0.0
+
+
+def run_profit_guard():
+    """수익성 워치독(profit_guard.py) 실행.
+
+    프로세스 생존 감시(본 워치독)와 성격이 달라 별도 주기로 돌린다. 매매이력이 쌓여야
+    판정이 의미 있으므로 5분이 아니라 1시간 주기다. 실패해도 워치독 본체는 계속 돈다.
+    """
+    global _last_pguard
+    if time.time() - _last_pguard < PGUARD_INTERVAL:
+        return
+    _last_pguard = time.time()
+    script = os.path.join(BASE, "profit_guard.py") if "BASE" in globals() \
+        else os.path.join(os.path.dirname(os.path.abspath(__file__)), "profit_guard.py")
+    try:
+        r = subprocess.run([sys.executable, script], capture_output=True, text=True, timeout=600)
+        tail = (r.stdout or r.stderr or "").strip().splitlines()[-3:]
+        log("🩺 수익성 점검 실행 — " + " | ".join(tail))
+    except Exception as e:
+        log(f"⚠️ 수익성 점검 실행 실패: {str(e)[:150]}")
+
+
 def main():
     targets = build_targets()
-    log(f"🚀 watchdog 시작 — 감시 대상 총 {len(targets)}개 (8888 + 8개 봇 쌍), 주기 {CHECK_INTERVAL}초 (5분)")
+    log(f"🚀 watchdog 시작 — 감시 대상 총 {len(targets)}개 (8888 + 8개 봇 쌍), 주기 {CHECK_INTERVAL}초 (5분)"
+        f" · 수익성 점검 {PGUARD_INTERVAL//60}분 주기")
     while True:
+        run_profit_guard()
         launched_any = False
         for t in targets:
             try:
