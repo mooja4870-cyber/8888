@@ -31,7 +31,8 @@ _DIR = os.path.dirname(os.path.abspath(__file__))
 WEBHOOK_FILE = os.path.join(_DIR, "discord_webhook.txt")
 STATE_FILE = os.path.join(_DIR, "discord_state.json")
 
-CHART_WIDTH = 40        # 최근 40포인트(=1분×40=40분)
+CHART_WIDTH = 40        # 차트 가로폭(점 40개)
+HISTORY_MAX = 200       # 최근 200분 (5분 간격 x 40포인트)
 CHART_HEIGHT = 6
 USERNAME = "봇 관제"
 EPS = 0.005             # 이 값 미만 변화는 '변화없음(⚪)'으로 간주
@@ -58,7 +59,7 @@ def _save_state(path, prev_total, prev_bots, history, prev_sub_total=None):
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump({"prev_total": prev_total, "prev_bots": prev_bots,
-                   "history": history[-CHART_WIDTH:], "prev_sub_total": prev_sub_total}, f, ensure_ascii=False)
+                   "history": history[-HISTORY_MAX:], "prev_sub_total": prev_sub_total}, f, ensure_ascii=False)
     os.replace(tmp, path)
 
 
@@ -85,7 +86,7 @@ def ascii_chart(vals, width=CHART_WIDTH, height=CHART_HEIGHT):
     return "\n".join(out)
 
 
-def get_bot_40min_history(b_obj):
+def get_bot_200min_history(b_obj):
     import app, time
     bid = b_obj.get("name", "")
     folder = b_obj.get("folder") or bid
@@ -109,7 +110,7 @@ def get_bot_40min_history(b_obj):
     now = time.time()
     history = []
     for i in range(CHART_WIDTH):
-        T = now - 60 * (CHART_WIDTH - 1 - i)
+        T = now - 300 * (CHART_WIDTH - 1 - i)
         t_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(T))
         cum = sum(pnl for ts, pnl, oid in exits if ts <= t_str)
         cum_ret = (cum / seed) * 100.0 if seed else 0.0
@@ -185,18 +186,19 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
         if seq_str:
             lines.append(f"  {seq_str}")
         
-        # 🤖 5분 정각 알림(include_bot_charts=True)일 때 개별 봇 40분 파동 차트 렌더링
+        # 🤖 5분 정각 알림(include_bot_charts=True)일 때 개별 봇 200분(5분봉) 파동 차트 렌더링
         if include_bot_charts:
-            bot_chart_hist = get_bot_40min_history(b)
+            bot_chart_hist = get_bot_200min_history(b)
             lines.append("─" * 38)
-            lines.append("최근 40분 전체 일평균 추이(%)")
+            lines.append("최근 200분(5분 간격) 전체 일평균 추이(%)")
             lines.append(ascii_chart(bot_chart_hist))
             lines.append("")
         
     if not include_bot_charts:
+        sampled_history = history[::-5][::-1] if len(history) > 0 else history
         lines.append("─" * 38)
-        lines.append("최근 40분 전체 일평균 추이(%)")
-        lines.append(ascii_chart(history))
+        lines.append("최근 200분(5분 간격) 전체 일평균 추이(%)")
+        lines.append(ascii_chart(sampled_history))
     return "```\n" + "\n".join(lines) + "\n```"
 
 
@@ -243,7 +245,7 @@ def _process_single(data, path, title_prefix, include_bot_charts=False):
     prev_total, prev_bots, history, prev_sub_total = _load_state(path)
     total = data["summary"].get("daily_ret")
     history.append(total)
-    history = history[-CHART_WIDTH:]
+    history = history[-HISTORY_MAX:]
     
     msg = build_message(data, prev_total, prev_bots, history, title_prefix, include_bot_charts=include_bot_charts)
     ok, info = _post(msg)
