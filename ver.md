@@ -1,5 +1,27 @@
 # Version History
 
+## v2.3.30
+Date: 2026-08-11
+
+### 변경 내용
+* 8407 및 8409 봇을 8888 대시보드 집계 및 각종 모니터링/디스코드 알림 대상에서 완전 제외
+  * app.py (대시보드 메인)
+  * discord_alert.py, send_discord_hourly_graph.py, send_discord_stats.py (알림 스크립트)
+  * discord_bot_listener.py (봇 제어기)
+  * watchdog.py, profit_guard.py (백그라운드 감시 루틴)
+
+### 수정 파일
+* app.py
+* discord_alert.py
+* send_discord_hourly_graph.py
+* send_discord_stats.py
+* discord_bot_listener.py
+* watchdog.py
+* profit_guard.py
+
+### 비고
+* 사용자 제외 요청 반영
+
 ## v2.3.29
 Date: 2026-08-09
 

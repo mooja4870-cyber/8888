@@ -35,8 +35,8 @@ def _venv_py(folder):
     return p if os.path.exists(p) else sys.executable
 
 
-# 감시 대상 구성: 8888 app + 8개 봇(8401, 8402, 8403, 8404, 8405, 8407, 8408, 8409)의 (app.py, bot.py)
-BOTS = ["8401", "8402", "8403", "8404", "8405", "8407", "8408", "8409"]
+# 감시 대상 구성: 8888 app + 6개 봇(8401, 8402, 8403, 8404, 8405, 8408)의 (app.py, bot.py)
+BOTS = ["8401", "8402", "8403", "8404", "8405", "8408"]
 
 def build_targets():
     targets = []
