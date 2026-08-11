@@ -46,11 +46,12 @@ COMMON = {
     "RISK_PER_TRADE_PCT": 0.0,      # M4 위험균등 사이징 해제(0이 아니면 복리를 덮어씀)
     "USE_BE_GUARD": False,
     "USE_MARKET_GATE": True,
+    "SCAN_TOP_N": 80,      # 표본 확보 — 30이면 신호가 거의 안 나온다
 }
 # 봇별 예외
 PER_BOT = {
-    "8401": {"MARKET_GATE_EMA": 12, "LEVERAGE": 5},    # 1시간봉 → 12봉 = 12시간
-    "8403": {"MARKET_GATE_EMA": 48, "LEVERAGE": 5},
+    "8401": {"MARKET_GATE_EMA": 12, "LEVERAGE": 5, "MIN_VOLUME_USDT": 500000.0},   # 1h봉 12봉=12시간
+    "8403": {"MARKET_GATE_EMA": 48, "LEVERAGE": 5, "MIN_VOLUME_USDT": 500000.0},
     "8408": {"MARKET_GATE_EMA": 48, "LEVERAGE": 11},
     "8409": {"MARKET_GATE_EMA": 48, "LEVERAGE": 11},
 }
