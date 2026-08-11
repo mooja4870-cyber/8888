@@ -135,10 +135,9 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
     delta_str = f"{cum_delta:+.2f} " if cum_delta is not None else ""
     
     bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
-    bots_str = f" [{len(bots)}봇]" if len(bots) != 1 else ""
     
     lines = [ts,
-             f"📊 {title_prefix} 일평균수익률 ({head_days}){bots_str}",
+             f"📊 {title_prefix} 일평균수익률 ({head_days})",
              f"{asset_str}{delta_str}{tot_str}% {icon}{delta:.2f}%{arrow}",
              "─" * 38]
     bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
