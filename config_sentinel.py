@@ -47,13 +47,21 @@ COMMON = {
     "USE_BE_GUARD": False,
     "USE_MARKET_GATE": True,
     "SCAN_TOP_N": 80,      # 표본 확보 — 30이면 신호가 거의 안 나온다
+    "USE_TIMEOUT_EXIT": False,  # 45분 횡보청산. 검증 모델에 없던 장치이고,
+                                # TP 1.77%의 1/6인 0.24%에서 승리를 잘라냈다(실측).
 }
 # 봇별 예외
+#
+# 타임프레임과 최대보유시간은 반드시 함께 본다. 검증 조건은 '24봉 보유'인데
+# 8401만 1시간봉이라 시간으로 환산하면 값이 달라진다(1h×24 vs 15m×24=6h).
+# 실제로 8401의 TIMEFRAME이 15m로 뒤바뀌어 있었는데 감시 대상이 아니라 놓쳤다.
 PER_BOT = {
-    "8401": {"MARKET_GATE_EMA": 12, "LEVERAGE": 5, "MIN_VOLUME_USDT": 500000.0},   # 1h봉 12봉=12시간
-    "8403": {"MARKET_GATE_EMA": 48, "LEVERAGE": 5, "MIN_VOLUME_USDT": 500000.0},
-    "8408": {"MARKET_GATE_EMA": 48, "LEVERAGE": 11},
-    "8409": {"MARKET_GATE_EMA": 48, "LEVERAGE": 11},
+    "8401": {"MARKET_GATE_EMA": 12, "LEVERAGE": 5, "MIN_VOLUME_USDT": 500000.0,
+             "TIMEFRAME": "1h", "MAX_HOLDING_HOURS": 24.0},   # 1h봉 12봉=12시간 · 24봉 보유
+    "8403": {"MARKET_GATE_EMA": 48, "LEVERAGE": 5, "MIN_VOLUME_USDT": 500000.0,
+             "TIMEFRAME": "15m", "MAX_HOLDING_HOURS": 6.0},   # 15m봉 48봉=12시간 · 24봉=6h
+    "8408": {"MARKET_GATE_EMA": 48, "LEVERAGE": 11, "TIMEFRAME": "15m", "MAX_HOLDING_HOURS": 6.0},
+    "8409": {"MARKET_GATE_EMA": 48, "LEVERAGE": 11, "TIMEFRAME": "15m", "MAX_HOLDING_HOURS": 6.0},
 }
 # 거래소별 기대 ccxt 클래스 — 어긋나면 인증이 전부 깨진다
 VENUE = {"8401": "okx", "8403": "okx", "8408": "binance", "8409": "binance"}
