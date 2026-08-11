@@ -125,7 +125,12 @@ def bot_metrics(bot):
         except ValueError:
             days = None
     cum_ret = (pnl / seed * 100.0) if seed > 0 else None
-    daily_ret = (cum_ret / days) if (cum_ret is not None and days) else None
+    # 가동 24시간 미만이면 나누지 않는다(대시보드 app.py:1027과 동일 규칙).
+    # 종전에는 경과일로 그대로 나눠, 5.9시간(0.246일) 가동에서 누적 +16.06%가
+    # 일평균 +65.37%로 4배 증폭돼 보였다. 마이너스일 때도 같은 배율로 부풀어
+    # 대시보드(하한 적용)와 디스코드(하한 없음)의 수치가 갈렸다.
+    eff_days = max(days, 1.0) if days else None
+    daily_ret = (cum_ret / eff_days) if (cum_ret is not None and eff_days) else None
     try:
         cfg_age_h = (time.time() - os.path.getmtime(cfg_path)) / 3600.0
     except OSError:
@@ -136,7 +141,69 @@ def bot_metrics(bot):
         "cum_ret": cum_ret, "daily_ret": daily_ret, "cfg_age_h": cfg_age_h,
         "wins": int(s.get("total_wins") or 0), "losses": int(s.get("total_losses") or 0),
         "auto": bool(c.get("AUTO_TRADING")), "lev": int(c.get("LEVERAGE") or 0),
+        # 거래이력 기준 실측치. stats.json이 틀릴 때 무엇이 진짜인지 대조할 근거가 된다.
+        **_net_fields(folder, ps, seed),
     }
+
+
+def _net_fields(folder, perf_start, seed):
+    """거래이력 기준 순손익 필드. stats.json과 어긋나면 그 사실도 함께 담는다."""
+    r = realized_net(folder, perf_start)
+    if not r:
+        return {}
+    gross, fee, net, w, l = r
+    return {
+        "csv_gross": round(gross, 4),
+        "csv_fee": round(fee, 4),
+        "csv_net": round(net, 4),
+        "csv_wins": w,
+        "csv_losses": l,
+        "csv_net_ret": round(net / seed * 100.0, 2) if seed > 0 else None,
+        "fee_ratio": round(fee / gross * 100.0, 0) if gross > 0 else None,
+    }
+
+
+def realized_net(folder, perf_start=""):
+    """거래이력에서 **수수료를 뺀 실제 순손익**을 계산한다.
+
+    stats.json의 `total_pnl_usdt`는 신뢰할 수 없다. 8403 실측(2026-08-12):
+      stats.json  7승 0패 · +$4.8173
+      거래이력    6승 1패 · 총이익 +$0.1011 · 수수료 $0.1533 · **순 −$0.0522**
+      거래소 잔고 $30.02 (시드 $30)  ← 거래이력 쪽이 맞다
+    손실 1건(TRUMP −5.31%)이 승리로 집계되고 손익이 48배 부풀려져 있었다.
+
+    수수료는 진입·청산 양쪽에 붙으므로 **모든 행**에서 걷는다.
+    `closed_rows()`는 청산 행만 보므로 진입 수수료가 빠져 순손익이 과대평가된다.
+
+    반환: (총이익, 총수수료, 순손익, 승, 패)
+    """
+    path = os.path.join(folder, "data", "trade_history.csv")
+    gross = fee_sum = 0.0
+    wins = losses = 0
+    try:
+        with open(path, encoding="utf-8-sig") as f:
+            for r in csv.DictReader(f):
+                ts = (r.get("시간") or r.get("timestamp") or "").strip()
+                if perf_start and ts and ts < perf_start:
+                    continue
+                try:
+                    fee_sum += abs(float(r.get("수수료(USDT)") or 0.0))
+                except ValueError:
+                    pass
+                if (r.get("유형") or r.get("type") or "").strip() != "청산":
+                    continue
+                try:
+                    p = float(r.get("수익(USDT)") or r.get("pnl_usdt") or 0.0)
+                except ValueError:
+                    continue
+                gross += p
+                if p > 0:
+                    wins += 1
+                elif p < 0:
+                    losses += 1
+    except OSError:
+        return None
+    return gross, fee_sum, gross - fee_sum, wins, losses
 
 
 def closed_rows(folder, perf_start=""):
@@ -324,6 +391,15 @@ def build_report(m, diag, action, applied, restarted, is_restore=False, pending=
     L = [f"🩺 **[수익성 워치독] {m['bot']}**",
          f"일평균 **{m['daily_ret']:+.2f}%** · 누적 {m['cum_ret']:+.2f}% "
          f"({m['pnl']:+.4f} / 시드 ${m['seed']:.2f}) · {m['days']:.1f}일 · {m['wins']}승{m['losses']}패"]
+    # 수수료 차감 후 순손익. 이것이 실제로 계좌에 남는 금액이다.
+    # 실측(2026-08-12): 8401은 매매로 +$0.0348을 벌었는데 수수료가 $0.0885(총이익의 254%)라
+    # 순손익은 −$0.0537이었다. 총이익만 보면 이긴 것처럼 보이는 함정이 있다.
+    if m.get("csv_net") is not None:
+        fr = f" · 수수료비중 {m['fee_ratio']:.0f}%" if m.get("fee_ratio") else ""
+        L.append(f"💸 **순손익 {m['csv_net']:+.4f} ({m['csv_net_ret']:+.2f}%)** "
+                 f"= 총이익 {m['csv_gross']:+.4f} − 수수료 {m['csv_fee']:.4f}{fr}")
+        if m["csv_gross"] > 0 and m["csv_net"] < 0:
+            L.append("⚠️ 매매로는 이겼으나 수수료로 졌습니다 — 진입 빈도/타임프레임 재검토 필요")
     if diag:
         L.append(f"청산 {diag['rows']}건 · 총손익 {diag['gross']:+.4f} · 수수료추정 {diag['fee_est']:.4f}")
         if diag["fee_est"] > abs(diag["gross"]):

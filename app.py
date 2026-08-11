@@ -1026,6 +1026,20 @@ def bot_status(folder, port, ex):
         r["cum_ret"] = round(r["cum_delta"] / r["seed"] * 100, 2)
         eff_days = max(days, 1.0)
         r["daily_ret"] = round(r["cum_ret"] / eff_days, 2)
+        # 수수료 차감 후 순손익. 총이익만 보면 이긴 것처럼 보이는 함정이 있다.
+        # 실측(2026-08-12 8401): 총이익 +$0.0348인데 수수료 $0.0885(총이익의 254%)로
+        # 실제로는 −$0.0537. 진입 수수료는 청산 행에 없으므로 **모든 행**에서 걷는다.
+        try:
+            import profit_guard
+            _n = profit_guard.realized_net(f"/Users/l/project/{r['name']}", r.get("perf_start") or "")
+            if _n:
+                gross, fee, net, _w, _l = _n
+                r["net_pnl"] = round(net, 4)
+                r["fee_total"] = round(fee, 4)
+                r["net_ret"] = round(net / r["seed"] * 100, 2)
+                r["fee_ratio"] = round(fee / gross * 100) if gross > 0 else None
+        except Exception:
+            pass
     else:
         r["cum_ret"] = r["daily_ret"] = r["cum_delta"] = None
         r["cum_basis"] = None
