@@ -3125,3 +3125,26 @@ Date: 2026-08-11
   `core/exchange.py`의 ccxt 클래스가 거래소와 불일치하면 자동복원 불가로 보고 경고만 낸다.
 * `watchdog.py`가 5분 주기로 호출. 변조 시 디스코드 알림.
 * 시험: 8409에 역매매·스위칭을 일부러 켜 주입 → 1주기 내 2건 자동복원 확인.
+
+---
+
+## v2.5.4 — 워치독 재부팅 생존 보장(watchdog_keepalive) (2026-08-11)
+
+### 사고
+18:14 시스템 재부팅으로 nohup 상주 워치독 3종이 전부 소멸했다.
+cron에 등록된 `global_watchdog.sh`만 살아남아 봇 4개는 자동 복구됐으나,
+* 8888 대시보드가 **1시간 50분간 정지**(16:28~18:17)
+* `config_sentinel`(조건 변조 감시)도 같은 시간 정지
+
+조건이 고정돼 있다는 보장이 측정의 전제인데, 그 감시 자체가 재부팅에 취약했다.
+
+### 조치
+* `/Users/l/project/watchdog_keepalive.sh` 신설 — 상주 워치독 3종
+  (`watchdog_all.sh`·`dashboard_watchdog.sh`·`8888/watchdog.py`) 생존을 확인하고
+  없으면 기동한다. cron은 재부팅을 넘기므로 여기에 등록한다.
+* crontab: `*/5 * * * * watchdog_keepalive.sh  # WATCHDOG_KEEPALIVE`
+* 시험: dashboard_watchdog를 일부러 종료 → keepalive 1회 실행으로 복구 확인.
+
+### 재부팅 후 조건 검증
+4봇 모두 매매=True·역매매=False·스위칭=False·복리15%·RISK=0·잔고 $30,
+인증오류 0건. 테스트 조건이 재부팅을 온전히 통과했다.
