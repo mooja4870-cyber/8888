@@ -35,8 +35,13 @@ def _venv_py(folder):
     return p if os.path.exists(p) else sys.executable
 
 
-# 감시 대상 구성: 8888 app + 6개 봇(8401, 8402, 8403, 8404, 8405, 8408)의 (app.py, bot.py)
-BOTS = ["8401", "8402", "8403", "8404", "8405", "8408"]
+# 감시 대상 구성: 8888 app + 테스트 4봇의 (app.py, bot.py)
+#
+# [2026-08-11] 4봇 테스트 체제로 축소. 종전 목록은 8402·8404·8405를 포함하고 8409는
+# 빠져 있었다. 이 워치독은 DOWN을 감지하면 즉시 재기동하므로, 정지시킨 봇을 목록에
+# 남겨두면 되살아난다(/Users/l/project/watchdog_all.sh 와 같은 문제).
+# 테스트 종료 후 원복: ["8401","8402","8403","8404","8405","8408"]
+BOTS = ["8401", "8403", "8408", "8409"]
 
 def build_targets():
     targets = []
@@ -233,11 +238,31 @@ def run_profit_guard():
         log(f"⚠️ 수익성 점검 실행 실패: {str(e)[:150]}")
 
 
+def run_config_sentinel():
+    """테스트 조건 변조 감시·자동복원(config_sentinel.py).
+
+    외부 도구(IDE 등)가 봇 폴더를 고쳐 역매매·자동스위칭이 되살아나는 사고가 있었다.
+    조건이 고정돼 있어야 측정이 성립하므로 프로세스 감시와 같은 주기로 확인한다.
+    실패해도 워치독 본체는 계속 돈다.
+    """
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config_sentinel.py")
+    if not os.path.exists(script):
+        return
+    try:
+        r = subprocess.run([sys.executable, script], capture_output=True, text=True, timeout=120)
+        out = (r.stdout or r.stderr or "").strip().splitlines()
+        if out and "이상 없음" not in out[-1]:
+            log("🛡 조건 감시 — " + " | ".join(out[-3:]))
+    except Exception as e:
+        log(f"⚠️ 조건 감시 실행 실패: {str(e)[:150]}")
+
+
 def main():
     targets = build_targets()
-    log(f"🚀 watchdog 시작 — 감시 대상 총 {len(targets)}개 (8888 + 8개 봇 쌍), 주기 {CHECK_INTERVAL}초 (5분)"
-        f" · 수익성 점검 {PGUARD_INTERVAL//60}분 주기")
+    log(f"🚀 watchdog 시작 — 감시 대상 총 {len(targets)}개 (8888 + 봇 쌍), 주기 {CHECK_INTERVAL}초 (5분)"
+        f" · 수익성 점검 {PGUARD_INTERVAL//60}분 주기 · 조건 감시 매 주기")
     while True:
+        run_config_sentinel()
         run_profit_guard()
         launched_any = False
         for t in targets:
