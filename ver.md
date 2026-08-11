@@ -3065,3 +3065,19 @@ Date: 2026-08-11
 
 ### 비고
 * 사용자 요청에 따라 모니터링 대상을 4개 봇으로 한정.
+
+## v9.9.1
+Date: 2026-08-11
+
+### 변경 내용
+* 디스코드 알림 메시지 통합
+  - 분 단위 디스코드 리포트(`discord_alert.py`)에서 2개 그룹을 1개 그룹(8401, 8403, 8408, 8409)으로 통합하여 알림량 감소
+  - 정시 그래프 발송(`send_discord_hourly_graph.py`) 및 통계 발송(`send_discord_stats.py`) 로직을 통합 1그룹 체계로 개편
+
+### 수정 파일
+* `discord_alert.py`
+* `send_discord_hourly_graph.py`
+* `send_discord_stats.py`
+
+### 비고
+* 그룹 분리로 인한 알림 피로도 개선

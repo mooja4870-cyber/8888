@@ -121,26 +121,25 @@ def format_rate(win, loss):
 
 
 def build_discord_messages(now_str, overall, by_bot, bot_modes, bot_seq):
-    ov_lines = []
-    ov_lines.append(f"📊 **정시 자동 리포트 종합 통계**")
-    ov_lines.append(f"🕒 기준: {now_str}")
-    ov_lines.append(f"--------------------------------------------------")
+    lines = []
+    lines.append(f"📊 **정시 자동 리포트 종합 통계**")
+    lines.append(f"🕒 기준: {now_str}")
+    lines.append(f"--------------------------------------------------")
     
     # [순]/[역] 전체 카운트
     pure_cnt, frog_cnt = 0, 0
     for bot_id, name in BOTS:
         is_bf = bot_modes.get(bot_id, False)
         if is_bf:
-
             frog_cnt += 1
-            ov_lines.append(f"• `{name}` | **[역]** 🐸 역방향 (원천: 🎯순방향)")
+            lines.append(f"• `{name}` | **[역]** 🐸 역방향 (원천: 🎯순방향)")
         else:
             pure_cnt += 1
-            ov_lines.append(f"• `{name}` | **[순]** 🎯 순방향 (원천: 🎯순방향)")
+            lines.append(f"• `{name}` | **[순]** 🎯 순방향 (원천: 🎯순방향)")
 
-    ov_lines.append(f"💡 **요약**: 🎯 **[순]** 순방향: `{pure_cnt}개` | 🐸 **[역]** 역방향(청개구리): `{frog_cnt}개`")
-    ov_lines.append(f"--------------------------------------------------")
-    ov_lines.append(f"🌐 **[전체 8개 봇 종합 성과]**")
+    lines.append(f"💡 **요약**: 🎯 **[순]** 순방향: `{pure_cnt}개` | 🐸 **[역]** 역방향(청개구리): `{frog_cnt}개`")
+    lines.append(f"--------------------------------------------------")
+    lines.append(f"🌐 **[전체 {len(BOTS)}개 봇 종합 성과]**")
 
     for key, _, label in INTERVALS:
         w = overall[key]["win"]
@@ -149,54 +148,31 @@ def build_discord_messages(now_str, overall, by_bot, bot_modes, bot_seq):
         pnl = overall[key]["pnl"]
         rate = format_rate(w, l)
         pnl_str = f"+${pnl:.2f}" if pnl >= 0 else f"-${abs(pnl):.2f}"
-        ov_lines.append(f"⏱️ **{label:>4}** | 거래 {w+l+d:2d}건 ({w:2d}승 {l:2d}패, {rate:5.1f}%) | PnL: `{pnl_str}`")
+        lines.append(f"⏱️ **{label:>4}** | 거래 {w+l+d:2d}건 ({w:2d}승 {l:2d}패, {rate:5.1f}%) | PnL: `{pnl_str}`")
 
-    ov_lines.append(f"--------------------------------------------------")
-    ov_lines.append(f"🤖 **[1그룹 (8401,3) 봇별 4개 구간 승패 상세]**")
+    lines.append(f"--------------------------------------------------")
+    lines.append(f"🤖 **[통합그룹 (8401,3,8,9) 봇별 4개 구간 승패 상세]**")
 
-    g1_ids = {"8401", "8403"}
-    g2_ids = {"8408", "8409"}
-    batch1 = [b for b in BOTS if b[0] in g1_ids]
-    batch2 = [b for b in BOTS if b[0] in g2_ids]
-
-    msg1_lines = list(ov_lines)
-    for bot_id, name in batch1:
+    for bot_id, name in BOTS:
         is_bf = bot_modes.get(bot_id, False)
         mode_tag = "**[역]** 🐸 역방향(청개구리)" if is_bf else "**[순]** 🎯 순방향(정방향)"
-        msg1_lines.append(f"🔹 **[{name}]** {mode_tag}")
+        lines.append(f"🔹 **[{name}]** {mode_tag}")
         for key, _, label in INTERVALS:
             b_w = by_bot[bot_id][key]["win"]
             b_l = by_bot[bot_id][key]["loss"]
             b_pnl = by_bot[bot_id][key]["pnl"]
             b_rate = format_rate(b_w, b_l)
             p_str = f"+${b_pnl:.2f}" if b_pnl >= 0 else f"-${abs(b_pnl):.2f}"
-            msg1_lines.append(f"   • {label:>4}: {b_w}승 {b_l}패 ({b_rate:5.1f}%) | PnL: `{p_str}`")
+            lines.append(f"   • {label:>4}: {b_w}승 {b_l}패 ({b_rate:5.1f}%) | PnL: `{p_str}`")
         raw_seq = bot_seq.get(bot_id, "")
         seq_grouped = " ".join([raw_seq[i:i+5] for i in range(0, len(raw_seq), 5)])
         if seq_grouped:
-            msg1_lines.append(f"   • 승패흐름: {seq_grouped}")
+            lines.append(f"   • 승패흐름: {seq_grouped}")
 
-    msg2_lines = [f"🤖 **[2그룹 (8401,3,8) 봇별 4개 구간 승패 상세]**"]
-    for bot_id, name in batch2:
-        is_bf = bot_modes.get(bot_id, False)
-        mode_tag = "**[역]** 🐸 역방향(청개구리)" if is_bf else "**[순]** 🎯 순방향(정방향)"
-        msg2_lines.append(f"🔹 **[{name}]** {mode_tag}")
-        for key, _, label in INTERVALS:
-            b_w = by_bot[bot_id][key]["win"]
-            b_l = by_bot[bot_id][key]["loss"]
-            b_pnl = by_bot[bot_id][key]["pnl"]
-            b_rate = format_rate(b_w, b_l)
-            p_str = f"+${b_pnl:.2f}" if b_pnl >= 0 else f"-${abs(b_pnl):.2f}"
-            msg2_lines.append(f"   • {label:>4}: {b_w}승 {b_l}패 ({b_rate:5.1f}%) | PnL: `{p_str}`")
-        raw_seq = bot_seq.get(bot_id, "")
-        seq_grouped = " ".join([raw_seq[i:i+5] for i in range(0, len(raw_seq), 5)])
-        if seq_grouped:
-            msg2_lines.append(f"   • 승패흐름: {seq_grouped}")
+    lines.append("--------------------------------------------------")
+    lines.append("🔗 *8888 관제 시스템 정시(00분00초) 자동 리포트*\n=================================\n=================================")
 
-    msg2_lines.append("--------------------------------------------------")
-    msg2_lines.append("🔗 *8888 관제 시스템 정시(00분00초) 자동 리포트*\n=================================\n=================================")
-
-    return "\n".join(msg1_lines), "\n".join(msg2_lines)
+    return "\n".join(lines)
 
 
 def send_webhook(content):
@@ -220,12 +196,10 @@ def send_webhook(content):
 
 
 def run_once():
-    now_str, overall, by_bot, bot_modes = collect_stats()
-    msg1, msg2 = build_discord_messages(now_str, overall, by_bot, bot_modes)
-    s1 = send_webhook(msg1)
-    time.sleep(1)
-    s2 = send_webhook(msg2)
-    return s1 and s2
+    now_str, overall, by_bot, bot_modes, bot_seq = collect_stats()
+    msg = build_discord_messages(now_str, overall, by_bot, bot_modes, bot_seq)
+    s1 = send_webhook(msg)
+    return s1
 
 
 def loop_hourly():
