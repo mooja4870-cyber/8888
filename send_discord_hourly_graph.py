@@ -19,9 +19,9 @@ WEBHOOK_URL = ""  # 알림 중단
 ROOT_DIR = "/Users/l/project"
 SNAP_FILE = os.path.join(ROOT_DIR, "8888", "snapshots.json")
 
-GROUP_A_IDS = ["8401", "8402", "8404"]
-GROUP_B_IDS = ["8403", "8405", "8408"]
-ALL_BOT_IDS = ["8401", "8402", "8403", "8404", "8405", "8408"]
+GROUP_A_IDS = ["8401", "8403"]
+GROUP_B_IDS = ["8408", "8409"]
+ALL_BOT_IDS = ["8401", "8403", "8408", "8409"]
 
 BOT_FOLDERS = {
     "8401": "8401",
@@ -227,21 +227,21 @@ def send_report():
         f"--------------------------------------------------"
     )
     
-    # 2) 개별 봇 Part 1 (1그룹: 8401, 8402, 8404)
-    part1_bots = ["8401", "8402", "8404"]
+    # 2) 개별 봇 Part 1 (1그룹: 8401, 8403)
+    part1_bots = ["8401", "8403"]
     graphs_part1 = [generate_ascii_graph(f"{bid} 봇", bot_series[bid], is_group=False, seq_str=get_bot_recent_sequence(bid)) for bid in part1_bots]
     msg_part1 = (
-        f"🤖 **[1그룹 (8401,2,4) 40시간 일평균수익률 추이 리포트]**\n"
+        f"🤖 **[1그룹 (8401,3) 40시간 일평균수익률 추이 리포트]**\n"
         f"--------------------------------------------------\n"
         + "\n\n".join(graphs_part1) + "\n"
         f"--------------------------------------------------"
     )
 
-    # 3) 개별 봇 Part 2 (2그룹: 8403, 8405, 8408)
-    part2_bots = ["8403", "8405", "8408"]
+    # 3) 개별 봇 Part 2 (2그룹: 8408, 8409)
+    part2_bots = ["8408", "8409"]
     graphs_part2 = [generate_ascii_graph(f"{bid} 봇", bot_series[bid], is_group=False, seq_str=get_bot_recent_sequence(bid)) for bid in part2_bots]
     msg_part2 = (
-        f"🤖 **[2그룹 (8403,5,8) 40시간 일평균수익률 추이 리포트]**\n"
+        f"🤖 **[2그룹 (8408,9) 40시간 일평균수익률 추이 리포트]**\n"
         f"--------------------------------------------------\n"
         + "\n\n".join(graphs_part2) + "\n"
         f"--------------------------------------------------"

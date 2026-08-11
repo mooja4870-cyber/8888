@@ -315,8 +315,8 @@ def _process_subset(data, target_names, state_suffix, title_prefix, include_bot_
 
 def tick(data, tick_count=0, include_bot_charts=False):
     """집계 1건을 받아 매 1분마다 2개 봇 그룹으로 나누어 디스코드 알림 발송 및 상태 갱신."""
-    group_1_names = {"8401", "8402", "8404"}
-    group_2_names = {"8403", "8405", "8408"}
+    group_1_names = {"8401", "8403"}
+    group_2_names = {"8408", "8409"}
     
     # 실제 data.get("bots")에 존재하는 봇만 필터링
     actual_1 = {str(b.get("name")) for b in data.get("bots", []) if str(b.get("name")) in group_1_names}
@@ -324,11 +324,11 @@ def tick(data, tick_count=0, include_bot_charts=False):
 
     ok1, info1 = False, "No bots in Group 1"
     if actual_1:
-        ok1, info1 = _process_subset(data, actual_1, "_group_1.json", "1그룹(8401,2,4) 전체", include_bot_charts=False)
+        ok1, info1 = _process_subset(data, actual_1, "_group_1.json", "1그룹(8401,3) 전체", include_bot_charts=False)
 
     ok2, info2 = False, "No bots in Group 2"
     if actual_2:
-        ok2, info2 = _process_subset(data, actual_2, "_group_2.json", "2그룹(8403,5,8) 전체", include_bot_charts=False)
+        ok2, info2 = _process_subset(data, actual_2, "_group_2.json", "2그룹(8408,9) 전체", include_bot_charts=False)
 
     return (ok1 or ok2), f"Group 1({len(actual_1)}): {info1} | Group 2({len(actual_2)}): {info2}"
 

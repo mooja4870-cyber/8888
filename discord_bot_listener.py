@@ -58,7 +58,7 @@ def handle_command(cmd_text):
         bot_id = parts[1].strip()
         mode_val = parts[2].strip().lower()
 
-        valid_bots = ["8401", "8402", "8403", "8404", "8405", "8408"]
+        valid_bots = ["8401", "8403", "8408", "8409"]
         if bot_id not in valid_bots:
             return f"❌ **오류**: 존재하지 않는 봇 번호입니다. ({', '.join(valid_bots)})"
 
@@ -94,7 +94,7 @@ def handle_command(cmd_text):
         if len(parts) < 2:
             return "❌ **사용법**: `!초기화 <봇번호>` (예: `!초기화 8409`)"
         bot_id = parts[1].strip()
-        valid_bots = ["8401", "8402", "8403", "8404", "8405", "8408"]
+        valid_bots = ["8401", "8403", "8408", "8409"]
         if bot_id not in valid_bots:
             return f"❌ **오류**: 존재하지 않는 봇 번호입니다."
 
@@ -134,7 +134,7 @@ def handle_command(cmd_text):
         if len(parts) < 2:
             return "❌ **사용법**: `!재가동 <봇번호>` (예: `!재가동 8405`)"
         bot_id = parts[1].strip()
-        valid_bots = ["8401", "8402", "8403", "8404", "8405", "8408"]
+        valid_bots = ["8401", "8403", "8408", "8409"]
         if bot_id not in valid_bots:
             return f"❌ **오류**: 존재하지 않는 봇 번호입니다."
 

@@ -15,11 +15,9 @@ WEBHOOK_URL = ""  # 알림 중단
 ROOT_DIR = "/Users/l/project"
 BOTS = [
     ("8401", "8401_OKX"),
-    ("8402", "8402_OKX"),
     ("8403", "8403_OKX"),
-    ("8404", "8404_OKX"),
-    ("8405", "8405_OKX"),
     ("8408", "8408_BNC"),
+    ("8409", "8409_BNC"),
 ]
 
 INTERVALS = [
@@ -154,10 +152,10 @@ def build_discord_messages(now_str, overall, by_bot, bot_modes, bot_seq):
         ov_lines.append(f"⏱️ **{label:>4}** | 거래 {w+l+d:2d}건 ({w:2d}승 {l:2d}패, {rate:5.1f}%) | PnL: `{pnl_str}`")
 
     ov_lines.append(f"--------------------------------------------------")
-    ov_lines.append(f"🤖 **[1그룹 (8402,4,5) 봇별 4개 구간 승패 상세]**")
+    ov_lines.append(f"🤖 **[1그룹 (8401,3) 봇별 4개 구간 승패 상세]**")
 
-    g1_ids = {"8402", "8404", "8405"}
-    g2_ids = {"8401", "8403", "8408"}
+    g1_ids = {"8401", "8403"}
+    g2_ids = {"8408", "8409"}
     batch1 = [b for b in BOTS if b[0] in g1_ids]
     batch2 = [b for b in BOTS if b[0] in g2_ids]
 
