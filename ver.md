@@ -1,5 +1,21 @@
 # Version History
 
+## v2.3.31
+
+Date: 2026-08-11
+
+### 변경 내용
+* 대시보드 새로고침 시 8개 봇이 잠시 노출되는 플리커링(Flickering) 방지
+* `app.py`에서 `dashboard.html` 서빙 시 정적 placeholder 대신 실제 4개 봇의 상태(JSON)를 실시간 치환(Inject)하도록 개선
+
+### 수정 파일
+* app.py
+
+### 비고
+* 새로고침 시 체감 로딩 시간 0에 수렴
+
+
+
 ## v2.3.30
 Date: 2026-08-11
 

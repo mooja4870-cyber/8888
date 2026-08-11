@@ -1410,7 +1410,11 @@ class Handler(BaseHTTPRequestHandler):
 
         elif self.path == "/" or self.path.startswith("/index"):
             with open(HTML_PATH, encoding="utf-8") as f:
-                body = f.read().encode()
+                body_str = f.read()
+            import re
+            dynamic_data_str = "window._FB_DATA = " + json.dumps(collect(), ensure_ascii=False) + ";"
+            body_str = re.sub(r'window\._FB_DATA\s*=\s*\{.*?\};', dynamic_data_str, body_str, flags=re.DOTALL)
+            body = body_str.encode("utf-8")
             ctype = "text/html; charset=utf-8"
         else:
             self.send_error(404)
