@@ -3261,3 +3261,14 @@ mooja가 인과가 거꾸로라고 지적했고 **그 지적이 옳았다**.
   순손익을 낸다. `closed_rows()`는 청산 행만 보므로 진입 수수료가 빠진다.
 * 디스코드 리포트에 `💸 순손익` 줄 추가. 총이익>0인데 순손익<0이면 경고 표시.
 * `app.collect()`에 `net_pnl`·`fee_total`·`net_ret`·`fee_ratio` 추가.
+
+---
+
+## v2.6.0 — 청산 개입 장치 검증 + sentinel 감시 확대 (2026-08-12)
+
+* `lab/verify_exit_guards.py` 신설 — 긴급 트레일링·고수익 가드·연속손절 한도를
+  개발·봉인 양쪽에서 비교. 긴급 트레일링만 해제가 옳고, 연속손절 한도는
+  **유지가 옳다**(해제 시 봉인 +10.0%→+4.7%). 코드만 읽고 "전략에 반한다"고
+  단정했던 판단이 검증에서 뒤집혔다.
+* `config_sentinel` 감시 추가: `USE_EMERGENCY_TS`(False) ·
+  `MAX_CONSEC_SL_PER_DAY`(3) · `USE_HIGH_ROI_TP_GUARD`(True, 판정 보류분 고정).
