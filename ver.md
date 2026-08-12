@@ -3272,3 +3272,20 @@ mooja가 인과가 거꾸로라고 지적했고 **그 지적이 옳았다**.
   단정했던 판단이 검증에서 뒤집혔다.
 * `config_sentinel` 감시 추가: `USE_EMERGENCY_TS`(False) ·
   `MAX_CONSEC_SL_PER_DAY`(3) · `USE_HIGH_ROI_TP_GUARD`(True, 판정 보류분 고정).
+
+---
+
+## v2.6.1 — 성과 지표 출처를 거래소 원장으로 전환 (2026-08-13)
+
+거래이력 CSV의 `수익(USDT)`는 신뢰할 수 없다(봇 v9.9.15 참조: OKX fillPnl 미수집 +
+가격 6자리 반올림으로 8403이 $3.04 오차). 성과 판정은 거래소가 말하는 값으로만 한다.
+
+* `exchange_pnl.py` 신설 — OKX는 `privateGetAccountPositionsHistory`,
+  바이낸스는 `fapiPrivateGetIncome`. 봇마다 `core` 패키지가 달라 한 프로세스에서
+  여러 봇을 임포트하면 먼저 로드된 모듈이 캐시되므로(실측: 8403이 8401과 동일 수치)
+  **봇당 별도 프로세스**로 조회하고 60초 캐시한다.
+* `app.py` — `ex_real`·`ex_unreal`·`ex_fee`·`ex_cum_ret`·`pnl_gap` 추가.
+* `profit_guard.py` — `bot_metrics`의 `pnl`·`cum_ret`·`daily_ret`·승패를 거래소 값으로
+  덮어쓴다. **조치 판단이 이 값을 쓰므로** 잘못된 지표로 레버리지를 깎으면 실제 피해가 난다.
+  리포트에 `🏦 거래소 기준` 줄과 CSV 괴리 경고를 추가.
+* `lab/daily_report.py` 거래소 기준으로 재작성.

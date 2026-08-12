@@ -135,7 +135,7 @@ def bot_metrics(bot):
         cfg_age_h = (time.time() - os.path.getmtime(cfg_path)) / 3600.0
     except OSError:
         cfg_age_h = 999.0
-    return {
+    out = {
         "bot": bot, "folder": folder, "cfg": c, "cfg_path": cfg_path, "perf_start": ps,
         "seed": seed, "pnl": pnl, "days": days,
         "cum_ret": cum_ret, "daily_ret": daily_ret, "cfg_age_h": cfg_age_h,
@@ -144,6 +144,25 @@ def bot_metrics(bot):
         # 거래이력 기준 실측치. stats.json이 틀릴 때 무엇이 진짜인지 대조할 근거가 된다.
         **_net_fields(folder, ps, seed),
     }
+    # [2026-08-13] 조치 판단(daily_ret)까지 거래소 원장 기준으로 바꾼다.
+    # stats.json·CSV는 초저가 코인에서 청산가 정밀도가 소실돼 부호가 뒤집힌다
+    # (8403 BONK: 실제 −$0.13이 +$2.99로 기록 → 계좌 10%인 $3.04 오차).
+    # 잘못된 지표로 레버리지를 깎거나 매매를 정지시키면 피해가 실재하므로,
+    # 거래소 값이 잡히면 그것으로 덮어쓴다. 실패 시에는 기존 값을 그대로 둔다.
+    try:
+        import exchange_pnl
+        ex = exchange_pnl.get(bot)
+    except Exception:
+        ex = None
+    if ex and ex.get("seed"):
+        out["pnl"] = round(ex["real"], 4)
+        out["cum_ret"] = ex["real"] / ex["seed"] * 100.0
+        out["daily_ret"] = out["cum_ret"] / (max(days, 1.0) if days else 1.0)
+        out["wins"], out["losses"] = ex["wins"], ex["losses"]
+        out["src"] = "exchange"
+    else:
+        out["src"] = "stats.json"
+    return out
 
 
 def _net_fields(folder, perf_start, seed):
@@ -394,12 +413,30 @@ def build_report(m, diag, action, applied, restarted, is_restore=False, pending=
     # 수수료 차감 후 순손익. 이것이 실제로 계좌에 남는 금액이다.
     # 실측(2026-08-12): 8401은 매매로 +$0.0348을 벌었는데 수수료가 $0.0885(총이익의 254%)라
     # 순손익은 −$0.0537이었다. 총이익만 보면 이긴 것처럼 보이는 함정이 있다.
-    if m.get("csv_net") is not None:
+    # [2026-08-13] 성과 판정은 거래소 원장 기준으로 한다.
+    # CSV는 초저가 코인에서 청산가 정밀도가 소실돼 부호가 뒤집힌다
+    # (8403 BONK: 손실 −$0.13 → 이익 +$2.99로 기록, 계좌의 10% 오차).
+    ex = None
+    try:
+        import exchange_pnl
+        ex = exchange_pnl.get(m["bot"])
+    except Exception:
+        ex = None
+    if ex:
+        ret = (ex["total"] - ex["seed"]) / ex["seed"] * 100 if ex["seed"] else 0.0
+        L.append(f"🏦 **거래소 기준 실현 {ex['real']:+.4f}** · 미실현 {ex['unreal']:+.4f} "
+                 f"· 총잔고 ${ex['total']:.2f} ({ret:+.2f}%) · {ex['wins']}승{ex['losses']}패 "
+                 f"· 수수료 {ex['fee']:.4f}")
+        if m.get("csv_net") is not None:
+            gap = m["csv_net"] - ex["real"]
+            if abs(gap) > 0.05:
+                L.append(f"⚠️ 거래이력 CSV와 {gap:+.4f} 괴리 — CSV 손익 기록 오류 의심(저가 코인 정밀도)")
+    elif m.get("csv_net") is not None:
         fr = f" · 수수료비중 {m['fee_ratio']:.0f}%" if m.get("fee_ratio") else ""
-        L.append(f"💸 **순손익 {m['csv_net']:+.4f} ({m['csv_net_ret']:+.2f}%)** "
+        L.append(f"💸 순손익(CSV) {m['csv_net']:+.4f} ({m['csv_net_ret']:+.2f}%) "
                  f"= 총이익 {m['csv_gross']:+.4f} − 수수료 {m['csv_fee']:.4f}{fr}")
-        if m["csv_gross"] > 0 and m["csv_net"] < 0:
-            L.append("⚠️ 매매로는 이겼으나 수수료로 졌습니다 — 진입 빈도/타임프레임 재검토 필요")
+    if (ex or {}).get("real", 0) > 0 and (ex or {}).get("fee", 0) > (ex or {}).get("real", 0):
+        L.append("⚠️ 수수료가 실현손익보다 큽니다 — 진입 빈도/타임프레임 재검토 필요")
     if diag:
         L.append(f"청산 {diag['rows']}건 · 총손익 {diag['gross']:+.4f} · 수수료추정 {diag['fee_est']:.4f}")
         if diag["fee_est"] > abs(diag["gross"]):

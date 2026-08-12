@@ -1040,6 +1040,27 @@ def bot_status(folder, port, ex):
                 r["fee_ratio"] = round(fee / gross * 100) if gross > 0 else None
         except Exception:
             pass
+
+        # [2026-08-13] 거래소 원장 기준 실측치를 함께 싣는다.
+        # 위의 CSV 기반 값은 초저가 코인에서 가격 정밀도가 소실돼 부호가 뒤집힌다.
+        # 실측(8403 BONK): CSV 청산가 2e-06(원래 0.000002332) → 손실 −$0.13이
+        # 이익 +$2.99로 기록돼 계좌의 10%인 $3.12 오차가 났다.
+        # 성과 판정은 ex_* 값으로 해야 한다. CSV 값은 대조용으로만 남긴다.
+        try:
+            import exchange_pnl
+            _x = exchange_pnl.get(r["name"])
+            if _x:
+                r["ex_real"] = round(_x["real"], 4)          # 실현손익(수수료·펀딩 포함)
+                r["ex_unreal"] = round(_x["unreal"], 4)
+                r["ex_fee"] = round(_x["fee"], 4)
+                r["ex_wins"], r["ex_losses"] = _x["wins"], _x["losses"]
+                r["ex_cum_ret"] = round((_x["total"] - _x["seed"]) / _x["seed"] * 100, 2) \
+                    if _x["seed"] else None
+                # CSV와 얼마나 어긋나는지. 크면 CSV 기록에 문제가 있다는 신호.
+                if r.get("net_pnl") is not None:
+                    r["pnl_gap"] = round(r["net_pnl"] - _x["real"], 4)
+        except Exception:
+            pass
     else:
         r["cum_ret"] = r["daily_ret"] = r["cum_delta"] = None
         r["cum_basis"] = None
