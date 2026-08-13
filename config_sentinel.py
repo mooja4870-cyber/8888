@@ -66,7 +66,11 @@ PER_BOT = {
     "8403": {"MARKET_GATE_EMA": 48, "LEVERAGE": 5, "MIN_VOLUME_USDT": 500000.0,
              "TIMEFRAME": "15m", "MAX_HOLDING_HOURS": 6.0},   # 15m봉 48봉=12시간 · 24봉=6h
     "8408": {"MARKET_GATE_EMA": 48, "LEVERAGE": 11, "TIMEFRAME": "15m", "MAX_HOLDING_HOURS": 6.0},
-    "8409": {"MARKET_GATE_EMA": 48, "LEVERAGE": 11, "TIMEFRAME": "15m", "MAX_HOLDING_HOURS": 6.0},
+    # 8409는 1시간봉 대조군. 8408(15m)과 타임프레임만 다르게 두어
+    # "타임프레임 상향이 답인가"를 거래소·전략을 바꿔 재확인한다.
+    # 검증(이중볼린저): 15m 봉인 +19.4%/개발 +24.1% → 1h 봉인 +23.8%/개발 +45.0%
+    "8409": {"MARKET_GATE_EMA": 12, "LEVERAGE": 11, "TIMEFRAME": "1h",
+             "MAX_HOLDING_HOURS": 24.0, "USE_ADX_FILTER": True},
 }
 # 거래소별 기대 ccxt 클래스 — 어긋나면 인증이 전부 깨진다
 VENUE = {"8401": "okx", "8403": "okx", "8408": "binance", "8409": "binance"}
