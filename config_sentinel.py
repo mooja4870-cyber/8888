@@ -54,25 +54,30 @@ COMMON = {
     "USE_EMERGENCY_TS": False,  # TP 85%에서 샹들리에 K를 3.0→0.8로 좁혀 승리를 잘랐다.
     "MAX_CONSEC_SL_PER_DAY": 3, # 반대로 이건 유지해야 한다 — 해제 시 봉인 +10.0%→+4.7% 악화.
     "USE_HIGH_ROI_TP_GUARD": True,  # 판정 보류(개발 구간 표본 0). 임의 변경 방지용으로 고정.
-    "CHANDELIER_K": 4.0,        # 좁은 트레일링은 정상 흔들림에 조기청산된다.
-                                # 검증: 2전략×2구간 전부 개선(K=1.5~2.0은 두 전략 모두 악화).
 }
 # 봇별 예외
 #
 # 타임프레임과 최대보유시간은 반드시 함께 본다. 검증 조건은 '24봉 보유'인데
 # 8401만 1시간봉이라 시간으로 환산하면 값이 달라진다(1h×24 vs 15m×24=6h).
 # 실제로 8401의 TIMEFRAME이 15m로 뒤바뀌어 있었는데 감시 대상이 아니라 놓쳤다.
+# 샹들리에 K는 **타임프레임마다 달라야 한다**. 스톱이 '고점 − K×ATR'인데
+# 1시간봉 ATR이 15분봉의 약 2배라, 같은 K면 스톱 폭이 2배가 된다.
+# 검증: 15분봉은 K=4.0이 최적(2전략 모두 개선), 1시간봉은 K가 커질수록 단조 악화
+#       (1h: K=2.0 봉인+14.3/개발+29.8 → K=4.0 +6.4/+13.0).
 PER_BOT = {
     "8401": {"MARKET_GATE_EMA": 12, "LEVERAGE": 5, "MIN_VOLUME_USDT": 500000.0,
-             "TIMEFRAME": "1h", "MAX_HOLDING_HOURS": 24.0},   # 1h봉 12봉=12시간 · 24봉 보유
+             "TIMEFRAME": "1h", "MAX_HOLDING_HOURS": 24.0,
+             "CHANDELIER_K": 2.0},                            # 1h봉 12봉=12시간 · 24봉 보유
     "8403": {"MARKET_GATE_EMA": 48, "LEVERAGE": 5, "MIN_VOLUME_USDT": 500000.0,
-             "TIMEFRAME": "15m", "MAX_HOLDING_HOURS": 6.0},   # 15m봉 48봉=12시간 · 24봉=6h
-    "8408": {"MARKET_GATE_EMA": 48, "LEVERAGE": 5, "TIMEFRAME": "15m", "MAX_HOLDING_HOURS": 6.0},
+             "TIMEFRAME": "15m", "MAX_HOLDING_HOURS": 6.0,
+             "CHANDELIER_K": 4.0},                            # 15m봉 48봉=12시간 · 24봉=6h
+    "8408": {"MARKET_GATE_EMA": 48, "LEVERAGE": 5, "TIMEFRAME": "15m",
+             "MAX_HOLDING_HOURS": 6.0, "CHANDELIER_K": 4.0},
     # 8409는 1시간봉 대조군. 8408(15m)과 타임프레임만 다르게 두어
     # "타임프레임 상향이 답인가"를 거래소·전략을 바꿔 재확인한다.
     # 검증(이중볼린저): 15m 봉인 +19.4%/개발 +24.1% → 1h 봉인 +23.8%/개발 +45.0%
     "8409": {"MARKET_GATE_EMA": 12, "LEVERAGE": 5, "TIMEFRAME": "1h",
-             "MAX_HOLDING_HOURS": 24.0, "USE_ADX_FILTER": True},
+             "MAX_HOLDING_HOURS": 24.0, "USE_ADX_FILTER": True, "CHANDELIER_K": 2.0},
 }
 # 거래소별 기대 ccxt 클래스 — 어긋나면 인증이 전부 깨진다
 VENUE = {"8401": "okx", "8403": "okx", "8408": "binance", "8409": "binance"}
