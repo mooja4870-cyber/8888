@@ -53,7 +53,9 @@ COMMON = {
     "USE_SCALEOUT": False,      # 분할익절 임계를 설정값의 절반으로 깎던 경로.
     "USE_EMERGENCY_TS": False,  # TP 85%에서 샹들리에 K를 3.0→0.8로 좁혀 승리를 잘랐다.
     "MAX_CONSEC_SL_PER_DAY": 3, # 반대로 이건 유지해야 한다 — 해제 시 봉인 +10.0%→+4.7% 악화.
-    "USE_HIGH_ROI_TP_GUARD": True,  # 판정 보류(개발 구간 표본 0). 임의 변경 방지용으로 고정.
+    "USE_HIGH_ROI_TP_GUARD": True,  # 340건 중 ROI 30% 도달 0건 — 발동하지 않는 장치. 고정만 해둔다.
+    "USE_DYNAMIC_SLTP": False,  # 수익 1.8% 미만에서 '둔화 신호'로 트레일링을 좁혀 조기청산.
+                                # 검증: 봉인 +18.3→+26.5 · 개발 +12.5→+15.4 (승률도 40%→49%).
 }
 # 봇별 예외
 #
