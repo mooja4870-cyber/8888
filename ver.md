@@ -3490,3 +3490,21 @@ privateGetTradeOrdersAlgoPending({"instType":"SWAP","ordType":"oco"})
 캐스케이드에서 헤드라인 t=2.6을 먼저 보고 기대했다가 기간·종목 분할에서 무너졌다.
 **소수 종목·소수 기간이 전부를 만드는 것이 가짜 엣지의 전형**이므로 격자 탐색과
 같은 화면에서 함께 돌려야 한다. `verify_funding_edge.py`는 그 구조로 작성했다.
+
+---
+
+## v2.7.0 — 동결 기간 자동 성과 보고 (2026-08-16)
+
+`freeze_report.py` + launchd `com.mooja.freeze-report` (매일 09:00 · 21:00 디스코드).
+
+**왜 자동인가**: 동결의 목적은 손대지 않고 측정하는 것이다. 그런데 사람이 매번
+물어봐야 알 수 있으면 확인하러 들어갔다가 결국 만지게 된다. 정해진 시각에 결과만
+오면 그럴 일이 없다.
+
+**보고 내용**: 거래소 원장 기준 실적(stats.json은 5건의 오보 실측이 있어 쓰지 않음) ·
+동결 기준선 대비 변화 · 중단조건(합산 −25%) 도달 여부 · 엔진 생존 · 설정 드리프트.
+읽고 보고만 하며 매매에는 관여하지 않는다.
+
+**cron 대신 launchd**: `crontab` **쓰기**가 macOS 권한에 막혀 무응답으로 멈춘다
+(`crontab -l` 읽기는 정상). `~/Library/LaunchAgents/com.mooja.freeze-report.plist`로
+등록했고 재부팅에도 살아남는다. 검증: `launchctl kickstart` → last exit code 0, 전송 확인.
