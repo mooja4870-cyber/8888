@@ -17,6 +17,10 @@
   - 봇은 일평균수익률 내림차순.
   - O=보유중(거래소 증거금), X=무포지션.
   - 변화 아이콘: 직전 발송 대비. 🔴상승↑ / 🔵하락↓ / ⚪변화없음 (수익=빨강 컨벤션).
+  - 요약 줄 형식: [총자산] 누적손익 일평균% {1분대비}%↕ {60분대비}%↕ {24시간대비}%↕
+      예) [115.37] -4.63 -0.75% 0.00%- 0.3%↑ 1.2%↓
+    60분·24시간 값은 (시각,값) 시계열에서 해당 시점을 찾아 계산한다.
+    자료가 아직 없으면 0.0%가 아니라 '—'로 적는다 — 변화없음과 구분해야 한다.
   - 추이: 1분 단위 전체 일평균 최근 30포인트 ASCII 라인차트.
 
 webhook URL은 discord_webhook.txt(.gitignore)에서 읽는다(평문 시크릿 보호).
@@ -37,6 +41,13 @@ CHART_HEIGHT = 6
 USERNAME = "봇 관제"
 EPS = 0.005             # 이 값 미만 변화는 '변화없음(⚪)'으로 간주
 
+# 60분 전·24시간 전 대비 변동치를 내려면 그만큼의 과거값이 있어야 한다.
+# history는 200분치뿐이고 눈금도 없어서 24시간 조회가 불가능하다.
+# 그래서 (시각, 값) 쌍을 따로 26시간 보관한다(1분 주기 → 약 1560개).
+# 틱이 밀리거나 앱이 잠깐 죽어도 시각으로 찾으므로 어긋나지 않는다.
+SERIES_KEEP_SEC = 26 * 3600
+LOOKBACK = ((3600, 600), (86400, 3600))   # (얼마 전, 허용 오차) — 60분/24시간
+
 
 def _load_webhook():
     try:
@@ -50,17 +61,46 @@ def _load_state(path):
     try:
         with open(path, encoding="utf-8") as f:
             s = json.load(f)
-        return s.get("prev_total"), s.get("prev_bots", {}), s.get("history", []), s.get("prev_sub_total")
+        return (s.get("prev_total"), s.get("prev_bots", {}), s.get("history", []),
+                s.get("prev_sub_total"), s.get("series", []))
     except (OSError, ValueError):
-        return None, {}, [], None
+        return None, {}, [], None, []
 
 
-def _save_state(path, prev_total, prev_bots, history, prev_sub_total=None):
+def _save_state(path, prev_total, prev_bots, history, prev_sub_total=None, series=None):
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump({"prev_total": prev_total, "prev_bots": prev_bots,
-                   "history": history[-HISTORY_MAX:], "prev_sub_total": prev_sub_total}, f, ensure_ascii=False)
+                   "history": history[-HISTORY_MAX:], "prev_sub_total": prev_sub_total,
+                   "series": series or []}, f, ensure_ascii=False)
     os.replace(tmp, path)
+
+
+def _value_at(series, now, ago_sec, tol_sec):
+    """now보다 ago_sec 전 시점의 값. 가장 가까운 표본을 쓰되 허용 오차를 벗어나면 None.
+
+    None을 0으로 대신하면 '변화 없음'으로 보여 데이터가 없는 것과 구분이 안 된다.
+    없으면 없다고 표시해야 한다.
+    """
+    target = now - ago_sec
+    best, best_d = None, None
+    for ts, v in series:
+        if v is None:
+            continue
+        d = abs(ts - target)
+        if best_d is None or d < best_d:
+            best, best_d = v, d
+    return best if (best_d is not None and best_d <= tol_sec) else None
+
+
+def _ago_str(cur, series, now, ago_sec, tol_sec):
+    """'{변동치}%{화살표}' — 과거 시점 대비. 자료가 없으면 '—'."""
+    prev = _value_at(series, now, ago_sec, tol_sec)
+    if prev is None or cur is None:
+        return "—"
+    d = cur - prev
+    arrow = "-" if abs(d) < EPS else ("↑" if d > 0 else "↓")
+    return f"{abs(d):.1f}%{arrow}"
 
 
 def _trend(cur, prev):
@@ -121,7 +161,7 @@ def get_bot_200min_history(b_obj):
     return history
 
 
-def build_message(data, prev_total, prev_bots, history, title_prefix="전체", sub_assets=None, sub_total=None, prev_sub_total=None, include_bot_charts=False):
+def build_message(data, prev_total, prev_bots, history, title_prefix="전체", sub_assets=None, sub_total=None, prev_sub_total=None, include_bot_charts=False, series=None):
     s = data["summary"]
     total = s.get("daily_ret")
     days = s.get("days")
@@ -136,9 +176,14 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
     
     bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
     
+    # 직전 틱(1분) 대비에 더해 60분 전·24시간 전 대비 변동치를 붙인다.
+    now_ts = time.time()
+    h1 = _ago_str(total, series or [], now_ts, *LOOKBACK[0])
+    h24 = _ago_str(total, series or [], now_ts, *LOOKBACK[1])
+
     lines = [ts,
              f"📊 {title_prefix} 일평균수익률 ({head_days})",
-             f"{asset_str}{delta_str}{tot_str}% {icon}{delta:.2f}%{arrow}",
+             f"{asset_str}{delta_str}{tot_str}% {icon}{delta:.2f}%{arrow} {h1} {h24}",
              "─" * 38]
     bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
     for b in bots:
@@ -241,17 +286,24 @@ def recalc_data(data, exclude_names):
 
 
 def _process_single(data, path, title_prefix, include_bot_charts=False):
-    prev_total, prev_bots, history, prev_sub_total = _load_state(path)
+    prev_total, prev_bots, history, prev_sub_total, series = _load_state(path)
     total = data["summary"].get("daily_ret")
     history.append(total)
     history = history[-HISTORY_MAX:]
-    
-    msg = build_message(data, prev_total, prev_bots, history, title_prefix, include_bot_charts=include_bot_charts)
+
+    # 60분/24시간 대비용 시계열. 발송 성공 여부와 무관하게 시각을 남긴다.
+    now_ts = time.time()
+    series = [x for x in series if isinstance(x, (list, tuple)) and len(x) == 2
+              and now_ts - x[0] <= SERIES_KEEP_SEC]
+    series.append([now_ts, total])
+
+    msg = build_message(data, prev_total, prev_bots, history, title_prefix,
+                        include_bot_charts=include_bot_charts, series=series)
     ok, info = _post(msg)
     if ok:
         new_prev_bots = {b["name"]: (b.get("daily_ret") if b.get("daily_ret") is not None else 0.0)
                          for b in data["bots"]}
-        _save_state(path, total, new_prev_bots, history)
+        _save_state(path, total, new_prev_bots, history, series=series)
     return ok, info
 
 
