@@ -217,7 +217,7 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
 
         raw_seq = (b.get("seq", "") or "")[:30]
         seq_grouped = " ".join([raw_seq[i:i+5] for i in range(0, len(raw_seq), 5)])
-        seq_str = f" {seq_grouped}" if seq_grouped else ""
+        seq_str = f" (최근) {seq_grouped} (과거)" if seq_grouped else ""
         sun20 = b.get("sun20", 0)
         yeok20 = b.get("yeok20", 0)
         

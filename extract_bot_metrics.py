@@ -68,7 +68,7 @@ try:
     last_20 = closed[-20:]
 
     seq = ""
-    for r in recent_30:
+    for r in reversed(recent_30):
         pnl = float(r.get('pnl_usdt') or 0.0)
         seq += "O" if pnl > 0 else "x"
 
