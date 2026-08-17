@@ -100,7 +100,7 @@ def _ago_str(cur, series, now, ago_sec, tol_sec):
         return "—"
     d = cur - prev
     arrow = "-" if abs(d) < EPS else ("↑" if d > 0 else "↓")
-    return f"{abs(d):.1f}%{arrow}"
+    return f"{abs(d):.2f}%{arrow}"
 
 
 def _trend(cur, prev):
