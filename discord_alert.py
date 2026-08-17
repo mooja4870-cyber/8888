@@ -45,8 +45,8 @@ EPS = 0.005             # 이 값 미만 변화는 '변화없음(⚪)'으로 간
 # history는 200분치뿐이고 눈금도 없어서 24시간 조회가 불가능하다.
 # 그래서 (시각, 값) 쌍을 따로 26시간 보관한다(1분 주기 → 약 1560개).
 # 틱이 밀리거나 앱이 잠깐 죽어도 시각으로 찾으므로 어긋나지 않는다.
-SERIES_KEEP_SEC = 26 * 3600
-LOOKBACK = ((3600, 600), (86400, 3600))   # (얼마 전, 허용 오차) — 60분/24시간
+SERIES_KEEP_SEC = 100 * 3600
+LOOKBACK = ((3600, 600), (86400, 3600), (172800, 3600), (259200, 3600))   # 1h, 24h, 48h, 72h
 
 
 def _load_webhook():
@@ -179,11 +179,12 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
     # 직전 틱(1분) 대비에 더해 60분 전·24시간 전 대비 변동치를 붙인다.
     now_ts = time.time()
     h1 = _ago_str(total, series or [], now_ts, *LOOKBACK[0])
-    h24 = _ago_str(total, series or [], now_ts, *LOOKBACK[1])
+    h48 = _ago_str(total, series or [], now_ts, *LOOKBACK[2])
+    h72 = _ago_str(total, series or [], now_ts, *LOOKBACK[3])
 
     lines = [ts,
              f"📊 {title_prefix} 일평균수익률 ({head_days})",
-             f"{asset_str}{delta_str}{tot_str}% {icon}{delta:.2f}%{arrow} {h1} {h24}",
+             f"{asset_str}{delta_str}{tot_str}% {icon}{delta:.2f}%{arrow} {h1} {h24} {h48} {h72}",
              "─" * 38]
     bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
     for b in bots:
