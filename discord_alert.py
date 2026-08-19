@@ -179,6 +179,7 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
     # 직전 틱(1분) 대비에 더해 60분 전·24시간 전 대비 변동치를 붙인다.
     now_ts = time.time()
     h1 = _ago_str(total, series or [], now_ts, *LOOKBACK[0])
+    h24 = _ago_str(total, series or [], now_ts, *LOOKBACK[1])
     h48 = _ago_str(total, series or [], now_ts, *LOOKBACK[2])
     h72 = _ago_str(total, series or [], now_ts, *LOOKBACK[3])
 
