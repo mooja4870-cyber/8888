@@ -179,6 +179,7 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
     # 직전 틱(1분) 대비에 더해 60분 전·24시간 전 대비 변동치를 붙인다.
     now_ts = time.time()
     h1 = _ago_str(total, series or [], now_ts, *LOOKBACK[0])
+    h24 = _ago_str(total, series or [], now_ts, *LOOKBACK[1])
     h48 = _ago_str(total, series or [], now_ts, *LOOKBACK[2])
     h72 = _ago_str(total, series or [], now_ts, *LOOKBACK[3])
 
@@ -218,7 +219,7 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
 
         raw_seq = (b.get("seq", "") or "")[:30]
         seq_grouped = " ".join([raw_seq[i:i+5] for i in range(0, len(raw_seq), 5)])
-        seq_str = f" {seq_grouped}" if seq_grouped else ""
+        seq_str = f"   {seq_grouped}" if seq_grouped else "   —"
         sun20 = b.get("sun20", 0)
         yeok20 = b.get("yeok20", 0)
         
@@ -228,8 +229,7 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
         asset_val_str = f"${b_asset:.2f}" if b_asset is not None else "$0.00"
         lines.append(f"{mode_prefix}{pos_str} {b_name_short}  {b_days:.1f}  {asset_val_str}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}")
         lines.append(f"  ({ent1:02d}/{ent4:02d}|{ent12:02d}/{ent24:02d} {sw:02d}W/{sl:02d}L : 순{sun20}+역{yeok20})")
-        if seq_str:
-            lines.append(f"  {seq_str}")
+        lines.append(seq_str)
         
         # 🤖 5분 정각 알림(include_bot_charts=True)일 때 개별 봇 200분(5분봉) 파동 차트 렌더링
         if include_bot_charts:

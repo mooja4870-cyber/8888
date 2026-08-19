@@ -1,5 +1,22 @@
 # Version History
 
+## v2.3.38
+
+Date: 2026-08-19
+
+### 변경 내용
+* 디스코드 알림 시 개별 봇의 최근 30건 승패 시퀀스(`   xOxxx OxxOO ...`) 항상 노출되도록 개선
+  - `extract_bot_metrics.py`: 초기화(perf_start) 직후 청산 이력이 적을 때도 전체 누적 청산 내역(및 .bak 이력)을 폴백 로드하여 최근 30건 승패 시퀀스를 100% 보장
+  - `discord_alert.py`: 3칸 들여쓰기(`   `) 및 5건 단위 그룹화 포맷으로 개별 봇 하단에 최근 30건 승패 문자열 상시 출력
+
+### 수정 파일
+* discord_alert.py
+* extract_bot_metrics.py
+* ver.md
+
+### 비고
+* 사용자 요청 반영 완료 (최근 30건 승패 흐름 시각화 복원)
+
 ## v2.3.37
 
 Date: 2026-08-18
