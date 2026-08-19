@@ -11,27 +11,9 @@ try:
     sys.path.insert(0, bot_folder)
     os.chdir(bot_folder)
 
-    from core.history_helper import load_local_trade_history, closed_trades_since, _row_to_trade, _dedupe_trades
-    import pandas as pd
+    from core.history_helper import load_local_trade_history, closed_trades_since
 
     trades = load_local_trade_history()
-    
-    # 만약 최근 trade_history.csv 가 리셋/정리되어 건수가 부족하면 .bak 파일 등 과거 이력도 함께 로드
-    if len(trades) < 40:
-        for extra in ['trade_history.csv.bak', 'trade_history_before_cleanup.csv']:
-            ep = os.path.join(bot_folder, 'data', extra)
-            if os.path.exists(ep) and os.path.getsize(ep) > 10:
-                try:
-                    df = pd.read_csv(ep, encoding='utf-8-sig')
-                    df.columns = [c.strip() for c in df.columns]
-                    for _, row in df.iterrows():
-                        t = _row_to_trade(row)
-                        if t:
-                            trades.append(t)
-                except Exception:
-                    pass
-        trades = _dedupe_trades(trades)
-
     dt = None
     if perf_start:
         ps_str = perf_start[:19].replace('T', ' ')
@@ -43,13 +25,12 @@ try:
             dt = datetime.datetime.strptime(ps_str, '%Y-%m-%d %H:%M:%S')
         except ValueError:
             pass
-
-    # 초기화 시점 이후 집계
     closed = closed_trades_since(trades, dt)
-    # 전체 누적 청산 내역 (최근 30건 승패 시퀀스용)
-    all_closed = closed_trades_since(trades, None)
 
     # closed_trades_since()가 돌려주는 청산시각 키는 'exit_time'(pandas Timestamp)이다.
+    # 종전엔 존재하지 않는 'close_dt'를 참조해 기본값 ''만 돌아왔고, 그 결과
+    #   ① 정렬이 전량 동일 키('')로 무효화되어 승패 시퀀스가 시간순이 아니었으며
+    #   ② 오늘 필터('' >= '2026-..')가 항상 False라 today_w/today_l이 늘 0이었다.
     def _exit_dt(r):
         et = r.get('exit_time')
         if et is None:
@@ -69,7 +50,6 @@ try:
             return datetime.datetime.min
 
     closed.sort(key=_exit_dt)                 # 과거 → 최신
-    all_closed.sort(key=_exit_dt)
 
     # today stats
     today_start = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -83,11 +63,9 @@ try:
     since_l = sum(1 for r in closed if float(r.get('pnl_usdt') or 0.0) < 0)
     since_orders = len(closed)
 
-    # sequence and 20 stats for discord alert — 최근 30건 승패 시퀀스 (최신이 왼쪽)
-    # closed가 30건 이상이면 closed 기준, 30건 미만이면 all_closed 기준으로 최근 30건 확보
-    seq_target = closed if len(closed) >= 30 else all_closed
-    recent_30 = seq_target[-30:]
-    last_20 = seq_target[-20:]
+    # sequence and 20 stats for discord alert — 정렬이 과거→최신이므로 꼬리가 최근분
+    recent_30 = closed[-30:]
+    last_20 = closed[-20:]
 
     seq = ""
     for r in reversed(recent_30):
