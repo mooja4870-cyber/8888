@@ -1,5 +1,29 @@
 # Version History
 
+## v2.3.42
+
+Date: 2026-08-21
+
+### 변경 내용
+* 8888 통합 관제 대시보드 및 디스코드 알림 대상을 6개 봇(8401, 8402, 8403, 8404, 8408, 8409)으로 확장 반영
+  - `app.py`: `BOTS` 목록에 `("8404", 8404, "OKX")` 추가 및 가드 루프 타깃 갱신
+  - `discord_alert.py`: `group_1_names`에 `8404` 추가 및 알림 타이틀(`통합그룹(8401,2,3,4,8,9) 전체`) 갱신
+  - `send_discord_hourly_graph.py`, `send_discord_stats.py`, `discord_bot_listener.py`, `watchdog.py`: 8404 봇 포함하여 6개 봇 체제로 일괄 동기화
+  - `seeds.json`: 8404 봇 시드(10.0 USDT) 및 성과 시작 시각 동기화
+
+### 수정 파일
+* app.py
+* discord_alert.py
+* send_discord_hourly_graph.py
+* send_discord_stats.py
+* discord_bot_listener.py
+* watchdog.py
+* seeds.json
+* ver.md
+
+### 비고
+* 사용자 요청 반영 완료 (8401, 8402, 8403, 8404, 8408, 8409 6개 봇 집계 및 디스코드 알림 적용)
+
 ## v2.3.41
 
 Date: 2026-08-21
