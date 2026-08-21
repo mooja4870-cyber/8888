@@ -1,0 +1,177 @@
+{
+  "__fingerprints__": {
+    "8401": {
+      "TIMEFRAME": "15m",
+      "USE_BLUEFROG": false,
+      "USE_AUTO_MODE_SWITCH": false,
+      "AUTO_TRADING": true,
+      "LEVERAGE": 5,
+      "MARGIN_USDT": 1.5,
+      "MAX_POSITIONS": 3,
+      "SCAN_TOP_N": 80,
+      "MIN_VOLUME_USDT": 500000.0,
+      "MAX_HOLDING_HOURS": 24.0,
+      "DBB_TP_RR": 2.0,
+      "DIV_TP_RR": 3.5,
+      "__blacklist__": 6,
+      "__strategy__": "48d99a6355"
+    },
+    "8402": {
+      "TIMEFRAME": "15m",
+      "USE_BLUEFROG": true,
+      "USE_AUTO_MODE_SWITCH": true,
+      "AUTO_TRADING": false,
+      "LEVERAGE": 5,
+      "MARGIN_USDT": 1.5,
+      "MAX_POSITIONS": 3,
+      "SCAN_TOP_N": 30,
+      "MIN_VOLUME_USDT": 5000000.0,
+      "MAX_HOLDING_HOURS": 3.0,
+      "DBB_TP_RR": 2.0,
+      "DIV_TP_RR": 1.5,
+      "__blacklist__": 7,
+      "__strategy__": "f8ffe4cf02"
+    },
+    "8403": {
+      "TIMEFRAME": "1d",
+      "USE_BLUEFROG": false,
+      "USE_AUTO_MODE_SWITCH": false,
+      "AUTO_TRADING": true,
+      "LEVERAGE": 2,
+      "MARGIN_USDT": 1.5,
+      "MAX_POSITIONS": 3,
+      "SCAN_TOP_N": 80,
+      "MIN_VOLUME_USDT": 500000.0,
+      "MAX_HOLDING_HOURS": 24.0,
+      "DBB_TP_RR": 2.0,
+      "DIV_TP_RR": 1.5,
+      "__blacklist__": 7,
+      "__strategy__": "171a998553"
+    },
+    "8404": {
+      "TIMEFRAME": "15m",
+      "USE_BLUEFROG": true,
+      "USE_AUTO_MODE_SWITCH": true,
+      "AUTO_TRADING": false,
+      "LEVERAGE": 5,
+      "MARGIN_USDT": 1.5,
+      "MAX_POSITIONS": 3,
+      "SCAN_TOP_N": 30,
+      "MIN_VOLUME_USDT": 5000000.0,
+      "MAX_HOLDING_HOURS": 6.0,
+      "DBB_TP_RR": 2.0,
+      "DIV_TP_RR": 1.5,
+      "__blacklist__": 8,
+      "__strategy__": "9a8b06c373"
+    },
+    "8405": {
+      "TIMEFRAME": "15m",
+      "USE_BLUEFROG": true,
+      "USE_AUTO_MODE_SWITCH": true,
+      "AUTO_TRADING": false,
+      "LEVERAGE": 11,
+      "MARGIN_USDT": 2.0,
+      "MAX_POSITIONS": 3,
+      "SCAN_TOP_N": 30,
+      "MIN_VOLUME_USDT": 1000000.0,
+      "MAX_HOLDING_HOURS": 6.0,
+      "DBB_TP_RR": 2.0,
+      "DIV_TP_RR": null,
+      "__blacklist__": 6,
+      "__strategy__": "22fe7c529a"
+    },
+    "8407": {
+      "TIMEFRAME": "15m",
+      "USE_BLUEFROG": true,
+      "USE_AUTO_MODE_SWITCH": true,
+      "AUTO_TRADING": true,
+      "LEVERAGE": 8,
+      "MARGIN_USDT": 2.0,
+      "MAX_POSITIONS": 3,
+      "SCAN_TOP_N": 30,
+      "MIN_VOLUME_USDT": 1000000.0,
+      "MAX_HOLDING_HOURS": 6.0,
+      "DBB_TP_RR": 2.0,
+      "DIV_TP_RR": null,
+      "__blacklist__": 7,
+      "__strategy__": "22fe7c529a"
+    },
+    "8408": {
+      "TIMEFRAME": "15m",
+      "USE_BLUEFROG": true,
+      "USE_AUTO_MODE_SWITCH": true,
+      "AUTO_TRADING": true,
+      "LEVERAGE": 5,
+      "MARGIN_USDT": 2.0,
+      "MAX_POSITIONS": 3,
+      "SCAN_TOP_N": 80,
+      "MIN_VOLUME_USDT": 1000000.0,
+      "MAX_HOLDING_HOURS": 6.0,
+      "DBB_TP_RR": 2.0,
+      "DIV_TP_RR": null,
+      "__blacklist__": 7,
+      "__strategy__": "e465df1fb8"
+    },
+    "8409": {
+      "TIMEFRAME": "15m",
+      "USE_BLUEFROG": false,
+      "USE_AUTO_MODE_SWITCH": false,
+      "AUTO_TRADING": true,
+      "LEVERAGE": 5,
+      "MARGIN_USDT": 2.0,
+      "MAX_POSITIONS": 3,
+      "SCAN_TOP_N": 80,
+      "MIN_VOLUME_USDT": 1000000.0,
+      "MAX_HOLDING_HOURS": 24.0,
+      "DBB_TP_RR": 2.0,
+      "DIV_TP_RR": null,
+      "__blacklist__": 7,
+      "__strategy__": "10c96900cf"
+    }
+  },
+  "8401": {},
+  "8402": {
+    "restrictions": [
+      {
+        "kind": "blacklist",
+        "key": "SYMBOL_BLACKLIST",
+        "symbol": "PI/USDT:USDT",
+        "ts": 1786276514.9159198
+      }
+    ],
+    "last_action_ts": 1786276514.915922,
+    "last_action": "PI/USDT:USDT 14건 승률 0% 누적 -0.2356 — 블랙리스트 추가",
+    "at": "2026-08-09 20:55:14"
+  },
+  "8403": {},
+  "8404": {
+    "restrictions": [
+      {
+        "kind": "blacklist",
+        "key": "SYMBOL_BLACKLIST",
+        "symbol": "OKB/USDT:USDT",
+        "ts": 1786388567.525515
+      }
+    ],
+    "last_action_ts": 1786388567.525532,
+    "last_action": "OKB/USDT:USDT 12건 승률 0% 누적 -0.2820 — 블랙리스트 추가",
+    "at": "2026-08-11 04:02:47"
+  },
+  "8405": {},
+  "8407": {
+    "restrictions": [
+      {
+        "kind": "leverage",
+        "key": "LEVERAGE",
+        "before": 11,
+        "after": 8,
+        "ts": 1786323452.645113
+      }
+    ],
+    "last_action_ts": 1786323452.6451159,
+    "last_action": "일평균 -2.59% < -2.0% — 레버리지 11→8 축소",
+    "at": "2026-08-10 09:57:32"
+  },
+  "8408": {},
+  "8409": {}
+}

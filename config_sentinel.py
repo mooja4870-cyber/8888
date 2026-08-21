@@ -42,7 +42,7 @@ COMMON = {
     "USE_BLUEFROG": False,          # 정방향 고정 — 검증(+20.8%/+2.7%)이 정방향 기준
     "USE_AUTO_MODE_SWITCH": False,  # 방향 자가변경 금지 — 30일 8회 반전 실측
     "USE_AUTO_COMPOUND": True,
-    "AUTO_COMPOUND_PCT": 15.0,
+    "AUTO_COMPOUND_PCT": 5.0,
     "RISK_PER_TRADE_PCT": 0.0,      # M4 위험균등 사이징 해제(0이 아니면 복리를 덮어씀)
     "USE_BE_GUARD": False,
     "USE_MARKET_GATE": True,
@@ -53,7 +53,7 @@ COMMON = {
     "USE_SCALEOUT": False,      # 분할익절 임계를 설정값의 절반으로 깎던 경로.
     "USE_EMERGENCY_TS": False,  # TP 85%에서 샹들리에 K를 3.0→0.8로 좁혀 승리를 잘랐다.
     "MAX_CONSEC_SL_PER_DAY": 3, # 반대로 이건 유지해야 한다 — 해제 시 봉인 +10.0%→+4.7% 악화.
-    "USE_HIGH_ROI_TP_GUARD": True,  # 340건 중 ROI 30% 도달 0건 — 발동하지 않는 장치. 고정만 해둔다.
+    "USE_HIGH_ROI_TP_GUARD": False,  # 340건 중 ROI 30% 도달 0건 — 발동하지 않는 장치. 고정만 해둔다.
     "USE_DYNAMIC_SLTP": False,  # 수익 1.8% 미만에서 '둔화 신호'로 트레일링을 좁혀 조기청산.
                                 # 검증: 봉인 +18.3→+26.5 · 개발 +12.5→+15.4 (승률도 40%→49%).
     "ROTATION_ENABLED": False,  # 정체 포지션 회전 — ROTATION_STALE_HOURS 경과 + '흐름 나쁨'이면
@@ -70,22 +70,32 @@ COMMON = {
 # 검증: 15분봉은 K=4.0이 최적(2전략 모두 개선), 1시간봉은 K가 커질수록 단조 악화
 #       (1h: K=2.0 봉인+14.3/개발+29.8 → K=4.0 +6.4/+13.0).
 PER_BOT = {
-    "8401": {"MARKET_GATE_EMA": 12, "LEVERAGE": 5, "MIN_VOLUME_USDT": 500000.0,
-             "TIMEFRAME": "1h", "MAX_HOLDING_HOURS": 24.0,
-             "CHANDELIER_K": 2.0},                            # 1h봉 12봉=12시간 · 24봉 보유
-    "8403": {"MARKET_GATE_EMA": 48, "LEVERAGE": 5, "MIN_VOLUME_USDT": 500000.0,
-             "TIMEFRAME": "15m", "MAX_HOLDING_HOURS": 6.0,
-             "CHANDELIER_K": 4.0},                            # 15m봉 48봉=12시간 · 24봉=6h
-    "8408": {"MARKET_GATE_EMA": 48, "LEVERAGE": 5, "TIMEFRAME": "15m",
-             "MAX_HOLDING_HOURS": 6.0, "CHANDELIER_K": 4.0},
-    # 8409는 1시간봉 대조군. 8408(15m)과 타임프레임만 다르게 두어
-    # "타임프레임 상향이 답인가"를 거래소·전략을 바꿔 재확인한다.
-    # 검증(이중볼린저): 15m 봉인 +19.4%/개발 +24.1% → 1h 봉인 +23.8%/개발 +45.0%
-    "8409": {"MARKET_GATE_EMA": 12, "LEVERAGE": 5, "TIMEFRAME": "1h",
-             "MAX_HOLDING_HOURS": 24.0, "USE_ADX_FILTER": True, "CHANDELIER_K": 2.0},
+    # 이동평균 20/100 일봉 전략. 백테스트와 1:1로 맞춘 값이며, 어긋나면 검증이
+    # 무의미해지므로 감시 대상이다. (194종목·최대 1096일 검증, 최종확인 월 +3.7%)
+    "8403": {"TIMEFRAME": "1d", "MA_FAST": 20, "MA_SLOW": 100, "MA_SL_ATR_MULT": 3.0,
+             # [2026-08-21] mooja 지시로 480h(20일) → 24h.
+             # ⚠️ 백테스트는 20일 보유로 검증한 값이다(월 +3.5%/최종확인 +3.7%).
+             # 24시간은 검증 범위 밖이므로 성과 해석 시 이 점을 함께 볼 것.
+             # 하드캡도 함께 24로 — 안 그러면 수익 중 포지션이 480h까지 간다.
+             "MAX_HOLDING_HOURS": 24.0, "MAX_HOLDING_HARD_HOURS": 24.0,
+             "TIMEOUT_SKIP_PROFITABLE": False,
+             "USE_TRAILING_STOP": False, "USE_MARKET_GATE": False,
+             "USE_TIME_STOP": False,
+             # 명목 = 증거금 × 레버리지. 검증한 노출은 **명목 10%**다.
+             # 봇은 증거금 $1 미만을 거부하는데(잔고 $27 기준 3.7% 이상 필요),
+             # 2%×5배는 증거금 $0.54로 미달이었고 2%×10배로 올리면 명목이 20%가 되어
+             # 검증 범위를 벗어난다. 증거금 비율을 올리고 레버리지를 낮춰야 한다.
+             #   5% × 2배 = 증거금 $1.36 · 명목 $2.72 = 잔고의 10.0%
+             "AUTO_COMPOUND_PCT": 5.0,
+             "LEVERAGE": 2, "MAX_POSITIONS": 3,
+             "MIN_VOLUME_USDT": 500000.0, "SCAN_TOP_N": 80},
 }
+
 # 거래소별 기대 ccxt 클래스 — 어긋나면 인증이 전부 깨진다
-VENUE = {"8401": "okx", "8403": "okx", "8408": "binance", "8409": "binance"}
+# [2026-08-18] 8401·8408·8409 정지(전략 폐기), 8403만 이동평균 20/100으로 교체.
+# 정지한 봇은 감시해봐야 의미가 없고, 되살릴 때 혼란만 준다.
+VENUE = {"8403": "okx"}
+# 원복용: {"8401": "okx", "8403": "okx", "8408": "binance", "8409": "binance"}
 
 
 def log(msg):

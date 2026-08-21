@@ -34,7 +34,9 @@ import time
 
 BASE = "/Users/l/project"
 HELPER = os.path.join(BASE, "8888", "lab", "_one_bot_report.py")
-VENUE = {"8401": "okx", "8403": "okx", "8408": "binance", "8409": "binance"}
+# [2026-08-21] 8402·8404 추가 (세력흔적 A/B 대조군).
+VENUE = {"8401": "okx", "8402": "okx", "8403": "okx", "8404": "okx",
+         "8408": "binance", "8409": "binance"}
 CACHE_TTL = 60.0          # 초. 거래소 호출 억제용
 _cache = {}
 _lock = threading.Lock()

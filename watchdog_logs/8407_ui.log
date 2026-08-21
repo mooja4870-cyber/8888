@@ -1,0 +1,13 @@
+
+===== [2026-08-02 22:40:07] watchdog 실행: 8407_ui =====
+
+  You can now view your Streamlit app in your browser.
+
+  URL: http://localhost:8407
+
+  For better performance, install the Watchdog module:
+
+  $ xcode-select --install
+  $ pip install watchdog
+            
+  Stopping...
