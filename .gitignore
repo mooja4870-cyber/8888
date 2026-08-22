@@ -13,3 +13,15 @@ okx_keys.json
 seeds.json
 __pycache__/
 discord_state_*.json
+
+# [2026-08-22] 로그·백업은 추적하지 않는다.
+# v2.8.0 커밋에 로그가 딸려 들어가 374,884줄이 들어갔다(watchdog_logs/8888.log만 273,205줄).
+# 파일 자체는 남기고 git 추적만 끊는다.
+*.log
+*.log.old_*
+watchdog_logs/
+*.bak
+*.bak_*
+*.drift_*
+*.emptied_*
+loop_progress.json

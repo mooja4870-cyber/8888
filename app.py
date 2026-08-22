@@ -1178,9 +1178,14 @@ def calc_bot_metrics(folder, bot_dict):
             curr_dr = records[-1][1]
 
         step = max(1, len(records) // 60)
-        history = [rec[1] for rec in records[::step]]
+        # [2026-08-22] 값만 보내면 차트 x축이 비어 "언제인지" 알 수 없었다.
+        # records[0]이 시각 문자열이므로 값과 짝으로 함께 보낸다.
+        _sampled = records[::step]
+        history = [rec[1] for rec in _sampled]
+        history_ts = [rec[0] for rec in _sampled]
         if not history or history[-1] != curr_dr:
             history.append(curr_dr)
+            history_ts.append(time.strftime("%Y-%m-%d %H:%M:%S"))
 
         return {
             "seed": seed,
@@ -1195,7 +1200,8 @@ def calc_bot_metrics(folder, bot_dict):
             "min_dr_ts": min_recs[0][0],
             "min_dr_bal": round(min_recs[0][2], 2),
             "curr_dr": curr_dr,
-            "history": history
+            "history": history,
+            "history_ts": history_ts        # 차트 x축용 (값과 1:1 대응)
         }
     except Exception as e:
         print(f"[METRICS ERR] {folder}: {e}")

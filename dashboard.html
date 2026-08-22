@@ -741,14 +741,23 @@ function renderModernCanvasChart(folder, m) {
     const H = rect.height;
 
     const rawVals = m.history;
+    // [2026-08-22] x축 시각 표시. 값과 **같은 방식으로** 샘플링해야 어긋나지 않는다.
+    const rawTs = m.history_ts || [];
     const maxPts = 60;
-    let sample = rawVals;
+    let sample = rawVals, sampleTs = rawTs;
     if (sample.length > maxPts) {
         const step = Math.ceil(sample.length / maxPts);
         sample = sample.filter((_, i) => i % step === 0).slice(-maxPts);
+        sampleTs = rawTs.filter((_, i) => i % step === 0).slice(-maxPts);
     }
     if (sample[sample.length - 1] !== m.curr_dr) {
         sample[sample.length - 1] = m.curr_dr;
+    }
+    // 'YYYY-MM-DD HH:MM:SS' → 'MM/DD HH:MM'. 자료가 없으면 빈 문자열(눈금 생략).
+    function tLabel(i, withDate) {
+        const t = sampleTs[i];
+        if (!t || typeof t !== 'string' || t.length < 16) return '';
+        return withDate ? t.slice(5, 16).replace('-', '/') : t.slice(11, 16);
     }
 
     const allVals = [...sample, m.max_dr, m.min_dr, m.curr_dr].filter(v => v !== undefined && !isNaN(v));
@@ -756,10 +765,11 @@ function renderModernCanvasChart(folder, m) {
     const lo = Math.min(...allVals);
     const rng = (hi - lo) || 1.0;
 
-    const padLeft = 50;
-    const padRight = 35;
+    // 글자를 133%로 키웠으므로 여백도 함께 넓힌다(안 그러면 '−0.72%'가 잘린다)
+    const padLeft = 64;
+    const padRight = 42;
     const padTop = 25;
-    const padBottom = 25;
+    const padBottom = 32;
 
     const plotW = W - padLeft - padRight;
     const plotH = H - padTop - padBottom;
@@ -776,7 +786,8 @@ function renderModernCanvasChart(folder, m) {
     ctx.clearRect(0, 0, W, H);
     ctx.lineWidth = 1;
     ctx.strokeStyle = '#1e2430';
-    ctx.font = '11px sans-serif';
+    // [2026-08-22] 축 글자 133% 확대 (mooja 요청). y축 11 → 14.6px
+    ctx.font = '14.6px sans-serif';
     ctx.fillStyle = '#6b7280';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
@@ -849,6 +860,30 @@ function renderModernCanvasChart(folder, m) {
     ctx.strokeStyle = lineGrad;
     ctx.lineWidth = 2.5;
     ctx.stroke();
+
+    // ── x축 시각 눈금 (5개, 처음·끝은 날짜까지) ──
+    if (sampleTs.length) {
+        ctx.save();
+        ctx.font = '13.3px sans-serif';   // 133% 확대 (10 → 13.3)
+        ctx.fillStyle = '#6b7280';
+        ctx.textBaseline = 'top';
+        const ticks = 4;
+        for (let g = 0; g <= ticks; g++) {
+            const i = Math.round((g / ticks) * (sample.length - 1));
+            const lab = tLabel(i, g === 0 || g === ticks);
+            if (!lab) continue;
+            const x = getX(i);
+            ctx.strokeStyle = '#1e2430';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x, H - padBottom);
+            ctx.lineTo(x, H - padBottom + 4);
+            ctx.stroke();
+            ctx.textAlign = g === 0 ? 'left' : (g === ticks ? 'right' : 'center');
+            ctx.fillText(lab, x, H - padBottom + 7);
+        }
+        ctx.restore();
+    }
 
     let maxIndex = -1, minIndex = -1;
     let maxDist = Infinity, minDist = Infinity;
@@ -928,7 +963,9 @@ function renderModernCanvasChart(folder, m) {
         tooltip.style.display = 'block';
         tooltip.style.left = Math.min(W - 130, Math.max(10, pX - 50)) + 'px';
         tooltip.style.top = Math.max(5, pY - 45) + 'px';
-        tooltip.innerHTML = `<div>일평균수익률: <b>${pVal > 0 ? '+' : ''}${pVal.toFixed(2)}%</b></div>`;
+        const _tl = tLabel(idx, true);
+        tooltip.innerHTML = `<div>일평균수익률: <b>${pVal > 0 ? '+' : ''}${pVal.toFixed(2)}%</b></div>`
+                          + (_tl ? `<div style="color:#8b93a5;font-size:11px;margin-top:2px">${_tl}</div>` : '');
     };
 
     canvas.onmouseleave = function() {
