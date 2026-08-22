@@ -36,12 +36,21 @@ LOOP_MD = os.path.join(HERE, "LOOP.md")
 PROGRESS = os.path.join(HERE, "loop_progress.json")   # ④ 진전 없음 판정용 이력
 
 # 실험 정의 — (번호, 기준봇, 대조봇, 묻는 것, 시작시각)
+# [2026-08-23] 실험1(익절 유무)은 22쌍·0.0σ에서 종료했다. 하락장 검증 결과
+# "롱 전용은 세 국면 중 둘에서 잃는다"가 나와, 8402를 **숏 허용 시험대**로 돌렸다.
+# 8402는 이제 8401과 ALLOW_SHORT 하나만 다르다.
 EXPERIMENTS = [
-    (1, "8401", "8402", "익절 유무",   "2026-08-21 23:33:00"),
     (2, "8401", "8404", "추종 유무",   "2026-08-21 23:33:00"),
     (3, "8409", "8408", "손절 여유",   "2026-08-21 23:52:00"),
     (4, "8401", "8409", "거래소 차이", "2026-08-21 23:33:00"),
+    (5, "8401", "8402", "숏 허용",     "2026-08-23 01:38:00"),
 ]
+
+# 실험5는 짝 비교로 못 잰다. 두 봇이 겹치는 건 **롱뿐이고 그 롱은 서로 같기** 때문에
+# 짝 차이가 0으로 나온다. 숏의 효과는 (a) 숏 거래 자체의 건당 손익과
+# (b) 숏이 포지션 자리를 차지해 롱을 밀어낸 기회비용으로 나타난다.
+# (a)는 아래 short_stat()이 직접 잰다. 종료조건도 여기에 건다.
+SHORT_BOT, SHORT_START = "8402", "2026-08-23 01:38:00"
 MAX_PAIRS, MAX_DAYS, STALL_DAYS, STALL_MIN = 200, 14, 3, 10
 PAIR_WINDOW_H = 6
 VENUE = {"8401": "okx", "8402": "okx", "8403": "okx", "8404": "okx",
@@ -49,18 +58,21 @@ VENUE = {"8401": "okx", "8402": "okx", "8403": "okx", "8404": "okx",
 
 
 def ledger(bot, since_str):
-    """거래소 원장에서 (종목, 실현손익, 청산시각ms). 실패 시 빈 목록."""
+    """거래소 원장에서 (종목, 실현손익, 청산시각ms, 방향). 실패 시 빈 목록.
+
+    방향은 OKX만 채워진다(long/short). 바이낸스 income에는 방향이 없어 빈 문자열."""
     venue = VENUE.get(bot, "okx")
     if venue == "okx":
         call = ('r = await ex.privateGetAccountPositionsHistory({"instType":"SWAP","limit":"100"})\n'
-                '    rows = [[x.get("instId",""), float(x.get("realizedPnl") or 0), int(x.get("uTime") or 0)]\n'
+                '    rows = [[x.get("instId",""), float(x.get("realizedPnl") or 0), int(x.get("uTime") or 0),\n'
+                '             x.get("direction") or x.get("posSide") or ""]\n'
                 '            for x in (r.get("data") or [])]')
         cls = "OKXClient"
         args = ('os.getenv("OKX_API_KEY",""), os.getenv("OKX_SECRET_KEY",""), '
                 'os.getenv("OKX_PASSPHRASE","")')
     else:
         call = ('inc = await ex.fapiPrivateGetIncome({"startTime": since, "limit": 1000})\n'
-                '    rows = [[x.get("symbol",""), float(x.get("income") or 0), int(x.get("time") or 0)]\n'
+                '    rows = [[x.get("symbol",""), float(x.get("income") or 0), int(x.get("time") or 0), ""]\n'
                 '            for x in inc if x.get("incomeType") == "REALIZED_PNL"]')
         cls = "BinanceClient"
         args = 'os.getenv("BINANCE_API_KEY",""), os.getenv("BINANCE_SECRET_KEY","")'
@@ -104,9 +116,9 @@ def norm(sym):
 
 def pair(la, lb):
     used, out = set(), []
-    for sa, pa, ta in la:
+    for sa, pa, ta, _da in la:
         best, bi = None, None
-        for i, (sb, pb, tb) in enumerate(lb):
+        for i, (sb, pb, tb, _db) in enumerate(lb):
             if i in used or norm(sb) != norm(sa):
                 continue
             dt = abs(tb - ta) / 3600000.0
@@ -144,6 +156,16 @@ def judge(s, npairs, elapsed, prev_pairs):
     if elapsed >= STALL_DAYS and prev_pairs is not None and npairs < STALL_MIN:
         return True, f"④ {STALL_DAYS}일간 {npairs}쌍뿐 → 표본 부족으로 중단", "중단"
     return False, "", "진행"
+
+
+def short_stat(led):
+    """숏 거래만 골라 건당 손익. 짝 비교가 안 되는 실험5의 실제 측정치다.
+
+    비교 기준은 0이 아니라 **같은 봇의 롱 건당 손익**이다. 숏을 켠 대가는
+    "숏이 롱보다 나쁘면 자리만 빼앗은 것"이므로 둘을 나란히 본다."""
+    sh = [p for _, p, _, d in led if d == "short"]
+    lo = [p for _, p, _, d in led if d == "long"]
+    return stat(sh), stat(lo), len(sh), len(lo)
 
 
 def replace_block(text, tag, body):
@@ -204,6 +226,31 @@ def main():
         acc.append(f"| {b} | {f'${bal:.2f}' if bal else '—'} | {len(led)}건 | {pnl:+.4f} |")
     acc.append(f"| **합계** | **${tot:.2f}** | | |")
 
+    # ── 실험5 전용: 숏 성적 (짝 비교로는 안 잡히는 부분) ──
+    sled = cache.get(SHORT_BOT) or ledger(SHORT_BOT, SHORT_START)
+    sled = [r for r in sled if r[2] >= int(time.mktime(
+        time.strptime(SHORT_START, "%Y-%m-%d %H:%M:%S")) * 1000)]
+    ss, ls, nsh, nlo = short_stat(sled)
+    short_lines = ["| 방향 | 건수 | 건당손익 | σ |", "|:--|--:|--:|--:|"]
+    for nm, st, n in (("숏", ss, nsh), ("롱", ls, nlo)):
+        if st:
+            short_lines.append(f"| {nm} | {n} | {st['mean']:+.4f} | {st['sigma']:+.1f}σ |")
+        else:
+            short_lines.append(f"| {nm} | {n} | — | — |")
+    if ss and ls:
+        gap = ss["mean"] - ls["mean"]
+        short_lines.append(f"| **숏−롱** | | **{gap:+.4f}** | |")
+        # 숏이 롱보다 뚜렷이 나쁘면(2σ) 숏을 되돌린다
+        se2 = (ss["se"] ** 2 + ls["se"] ** 2) ** 0.5
+        if se2 > 0 and gap / se2 <= -2:
+            alerts.append(f"실험5 {SHORT_BOT} 숏 허용 — 숏이 롱보다 {abs(gap):.4f} 나쁨(2σ) → 되돌림 검토")
+        elif se2 > 0 and gap / se2 >= 2:
+            alerts.append(f"실험5 {SHORT_BOT} 숏 허용 — 숏이 롱보다 {gap:+.4f} 우세(2σ) → 타 봇 확대 검토")
+    if nsh + nlo >= MAX_PAIRS:
+        alerts.append(f"실험5 {SHORT_BOT} — {nsh+nlo}건 도달, 판정 필요")
+    if days_since(SHORT_START) >= MAX_DAYS:
+        alerts.append(f"실험5 {SHORT_BOT} — {MAX_DAYS}일 경과, 판정 필요")
+
     nxt = ([f"- 🔔 **{a}**" for a in alerts] if alerts
            else ["- 진행 중. 종료조건에 걸린 실험 없음.",
                  f"- 다음 점검: 자동(09:00·21:00)"])
@@ -214,6 +261,7 @@ def main():
                    f"**최종 갱신**: {time.strftime('%Y-%m-%d %H:%M')} (loop_report 자동)", t, count=1)
         t = replace_block(t, "EXPERIMENTS", "\n".join(exp))
         t = replace_block(t, "ACCOUNTS", "\n".join(acc))
+        t = replace_block(t, "SHORT", "\n".join(short_lines))
         t = replace_block(t, "NEXT", "\n".join(nxt))
         open(LOOP_MD, "w", encoding="utf-8").write(t)
         print(f"  LOOP.md 갱신 완료")
@@ -223,6 +271,8 @@ def main():
     print("\n".join(exp))
     print()
     print("\n".join(acc))
+    print()
+    print("\n".join(short_lines))
 
     # ── 종료조건 걸린 실험만 디스코드로 ──
     if alerts:
