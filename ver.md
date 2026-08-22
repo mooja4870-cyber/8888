@@ -1,5 +1,25 @@
 # Version History
 
+## v2.3.44
+
+Date: 2026-08-23
+
+### 변경 내용
+* 8402 봇 세력흔적 전략(Sniper15)에 숏(Short) 포지션 진입 기능 대칭 구현 및 실매매 엔진(v9.10.0) 재기동 반영
+  - 15분봉 신호수식 5조건(S1~S5) 및 세력라인·마지노선 동시 하향 이탈 시 숏 진입 지원
+  - 숏 손절가(마지노선) 및 1차 익절가(-5%) 산출 로직 적용
+  - 8402 `config.json`의 `ALLOW_SHORT: True` 설정으로 양방향 자율 매매 활성화
+
+### 수정 파일
+* /Users/l/project/8402/config.json
+* /Users/l/project/8402/core/config.py
+* /Users/l/project/8402/core/strategy.py
+* /Users/l/project/8402/ver.md
+* ver.md
+
+### 비고
+* 8402 봇 롱/숏 대칭 신호 시뮬레이션 및 실매매 엔진(bot.py + app.py) 재기동 3중 검증 완료
+
 ## v2.3.43
 
 Date: 2026-08-22
