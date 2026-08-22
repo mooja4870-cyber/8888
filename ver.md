@@ -1,5 +1,28 @@
 # Version History
 
+## v2.3.43
+
+Date: 2026-08-22
+
+### 변경 내용
+* 8888 통합 관제 대시보드 집계 대상 및 디스코드 알림에서 8404 봇 제외 (5개 봇 체제로 변경: 8401, 8402, 8403, 8408, 8409)
+  - `app.py`: `BOTS` 및 가드 루프 목록에서 8404 제거
+  - `discord_alert.py`: `group_1_names`에서 8404 제외 및 알림 타이틀(`통합그룹(8401,2,3,8,9) 전체`) 갱신
+  - `send_discord_hourly_graph.py`, `send_discord_stats.py`, `discord_bot_listener.py`, `watchdog.py`, `bot_monitor.py`: 8404 제외 및 5개 봇 체제 동기화
+
+### 수정 파일
+* app.py
+* discord_alert.py
+* send_discord_hourly_graph.py
+* send_discord_stats.py
+* discord_bot_listener.py
+* watchdog.py
+* bot_monitor.py
+* ver.md
+
+### 비고
+* 8888 앱 및 디스코드 알림에서 8404 제외 완료 및 실시간 3중 검증 완료
+
 ## v2.3.42
 
 Date: 2026-08-21
