@@ -178,6 +178,29 @@ def launch(target):
                      stdin=subprocess.DEVNULL, start_new_session=True, close_fds=True)
 
 
+# [2026-08-23] DOWN을 **연속 2회** 봐야 재기동한다.
+#
+# 왜: `run.sh`는 구 프로세스를 죽이고 새로 띄우는데, 그 사이 몇 초의 공백이 있다.
+# 워치독이 그 틈에 끼어들어 봇을 먼저 띄우면 run.sh가 띄운 쪽이 락에 막혀 죽고,
+# **run.sh가 이미 로그를 .bak으로 밀어낸 뒤**라 살아남은 프로세스는 이름이 바뀐
+# 파일에 계속 쓴다. 그러면 bot_engine.log는 몇 줄짜리 껍데기로 남아
+# **봇이 죽은 것처럼 보인다** — 오늘 8408·8409를 그렇게 오진했다.
+# 5분 주기이므로 한 번 넘기면 최대 5분 늦어지지만, 잘못 띄우는 것보다 낫다.
+_down_streak = {}
+DOWN_CONFIRM = 2
+
+
+def _confirm_down(name):
+    """DOWN을 연속으로 몇 번 봤는지 세고, 재기동해도 되는지 답한다."""
+    n = _down_streak.get(name, 0) + 1
+    _down_streak[name] = n
+    if n < DOWN_CONFIRM:
+        log(f"⏳ [{name}] DOWN {n}/{DOWN_CONFIRM}회 — 재기동 보류 "
+            f"(수동 재기동 중일 수 있어 다음 주기에 다시 확인)")
+        return False
+    return True
+
+
 def check_and_manage(target):
     name = target["name"]
     port = target["port"]
@@ -198,6 +221,7 @@ def check_and_manage(target):
     if len(pids) == 1:
         if port is not None:
             if port_alive(port):
+                _down_streak.pop(name, None)
                 return False  # 정상 유지
             else:
                 log(f"⚠️ [{name}] PID({pids[0]}) 존재하나 포트({port}) DOWN -> 프로세스 종료 후 재기동")
@@ -206,6 +230,7 @@ def check_and_manage(target):
                 launch(target)
                 return True
         else:
+            _down_streak.pop(name, None)
             return False  # 엔진(bot.py) 1개 정상 유지
 
     # 3. 0개 PID
@@ -213,7 +238,10 @@ def check_and_manage(target):
         log(f"⚠️ [{name}] PID는 없으나 포트({port})가 사용 중 -> 해당 포트 점유 프로세스 종료 후 정상 단일 기동")
         kill_port(port)
     else:
-        log(f"❌ [{name}] DOWN 감지 -> 즉시 단일 기동")
+        if not _confirm_down(name):
+            return False
+        log(f"❌ [{name}] DOWN {DOWN_CONFIRM}회 확인 -> 단일 기동")
+    _down_streak.pop(name, None)
     launch(target)
     return True
 
