@@ -65,15 +65,39 @@ def ledger(bot, since_str):
     방향은 OKX만 채워진다(long/short). 바이낸스 income에는 방향이 없어 빈 문자열."""
     venue = VENUE.get(bot, "okx")
     if venue == "okx":
-        call = ('r = await ex.privateGetAccountPositionsHistory({"instType":"SWAP","limit":"100"})\n'
+        # [2026-08-24] 한 페이지 100건 한도 제거. 8401 실측으로 42건이 잘려 있었다.
+        call = ('seen, after = {}, None\n'
+                '    for _ in range(60):\n'
+                '        pr = {"instType":"SWAP","limit":"100"}\n'
+                '        if after: pr["after"] = str(after)\n'
+                '        rr = await ex.privateGetAccountPositionsHistory(pr)\n'
+                '        dd = rr.get("data") or []\n'
+                '        if not dd: break\n'
+                '        for x in dd:\n'
+                '            seen[(x.get("posId"), x.get("uTime"), x.get("instId"))] = x\n'
+                '        oldest = min(int(x.get("uTime") or 0) for x in dd)\n'
+                '        if len(dd) < 100 or oldest < since: break\n'
+                '        after = oldest\n'
                 '    rows = [[x.get("instId",""), float(x.get("realizedPnl") or 0), int(x.get("uTime") or 0),\n'
                 '             x.get("direction") or x.get("posSide") or ""]\n'
-                '            for x in (r.get("data") or [])]')
+                '            for x in seen.values()]')
         cls = "OKXClient"
         args = ('os.getenv("OKX_API_KEY",""), os.getenv("OKX_SECRET_KEY",""), '
                 'os.getenv("OKX_PASSPHRASE","")')
     else:
-        call = ('inc = await ex.fapiPrivateGetIncome({"startTime": since, "limit": 1000})\n'
+        call = ('inc, seen, st = [], set(), int(since)\n'
+                '    for _ in range(60):\n'
+                '        pg = await ex.fapiPrivateGetIncome({"startTime": st, "limit": 1000})\n'
+                '        if not pg: break\n'
+                '        fresh = 0\n'
+                '        for x in pg:\n'
+                '            k = (x.get("tranId"), x.get("symbol"), x.get("incomeType"), x.get("time"))\n'
+                '            if k in seen: continue\n'
+                '            seen.add(k); inc.append(x); fresh += 1\n'
+                '        if len(pg) < 1000: break\n'
+                '        nw = max(int(x.get("time") or 0) for x in pg)\n'
+                '        if nw <= st or fresh == 0: break\n'
+                '        st = nw\n'
                 '    rows = [[x.get("symbol",""), float(x.get("income") or 0), int(x.get("time") or 0), ""]\n'
                 '            for x in inc if x.get("incomeType") == "REALIZED_PNL"]')
         cls = "BinanceClient"

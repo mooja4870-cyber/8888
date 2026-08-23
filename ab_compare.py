@@ -52,7 +52,20 @@ async def m():
     cl = C(os.getenv("OKX_API_KEY",""), os.getenv("OKX_SECRET_KEY",""), os.getenv("OKX_PASSPHRASE",""))
     await cl.load_markets(); ex = cl.exchange
     since = int(time.mktime(time.strptime(SINCE, "%Y-%m-%d %H:%M:%S")) * 1000)
-    r = await ex.privateGetAccountPositionsHistory({"instType":"SWAP","limit":"100"})
+    # [2026-08-24] 100건 한도 제거 — 회전이 빠른 봇은 오래된 쪽이 통째로 잘린다
+    _seen, _after = {}, None
+    for _ in range(60):
+        _pr = {"instType":"SWAP","limit":"100"}
+        if _after: _pr["after"] = str(_after)
+        _rr = await ex.privateGetAccountPositionsHistory(_pr)
+        _dd = _rr.get("data") or []
+        if not _dd: break
+        for _x in _dd:
+            _seen[(_x.get("posId"), _x.get("uTime"), _x.get("instId"))] = _x
+        _old = min(int(_x.get("uTime") or 0) for _x in _dd)
+        if len(_dd) < 100 or _old < since: break
+        _after = _old
+    r = {"data": list(_seen.values())}
     out = []
     for x in (r.get("data") or []):
         t = int(x.get("uTime") or 0)

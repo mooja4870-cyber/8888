@@ -16,6 +16,66 @@ from core.api_keys import load_api_keys
 load_api_keys(override=True)
 
 
+
+# ══════════════════════════════════════════════════════════════════════════
+# [2026-08-24] 100건 한도 제거
+#
+# OKX 청산이력은 한 번에 **최대 100건**이다. 종전에는 한 페이지만 읽어서,
+# 청산이 100건을 넘으면 오래된 쪽이 통째로 잘렸다. 실측(8401, 08-20 13:13~):
+#   한 페이지  100건 → 37승 63패   ← 37+63=100, 잘렸다는 표시다
+#   전량 수집  142건 → 57승 85패
+# 42건이 사라져 있었다. 회전이 빠른 OKX 봇(8401·8402·8404)이 특히 위험하다.
+#
+# 바이낸스 income도 한 번에 1000건이 최대라 같은 방식으로 넘긴다.
+# ══════════════════════════════════════════════════════════════════════════
+MAX_PAGES = 60          # 안전장치. OKX 6000건 / 바이낸스 60000건이면 충분하다
+
+
+async def okx_positions_since(ex, since):
+    """`since`(ms) 이후의 청산 포지션 전량. 시각 커서로 과거로 넘어간다."""
+    seen, after = {}, None
+    for _ in range(MAX_PAGES):
+        params = {"instType": "SWAP", "limit": "100"}
+        if after:
+            params["after"] = str(after)
+        r = await ex.privateGetAccountPositionsHistory(params)
+        rows = r.get("data") or []
+        if not rows:
+            break
+        for x in rows:
+            # posId 하나에 부분청산이 여러 건 달릴 수 있어 시각·종목까지 키에 넣는다
+            seen[(x.get("posId"), x.get("uTime"), x.get("instId"))] = x
+        oldest = min(int(x.get("uTime") or 0) for x in rows)
+        if len(rows) < 100 or oldest < since:
+            break
+        after = oldest
+    return [x for x in seen.values() if int(x.get("uTime") or 0) >= since]
+
+
+async def bnc_income_since(ex, since):
+    """`since`(ms) 이후의 income 전량. 시각을 앞으로 밀며 넘어간다."""
+    out, seen, start = [], set(), int(since)
+    for _ in range(MAX_PAGES):
+        rows = await ex.fapiPrivateGetIncome({"startTime": start, "limit": 1000})
+        if not rows:
+            break
+        fresh = 0
+        for x in rows:
+            k = (x.get("tranId"), x.get("symbol"), x.get("incomeType"), x.get("time"))
+            if k in seen:
+                continue
+            seen.add(k)
+            out.append(x)
+            fresh += 1
+        if len(rows) < 1000:
+            break
+        newest = max(int(x.get("time") or 0) for x in rows)
+        if newest <= start or fresh == 0:
+            break
+        start = newest        # 경계 건은 위 중복 제거가 거른다
+    return out
+
+
 async def main():
     if venue == "okx":
         from core.exchange import OKXClient as C
@@ -34,10 +94,7 @@ async def main():
     wins = losses = 0
     real = fee = fund = 0.0
     if venue == "okx":
-        r = await ex.privateGetAccountPositionsHistory({"instType": "SWAP", "limit": "100"})
-        for x in (r.get("data") or []):
-            if int(x.get("uTime") or 0) < since:
-                continue
+        for x in await okx_positions_since(ex, since):
             p = float(x.get("realizedPnl") or 0)      # OKX realizedPnl은 수수료·펀딩 포함
             real += p
             fee += abs(float(x.get("fee") or 0))
@@ -45,9 +102,8 @@ async def main():
             wins += p > 0
             losses += p <= 0
     else:
-        inc = await ex.fapiPrivateGetIncome({"startTime": since, "limit": 1000})
         agg = collections.Counter()
-        for x in inc:
+        for x in await bnc_income_since(ex, since):
             v = float(x.get("income") or 0)
             agg[x.get("incomeType")] += v
             if x.get("incomeType") == "REALIZED_PNL":
