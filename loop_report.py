@@ -232,7 +232,19 @@ def main():
         exp.append(f"| {no} | {ref}↔{cmp_} | {q} | {n}/{MAX_PAIRS} | {diff} | {sig} "
                    f"| D+{el:.0f}/{MAX_DAYS} | {tag} |")
 
-    acc = ["| 봇 | 잔고 | 청산 | 실현손익 |", "|:--|--:|--:|--:|"]
+    # [2026-08-24] 봇 정지 감시 신설.
+    #
+    # 왜: 8402가 잔고 0으로 25시간 멈춰 있었는데 아무도 몰랐다. 프로세스는 살아서
+    # 하트비트를 찍고 있었기 때문에 생존 워치독도, 내 눈으로 본 표도 통과했다.
+    # 표에는 잔고가 계속 `—`로 찍히고 있었는데 그걸 그냥 넘겼다.
+    # **사람이 표를 읽고 알아채기를 기대하면 안 된다. 기계가 소리를 내야 한다.**
+    # 정지 판정 기준은 **전략마다 달라야 한다.** 15분봉 봇은 하루 수십 건이라 6시간만
+    # 조용해도 이상하지만, 일봉 봇(8403·8408 MA20/100)은 하루 2건이라 사흘 조용해도 정상이다.
+    # 한 기준으로 묶으면 일봉 봇이 매번 울려 경보 자체가 무시된다 — 그게 이번 사고의 원인이다.
+    STALE_BY_BOT = {"8403": 96.0, "8408": 96.0}
+    STALE_DEFAULT = 6.0
+    MIN_BALANCE = 1.0          # 이보다 적으면 사실상 매매 불가
+    acc = ["| 봇 | 잔고 | 청산 | 실현손익 | 마지막 청산 |", "|:--|--:|--:|--:|:--|"]
     tot = 0.0
     for b in VENUE:
         led = cache.get(b)
@@ -249,8 +261,30 @@ def main():
             pass
         if bal:
             tot += bal
-        acc.append(f"| {b} | {f'${bal:.2f}' if bal else '—'} | {len(led)}건 | {pnl:+.4f} |")
-    acc.append(f"| **합계** | **${tot:.2f}** | | |")
+
+        last_ms = max((x[2] for x in led), default=0)
+        if last_ms:
+            age_h = (time.time() - last_ms / 1000.0) / 3600.0
+            last_s = time.strftime("%m-%d %H:%M", time.localtime(last_ms / 1000.0))
+        else:
+            age_h, last_s = 1e9, "없음"
+
+        flag = ""
+        if bal is None:
+            alerts.append(f"🔴 {b} — 잔고 조회 실패. 인증이나 계좌 상태 확인 필요")
+            flag = " ⚠"
+        elif bal < MIN_BALANCE:
+            alerts.append(f"🔴 {b} — 잔고 ${bal:.2f}. 사실상 정지 상태")
+            flag = " ⚠"
+        stale_lim = STALE_BY_BOT.get(b, STALE_DEFAULT)
+        if age_h > stale_lim:
+            alerts.append(f"🔴 {b} — 마지막 청산이 {age_h:.0f}시간 전({last_s}), "
+                          f"기준 {stale_lim:.0f}시간. 매매가 멈췄을 수 있음")
+            flag = " ⚠"
+
+        acc.append(f"| {b} | {f'${bal:.2f}' if bal is not None else '—'}{flag} "
+                   f"| {len(led)}건 | {pnl:+.4f} | {last_s} |")
+    acc.append(f"| **합계** | **${tot:.2f}** | | | |")
 
     # ── 실험5 전용: 숏 성적 (짝 비교로는 안 잡히는 부분) ──
     sled = cache.get(SHORT_BOT) or ledger(SHORT_BOT, SHORT_START)
@@ -302,7 +336,7 @@ def main():
 
     # ── 종료조건 걸린 실험만 디스코드로 ──
     if alerts:
-        msg = ["🔔 **[실험 종료조건 도달 — 판단 필요]**", ""] + [f"• {a}" for a in alerts]
+        msg = ["🔔 **[점검 필요]**", ""] + [f"• {a}" for a in alerts]
         msg += ["", "```", *exp[2:], "```", "자세한 내용은 8888/LOOP.md"]
         try:
             from profit_guard import post_discord
