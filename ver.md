@@ -1,5 +1,28 @@
 # Version History
 
+## v2.9.5
+
+Date: 2026-08-24
+
+### 변경 내용
+* **8404 봇 재기동 및 8888 앱 집계·디스코드 알림 대상 6개 봇으로 확장** (`8401, 8402, 8403, 8404, 8408, 8409`)
+  - 8404 봇 엔진(`bot.py`) 및 대시보드 UI(`app.py`) 백그라운드 정상 실행
+  - `app.py`: `BOTS` 및 `target_bots` 목록에 `("8404", 8404, "OKX")` 추가 반영
+  - `discord_alert.py`: `group_1_names`에 `8404` 추가 및 알림 타이틀 `통합그룹(8401,2,3,4,8,9) 전체`로 갱신
+  - `profit_guard.py`, `send_discord_stats.py`, `send_discord_hourly_graph.py`, `watchdog.py`: `8404` 봇 대상 동기화
+
+### 수정 파일
+* app.py
+* discord_alert.py
+* profit_guard.py
+* send_discord_stats.py
+* send_discord_hourly_graph.py
+* watchdog.py
+* ver.md
+
+### 비고
+* 8404 봇 정상 구동(OKX API 연동) 및 6개 봇 디스코드 알림 발송 검증 완료
+
 ## v2.9.4
 
 Date: 2026-08-24
