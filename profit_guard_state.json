@@ -49,20 +49,20 @@
       "__strategy__": "171a998553"
     },
     "8404": {
-      "TIMEFRAME": "15m",
-      "USE_BLUEFROG": true,
-      "USE_AUTO_MODE_SWITCH": true,
-      "AUTO_TRADING": false,
-      "LEVERAGE": 5,
+      "TIMEFRAME": "1d",
+      "USE_BLUEFROG": false,
+      "USE_AUTO_MODE_SWITCH": false,
+      "AUTO_TRADING": true,
+      "LEVERAGE": 2,
       "MARGIN_USDT": 1.5,
       "MAX_POSITIONS": 3,
-      "SCAN_TOP_N": 30,
-      "MIN_VOLUME_USDT": 5000000.0,
-      "MAX_HOLDING_HOURS": 6.0,
+      "SCAN_TOP_N": 80,
+      "MIN_VOLUME_USDT": 500000.0,
+      "MAX_HOLDING_HOURS": 48.0,
       "DBB_TP_RR": 2.0,
       "DIV_TP_RR": 1.5,
       "__blacklist__": 8,
-      "__strategy__": "9a8b06c373"
+      "__strategy__": "8f1cc77d99"
     },
     "8405": {
       "TIMEFRAME": "15m",
