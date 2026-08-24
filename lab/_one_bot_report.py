@@ -94,6 +94,9 @@ async def main():
     wins = losses = 0
     real = fee = fund = 0.0
     if venue == "okx":
+        # posId로 묶지 않는다. OKX는 같은 종목의 **별개 거래에 posId를 재사용**한다
+        # (실측 8403: SOL·ORDI·PYTH가 각각 하루 이상 간격의 두 거래에 같은 posId).
+        # 묶으면 서로 다른 거래가 한 건으로 합쳐져 승패가 줄어든다.
         for x in await okx_positions_since(ex, since):
             p = float(x.get("realizedPnl") or 0)      # OKX realizedPnl은 수수료·펀딩 포함
             real += p
