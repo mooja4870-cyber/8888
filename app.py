@@ -1003,26 +1003,24 @@ def bot_status(folder, port, ex):
         r["since_pnl"] = r["total"]
     else:
         r["since_pnl"] = m["since_pnl"]
-    # ── [2026-08-21] 승패·누적손익은 **거래소 원장**을 1순위로 쓴다 ──────────
-    # 봇은 자기가 실행한 청산만 trade_history.csv에 적는다. 거래소 손절/익절 주문이
-    # 자동 체결한 건은 "[PERSIST] 오프라인 청산 감지 → 상태 삭제"로 **기록 없이** 지운다.
-    # 실측(8404): 거래소 청산 20건인데 CSV에는 진입만 있고 청산 0건이었다.
-    # 트레일링을 끈 봇일수록 심하다 — 능동 청산이 거의 없어 전부 거래소가 처리한다.
-    # 그래서 화면도 원장을 읽는다. CSV 값은 원장 조회가 실패할 때만 쓴다.
+    # ── [2026-08-24] 승패는 **CSV(매매이력)** 기준으로 되돌린다 ──────────────
+    # 종전엔 승패를 거래소 원장에서 가져왔는데, 같은 줄의 승패 시퀀스(seq)는 CSV라서
+    # 한 줄 안에서 출처가 갈렸다. 실측(8403): 원장 7승6패(13건) vs CSV 4승6패(10건),
+    # seq는 `OOxxOxxxOx`(10건)로 나와 숫자와 그림이 어긋났다. mooja 지시로 CSV 통일.
+    #
+    # 차이의 정체는 **봇이 기록하지 못한 청산**이다. 거래소 SL/TP가 자동 체결한 건은
+    # "[PERSIST] 오프라인 청산 감지 → 상태 삭제"로 CSV에 남지 않는다.
+    # 8403 실측: ZEC +1.69 · SATS +0.63 · BNB +0.32 (08-22 09:01) 3건이 CSV에 통째로 없다.
+    # 그래서 CSV 승패는 **실제보다 보수적**이다. 손익(since_pnl)만은 돈이 걸린 값이므로
+    # 계속 원장을 쓴다 — 승패는 CSV, 금액은 원장.
     try:
         import exchange_pnl
         _led = exchange_pnl.get(str(r.get("name", "")), max_age=300)
     except Exception:
         _led = None
-    if _led and (_led.get("wins", 0) + _led.get("losses", 0)) > 0:
-        r["since_w"] = _led["wins"]
-        r["since_l"] = _led["losses"]
-        r["since_orders"] = _led["wins"] + _led["losses"]
-        r["ledger_src"] = True            # 화면에서 출처를 구분할 수 있게
-        if _led.get("total") is not None and r.get("seed"):
-            r["since_pnl"] = round(float(_led["total"]) - float(r["seed"]), 4)
-    else:
-        r["ledger_src"] = False
+    r["ledger_src"] = False               # 승패 출처 = CSV
+    if _led and _led.get("total") is not None and r.get("seed"):
+        r["since_pnl"] = round(float(_led["total"]) - float(r["seed"]), 4)
 
     r["entries_24h"] = m["entries_24h"]   # 24시간 내 진입 수 (청산 무관, 롤링 윈도우)
     r["entries_by_period"] = m["entries_by_period"]   # 기간별 진입 수(1h~1w 롤링)
