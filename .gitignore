@@ -28,3 +28,6 @@ loop_progress.json
 
 # [2026-08-25] 8403 소스 금고 — 원본 사본이라 저장소에 넣지 않는다
 _vault/
+watchdog_stdout.log
+ledger_sync.log
+source_guard.log

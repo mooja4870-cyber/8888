@@ -308,6 +308,26 @@ def run_source_guard():
         log(f"⚠️ 소스 감시 실행 실패: {str(e)[:150]}")
 
 
+def run_ledger_sync():
+    """봇이 놓친 청산을 거래소 원장에서 찾아 매매이력에 채운다(ledger_sync.py).
+
+    [2026-08-25] 봇은 자기가 실행한 청산만 CSV에 적는다. 거래소 SL/TP가 자동 체결한 건은
+    '[PERSIST] 오프라인 청산 감지 → 상태 삭제'로 기록 없이 지워진다. 그 탓에 이긴 거래가
+    승패 통계에서 통째로 사라졌다(8409 PENGU +0.0906 실측). 승패를 CSV 기준으로 집계하기로
+    한 이상, CSV가 비면 측정 자체가 틀어진다. 원장을 정답으로 두고 사후 보정한다.
+    """
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ledger_sync.py")
+    if not os.path.exists(script):
+        return
+    try:
+        r = subprocess.run([sys.executable, script], capture_output=True, text=True, timeout=300)
+        out = (r.stdout or r.stderr or "").strip().splitlines()
+        if out and "이상 없음" not in out[-1]:
+            log("🧾 이력 보정 — " + " | ".join(out[-2:]))
+    except Exception as e:
+        log(f"⚠️ 이력 보정 실행 실패: {str(e)[:150]}")
+
+
 def main():
     targets = build_targets()
     log(f"🚀 watchdog 시작 — 감시 대상 총 {len(targets)}개 (8888 + 봇 쌍), 주기 {CHECK_INTERVAL}초 (5분)"
@@ -315,6 +335,7 @@ def main():
     while True:
         run_config_sentinel()
         run_source_guard()
+        run_ledger_sync()
         run_profit_guard()
         launched_any = False
         for t in targets:
