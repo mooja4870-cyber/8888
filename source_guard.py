@@ -24,12 +24,15 @@ mooja와 내가 함께 의논해 푸는 경우가 아니면 **8403의 소스가 
 사용법
   python3 source_guard.py --seal      현재 소스를 기준으로 봉인(금고 저장 + 잠금)
   python3 source_guard.py --check     대조만 (복원·알림 없음)
-  python3 source_guard.py --unlock    잠금 해제 — **우리가 함께 고칠 때만**
+  python3 source_guard.py --unlock    잠금 해제 — **비번 확인 필요**
+  python3 source_guard.py --set-password  잠금 해제 비번 설정/변경
   python3 source_guard.py --lock      다시 잠금 (금고는 그대로)
   python3 source_guard.py --reseal    고친 내용을 새 기준으로 다시 봉인
   python3 source_guard.py             대조 → 어긋나면 복원 + 알림 (워치독용)
 """
+import getpass
 import hashlib
+import hmac
 import json
 import os
 import shutil
@@ -67,6 +70,55 @@ def notify(msg):
         post_discord(msg)
     except Exception as e:
         log(f"  (디스코드 알림 실패: {str(e)[:80]})")
+
+
+PWFILE = os.path.join(HERE, "_vault", f"unlock_{TARGET}.json")
+PW_ITER = 200_000
+
+
+def _pw_hash(pw, salt):
+    return hashlib.pbkdf2_hmac("sha256", pw.encode("utf-8"), salt, PW_ITER).hex()
+
+
+def set_password(pw):
+    """비번을 **해시로만** 저장한다. 파일을 열어도 원문을 알 수 없다."""
+    salt = os.urandom(16)
+    os.makedirs(os.path.dirname(PWFILE), exist_ok=True)
+    with open(PWFILE, "w", encoding="utf-8") as f:
+        json.dump({"salt": salt.hex(), "hash": _pw_hash(pw, salt),
+                   "iter": PW_ITER, "set_at": time.strftime("%Y-%m-%d %H:%M:%S")}, f, indent=2)
+    os.chmod(PWFILE, 0o600)
+    log("잠금 해제 비번 설정 완료 (원문은 저장하지 않음 — 해시만)")
+
+
+def check_password():
+    """--unlock 전에 비번을 확인한다.
+
+    왜 두는가 — chflags 잠금만으로는 '실수로 못 고친다'까지다. mooja 지시로
+    **사람이 비번을 넣어야만** 8403 소스를 열 수 있게 한 단계 더 세운다.
+    틀리면 열리지 않고, 시도 자체를 기록·알림한다.
+    """
+    if not os.path.exists(PWFILE):
+        log("❌ 비번이 설정돼 있지 않다 — `--set-password` 로 먼저 설정할 것")
+        return False
+    try:
+        d = json.load(open(PWFILE, encoding="utf-8"))
+    except Exception:
+        log("❌ 비번 파일을 읽을 수 없다")
+        return False
+    try:
+        pw = getpass.getpass("비번 10자리 수치를 입력하세요! : ")
+    except (EOFError, KeyboardInterrupt):
+        log("잠금 해제 취소")
+        return False
+    ok = hmac.compare_digest(_pw_hash(pw, bytes.fromhex(d["salt"])), d["hash"])
+    if not ok:
+        log("❌ 비번 불일치 — 잠금 유지")
+        notify(f"🔐 **8403 잠금 해제 실패** — 비번 불일치\n"
+               f"시각: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+        return False
+    log("🔓 비번 확인됨")
+    return True
 
 
 def targets():
@@ -181,9 +233,26 @@ def main():
     if arg in ("--seal", "--reseal"):
         return seal()
 
+    if arg == "--set-password":
+        try:
+            pw1 = getpass.getpass("새 비번 입력 : ")
+            pw2 = getpass.getpass("한 번 더    : ")
+        except (EOFError, KeyboardInterrupt):
+            log("취소"); return 1
+        if not pw1 or pw1 != pw2:
+            log("❌ 두 입력이 다르거나 비어 있다"); return 1
+        set_password(pw1)
+        return 0
+
     if arg == "--unlock":
+        # [2026-08-25] mooja 지시 — 비번 확인 없이는 8403 소스를 열 수 없다.
+        if not check_password():
+            return 1
         n = chflags("nouchg", live_paths(targets()))
         log(f"🔓 잠금 해제 — {n}개. 수정 뒤 반드시 --reseal 또는 --lock 할 것")
+        notify(f"🔓 **8403 소스 잠금 해제됨** ({n}개)\n"
+               f"시각: {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+               f"수정을 마치면 `--reseal` 로 다시 봉인할 것")
         return 0
 
     if arg == "--lock":
