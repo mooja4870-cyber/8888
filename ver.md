@@ -1,5 +1,23 @@
 # Version History
 
+## v2.9.6
+
+Date: 2026-08-25
+
+### 변경 내용
+* **봇 8404 수익률 혁신 및 퀀트 고도화 방안 (QVT-ARE) 수립**
+  - 저명 금융공학 문헌(Marcos López de Prado, Tobias Moskowitz, Campbell Harvey, Perry Kaufman, John Ehlers 등) 기반 전략 설계
+  - 8404 구조적 병목(비정규화 지표 노이즈, 횡보장 휩쏘, 고정 SL/TP, 변동성 역스케일링 부재) 진단
+  - Ehlers SuperSmoother 필터, Kaufman Efficiency Ratio(KER) 국면 필터, Z-Score 크로스 모멘텀, López de Prado Triple Barrier Method, Harvey-Moskowitz Volatility Targeting 융합 아키텍처 수립
+  - `rpt_8404_innovation.md` 혁신 보고서 및 설계서 추가
+
+### 수정 파일
+* rpt_8404_innovation.md
+* ver.md
+
+### 비고
+* 문헌 조사 및 전략 청사진 수립 완료
+
 ## v2.9.5
 
 Date: 2026-08-24
