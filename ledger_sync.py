@@ -143,8 +143,27 @@ def norm(sym):
     return s[:-4] if s.endswith("USDT") and len(s) > 4 else s
 
 
+def _ids(r):
+    """한 행이 가진 식별자 전부(주문ID·체결ID). 접두어는 떼고 비교한다.
+
+    봇은 주문ID를 `ID_9582697214`, 체결ID를 `591297157`로 나눠 적는다. 원장이 주는 식별자는
+    거래소마다 그중 하나라서, 한쪽만 보면 같은 청산을 못 알아본다.
+    실측: 보정행이 체결ID를 주문ID 칸에 적는 바람에 봇이 나중에 남긴 정식 행과 짝이 지어지지
+    않아 PENGU 청산이 CSV에 두 번 들어갔고 승패가 2배로 세어졌다.
+    """
+    out = set()
+    for i in (10, 11):
+        v = r[i].strip() if len(r) > i else ""
+        if v:
+            out.add(v)
+            for p in ("ID_", "LS_"):
+                if v.startswith(p):
+                    out.add(v[len(p):])
+    return out
+
+
 def csv_exits(path):
-    """CSV의 기존 청산 [(epoch, 심볼, 손익, 주문ID)]."""
+    """CSV의 기존 청산 [(epoch, 심볼, 손익, 식별자집합, 청산유형)]."""
     out = []
     try:
         with open(path, encoding="utf-8-sig", errors="replace") as f:
@@ -156,11 +175,51 @@ def csv_exits(path):
                     pnl = float(r[6])
                 except (ValueError, IndexError):
                     continue
-                oid = r[10].strip() if len(r) > 10 else ""
-                out.append((ts, norm(r[1]), pnl, oid))
+                kind = r[8].strip() if len(r) > 8 else ""
+                out.append((ts, norm(r[1]), pnl, _ids(r), kind))
     except OSError:
         pass
     return out
+
+
+def drop_dupes(path, dry=False):
+    """봇이 정식으로 기록한 청산과 겹치는 `원장보정` 행을 걷어낸다.
+
+    보정은 '봇이 놓쳤을 때'만 의미가 있다. 봇이 뒤늦게라도 같은 청산을 적으면 보정행은
+    중복이 되어 승패를 2배로 부풀린다(실측 8409 PENGU).
+    """
+    try:
+        with open(path, encoding="utf-8-sig", errors="replace") as f:
+            rows = list(csv.reader(f))
+    except OSError:
+        return 0
+    real = []
+    for r in rows:
+        if len(r) > 8 and r[2] == "청산" and r[8].strip() != "원장보정":
+            try:
+                real.append((time.mktime(time.strptime(r[0].strip()[:19], "%Y-%m-%d %H:%M:%S")),
+                             norm(r[1]), float(r[6])))
+            except (ValueError, IndexError):
+                pass
+    keep, dropped = [], 0
+    for r in rows:
+        if len(r) > 8 and r[2] == "청산" and r[8].strip() == "원장보정":
+            try:
+                ts = time.mktime(time.strptime(r[0].strip()[:19], "%Y-%m-%d %H:%M:%S"))
+                pnl = float(r[6])
+            except (ValueError, IndexError):
+                keep.append(r); continue
+            if any(abs(t - ts) <= MATCH_SEC and s == norm(r[1]) and abs(p - pnl) < 1e-6
+                   for t, s, p in real):
+                dropped += 1
+                continue
+        keep.append(r)
+    if dropped and not dry:
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8-sig", newline="") as f:
+            csv.writer(f).writerows(keep)
+        os.replace(tmp, path)
+    return dropped
 
 
 def sync(bot, dry=False):
@@ -182,8 +241,11 @@ def sync(bot, dry=False):
     led = ledger(bot, since_ms)
     if not led:
         return 0, 0.0
+    drop_dupes(path)                      # 봇이 뒤늦게 적어 중복이 된 보정행 먼저 정리
     have = csv_exits(path)
-    have_oids = {o for _, _, _, o in have if o}
+    have_ids = set()
+    for _, _, _, ids, _k in have:
+        have_ids |= ids
 
     # 대조는 **심볼 + 시각**으로만 한다. 손익까지 맞추려 하면 안 된다 —
     # 봇이 CSV에 적는 손익은 자체 계산이라 원장 realizedPnl과 미세하게 어긋난다
@@ -194,10 +256,10 @@ def sync(bot, dry=False):
     missing = []
     for ms, sym, pnl, oid in sorted(led):
         ts = ms / 1000.0
-        if oid and (oid in have_oids or f"ID_{oid}" in have_oids):
+        if oid and oid in have_ids:
             continue
         hit = None
-        for i, (hts, hsym, _hp, _o) in enumerate(unused):
+        for i, (hts, hsym, _hp, _ids, _k) in enumerate(unused):
             if hsym == norm(sym) and abs(hts - ts) <= MATCH_SEC:
                 hit = i
                 break
@@ -216,8 +278,66 @@ def sync(bot, dry=False):
                         sym if "/" in sym else f"{norm(sym)}/USDT:USDT",
                         "청산", "sell" if pnl >= 0 else "sell",
                         0, 0, round(pnl, 8), 0,
-                        "원장보정", "", f"ID_{oid}" if oid else "", "", 0, "순방향"])
+                        # 주문ID는 보정행임을 알 수 있게 LS_ 접두어, 체결ID에는 원장 식별자 그대로.
+                        # 봇은 체결ID 칸에 같은 값을 적으므로 이래야 중복을 잡아낸다.
+                        "원장보정", "", f"LS_{oid}" if oid else "", oid, 0, "순방향"])
     return len(missing), sum(m[2] for m in missing)
+
+
+def refresh_stats(bot, dry=False):
+    """stats.json의 승/패/누적손익을 **매매이력(CSV)에서 다시 계산**해 채운다.
+
+    왜 필요한가 — 종전엔 청산 때마다 stats를 읽어 +1 하는 방식이었다(record_result).
+    그런데 8409는 트레이더(bot.py)와 대시보드(app.py) 두 프로세스가 같은 stats.json을
+    각자 읽고 통째로 덮어써서, 한쪽의 갱신이 다른 쪽에 지워졌다.
+    실측: 청산이 분명히 있었는데 total_wins·total_losses·total_pnl_usdt가 모두 0이고
+    daily_pnl만 0.043으로 움직여 있었다.
+
+    누적(+1)이 아니라 **CSV에서 매번 다시 세는 방식**이라 몇 번을 돌려도 결과가 같다.
+    승패 기준을 CSV로 통일한 결정과도 맞는다. 집계 구간은 측정 시작 시점 이후다.
+    """
+    sp = os.path.join(BASE, bot, "data", "stats.json")
+    cp = os.path.join(BASE, bot, "data", "trade_history.csv")
+    if not (os.path.exists(sp) and os.path.exists(cp)):
+        return None
+    try:
+        st = json.load(open(sp, encoding="utf-8"))
+    except Exception:
+        return None
+
+    ps = str(st.get("perf_start_time") or "")[:19].replace("T", " ")
+    ps_ts = 0.0
+    if ps:
+        try:
+            ps_ts = time.mktime(time.strptime(ps, "%Y-%m-%d %H:%M:%S"))
+        except ValueError:
+            pass
+
+    # 주문ID로 묶어 합산한다 — 부분청산이 여러 행이어도 한 거래로 센다
+    grp = {}
+    for ts, sym, pnl, ids, _kind in csv_exits(cp):
+        if ts < ps_ts:
+            continue
+        key = (sorted(ids)[0] if ids else "") or f"{sym}_{int(ts)}"
+        grp[key] = grp.get(key, 0.0) + pnl
+    wins = sum(1 for v in grp.values() if v > 0)
+    losses = sum(1 for v in grp.values() if v < 0)
+    total = round(sum(grp.values()), 4)
+
+    cur = (st.get("total_wins", 0), st.get("total_losses", 0), st.get("total_pnl_usdt", 0.0))
+    if cur == (wins, losses, total):
+        return None
+    if dry:
+        return (cur, (wins, losses, total))
+
+    st["total_wins"], st["total_losses"] = wins, losses
+    st["total_pnl_usdt"] = total
+    st["total_trades"] = wins + losses
+    tmp = sp + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(st, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, sp)
+    return (cur, (wins, losses, total))
 
 
 def main():
@@ -225,7 +345,7 @@ def main():
     dry = "--dry" in sys.argv
     bots = args or list(VENUE)
 
-    total_n, lines = 0, []
+    total_n, lines, stat_lines = 0, [], []
     for bot in bots:
         try:
             n, pnl = sync(bot, dry)
@@ -235,9 +355,21 @@ def main():
         if n:
             total_n += n
             lines.append(f"{bot}: 누락 청산 {n}건 (손익 {pnl:+.4f})")
+        try:
+            r = refresh_stats(bot, dry)
+        except Exception as e:
+            log(f"  {bot} 승패 재계산 실패: {str(e)[:100]}")
+            r = None
+        if r:
+            (ow, ol, op), (w, l, t) = r
+            stat_lines.append(f"{bot}: {ow}승{ol}패({op:+.4f}) → {w}승{l}패({t:+.4f})")
+
+    if stat_lines:
+        log(("승패 재계산" + ("(기록 안 함)" if dry else "") + " — ") + " · ".join(stat_lines))
 
     if not total_n:
-        log("이상 없음 — 매매이력과 원장 일치")
+        if not stat_lines:
+            log("이상 없음 — 매매이력과 원장 일치")
         return 0
     verb = "발견(기록 안 함)" if dry else "매매이력에 보정 기록"
     log(f"🧾 누락 청산 {total_n}건 {verb} — " + " · ".join(lines))
