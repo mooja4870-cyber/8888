@@ -1,5 +1,25 @@
 # Version History
 
+## v2.9.7
+
+Date: 2026-08-25
+
+### 변경 내용
+* **봇 8404 QVT-ARE 퀀트 전략 실전 구현 및 배포 완료**
+  - `8404/core/strategy_qvt.py` 신규 생성: Ehlers 2-Pole SuperSmoother (DSP), Kaufman Efficiency Ratio (KER), 정규화 5대 직교 팩터 앙상블, Marcos López de Prado Triple Barrier Method (동적 TP 2.5 ATR / SL 1.2 ATR, 손익비 2.08:1) 탑재
+  - `8404/core/strategy.py`: `_generate_signal_qvt` 바인딩 및 신호 엔진 전환
+  - `8404/core/trader.py`: QVT-ARE 강도 게이트(60%) 연동
+  - `8404/core/config.py` & `config.json`: QVT-ARE 파라미터 갱신
+  - 8404 봇 재기동 및 3중 자체 검증(문법/컴파일 검증, UI 포트 8404 HTTP 200 확인, bot_engine.log 실시간 스캔 및 신호 수신) 완료
+  - 8404 버전 `v10.1.0` 커밋 및 태그 완료
+
+### 수정 파일
+* patch_8404_qvt.py
+* ver.md
+
+### 비고
+* 8404 봇 정상 구동 확인 (OKX API 연동, 실시간 신호 정상 포착)
+
 ## v2.9.6
 
 Date: 2026-08-25
