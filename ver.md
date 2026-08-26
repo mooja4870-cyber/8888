@@ -1,5 +1,28 @@
 # Version History
 
+## v3.0.0
+
+Date: 2026-08-26
+
+### 변경 내용
+* **봇 8409 (Binance 선물) QAR-ARE Ultra 7대 금융공학 융합 알파 엔진 최고수준 전면 고도화 완료**
+  - **7대 석학 및 퀀트 헤지펀드 핵심 알고리즘 전면 탑재**:
+    1. **Marcos López de Prado Fractional Differentiation (분수차분, d=0.4)**: 가격 시계열의 과거 기억(Memory) 80%+ 보존 및 정상성(Stationarity) 확보 모멘텀 탑재 (`8409/core/strategy_qar.py`)
+    2. **AQR Capital Cross-Sectional Momentum (CSMOM 랭킹)**: BTC 대비 24h 상대강도 우위 주도주(Leader) 가산점 부여 및 휩쏘 방어 (`core/scanner.py` 연동)
+    3. **John F. Ehlers 2-Pole SuperSmoother (무지연 DSP) & Universal Cycle Index**: 사이클 오실레이터 기반 피크 감지
+    4. **Binance 실시간 펀딩비 숏 스퀴즈 알파 부스터 실시간 연동**: `scanner.py` ➡️ `strategy.py` 실시간 파라미터 전달 완비
+    5. **Moskowitz & Harvey Volatility Scaling & Prado Triple Barrier**: $2.5 \times ATR$ TP / $1.2 \times ATR$ SL (RR 2.08:1)
+  - `8409/core/scanner.py`: 바이낸스 실시간 티커 펀딩비 및 24h 변동률 파라미터 연동
+  - `8409/config.json`: `AUTO_TRADING: True`, `TAKE_PROFIT_PCT: 0.025`, `STOP_LOSS_PCT: 0.012`, `TIMEFRAME: "15m"`
+  - 8409 봇 프로세스(`bot.py` + `app.py`) 재기동 및 3중 자체 검증(문법/컴파일 통과, 8409 UI `HTTP 200 OK`, 백엔드 80개 페어 15m 실시간 스캔 정상 가동) 완료
+
+### 수정 파일
+* patch_8409_ultra_upgrade.py
+* ver.md
+
+### 비고
+* 8409 봇 QAR-ARE Ultra 최고수준 퀀트 엔진 가동 확인
+
 ## v2.9.9
 
 Date: 2026-08-26
