@@ -1,3 +1,20 @@
+## v11.0.0
+Date: 2026-08-26
+
+### 변경 내용
+* **8개 봇 통합 집계 및 디스코드 알림 대상 전면 개편**
+  - 집계 및 알림 대상: **8401, 8402, 8403, 8404, 8407, 8408, 8409, 8410 (총 8개 봇)**
+  - 대시보드 UI(`app.py`) 종합 실시간 집계 8개 봇 동기화
+  - 디스코드 1분/5분 관제 알림(`discord_alert.py`, `send_discord_stats.py`, `send_discord_hourly_graph.py`) 전면 적용
+
+### 수정 파일
+* app.py
+* discord_alert.py
+* send_discord_hourly_graph.py
+* send_discord_stats.py
+* discord_bot_listener.py
+* seeds.json
+
 # Version History
 
 ## v3.0.2

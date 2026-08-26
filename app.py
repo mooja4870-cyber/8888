@@ -80,8 +80,10 @@ BOTS = [
     ("8402", 8402, "OKX"),
     ("8403", 8403, "OKX"),
     ("8404", 8404, "OKX"),
+    ("8407", 8407, "BNC"),
     ("8408", 8408, "BNC"),
     ("8409", 8409, "BNC"),
+    ("8410", 8410, "BNC"),
 ]
 
 
@@ -1217,9 +1219,7 @@ def bot_days(perf_start):
 
 
 EXCLUDED_BOTS = [
-    ("8403", 8403, "OKX"),
-    ("8407", 8407, "BNC"),
-    ("8409", 8409, "BNC"),
+    ("8405", 8405, "OKX"),
 ]
 
 
@@ -1791,7 +1791,7 @@ def discord_listener_loop():
 def run_check_auto_mode_switch_all():
     """전체 8개 봇 실시간 매매방향 자동 스위칭(최근 5전 중 2패 이상 시 대칭 반전) 격리 프로세스 실행 함수"""
     import subprocess
-    target_bots = ["8401", "8402", "8403", "8404", "8408", "8409"]
+    target_bots = ["8401", "8402", "8403", "8404", "8407", "8408", "8409", "8410"]
     for b in target_bots:
         bot_path = os.path.join(os.path.dirname(BASE), str(b))
         if os.path.exists(f"{bot_path}/core/engine.py"):
@@ -1828,7 +1828,7 @@ def get_file_hash(path):
 def checksum_guard_loop():
     """8개 봇의 핵심 로직 파일 변조 감시 및 자동 롤백 스레드"""
     time.sleep(10)
-    target_bots = ["8401", "8402", "8403", "8404", "8408", "8409"]
+    target_bots = ["8401", "8402", "8403", "8404", "8407", "8408", "8409", "8410"]
     target_files = ["bot.py", "core/strategy.py", "core/trader.py", "core/engine.py", "config.json"]
     
     while True:

@@ -369,14 +369,14 @@ def _process_subset(data, target_names, state_suffix, title_prefix, include_bot_
 def tick(data, tick_count=0, include_bot_charts=False):
     """집계 1건을 받아 매 1분마다 디스코드 알림 발송 및 상태 갱신."""
     # [2026-08-24] 집계·알림 대상 6개 봇 (8401, 8402, 8403, 8404, 8408, 8409)
-    group_1_names = {"8401", "8402", "8403", "8404", "8408", "8409"}
+    group_1_names = {"8401", "8402", "8403", "8404", "8407", "8408", "8409", "8410"}
     
     # 실제 data.get("bots")에 존재하는 봇만 필터링
     actual_1 = {str(b.get("name")) for b in data.get("bots", []) if str(b.get("name")) in group_1_names}
 
     ok1, info1 = False, "No bots in Group"
     if actual_1:
-        ok1, info1 = _process_subset(data, actual_1, "_group_1.json", "통합그룹(8401,2,3,4,8,9) 전체", include_bot_charts=False)
+        ok1, info1 = _process_subset(data, actual_1, "_group_1.json", "8개 봇(8401~8410) 통합 전체", include_bot_charts=False)
 
     return ok1, f"Group 1({len(actual_1)}): {info1}"
 
