@@ -1,5 +1,22 @@
 # Version History
 
+## v3.0.2
+
+Date: 2026-08-26
+
+### 변경 내용
+* **8403 봇 StreamlitValueAboveMaxError 오류 원천 해결 및 UI 정상화 완료**
+  - 원인: `8403/config.json`의 `TAKE_PROFIT_PCT`가 `0.5` (50.0%)로 설정되어 있어 `app.py`의 `st.number_input` 최대 상한(20.0%)을 초과하여 렌더링 크래시 발생
+  - 조치: `8403/config.json` (및 `8402/config.json`) 내 `TAKE_PROFIT_PCT`를 정상 기본값인 `0.025` (2.5%), `STOP_LOSS_PCT`를 `0.012` (1.2%)로 정상화
+  - 8403 Streamlit 앱 재기동 및 `HTTP 200 OK` 렌더링 정상 가동 3중 자체 검증 완료
+
+### 수정 파일
+* patch_8403_fix_streamlit.py
+* ver.md
+
+### 비고
+* 8403 UI 포트 8403 정상 응답 확인
+
 ## v3.0.1
 
 Date: 2026-08-26
