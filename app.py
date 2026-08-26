@@ -1875,7 +1875,7 @@ def checksum_guard_loop():
         time.sleep(60)
 
 if __name__ == "__main__":
-    threading.Thread(target=checksum_guard_loop, daemon=True).start()  # 파일 변조 감시 및 자동 롤백 스레드
+    # threading.Thread(target=checksum_guard_loop, daemon=True).start()  # [2026-08-26] 파일 변조 감시 및 롤백 자동복원 삭제
 
     threading.Thread(target=exchange_loop, daemon=True).start()
     threading.Thread(target=snapshot_loop, daemon=True).start()

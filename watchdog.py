@@ -314,7 +314,7 @@ def main():
     log(f"🚀 watchdog 시작 — 감시 대상 총 {len(targets)}개 (8888 + 봇 쌍), 주기 {CHECK_INTERVAL}초 (5분)"
         f" · 수익성 점검 {PGUARD_INTERVAL//60}분 주기 · 조건 감시 매 주기")
     while True:
-        run_config_sentinel()
+        # run_config_sentinel()  # [2026-08-26] 봇 설정 자동복원 기능 삭제
         run_ledger_sync()
         run_profit_guard()
         launched_any = False

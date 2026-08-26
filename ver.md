@@ -1,3 +1,16 @@
+## v11.0.1
+Date: 2026-08-26
+
+### 변경 내용
+* **봇 설정 및 파일 5분 자동복원(Sentinel) 기능 영구 삭제**
+  - `watchdog.py`: `run_config_sentinel()` 백그라운드 주기 호출 무효화
+  - `app.py`: `checksum_guard_loop` 스레드 무효화
+  - 사용자가 설정 탭에서 직접 파라미터를 수정하면 즉각적이고 영구적으로 봇의 매매 설정에 반영됨.
+
+### 수정 파일
+* watchdog.py
+* app.py
+
 ## v11.0.0
 Date: 2026-08-26
 
