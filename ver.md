@@ -1,5 +1,23 @@
 # Version History
 
+## v3.0.1
+
+Date: 2026-08-26
+
+### 변경 내용
+* **8408 봇 StreamlitValueAboveMaxError 오류 원천 해결 및 UI/백엔드 동기화 완료**
+  - 원인: `8408/config.json`의 `TAKE_PROFIT_PCT`가 `0.5` (50.0%)로 설정되어 있었으나 `app.py`의 `st.number_input` 상한이 `20.0%`로 제한되어 초기 렌더링 시 `StreamlitValueAboveMaxError` 발생
+  - 조치 1: `8408/config.json` 내 `TAKE_PROFIT_PCT`를 `0.025` (2.5%), `STOP_LOSS_PCT`를 `0.012` (1.2%)로 정상화
+  - 조치 2: `8408/app.py` 내 `st.number_input` 최대 상한을 `100.0%`로 안전 확장
+  - 8408 Streamlit 앱 재기동 및 `HTTP 200 OK` 렌더링 정상 가동 3중 자체 검증 완료
+
+### 수정 파일
+* patch_8408_fix_streamlit.py
+* ver.md
+
+### 비고
+* 8408 UI 포트 8408 정상 응답 확인
+
 ## v3.0.0
 
 Date: 2026-08-26
