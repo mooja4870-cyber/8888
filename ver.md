@@ -1,5 +1,32 @@
 # Version History
 
+## v2.9.8
+
+Date: 2026-08-26
+
+### 변경 내용
+* **봇 8409 (Binance 선물) QAR-ARE 퀀트 알파 전략 전면 구현 및 15m 타임프레임 전환 배포 완료**
+  - `8409/core/strategy_qar.py` 신규 생성:
+    1. **Ehlers 2-Pole SuperSmoother (DSP)**: 무위상 지연 노이즈 필터링
+    2. **Kaufman Efficiency Ratio (KER)**: 횡보장 휩쏘 원천 차단 ($KER \ge 0.35$)
+    3. **정규화 5대 직교 팩터 앙상블 (Rolling Z-Score)**: SSF 기울기, 200 EMA 매크로, ATR 채널, RSI 모멘텀, 거래량 가속도
+    4. **Marcos López de Prado Triple Barrier Method**: 진입 시점 실시간 ATR 연동 (TP $2.5 \times ATR$ / SL $1.2 \times ATR$, 손익비 $2.08:1$) + 48시간 만료 청산
+    5. **Moskowitz & Harvey Volatility Scaling**: 자산별 실현 변동성 역비례 사이징
+    6. **Binance 실시간 펀딩비 숏 스퀴즈 알파 부스터** 연동
+  - `8409/core/strategy.py`: `_generate_signal_qar` 바인딩 및 QAR-ARE 신호 엔진 전환
+  - `8409/core/trader.py`: QAR-ARE 강도 게이트(60%) 및 Triple Barrier 동적 SL/TP 연동
+  - `8409/core/config.py` & `config.json`: `TIMEFRAME: "15m"`, QAR-ARE 파라미터 갱신
+  - 8409 봇 재기동 및 3중 자체 검증(문법 컴파일 검증, 8888 대시보드 15m/QAR 파싱 검증, bot_engine.log 80개 페어 15분봉 캐시 로드 및 실시간 스캔 정상 가동) 완료
+  - 8409 버전 `v10.0.0` 커밋 및 태그 완료
+
+### 수정 파일
+* patch_8409_qar.py
+* patch_8409_fix_trader.py
+* ver.md
+
+### 비고
+* 8409 봇 정상 구동 확인 (Binance API 연동, 15m 실시간 스캔 및 신호 연산 정상)
+
 ## v2.9.7
 
 Date: 2026-08-25
