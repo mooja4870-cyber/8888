@@ -289,25 +289,6 @@ def run_config_sentinel():
         log(f"⚠️ 조건 감시 실행 실패: {str(e)[:150]}")
 
 
-def run_source_guard():
-    """8403 소스 변조 감시·자동복원(source_guard.py).
-
-    [2026-08-25] mooja 지시로 8403만 '완전무장' 상태다. 파일에 잠금 플래그(uchg)를
-    걸어 편집 자체를 막고, 그래도 바뀌면 금고(_vault) 원본으로 되돌린다.
-    설정(config.json)은 config_sentinel이, 소스(.py)는 여기가 맡는다.
-    """
-    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "source_guard.py")
-    if not os.path.exists(script):
-        return
-    try:
-        r = subprocess.run([sys.executable, script], capture_output=True, text=True, timeout=120)
-        out = (r.stdout or r.stderr or "").strip().splitlines()
-        if out and "이상 없음" not in out[-1]:
-            log("🛡 소스 감시 — " + " | ".join(out[-3:]))
-    except Exception as e:
-        log(f"⚠️ 소스 감시 실행 실패: {str(e)[:150]}")
-
-
 def run_ledger_sync():
     """봇이 놓친 청산을 거래소 원장에서 찾아 매매이력에 채운다(ledger_sync.py).
 
@@ -334,7 +315,6 @@ def main():
         f" · 수익성 점검 {PGUARD_INTERVAL//60}분 주기 · 조건 감시 매 주기")
     while True:
         run_config_sentinel()
-        run_source_guard()
         run_ledger_sync()
         run_profit_guard()
         launched_any = False
