@@ -231,6 +231,9 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
         lines.append(f"  ({ent1:02d}/{ent4:02d}|{ent12:02d}/{ent24:02d} {sw:02d}W/{sl:02d}L : 순{sun20}+역{yeok20})")
         if seq_str:
             lines.append(f"  {seq_str}")
+            
+        if str(b_name_short).startswith("8404"):
+            lines.append("──────────────────────────────────────")
         
         # 🤖 5분 정각 알림(include_bot_charts=True)일 때 개별 봇 200분(5분봉) 파동 차트 렌더링
         if include_bot_charts:
