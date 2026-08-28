@@ -29,3 +29,18 @@
 ## 참고
 - 8403, 8409: 동결 중 (08-16~09-15 수정 금지)
 - 8402, 8404, 8407: 추가 수정 없음
+
+## 🔴 추가 수정 (2026-08-28 17:35)
+
+### BOT 8407 (Binance) - 딥러닝
+**문제:** AttributeError - CFG.USE_RSI_FILTER 누락
+- ✅ config.json: USE_RSI_FILTER 속성 추가
+- ✅ app.py:829: `CFG.USE_RSI_FILTER` → `getattr(CFG, "USE_RSI_FILTER", True)`
+
+### BOT 8404 (OKX) - QVT-ARE
+**문제:** StreamlitValueAboveMaxError - MAX_SL_PCT 초과
+- ✅ config.json: MAX_SL_PCT 0.15 → 0.1 (streamlit max=10%)
+
+### 상태
+✅ 8407: 재시작 완료 (정상 작동)
+✅ 8404: 재시작 완료 (정상 작동)
