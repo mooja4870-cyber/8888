@@ -17,15 +17,26 @@ import pandas as pd
 
 FEE_TAKER = 0.0005
 
+_IDX_CACHE = {}
+
 
 def simulate_portfolio(data, sig, max_hold_bars, max_positions=3,
                        notional=7.0, entry_fee=FEE_TAKER, exit_fee=FEE_TAKER,
                        sl_atr=2.0, tp_atr=4.0):
     """data: {symbol: df(timestamp,open,high,low,close,volume)}"""
     syms = sorted(data)
-    # 공통 시간축으로 정렬 — 종목마다 봉 수가 달라도 시각으로 맞춘다
-    idx = sorted(set().union(*[set(df["timestamp"]) for df in data.values()]))
-    pos_of = {s: {t: i for i, t in enumerate(data[s]["timestamp"])} for s in syms}
+    # 공통 시간축으로 정렬 — 종목마다 봉 수가 달라도 시각으로 맞춘다.
+    # [perf] 시간축·인덱스 맵 구축은 호출마다 하면 스윕에서 지배적 비용이 된다.
+    # 같은 data 객체에 대해 한 번만 만들고 캐시한다(키는 종목별 id와 길이).
+    ck = tuple((id(data[s]), len(data[s])) for s in syms)
+    cached = _IDX_CACHE.get(ck)
+    if cached is None:
+        idx = sorted(set().union(*[set(df["timestamp"]) for df in data.values()]))
+        pos_of = {s: {t: i for i, t in enumerate(data[s]["timestamp"])} for s in syms}
+        _IDX_CACHE.clear()
+        _IDX_CACHE[ck] = (idx, pos_of)
+    else:
+        idx, pos_of = cached
 
     arr = {}
     for s in syms:

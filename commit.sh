@@ -1,6 +1,6 @@
 #!/bin/bash
 git add app.py ver.md
-git commit -m "fix: 대시보드 새로고침 시 8개 봇이 순간 표시되는 플리커링 현상 해결"
-git tag v2.3.31
+git commit -m "fix: 진입 횟수 통계 산출 정확도 개선 및 동적 전략 반영"
+git tag v11.0.24
 git push origin main
-git push origin v2.3.31
+git push origin v11.0.24
