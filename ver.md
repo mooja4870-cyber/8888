@@ -1,3 +1,14 @@
+## v11.0.24
+Date: 2026-08-29
+
+### 변경 내용
+* 8401 봇 성과 집계 시 OKX 대소문자 판별 오류 해결
+* 8407~8410 봇 config.json 내 USE_WEBSOCKET=true 활성화 및 8407 봇 재기동
+
+### 수정 파일
+* 8888/lab/_one_bot_report.py
+* 8407~8410/config.json
+
 ## v11.0.23
 Date: 2026-08-28
 
