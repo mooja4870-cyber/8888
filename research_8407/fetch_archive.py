@@ -18,14 +18,21 @@ from datetime import date, timedelta
 import pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(HERE, "data")
+DATA_DIR = os.environ.get("BT_DATA_DIR", os.path.join(HERE, "data"))
 BASE = "https://data.binance.vision/data/futures/um"
 
+# 8409는 8407과 겹치지 않는 구성을 찾아야 하므로 종목 후보를 넓혀 둔다.
 PAIRS = {
-    "SOL/USDT:USDT": "SOLUSDT",
-    "ETH/USDT:USDT": "ETHUSDT",
-    "XRP/USDT:USDT": "XRPUSDT",
+    "SOL/USDT:USDT":  "SOLUSDT",
+    "ETH/USDT:USDT":  "ETHUSDT",
+    "XRP/USDT:USDT":  "XRPUSDT",
     "DOGE/USDT:USDT": "DOGEUSDT",
+    "BNB/USDT:USDT":  "BNBUSDT",
+    "ADA/USDT:USDT":  "ADAUSDT",
+    "AVAX/USDT:USDT": "AVAXUSDT",
+    "LINK/USDT:USDT": "LINKUSDT",
+    "LTC/USDT:USDT":  "LTCUSDT",
+    "BTC/USDT:USDT":  "BTCUSDT",
 }
 
 COLS = ["timestamp", "open", "high", "low", "close", "volume",
