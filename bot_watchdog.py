@@ -127,7 +127,7 @@ def find_pids(pattern, name):
                     if "app.py" in cmd and "--server.port" not in cmd and "streamlit" not in cmd and "watchdog" not in cmd and "grep" not in cmd:
                         match = True
                 else:
-                    if pattern in cmd and "watchdog.py" not in cmd and "grep" not in cmd and "ps -eo" not in cmd:
+                    if pattern in cmd and "bot_watchdog.py" not in cmd and "grep" not in cmd and "ps -eo" not in cmd:
                         match = True
                 if match:
                     try:
