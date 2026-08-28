@@ -54,17 +54,27 @@ async def fetch():
     await ex.load_markets()
     os.makedirs(DATA_DIR, exist_ok=True)
 
+    # Binance는 한 번에 1000봉까지 준다. 과거로 거슬러 since를 밀어 넣어 이어붙인다.
+    # Binance 봇 4대가 같은 IP를 쓰므로 호출 간격을 넉넉히 둔다(418 밴 방지).
+    days = int(os.environ.get("BT_DAYS", "90"))
+    bar_ms = 15 * 60 * 1000
+    total = days * 24 * 4
+    calls = (total // 1000) + 1
+    now_ms = ex.milliseconds()
+
     for sym in SYMBOLS:
-        frames, since = [], None
-        # 1500봉 × 2회 ≈ 3000봉 ≈ 31일. 요청 수를 줄여 IP 레이트리밋을 피한다
-        # (Binance 봇 4대가 같은 IP를 공유하므로 여유를 크게 둔다)
-        for _ in range(2):
-            batch = await ex.fetch_ohlcv(sym, TIMEFRAME, since=since, limit=1500)
+        frames = []
+        since = now_ms - total * bar_ms
+        for _ in range(calls):
+            batch = await ex.fetch_ohlcv(sym, TIMEFRAME, since=since, limit=1000)
             if not batch:
                 break
             frames.append(batch)
-            since = batch[-1][0] + 1
-            await asyncio.sleep(3.0)
+            nxt = batch[-1][0] + bar_ms
+            if nxt <= since or batch[-1][0] >= now_ms - bar_ms:
+                break
+            since = nxt
+            await asyncio.sleep(2.0)
         rows = [r for b in frames for r in b]
         df = pd.DataFrame(rows, columns=["timestamp", "open", "high", "low", "close", "volume"])
         df = df.drop_duplicates("timestamp").sort_values("timestamp")
@@ -95,6 +105,9 @@ class Variant:
     max_hold_bars: int = 24         # MAX_HOLDING_HOURS 6.0
     entry_fee: float = FEE_TAKER
     exit_fee: float = FEE_TAKER
+    # TP를 지정가(reduceOnly)로 걸면 호가에 얹혀 있다가 체결되므로 메이커다.
+    # SL은 스톱마켓이라 테이커를 피할 수 없다(안전상 지정가로 바꾸면 안 된다).
+    tp_exit_fee: float = None       # None이면 exit_fee를 그대로 쓴다
     mean_reversion: bool = False    # 부가전략: 평균회귀 오버레이
 
 
@@ -151,16 +164,23 @@ def mean_reversion_ok(df, i, direction):
 # 시뮬레이션
 # ────────────────────────────────────────────────────────────────
 def simulate(df, v: LiveSignal, cfg: Variant, notional=7.0):
-    """한 종목을 처음부터 끝까지 재생. 동시 보유는 1건으로 제한."""
+    """한 종목을 처음부터 끝까지 재생. 동시 보유는 1건으로 제한.
+
+    df.iloc[i]는 봉마다 Series를 만들어 20k봉에서 병목이 된다.
+    값 접근은 numpy 배열로 하고, 신호 함수에만 df를 넘긴다.
+    """
+    a_high = df["high"].values.astype(float)
+    a_low = df["low"].values.astype(float)
+    a_close = df["close"].values.astype(float)
+    a_open = df["open"].values.astype(float)
+
     trades = []
     pos = None
 
     for i in range(60, len(df) - 1):
-        bar = df.iloc[i]
-
         if pos is not None:
             held = i - pos["i"]
-            hi, lo = bar["high"], bar["low"]
+            hi, lo = a_high[i], a_low[i]
 
             exit_px, kind = None, None
             # 같은 봉에서 SL·TP가 모두 닿으면 보수적으로 SL을 먼저 잡는다
@@ -176,18 +196,21 @@ def simulate(df, v: LiveSignal, cfg: Variant, notional=7.0):
                     exit_px, kind = pos["tp"], "TP"
 
             if exit_px is None and cfg.timeout_bars and held >= cfg.timeout_bars:
-                px = bar["close"]
+                px = a_close[i]
                 pnl_pct = (px / pos["px"] - 1) * (1 if pos["dir"] == "long" else -1)
                 if pnl_pct <= 0:                      # TIMEOUT_SKIP_PROFITABLE=true
                     exit_px, kind = px, "TIMEOUT"
 
             if exit_px is None and held >= cfg.max_hold_bars:
-                exit_px, kind = bar["close"], "MAXHOLD"
+                exit_px, kind = a_close[i], "MAXHOLD"
 
             if exit_px is not None:
                 r = (exit_px / pos["px"] - 1) * (1 if pos["dir"] == "long" else -1)
                 gross = notional * r
-                fee = notional * (cfg.entry_fee + cfg.exit_fee)
+                xf = cfg.exit_fee
+                if kind == "TP" and cfg.tp_exit_fee is not None:
+                    xf = cfg.tp_exit_fee
+                fee = notional * (cfg.entry_fee + xf)
                 trades.append({"kind": kind, "ret": r, "gross": gross,
                                "fee": fee, "net": gross - fee})
                 pos = None
@@ -199,7 +222,7 @@ def simulate(df, v: LiveSignal, cfg: Variant, notional=7.0):
         if cfg.mean_reversion and not mean_reversion_ok(df, i, sig.direction):
             continue
 
-        entry = df.iloc[i + 1]["open"]          # 다음 봉 시가 체결 (look-ahead 방지)
+        entry = a_open[i + 1]                   # 다음 봉 시가 체결 (look-ahead 방지)
         atr = sig.atr
         if atr <= 0:
             continue

@@ -104,7 +104,7 @@
       "LEVERAGE": 5,
       "MARGIN_USDT": 2.0,
       "MAX_POSITIONS": 3,
-      "SCAN_TOP_N": 80,
+      "SCAN_TOP_N": 22,
       "MIN_VOLUME_USDT": 1000000.0,
       "MAX_HOLDING_HOURS": 480.0,
       "DBB_TP_RR": 2.0,
