@@ -7,7 +7,7 @@
 """
 import asyncio, collections, json, os, sys, time
 
-d, venue = sys.argv[1], sys.argv[2]
+d, venue = sys.argv[1], sys.argv[2].lower()
 sys.path.insert(0, d)
 os.chdir(d)
 from dotenv import load_dotenv
