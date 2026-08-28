@@ -88,13 +88,30 @@ def simulate_portfolio(data, sig, max_hold_bars, max_positions=3,
             if i is None or i < 60 or i + 1 >= len(arr[s]["open"]):
                 continue
             sg = sig.at(data[s], i)
-            if sg is None or sg.direction == "none" or sg.atr <= 0:
+            if sg is None or sg.direction == "none":
                 continue
             entry = arr[s]["open"][i + 1]          # 다음 봉 시가 (look-ahead 차단)
-            if sg.direction == "long":
-                sl, tp = entry - sg.atr * sl_atr, entry + sg.atr * tp_atr
+
+            # [2026-08-29] 신호가 SL/TP 절대가격을 직접 주면 그것을 쓴다.
+            # 8408의 DualBB는 SL을 스윙 저점(고점)으로 잡고 TP를 그 기준 RR 1:2로
+            # 계산한다. ATR 고정 배수로 덮어쓰면 라이브와 다른 전략을 검증하게 된다.
+            sl_abs = float(getattr(sg, "sl_price", 0.0) or 0.0)
+            tp_abs = float(getattr(sg, "tp_price", 0.0) or 0.0)
+            if sl_abs > 0 and tp_abs > 0:
+                # 진입가가 다음 봉 시가로 바뀌므로 폭(거리)을 유지한 채 평행이동한다.
+                ref = float(getattr(sg, "ref_price", 0.0) or 0.0) or entry
+                sl, tp = entry + (sl_abs - ref), entry + (tp_abs - ref)
+                if sg.direction == "long" and not (sl < entry < tp):
+                    continue
+                if sg.direction == "short" and not (tp < entry < sl):
+                    continue
             else:
-                sl, tp = entry + sg.atr * sl_atr, entry - sg.atr * tp_atr
+                if sg.atr <= 0:
+                    continue
+                if sg.direction == "long":
+                    sl, tp = entry - sg.atr * sl_atr, entry + sg.atr * tp_atr
+                else:
+                    sl, tp = entry + sg.atr * sl_atr, entry - sg.atr * tp_atr
             open_pos[s] = {"i": i, "px": entry, "dir": sg.direction, "sl": sl, "tp": tp}
 
     return trades
