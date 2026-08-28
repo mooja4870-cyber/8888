@@ -399,19 +399,12 @@ def hist_metrics(path, perf_start, pos_count=0):
         cutoff = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now - secs))
         if ps and cutoff < ps:
             cutoff = ps
-        # 1. 해당 윈도우 내 실현손익이 0이 아닌 청산 완료된 고유 거래 건수
-        period_grp = {}
-        for ts, pnl, oid in exits:
-            if ts >= cutoff and oid:
-                period_grp[oid] = period_grp.get(oid, 0.0) + pnl
-        completed_trades = sum(1 for oid, v in period_grp.items() if round(v, 4) != 0.0)
-        
-        # 2. 해당 윈도우 내에 존재하는 현재 오픈 포지션 건수 (1h는 최근 진입이 있는 경우만 합산)
-        if key == "1h":
-            recent_open = pos_count if (entries and max(e[0] for e in entries) >= cutoff) else 0
-            entries_by_period[key] = completed_trades + recent_open
-        else:
-            entries_by_period[key] = completed_trades + pos_count
+        # 1. 해당 윈도우 내에 진입한 거래 건수 산출
+        entered_oids = set()
+        for ts, oid in entries:
+            if ts >= cutoff:
+                entered_oids.add(oid)
+        entries_by_period[key] = len(entered_oids)
 
     return {"today_pnl": round(today_pnl, 4), "today_w": tw, "today_l": tl,
             "since_w": sw, "since_l": sl, "since_orders": sw + sl,
@@ -533,6 +526,8 @@ def read_bot_config(folder):
                 strategy = "우량 30종목 스캔"
             elif "BB_PERIOD" in cfg:
                 strategy = "TTM Squeeze 돌파"
+                if cfg.get("USE_RSI_FILTER"):
+                    strategy += " + RSI"
             else:
                 strategy = "기본 추세 돌파"
                 
