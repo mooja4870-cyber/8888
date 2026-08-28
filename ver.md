@@ -1,3 +1,12 @@
+## v11.0.23
+Date: 2026-08-28
+
+### 변경 내용
+* 8407 봇 대시보드 AttributeError (USE_RSI_FILTER 누락) 오류 해결
+
+### 수정 파일
+* 8407/core/config.py
+
 ## v11.0.22
 Date: 2026-08-28
 
