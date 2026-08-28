@@ -1,3 +1,14 @@
+## v11.0.22
+Date: 2026-08-28
+
+### 변경 내용
+* 8403 봇 UI(app.py) 핫픽스
+  - 거래소 API 연결 시 `okx requires "password" credential` 에러 발생 문제 해결 (BINANCE 변수명을 OKX로 정상 매핑)
+  - 대시보드 타이틀을 BlueFrog에서 Quantum으로 수정
+
+### 수정 파일
+* 8403/app.py
+
 ## v11.0.21
 Date: 2026-08-28
 
