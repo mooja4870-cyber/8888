@@ -127,7 +127,34 @@ def tail_trades(path, n=5):
 _HIST_CACHE = {}   # path -> (mtime, size, exits[])  ;  exits = [(ts19, pnl, oid), ...]
 _HIST_MODE_CACHE = {}   # path -> (mtime, size, exits[])  ;  exits = [(ts19, pnl, oid, mode), ...]
 _ENTRY_CACHE = {}  # path -> (mtime, size, entries[])  ;  entries = [(ts19, oid), ...]
+_WATCHDOG_CACHE = {} # path -> (mtime, size, logs[])
 
+def _load_watchdog_logs(path, bot_name):
+    try:
+        mt = os.path.getmtime(path)
+        sz = os.path.getsize(path)
+    except OSError:
+        return []
+    c = _WATCHDOG_CACHE.get(path)
+    if c and c[0] == mt and c[1] == sz:
+        return c[2]
+    
+    logs = []
+    try:
+        import subprocess
+        res = subprocess.run(["grep", "-a", "-F", "[복구] 스캐너 정체", path], capture_output=True, text=True)
+        if res.stdout:
+            for line in res.stdout.strip().split("\n"):
+                if line.strip():
+                    parts = line.split(" ", 2)
+                    if len(parts) >= 3:
+                        ts = parts[0] + " " + parts[1].split(",")[0]
+                        msg = parts[2].replace("[WARNING]", "").strip()
+                        logs.append({"ts": ts, "bot": bot_name, "msg": msg})
+    except Exception:
+        pass
+    _WATCHDOG_CACHE[path] = (mt, sz, logs)
+    return logs
 
 def _load_entries(path):
     """trade_history.csv에서 각 주문ID(order ID)별 최초 출현 시각을 진입 시각으로 파싱. mtime 캐시."""
@@ -1266,7 +1293,14 @@ def collect_bots(bot_tuples):
         "dd_warn": dd_warn,
         "updated": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
-    return {"summary": summary, "bots": bots, "stale_min": STALE_MIN}
+    
+    watchdog_logs = []
+    for b in bot_tuples:
+        log_path = os.path.join(BASE, str(b[0]), "bot_engine.log")
+        watchdog_logs.extend(_load_watchdog_logs(log_path, str(b[0])))
+    watchdog_logs.sort(key=lambda x: x["ts"], reverse=True)
+    
+    return {"summary": summary, "bots": bots, "stale_min": STALE_MIN, "watchdog": watchdog_logs}
 
 
 def collect():
