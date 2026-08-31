@@ -560,7 +560,9 @@ def read_bot_config(folder):
                 
         indicators = []
         if cfg.get("EMA_PERIOD"): indicators.append(f"EMA{cfg['EMA_PERIOD']}")
+        elif cfg.get("MARKET_GATE_EMA"): indicators.append(f"EMA{cfg['MARKET_GATE_EMA']}")
         if cfg.get("RSI_PERIOD"): indicators.append(f"RSI{cfg['RSI_PERIOD']}")
+        elif cfg.get("USE_RSI_FILTER"): indicators.append("RSI(Dyn)" if cfg.get("USE_DYNAMIC_RSI") else "RSI")
         if cfg.get("MACD_FAST"): indicators.append(f"MACD({cfg['MACD_FAST']},{cfg['MACD_SLOW']})")
         if cfg.get("SSL_PERIOD"): indicators.append(f"SSL{cfg['SSL_PERIOD']}")
         if cfg.get("BB_PERIOD"): indicators.append(f"BB{cfg['BB_PERIOD']}")
