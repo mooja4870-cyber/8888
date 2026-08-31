@@ -597,7 +597,7 @@ def read_bot_config(folder):
             "USE_BLUEFROG": bool(use_bf),
             "USE_AUTO_COMPOUND": cfg.get("USE_AUTO_COMPOUND", False),
             "AUTO_COMPOUND_PCT": cfg.get("AUTO_COMPOUND_PCT", 0.0),
-            "use_auto_mode_switch": cfg.get("USE_AUTO_MODE_SWITCH", False),
+            "use_auto_mode_switch": cfg.get("USE_DYNAMIC_REGIME", True),  # mapped to DYNAMIC_REGIME
         }
     except (OSError, json.JSONDecodeError, ValueError):
         return {k: "—" for k in ["leverage", "margin_usdt", "max_positions", "stop_loss_pct",
