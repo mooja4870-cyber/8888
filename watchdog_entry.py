@@ -99,35 +99,29 @@ def check_and_fix_bot(b: int, do_config_check: bool = True):
                     pass
 
             expected_mode = actual_mode
-            should_switch = False
-            
-            # 2) 현재 모드에서 발생한 새로운 거래 내역만 검사
-            if N > last_switched_on_count:
-                recent_trades = closed_trades[last_switched_on_count:]
-                
-                # 3연패 조건 검사
-                if len(recent_trades) >= 3 and all(float(t.get("pnl_usdt") or 0.0) < 0.0 for t in recent_trades[-3:]):
-                    should_switch = True
-                # 최근 5번 중 3번 패배 조건 검사
-                elif len(recent_trades) >= 5:
-                    losses = sum(1 for t in recent_trades[-5:] if float(t.get("pnl_usdt") or 0.0) < 0.0)
-                    if losses >= 3:
-                        should_switch = True
-            
-            # 3) 스위치 조건이 충족되면 모드를 뒤집고 상태 저장 (재기동 유도)
-            if should_switch:
-                expected_mode = not actual_mode
-                logger.warning(f"[{b}] 🚨 방향성 스위칭 조건 충족! (현재: {actual_mode} ➡️ 스위칭: {expected_mode})")
-                needs_restart = True
-                action_taken.append(f"연패에 따른 워치독 강제 스위칭 조치 ({actual_mode} ➡️ {expected_mode})")
-                
-                last_switched_on_count = N
-                try:
-                    os.makedirs(os.path.dirname(state_file), exist_ok=True)
-                    with open(state_file, "w") as sf:
-                        json.dump({"last_switched_on_count": last_switched_on_count}, sf, indent=2)
-                except Exception as e:
-                    logger.error(f"[{b}] 상태 저장 실패: {e}")
+            # [2026-09-02] 워치독의 독자 스위칭을 중단하고 **관측만** 한다.
+            #
+            # 스위칭 주체는 각 봇 engine.check_auto_mode_switch() 하나로 일원화한다.
+            # 두 구현이 같은 파일을 서로 다른 규칙·스키마로 쓰면서 문제가 있었다:
+            #   · 판정 창이 다르다 — 엔진은 '최근 5건 고정', 워치독은 '마지막 스위칭
+            #     이후 전체 슬라이스'. 같은 이력에서 결론이 갈린다.
+            #   · 워치독은 쿨다운(스위칭 후 최소 3거래)이 없어 휩쏘 구간에서
+            #     매 청산마다 방향이 뒤집힐 수 있다. 수수료만 나간다.
+            #   · 워치독이 상태를 {"last_switched_on_count": N} 한 키로 덮어써
+            #     last_switched_key가 사라지면 엔진의 중복 스위칭 방지가 풀린다.
+            # 판정은 엔진이 30초마다 수행하므로 기능 공백은 없다.
+            # 여기서는 불일치가 보이면 로그로만 남긴다(자동 조치·파일 쓰기 없음).
+            try:
+                if N >= 5:
+                    _r5 = closed_trades[-5:]
+                    _L = sum(1 for t in _r5 if float(t.get("pnl_usdt") or 0.0) < 0.0)
+                    if _L >= 3:
+                        _seq = "".join("x" if float(t.get("pnl_usdt") or 0.0) < 0.0 else "O"
+                                       for t in _r5)
+                        logger.info(f"[{b}] 스위칭 조건 관측: 5전 {_L}패({_seq})"
+                                    f" — 판정·실행은 엔진이 담당")
+            except Exception:
+                pass
 
         except Exception as e:
             logger.error(f"[{b}] ⚠️ 내역 검증 중 오류: {e}")
@@ -152,10 +146,10 @@ def check_and_fix_bot(b: int, do_config_check: bool = True):
         logger.info(f"[{b}] 🛠 적의조처 실행: Config 교정 및 2-Step 재부팅...")
         
         # [Phase 2] 이 순간에 비로소 디스크를 교정하여 상태 비동기화를 완벽 방어
-        if do_config_check and 'cfg' in locals() and 'expected_mode' in locals() and cfg.get("USE_BLUEFROG", False) != expected_mode:
-            cfg["USE_BLUEFROG"] = expected_mode
-            with open(cfg_file, "w") as f:
-                json.dump(cfg, f, indent=4)
+        # [2026-09-02] 매매방향 교정 제거 — 스위칭은 엔진 단일 주체다.
+        # 워치독이 config.json의 USE_BLUEFROG를 되쓰면, 엔진이 방금 바꾼 방향을
+        # 워치독이 되돌리는 경합이 난다(실제로 "방향성 오염 확정 / 자가 교정 실패"
+        # 로그가 반복됐다). 워치독은 생존·재기동만 책임진다.
 
         # [Phase 2] 2-Step Graceful Shutdown은 각 봇의 run.sh 내부 로직에 이미 완벽하게 구현되어 있습니다.
         # 전역 pkill은 다른 봇을 학살하므로 절대 사용하지 않고 run.sh에 위임합니다.
