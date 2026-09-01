@@ -1,3 +1,17 @@
+## v11.0.28
+Date: 2026-09-02
+
+### 변경 내용
+* 8888 통합 관제 대시보드 집계 대상 및 디스코드 알림에서 8402, 8408 봇 제외
+
+### 수정 파일
+* app.py
+* watchdog_entry.py
+* send_discord_hourly_graph.py
+* send_discord_stats.py
+* discord_alert.py
+* discord_bot_listener.py
+
 ## v11.0.24
 Date: 2026-08-29
 
