@@ -4747,3 +4747,19 @@ Date: 2026-08-29
 ### 수정 파일
 * app.py
 * dashboard.html
+
+# Version History
+
+## v9.9.2
+Date: 2026-09-01
+
+### 변경 내용
+* 중앙 워치독(watchdog_entry.py) 스위칭 오류 개선
+* Telegram 캐시 버그 수정을 위한 서브프로세스 분리
+
+### 수정 파일
+* watchdog_entry.py
+
+### 비고
+* 스위칭 시 더블 플립 현상 방어 및 독립 프로세스 알림 발송 구현
+
