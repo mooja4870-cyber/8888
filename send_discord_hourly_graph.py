@@ -19,13 +19,11 @@ WEBHOOK_URL = ""  # 알림 중단
 ROOT_DIR = "/Users/l/project"
 SNAP_FILE = os.path.join(ROOT_DIR, "8888", "snapshots.json")
 
-GROUP_A_IDS = ["8401", "8403", "8404", "8407", "8409", "8410"]
-ALL_BOT_IDS = ["8401", "8403", "8404", "8407", "8409", "8410"]
+GROUP_A_IDS = ["8401", "8407", "8409", "8410"]
+ALL_BOT_IDS = ["8401", "8407", "8409", "8410"]
 
 BOT_FOLDERS = {
-    "8401": "8401",    "8403": "8403",
-    "8404": "8404",
-    "8405": "8405",
+    "8401": "8401",    "8403": "8404": "8405": "8405",
     "8407": "8407",    "8409": "8409",
 }
 
@@ -216,7 +214,7 @@ def send_report():
     )
     
     # 2) 개별 봇 Part 1 (통합그룹: 8401, 8402, 8403, 8404, 8408, 8409)
-    part1_bots = ["8401", "8403", "8404", "8409"]
+    part1_bots = ["8401", "8409"]
     graphs_part1 = [generate_ascii_graph(f"{bid} 봇", bot_series[bid], is_group=False, seq_str=get_bot_recent_sequence(bid)) for bid in part1_bots]
     msg_part1 = (
         f"🤖 **[통합그룹 (8401,2,3,4,8,9) 40시간 일평균수익률 추이 리포트]**\n"
