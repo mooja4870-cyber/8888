@@ -1,3 +1,16 @@
+## v11.0.30
+Date: 2026-09-04
+
+### 변경 내용
+* 8401 봇 포지션 진입 결함 수정 및 모니터링 크래시 해결
+  - bot.py: 60초 주기 상태 모니터링 루프 `_drawdown_history` UnboundLocalError 크래시 버그 수정
+  - core/exchange.py: 최소 계약 요건 사전 검증 및 최소 1계약 안전 올림 보정 로직 탑재 (ccxt InvalidOrder 크래시 방지 및 소액 시드 정상 진입 보장)
+  - 8401 OKX 실매매 LIT/USDT, ONDO/USDT 숏 포지션 정상 체결 및 대시보드 반영 완료
+
+### 수정 파일
+* patch_8401_entry_fixes.py
+* ver.md
+
 ## v11.0.29
 Date: 2026-09-02
 
