@@ -4807,3 +4807,24 @@ Date: 2026-09-04
 ### 비고
 * 건당 알파 +948bp가 포트폴리오 단위에서 +288bp로 축소되고, 그마저 무작위 종목 선택과 동일
 * MAX_POSITIONS는 원인이 아님 — 상한을 10(무제한)까지 올려도 z≈0
+
+## v9.9.4
+Date: 2026-09-04
+
+### 변경 내용
+* 국면 분류기 자체 검증 (research_regime/clf.py, clf_run.py 신규) — 분류기 9종 스코어보드
+* 시장국면 타이밍 오버레이 검증 (research_regime/timing.py, timing_run.py 신규)
+* **자체 미래참조 버그 발견·수정** — 라벨(close[i-1])을 open[i-1]부터의 수익에 짝지어
+  반나절을 훔치고 있었음. `timing.tradable()`로 정렬 보정
+* 결과: 보정 전 +276%/y·z=+7.05 → 보정 후 +94%/y·z=+1.87. **기각**
+
+### 수정 파일
+* research_regime/clf.py (신규)
+* research_regime/clf_run.py (신규)
+* research_regime/timing.py (신규)
+* research_regime/timing_run.py (신규)
+
+### 비고
+* 소득: 국면은 종목별이 아니라 BTC 기준 시장 전체로 판정해야 함 (분리력 +274~+1024bp, 4분할 전부 양수)
+* 소득: 숏 조건(⑤)은 분류기 9종 전부 실패 — BEAR 라벨의 미래수익이 분기마다 부호가 뒤집힘
+* 한계: 7년에 BULL 에피소드가 27~51개뿐이라 z≥2를 얻을 검정력이 구조적으로 부족
