@@ -14,8 +14,8 @@ from datetime import datetime, timedelta
 WEBHOOK_URL = ""  # 알림 중단
 ROOT_DIR = "/Users/l/project"
 BOTS = [
-    ("8401", "8401_OKX"),    ("8402", "8402_OKX"),    ("8403", "8403_OKX"),
-    ("8404", "8404_OKX"),
+    ("8401", "8401_OKX"),    ("8402", "8402_OKX"),
+    ("8403", "8403_OKX"),    ("8404", "8404_OKX"),
     ("8407", "8407_BNC"),    ("8409", "8409_BNC"),
     ("8410", "8410_BNC"),
 ]
@@ -151,7 +151,7 @@ def build_discord_messages(now_str, overall, by_bot, bot_modes, bot_seq):
         lines.append(f"⏱️ **{label:>4}** | 거래 {w+l+d:2d}건 ({w:2d}승 {l:2d}패, {rate:5.1f}%) | PnL: `{pnl_str}`")
 
     lines.append(f"--------------------------------------------------")
-    lines.append(f"🤖 **[통합그룹 (8401,3,8,9) 봇별 4개 구간 승패 상세]**")
+    lines.append(f"🤖 **[통합그룹 (8401,2,3,4,7,9,10) 봇별 4개 구간 승패 상세]**")
 
     for bot_id, name in BOTS:
         is_bf = bot_modes.get(bot_id, False)

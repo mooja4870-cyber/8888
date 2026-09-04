@@ -1,5 +1,19 @@
-## v11.0.32
+## v11.0.33
 Date: 2026-09-04
+
+### 변경 내용
+* 8888 디스코드 알림 및 대시보드 누락 봇(8402) 완전 복구
+  - `app.py` 전역 `BOTS` 튜플 리스트에 8402 항목 정상 추가
+  - `send_discord_stats.py`의 `BOTS` 튜플 리스트 및 안내 메시지에 8402 항목 추가
+  - `watchdog_entry.py`의 `BOT_LIST` 리스트에 8402 항목 추가
+
+### 수정 파일
+* app.py
+* send_discord_stats.py
+* watchdog_entry.py
+* ver.md
+
+## v11.0.32
 
 ### 변경 내용
 * 8888 디스코드 알림 및 대시보드 집계 대상에 8402 봇 추가
