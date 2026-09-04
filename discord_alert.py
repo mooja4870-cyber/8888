@@ -371,10 +371,10 @@ def _process_subset(data, target_names, state_suffix, title_prefix, include_bot_
 
 def tick(data, tick_count=0, include_bot_charts=False):
     """집계 1건을 받아 매 1분마다 디스코드 알림 발송 및 상태 갱신 (2개 그룹 분할 발송)."""
-    # 그룹 1: 봇 8401, 8402, 8410
-    group_1_names = {"8401", "8402", "8410"}
-    # 그룹 2: 봇 8407, 8409
-    group_2_names = {"8407", "8409"}
+    # 그룹 1: 봇 8407, 8409
+    group_1_names = {"8407", "8409"}
+    # 그룹 2: 봇 8401, 8402, 8410
+    group_2_names = {"8401", "8402", "8410"}
     
     # 실제 data.get("bots")에 존재하는 봇만 필터링
     actual_1 = {str(b.get("name")) for b in data.get("bots", []) if str(b.get("name")) in group_1_names}
@@ -382,13 +382,13 @@ def tick(data, tick_count=0, include_bot_charts=False):
 
     results = []
     if actual_1:
-        ok1, info1 = _process_subset(data, actual_1, "_group_1.json", "그룹1 (8401, 8402, 8410)", include_bot_charts=include_bot_charts)
+        ok1, info1 = _process_subset(data, actual_1, "_group_1.json", "그룹1 (8407, 8409)", include_bot_charts=include_bot_charts)
         results.append(f"Group 1({len(actual_1)}): {info1}")
         if actual_2:
             time.sleep(1.0)  # 웹훅 연속 발송 레이트리밋 방지 딜레이
 
     if actual_2:
-        ok2, info2 = _process_subset(data, actual_2, "_group_2.json", "그룹2 (8407, 8409)", include_bot_charts=include_bot_charts)
+        ok2, info2 = _process_subset(data, actual_2, "_group_2.json", "그룹2 (8401, 8402, 8410)", include_bot_charts=include_bot_charts)
         results.append(f"Group 2({len(actual_2)}): {info2}")
 
     return (len(results) > 0), " | ".join(results) if results else "No bots in any group"

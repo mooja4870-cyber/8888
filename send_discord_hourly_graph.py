@@ -19,10 +19,10 @@ WEBHOOK_URL = ""  # 알림 중단
 ROOT_DIR = "/Users/l/project"
 SNAP_FILE = os.path.join(ROOT_DIR, "8888", "snapshots.json")
 
-GROUP_1_IDS = ["8401", "8402", "8410"]
-GROUP_2_IDS = ["8407", "8409"]
+GROUP_1_IDS = ["8407", "8409"]
+GROUP_2_IDS = ["8401", "8402", "8410"]
 GROUP_A_IDS = GROUP_1_IDS
-ALL_BOT_IDS = ["8401", "8402", "8410", "8407", "8409"]
+ALL_BOT_IDS = ["8407", "8409", "8401", "8402", "8410"]
 
 BOT_FOLDERS = {
     "8401": "8401", "8402": "8402", "8403": "8403", "8404": "8404", "8405": "8405",
@@ -105,12 +105,12 @@ def collect_hourly_data(num_hours=40):
             bot_seeds[bid] = seed
             bot_series[bid].append(d_ret)
             
-        # 그룹 1 (8401, 8402, 8410) 계산
+        # 그룹 1 (8407, 8409) 계산
         tot_seed_1 = sum(bot_seeds[bid] for bid in GROUP_1_IDS)
         avg_ret_1 = sum(bot_rets[bid] * bot_seeds[bid] for bid in GROUP_1_IDS) / tot_seed_1 if tot_seed_1 else 0.0
         group_1_series.append(round(avg_ret_1, 2))
 
-        # 그룹 2 (8407, 8409) 계산
+        # 그룹 2 (8401, 8402, 8410) 계산
         tot_seed_2 = sum(bot_seeds[bid] for bid in GROUP_2_IDS)
         avg_ret_2 = sum(bot_rets[bid] * bot_seeds[bid] for bid in GROUP_2_IDS) / tot_seed_2 if tot_seed_2 else 0.0
         group_2_series.append(round(avg_ret_2, 2))
@@ -208,7 +208,7 @@ def send_report():
     now_str = datetime.now().strftime("%Y-%m-%d %H:00:00")
     timestamps, series_1, series_2, bot_series = collect_hourly_data(num_hours=40)
     
-    # 1) 그룹별 추이 리포트 (그룹 1: 8401, 8402, 8410 / 그룹 2: 8407, 8409)
+    # 1) 그룹별 추이 리포트 (그룹 1: 8407, 8409 / 그룹 2: 8401, 8402, 8410)
     graph_1 = generate_ascii_graph("그룹1(" + ", ".join(GROUP_1_IDS) + ") 봇 집계", series_1, is_group=True)
     graph_2 = generate_ascii_graph("그룹2(" + ", ".join(GROUP_2_IDS) + ") 봇 집계", series_2, is_group=True)
     
