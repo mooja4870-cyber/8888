@@ -14,7 +14,8 @@ from datetime import datetime, timedelta
 WEBHOOK_URL = ""  # 알림 중단
 ROOT_DIR = "/Users/l/project"
 BOTS = [
-    ("8401", "8401_OKX"),    ("8403", "8403_OKX"),
+    ("8401", "8401_OKX"),    ("8402", "8402_OKX"),
+    ("8403", "8403_OKX"),
     ("8404", "8404_OKX"),
     ("8407", "8407_BNC"),    ("8409", "8409_BNC"),
     ("8410", "8410_BNC"),

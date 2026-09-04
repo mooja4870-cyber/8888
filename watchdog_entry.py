@@ -16,7 +16,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("Watchdog")
 
-BOT_LIST = [8401, 8403, 8404, 8405, 8407, 8409, 8410]
+BOT_LIST = [8401, 8402, 8403, 8404, 8405, 8407, 8409, 8410]
 HEALTH_CHECK_SEC = 60  # 1 minute for process health
 CONFIG_CHECK_CYCLES = 5  # Check config drift every 5 cycles (5 minutes)
 

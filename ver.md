@@ -1,3 +1,17 @@
+## v11.0.31
+Date: 2026-09-04
+
+### 변경 내용
+* 8888 앱 통합 관제 대시보드 및 워치독/디스코드 알림 대상 봇에 8402 추가
+
+### 수정 파일
+* app.py
+* profit_guard.py
+* watchdog_entry.py
+* send_discord_stats.py
+* discord_bot_listener.py
+* ver.md
+
 ## v11.0.30
 Date: 2026-09-04
 
