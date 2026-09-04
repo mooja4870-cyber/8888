@@ -1,17 +1,16 @@
-## v11.0.31
+## v11.0.32
 Date: 2026-09-04
 
 ### 변경 내용
-* 8888 앱 관리, 집계 및 디스코드 알림 대상 봇 리스트에 8402 봇 복귀 추가
+* 8888 디스코드 알림 및 대시보드 집계 대상에 8402 봇 추가
 
 ### 수정 파일
-* app.py
 * profit_guard.py
-* watchdog_entry.py
+* bot_watchdog.py
+* discord_alert.py
 * discord_bot_listener.py
-* send_discord_stats.py
 * send_discord_hourly_graph.py
-* ver.md
+* app.py
 
 ## v11.0.30
 Date: 2026-09-04
