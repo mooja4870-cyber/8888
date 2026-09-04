@@ -1,3 +1,20 @@
+## v11.0.34
+Date: 2026-09-05
+
+### 변경 내용
+* 디스코드 관제 알림 2개 그룹 분할 발송 적용
+  - 그룹1: 봇 8401, 8402, 8410 (총 3개 봇 독립 집계 및 알림)
+  - 그룹2: 봇 8407, 8409 (총 2개 봇 독립 집계 및 알림)
+  - `discord_alert.py`: `tick()` 내 2개 그룹 분할 발송 및 웹훅 레이트리밋 방지 딜레이 적용
+  - `send_discord_stats.py`: 정시 자동 리포트 승패 구간 상세 그룹1/그룹2 분리 표기
+  - `send_discord_hourly_graph.py`: 40시간 일평균 추이 아스키 그래프 그룹1/그룹2 분할 렌더링
+
+### 수정 파일
+* discord_alert.py
+* send_discord_stats.py
+* send_discord_hourly_graph.py
+* ver.md
+
 ## v11.0.33
 Date: 2026-09-04
 

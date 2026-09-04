@@ -19,8 +19,10 @@ WEBHOOK_URL = ""  # 알림 중단
 ROOT_DIR = "/Users/l/project"
 SNAP_FILE = os.path.join(ROOT_DIR, "8888", "snapshots.json")
 
-GROUP_A_IDS = ["8401", "8402", "8407", "8409", "8410"]
-ALL_BOT_IDS = ["8401", "8402", "8407", "8409", "8410"]
+GROUP_1_IDS = ["8401", "8402", "8410"]
+GROUP_2_IDS = ["8407", "8409"]
+GROUP_A_IDS = GROUP_1_IDS
+ALL_BOT_IDS = ["8401", "8402", "8410", "8407", "8409"]
 
 BOT_FOLDERS = {
     "8401": "8401", "8402": "8402", "8403": "8403", "8404": "8404", "8405": "8405",
@@ -88,9 +90,8 @@ def collect_hourly_data(num_hours=40):
     timestamps = [latest_top_of_hour - 3600 * (num_hours - 1 - i) for i in range(num_hours)]
     bot_data = {bid: load_bot_history(bid) for bid in ALL_BOT_IDS}
     
-    group_a_series = []
-    group_b_series = []
-    group_c_series = []
+    group_1_series = []
+    group_2_series = []
     bot_series = {bid: [] for bid in ALL_BOT_IDS}
     
     for T in timestamps:
@@ -104,12 +105,17 @@ def collect_hourly_data(num_hours=40):
             bot_seeds[bid] = seed
             bot_series[bid].append(d_ret)
             
-        # 그룹 A (통합그룹) 계산
-        tot_seed_a = sum(bot_seeds[bid] for bid in GROUP_A_IDS)
-        avg_ret_a = sum(bot_rets[bid] * bot_seeds[bid] for bid in GROUP_A_IDS) / tot_seed_a if tot_seed_a else 0.0
-        group_a_series.append(round(avg_ret_a, 2))
+        # 그룹 1 (8401, 8402, 8410) 계산
+        tot_seed_1 = sum(bot_seeds[bid] for bid in GROUP_1_IDS)
+        avg_ret_1 = sum(bot_rets[bid] * bot_seeds[bid] for bid in GROUP_1_IDS) / tot_seed_1 if tot_seed_1 else 0.0
+        group_1_series.append(round(avg_ret_1, 2))
 
-    return timestamps, group_a_series, bot_series
+        # 그룹 2 (8407, 8409) 계산
+        tot_seed_2 = sum(bot_seeds[bid] for bid in GROUP_2_IDS)
+        avg_ret_2 = sum(bot_rets[bid] * bot_seeds[bid] for bid in GROUP_2_IDS) / tot_seed_2 if tot_seed_2 else 0.0
+        group_2_series.append(round(avg_ret_2, 2))
+
+    return timestamps, group_1_series, group_2_series, bot_series
 
 def get_bot_recent_sequence(bid: str) -> str:
     try:
@@ -200,33 +206,35 @@ def post_to_discord(content: str):
 
 def send_report():
     now_str = datetime.now().strftime("%Y-%m-%d %H:00:00")
-    timestamps, series_a, bot_series = collect_hourly_data(num_hours=40)
+    timestamps, series_1, series_2, bot_series = collect_hourly_data(num_hours=40)
     
-    # 1) 그룹 메시지
-    graph_a = generate_ascii_graph("통합그룹(" + ", ".join(GROUP_A_IDS) + ") 전체 봇 집계", series_a, is_group=True)
+    # 1) 그룹별 추이 리포트 (그룹 1: 8401, 8402, 8410 / 그룹 2: 8407, 8409)
+    graph_1 = generate_ascii_graph("그룹1(" + ", ".join(GROUP_1_IDS) + ") 봇 집계", series_1, is_group=True)
+    graph_2 = generate_ascii_graph("그룹2(" + ", ".join(GROUP_2_IDS) + ") 봇 집계", series_2, is_group=True)
     
     msg_groups = (
-        f"📢 **[8888 봇 통합그룹 40시간 일평균수익률 추이 리포트]**\n"
+        f"📢 **[8888 봇 그룹별 40시간 일평균수익률 추이 리포트]**\n"
         f"📅 **집계 시각**: `{now_str}` (최근 40시간 정시 추이)\n"
         f"--------------------------------------------------\n"
-        f"{graph_a}\n"
+        f"{graph_1}\n"
+        f"--------------------------------------------------\n"
+        f"{graph_2}\n"
         f"--------------------------------------------------"
     )
     
-    # 2) 개별 봇 Part 1 (통합그룹: 8401, 8402, 8403, 8404, 8408, 8409)
-    part1_bots = ["8401", "8409"]
-    graphs_part1 = [generate_ascii_graph(f"{bid} 봇", bot_series[bid], is_group=False, seq_str=get_bot_recent_sequence(bid)) for bid in part1_bots]
-    msg_part1 = (
-        f"🤖 **[통합그룹 (8401,2,3,4,8,9) 40시간 일평균수익률 추이 리포트]**\n"
+    # 2) 개별 봇 40시간 추이 상세
+    graphs_bots = [generate_ascii_graph(f"{bid} 봇", bot_series[bid], is_group=False, seq_str=get_bot_recent_sequence(bid)) for bid in ALL_BOT_IDS]
+    msg_bots = (
+        f"🤖 **[개별 봇별 40시간 일평균수익률 추이 상세]**\n"
         f"--------------------------------------------------\n"
-        + "\n\n".join(graphs_part1) + "\n"
+        + "\n\n".join(graphs_bots) + "\n"
         f"--------------------------------------------------"
     )
 
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Discord 2개 분할 리포트 발송 시도...", flush=True)
     ok1 = post_to_discord(msg_groups)
-    time.sleep(0.5)
-    ok2 = post_to_discord(msg_part1)
+    time.sleep(1.0)
+    ok2 = post_to_discord(msg_bots)
     if ok1 and ok2:
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Discord 2개 리포트 모두 발송 성공!", flush=True)
     else:
