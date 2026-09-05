@@ -593,7 +593,7 @@ def read_bot_config(folder):
             "USE_BLUEFROG": bool(use_bf),
             "USE_AUTO_COMPOUND": cfg.get("USE_AUTO_COMPOUND", False),
             "AUTO_COMPOUND_PCT": cfg.get("AUTO_COMPOUND_PCT", 0.0),
-            "use_auto_mode_switch": False if folder in ("8407", "8409") else cfg.get("USE_DYNAMIC_REGIME", True),  # 8407·8409는 방향스위칭 폐지(쿨다운 가드)로 X 표기
+            "use_auto_mode_switch": False if folder in ("8407", "8409") else bool(cfg.get("USE_AUTO_MODE_SWITCH", False)),  # 8407·8409 폐지(X), 8401·8402·8410 등 가동봇은 O
         }
     except (OSError, json.JSONDecodeError, ValueError):
         return {k: "—" for k in ["leverage", "margin_usdt", "max_positions", "stop_loss_pct",
