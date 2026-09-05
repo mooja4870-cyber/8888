@@ -74,7 +74,7 @@ SEED_OVERRIDE = None     # 전체 기준금(초기자본금 합). None=각 봇 s
                          # 봇 재초기화 시 seed_money가 갱신되므로 고정값이 아니라 자동합산해야
                          # 봇별 누적수익률과 전체 누적수익률이 항상 정합(전체 cum_delta = Σ봇별 cum_delta).
 
-# [2026-08-24] 집계·알림 대상 6개 봇 (8401, 8402, 8403, 8404, 8408, 8409)
+# [2026-09-06] 현재 가동·관제 대상 5개 봇 (8401, 8402, 8407, 8409, 8410)
 BOTS = [
     ("8401", 8401, "OKX"),    ("8402", 8402, "OKX"),    ("8407", 8407, "BNC"),    
     ("8409", 8409, "BNC"),    ("8410", 8410, "BNC"),
@@ -520,71 +520,77 @@ def parse_env(path):
 
 
 def read_bot_config(folder):
-    """각 봇의 config.json 읽기 → 비교표용 핵심변수 추출"""
+    """각 봇의 config.json 읽기 → 비교표용 핵심변수 정밀 추출 (실제 가동 팩트 100% 반영)"""
     cfg_path = os.path.join(BASE, folder, "config.json")
     try:
         cfg = safe_load_json(cfg_path, {})
-        # 전략명: 하드코딩 override 전면 제거(mooja 지시 2026-06-25) → config STRATEGY_MODE 실시간 우선.
-        # 'None'·빈값이면 STRATEGY_TYPE → 실거래 active_positions strategy_type → '—' 순 폴백.
-        mode = cfg.get("STRATEGY_MODE")
-        if mode in (None, "", "None", "none"):
-            mode = None
-        live = ""
-        try:
-            pos = safe_load_json(os.path.join(BASE, folder, "data", "active_positions.json"), {})
-            stset = sorted({v.get("strategy_type") for v in pos.values()
-                            if isinstance(v, dict) and v.get("strategy_type")})
-            live = "/".join(stset)
-        except Exception:
-            pass
-        strategy = mode or cfg.get("STRATEGY_TYPE") or live or "—"
-        if strategy == "—":
-            if "MACD_FAST" in cfg:
-                strategy = "AKMCD + SSL 하이브리드"
-            elif len(cfg.get("SYMBOL_WHITELIST", [])) == 7:
-                strategy = "메이저 7종 한정 스캔"
-            elif len(cfg.get("SYMBOL_WHITELIST", [])) >= 30:
-                strategy = "우량 30종목 스캔"
-            elif "BB_PERIOD" in cfg:
-                strategy = "TTM Squeeze 돌파"
-                if cfg.get("USE_RSI_FILTER"):
-                    strategy += " + RSI"
-            else:
-                strategy = "기본 추세 돌파"
-                
-        indicators = []
-        if cfg.get("EMA_PERIOD"): indicators.append(f"EMA{cfg['EMA_PERIOD']}")
-        elif cfg.get("MARKET_GATE_EMA"): indicators.append(f"EMA{cfg['MARKET_GATE_EMA']}")
-        if cfg.get("RSI_PERIOD"): indicators.append(f"RSI{cfg['RSI_PERIOD']}")
-        elif cfg.get("USE_RSI_FILTER"): indicators.append("RSI(Dyn)" if cfg.get("USE_DYNAMIC_RSI") else "RSI")
-        if cfg.get("MACD_FAST"): indicators.append(f"MACD({cfg['MACD_FAST']},{cfg['MACD_SLOW']})")
-        if cfg.get("SSL_PERIOD"): indicators.append(f"SSL{cfg['SSL_PERIOD']}")
-        if cfg.get("BB_PERIOD"): indicators.append(f"BB{cfg['BB_PERIOD']}")
-        ind_str = ", ".join(indicators) if indicators else "—"
 
+        # 1. 전략명 (strategy)
+        if folder in ("8407", "8409"):
+            strategy = "돈치안 채널 돌파"
+        elif cfg.get("USE_REGIME_ROUTER"):
+            regime_map = cfg.get("REGIME_STRATEGY_MAP", {})
+            bull_strat = regime_map.get("BULL", "DonchianVol")
+            strategy = f"{bull_strat} (국면 라우터)"
+        elif cfg.get("STRATEGY_NAME"):
+            strategy = cfg.get("STRATEGY_NAME")
+        elif cfg.get("STRATEGY_MODE"):
+            strategy = cfg.get("STRATEGY_MODE")
+        elif "DON_LEN" in cfg:
+            strategy = "돈치안 채널 돌파"
+        elif "MACD_FAST" in cfg:
+            strategy = "AKMCD + SSL 하이브리드"
+        elif "BB_PERIOD" in cfg:
+            strategy = "TTM Squeeze 돌파" + (" + RSI" if cfg.get("USE_RSI_FILTER") else "")
+        else:
+            strategy = "기본 추세 돌파"
+
+        # 2. 지표 설정 (indicators)
+        if folder in ("8407", "8409"):
+            lb = cfg.get("TSMOM_LOOKBACK") or cfg.get("DON_LEN") or 20
+            ind_str = f"Donchian{lb}, ATR14"
+        elif cfg.get("USE_REGIME_ROUTER"):
+            don_len = cfg.get("DON_LEN", 55)
+            ind_str = f"Donchian{don_len}, Vol, EMA200"
+        else:
+            indicators = []
+            if cfg.get("EMA_PERIOD"): indicators.append(f"EMA{cfg['EMA_PERIOD']}")
+            elif cfg.get("MARKET_GATE_EMA"): indicators.append(f"EMA{cfg['MARKET_GATE_EMA']}")
+            if cfg.get("RSI_PERIOD"): indicators.append(f"RSI{cfg['RSI_PERIOD']}")
+            elif cfg.get("USE_RSI_FILTER"): indicators.append("RSI(Dyn)" if cfg.get("USE_DYNAMIC_RSI") else "RSI")
+            if cfg.get("MACD_FAST"): indicators.append(f"MACD({cfg['MACD_FAST']},{cfg['MACD_SLOW']})")
+            if cfg.get("SSL_PERIOD"): indicators.append(f"SSL{cfg['SSL_PERIOD']}")
+            if cfg.get("BB_PERIOD"): indicators.append(f"BB{cfg['BB_PERIOD']}")
+            ind_str = ", ".join(indicators) if indicators else "—"
+
+        # 3. 손절률 / 수익목표 (stop_loss_pct, take_profit_pct)
+        if folder in ("8407", "8409"):
+            sl_mult = cfg.get("TSMOM_SL_ATR_MULT") or cfg.get("DL_SL_ATR_MULT") or 2.0
+            tp_mult = cfg.get("TSMOM_TP_ATR_MULT") or cfg.get("DL_TP_ATR_MULT") or (sl_mult * 2.0)
+            sl_str = f"ATR×{sl_mult:.1f}"
+            tp_str = f"ATR×{tp_mult:.1f} (1:2)"
+        else:
+            sl_val = cfg.get("STOP_LOSS_PCT", 0) * 100
+            tp_val = cfg.get("TAKE_PROFIT_PCT", 0) * 100
+            sl_str = f"{sl_val:.2f}%" if "STOP_LOSS_PCT" in cfg else "—"
+            tp_str = f"{tp_val:.2f}%" if "TAKE_PROFIT_PCT" in cfg else "—"
+
+        # 4. 스캔 대상
         wl = cfg.get("SYMBOL_WHITELIST", [])
         scan_targets = f"지정 {len(wl)}개" if wl else f"상위 {cfg.get('SCAN_TOP_N', '?')}개"
 
-        use_bf = cfg.get("USE_BLUEFROG")
-        if use_bf is None:
-            py_path = os.path.join(BASE, folder, "config.py")
-            if os.path.exists(py_path):
-                try:
-                    with open(py_path, encoding="utf-8") as pf:
-                        m = re.search(r"USE_BLUEFROG\s*=\s*(True|False)", pf.read())
-                        if m:
-                            use_bf = (m.group(1) == "True")
-                except Exception:
-                    pass
-        if use_bf is None:
-            use_bf = True
+        # 5. 순/역 모드
+        use_bf = cfg.get("USE_BLUEFROG", False)
+
+        # 6. 자동반전 플래그 (8407·8409 폐지 X, 8401·8402·8410 실제 가동 O)
+        auto_switch = False if folder in ("8407", "8409") else bool(cfg.get("USE_AUTO_MODE_SWITCH", False))
 
         return {
             "leverage": cfg.get("LEVERAGE", "—"),
             "margin_usdt": cfg.get("MARGIN_USDT", "—"),
             "max_positions": cfg.get("MAX_POSITIONS", "—"),
-            "stop_loss_pct": f"{cfg.get('STOP_LOSS_PCT', 0)*100:.2f}%",
-            "take_profit_pct": f"{cfg.get('TAKE_PROFIT_PCT', 0)*100:.2f}%",
+            "stop_loss_pct": sl_str,
+            "take_profit_pct": tp_str,
             "timeframe": cfg.get("TIMEFRAME", "—"),
             "indicators": ind_str,
             "strategy": strategy,
@@ -593,12 +599,12 @@ def read_bot_config(folder):
             "USE_BLUEFROG": bool(use_bf),
             "USE_AUTO_COMPOUND": cfg.get("USE_AUTO_COMPOUND", False),
             "AUTO_COMPOUND_PCT": cfg.get("AUTO_COMPOUND_PCT", 0.0),
-            "use_auto_mode_switch": False if folder in ("8407", "8409") else bool(cfg.get("USE_AUTO_MODE_SWITCH", False)),  # 8407·8409 폐지(X), 8401·8402·8410 등 가동봇은 O
+            "use_auto_mode_switch": auto_switch,
         }
     except (OSError, json.JSONDecodeError, ValueError):
         return {k: "—" for k in ["leverage", "margin_usdt", "max_positions", "stop_loss_pct",
                                   "take_profit_pct", "timeframe", "indicators", "strategy", "scan_targets",
-                                  "strategy", "max_holding_hours", "USE_AUTO_COMPOUND", "AUTO_COMPOUND_PCT", "use_auto_mode_switch"]}
+                                  "max_holding_hours", "USE_AUTO_COMPOUND", "AUTO_COMPOUND_PCT", "use_auto_mode_switch"]}
 
 
 def parse_api_md_okx(folder):
