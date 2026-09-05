@@ -91,26 +91,37 @@ def audit(bot):
     last_key = st.get("last_switched_key")
     last_cnt = st.get("last_switched_on_count", -1)
 
-    # ④ 지금 판정
-    verdict = "판정불가(청산 3건 미만)"
-    if N >= 3:
-        latest_key = str(closed[-1].get("exit_time") or closed[-1].get("timestamp"))
-        if last_key == latest_key:
-            verdict = "차단: 이 청산으로 이미 스위칭함"
-        elif last_cnt != -1 and N >= last_cnt and (N - last_cnt) < 3:
-            verdict = f"차단: 쿨다운(스위칭 후 {N-last_cnt}건 < 3건)"
-        else:
-            if N >= 5:
-                r5 = closed[-5:]
-                L = sum(1 for t in r5 if float(t.get("pnl_usdt") or 0.0) < 0.0)
-                seq = "".join("x" if float(t.get("pnl_usdt") or 0.0) < 0.0 else "O" for t in r5)
-                verdict = (f"**발동** 5전 {L}패 ({seq})" if L >= 3
-                           else f"대기 5전 {L}패 ({seq}) — 3패 미만")
-            else:
-                l3 = closed[-3:]
-                allx = all(float(t.get("pnl_usdt") or 0.0) < 0.0 for t in l3)
-                seq = "".join("x" if float(t.get("pnl_usdt") or 0.0) < 0.0 else "O" for t in l3)
-                verdict = f"**발동** 초기 3연패 ({seq})" if allx else f"대기 초기 {seq}"
+    # ④ 지금 판정 — [2026-09-03] 엔진과 같은 기준: 스위칭 후 기록만 본다.
+    #    쿨다운 장치는 없어졌다. 새 기록이 3건 미만이면 판단 자체를 보류한다.
+    # 창은 '진입 시각' 기준. 스위칭 시점에 보유 중이던 포지션(이전 방향으로 진입)은
+    # 나중에 청산되더라도 다음 방향 판단에서 제외한다.
+    anchor = str(st.get("updated_at") or last_key or "")
+    if anchor:
+        window = [t for t in closed
+                  if t.get("entry_time") is not None and str(t.get("entry_time")) > anchor]
+    else:
+        window = list(closed)
+    M = len(window)
+    lost = lambda t: float(t.get("pnl_usdt") or 0.0) < 0.0
+
+    latest_key = str(closed[-1].get("exit_time") or closed[-1].get("timestamp")) if closed else ""
+    if not closed:
+        verdict = "판정불가(청산 없음)"
+    elif last_key == latest_key:
+        verdict = "차단: 이 청산으로 이미 스위칭함"
+    elif M < 3:
+        verdict = f"대기: 스위칭 후 기록 {M}건 (3건 이상이어야 판단)"
+    elif M >= 5:
+        r5 = window[-5:]
+        L = sum(1 for t in r5 if lost(t))
+        seq = "".join("x" if lost(t) else "O" for t in r5)
+        verdict = (f"**발동** 스위칭 후 5전 {L}패 ({seq})" if L >= 3
+                   else f"대기 스위칭 후 5전 {L}패 ({seq}) — 3패 미만")
+    else:
+        l3 = window[-3:]
+        seq = "".join("x" if lost(t) else "O" for t in l3)
+        verdict = (f"**발동** 스위칭 후 3연패 ({seq})" if all(lost(t) for t in l3)
+                   else f"대기 스위칭 후 {M}건 ({''.join('x' if lost(t) else 'O' for t in window)})")
 
     # 최근 10건 패턴
     tail = "".join("x" if float(t.get("pnl_usdt") or 0.0) < 0.0 else "O" for t in closed[-10:])
