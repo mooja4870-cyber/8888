@@ -185,7 +185,7 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
 
     lines = [ts,
              f"📊 {title_prefix} 일평균수익률 ({head_days})",
-             f"{asset_str}{delta_str}{tot_str}% {icon}{delta:.2f}%{arrow} {h1} {h24} {h48} {h72}",
+             f"{asset_str}{delta_str}{tot_str}% [1m]{delta:.2f}%{arrow} [1h]{h1} [24h]{h24} [48h]{h48} [72h]{h72}",
              "─" * 38]
     bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
     for b in bots:
