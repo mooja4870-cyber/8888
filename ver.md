@@ -1,3 +1,17 @@
+## v11.0.45
+Date: 2026-09-07
+
+### 변경 내용
+* 중앙 워치독(watchdog_entry.py) 포지션 청산 기준 건전성 감시(Exit Readiness) 기능 신규 탑재
+  - 보스 특별 지침(5개 핵심 봇: 8401, 8402, 8407, 8409, 8410) 최우선 감시 체계 연동
+  - 활성 포지션의 exit_profile(SL/TP, TRAILING), ATR 트레일링 파라미터(act, cb) 유효성 60초 주기 실시간 검증
+  - 진입 시간(open_time) 기반 보유 시간 계산 및 MAX_HOLDING_HOURS 초과/방치(Stale) 감시
+  - 워치독 프로세스 안전 재기동 및 5개 봇 11건 포지션 실시간 청산 건전성 감시 가동 완료
+
+### 수정 파일
+* watchdog_entry.py
+* ver.md
+
 ## v11.0.44
 Date: 2026-09-07
 

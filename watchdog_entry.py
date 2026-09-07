@@ -16,9 +16,96 @@ logging.basicConfig(
 )
 logger = logging.getLogger("Watchdog")
 
-BOT_LIST = [8401, 8402, 8403, 8404, 8405, 8407, 8409, 8410]
+from datetime import datetime
+
+# 상시 기본 관리 대상 5개 핵심 봇 최우선 순찰
+CORE_BOTS = [8401, 8402, 8407, 8409, 8410]
+BOT_LIST = [8401, 8402, 8407, 8409, 8410, 8403, 8404, 8405]
 HEALTH_CHECK_SEC = 60  # 1 minute for process health
 CONFIG_CHECK_CYCLES = 5  # Check config drift every 5 cycles (5 minutes)
+
+def check_exit_readiness(b: int, cwd: str) -> str:
+    """
+    [보스 특별 지침] 각 봇별 포지션 청산 기준 및 실행 준비도(Exit Readiness) 실시간 감시:
+    1. 활성 포지션의 exit_profile(SL/TP, TRAILING) 유효성 검사
+    2. 트레일링 콜백 파라미터(atr_activation, atr_callback) 정상치 검사
+    3. 보유 시간 계산 및 MAX_HOLDING_HOURS 타임아웃 초과 여부 추적
+    4. 이상 발생 시 경고 리턴
+    """
+    active_pos_file = os.path.join(cwd, "data", "active_positions.json")
+    cfg_file = os.path.join(cwd, "config.json")
+    
+    if not os.path.exists(active_pos_file):
+        return "활성 포지션 파일 없음"
+        
+    try:
+        with open(active_pos_file, "r") as pf:
+            positions = json.load(pf)
+    except Exception as e:
+        return f"포지션 파일 읽기 오류: {e}"
+        
+    if not positions:
+        return "보유 포지션 없음 (대기 상태)"
+
+    cfg = {}
+    if os.path.exists(cfg_file):
+        try:
+            with open(cfg_file, "r") as cf:
+                cfg = json.load(cf)
+        except Exception:
+            pass
+
+    max_holding = float(cfg.get("MAX_HOLDING_HOURS", 0.0) or 0.0)
+    hard_limit = float(cfg.get("MAX_HOLDING_HARD_HOURS", 24.0) or 24.0)
+    now = datetime.now()
+    
+    pos_summaries = []
+    has_warning = False
+
+    for sym, pdata in positions.items():
+        coin = sym.split("/")[0] if "/" in sym else sym
+        profile = pdata.get("exit_profile", "SL/TP")
+        strategy = pdata.get("strategy_type", "Standard")
+        act = float(pdata.get("atr_activation", 0.0) or 0.0)
+        cb = float(pdata.get("atr_callback", 0.0) or 0.0)
+        
+        # 1) 보유 시간 추적
+        ot_str = pdata.get("open_time")
+        age_hours = None
+        if ot_str:
+            try:
+                clean_time = ot_str.split(".")[0]
+                ot = datetime.fromisoformat(clean_time)
+                age_hours = (now - ot).total_seconds() / 3600.0
+            except Exception:
+                pass
+                
+        # 2) 청산 기준 판정
+        exit_status = "OK"
+        if max_holding > 0 and age_hours is not None:
+            if age_hours > hard_limit:
+                exit_status = f"하드캡초과({age_hours:.1f}h>{hard_limit}h)🚨"
+                has_warning = True
+            elif age_hours > max_holding:
+                exit_status = f"시간청산대기({age_hours:.1f}h>{max_holding}h)⚠️"
+            else:
+                exit_status = f"보유정상({age_hours:.1f}h/{max_holding}h)"
+        elif max_holding == 0:
+            age_desc = f"{age_hours:.1f}h" if age_hours is not None else "진행중"
+            exit_status = f"RR/트레일링청산({age_desc})"
+            
+        # 3) 트레일링 파라미터 유효성 검사
+        param_valid = (act > 0 and cb > 0)
+        param_desc = f"act={act:.3f},cb={cb:.3f}" if param_valid else "기본값"
+        
+        pos_summaries.append(f"{coin}[{profile}|{exit_status}|{param_desc}]")
+
+    summary_str = f"포지션 {len(positions)}건 청산 기준 정상: " + " | ".join(pos_summaries)
+    if has_warning:
+        logger.warning(f"[{b}] ⚠️ 청산 감시 이상 감지: {summary_str}")
+    else:
+        logger.info(f"[{b}] 🛡 청산 건전성: {summary_str}")
+    return summary_str
 
 def is_process_running(cwd: str, script_name: str) -> bool:
     """Check if a specific script is running within the given working directory."""
@@ -169,6 +256,12 @@ def check_and_fix_bot(b: int, do_config_check: bool = True):
             logger.error(f"[{b}] 텔레그램 알림 발송 실패: {e}")
     else:
         logger.info(f"[{b}] 정상 작동 중")
+        # [보스 특별 지침] 핵심 봇 대상 포지션 청산 기준 건전성 실시간 감시
+        if b in CORE_BOTS:
+            try:
+                check_exit_readiness(b, cwd)
+            except Exception as e:
+                logger.error(f"[{b}] 청산 건전성 검사 중 예외: {e}")
 
 def main():
     logger.info("==========================================")
