@@ -1,3 +1,16 @@
+## v11.0.49
+Date: 2026-09-08
+
+### 변경 내용
+* 대시보드 매매모드 표기 fallback 결함 교정 (방안 1)
+  - `core/history_helper.py`: `merge_closed_by_entry` 내 매매모드 미기록 fallback을 `"역방향"`에서 `"순방향"`으로 교정 (`rows[0].get("trade_mode") or "순방향"`)
+  - 과거 정상 정방향(LONG) 체결건이 누락 시 기본값으로 인해 대시보드에서 '역방향'으로 오도색되던 결함 원천 차단
+  - 8888 대시보드 서버 재기동 및 3중 자체 검증 완료
+
+### 수정 파일
+* core/history_helper.py
+* ver.md
+
 ## v11.0.48
 Date: 2026-09-07
 

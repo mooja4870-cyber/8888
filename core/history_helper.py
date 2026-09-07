@@ -746,7 +746,7 @@ def merge_closed_by_entry(paired_rows: List[Dict]) -> List[Dict]:
                 "T/S" if any(str(r.get("exit_type", "")).strip() == "T/S" for r in rows)
                 else ("ATR" if any(str(r.get("exit_type", "")).strip() == "ATR" for r in rows) else "SL/TP")
             ),
-            "trade_mode": rows[0].get("trade_mode", "역방향"),
+            "trade_mode": rows[0].get("trade_mode") or "순방향",
             "status": "청산 완료",
         })
     return merged, kept
