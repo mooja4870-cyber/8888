@@ -2,12 +2,12 @@
   "__fingerprints__": {
     "8401": {
       "TIMEFRAME": "4h",
-      "USE_BLUEFROG": true,
+      "USE_BLUEFROG": false,
       "USE_AUTO_MODE_SWITCH": true,
       "AUTO_TRADING": true,
       "LEVERAGE": 3,
       "MARGIN_USDT": 1.5,
-      "MAX_POSITIONS": 3,
+      "MAX_POSITIONS": 4,
       "SCAN_TOP_N": 15,
       "MIN_VOLUME_USDT": 500000.0,
       "MAX_HOLDING_HOURS": 12.0,
@@ -85,16 +85,16 @@
       "USE_BLUEFROG": true,
       "USE_AUTO_MODE_SWITCH": true,
       "AUTO_TRADING": true,
-      "LEVERAGE": 8,
+      "LEVERAGE": 3,
       "MARGIN_USDT": 2.0,
-      "MAX_POSITIONS": 3,
-      "SCAN_TOP_N": 30,
+      "MAX_POSITIONS": 4,
+      "SCAN_TOP_N": 15,
       "MIN_VOLUME_USDT": 1000000.0,
-      "MAX_HOLDING_HOURS": 6.0,
-      "DBB_TP_RR": 2.0,
+      "MAX_HOLDING_HOURS": 24.0,
+      "DBB_TP_RR": null,
       "DIV_TP_RR": null,
-      "__blacklist__": 7,
-      "__strategy__": "22fe7c529a"
+      "__blacklist__": 0,
+      "__strategy__": "d0106e2928"
     },
     "8408": {
       "TIMEFRAME": "1d",
@@ -113,20 +113,36 @@
       "__strategy__": "5b8c868cd0"
     },
     "8409": {
-      "TIMEFRAME": "1d",
+      "TIMEFRAME": "15m",
       "USE_BLUEFROG": false,
       "USE_AUTO_MODE_SWITCH": true,
       "AUTO_TRADING": true,
       "LEVERAGE": 3,
       "MARGIN_USDT": 1.5,
-      "MAX_POSITIONS": 3,
+      "MAX_POSITIONS": 4,
       "SCAN_TOP_N": 15,
       "MIN_VOLUME_USDT": 500000.0,
-      "MAX_HOLDING_HOURS": 720.0,
+      "MAX_HOLDING_HOURS": 24.0,
       "DBB_TP_RR": 2.0,
       "DIV_TP_RR": null,
       "__blacklist__": 7,
       "__strategy__": "b2f15aa5b9"
+    },
+    "8410": {
+      "TIMEFRAME": "1h",
+      "USE_BLUEFROG": true,
+      "USE_AUTO_MODE_SWITCH": true,
+      "AUTO_TRADING": true,
+      "LEVERAGE": 3,
+      "MARGIN_USDT": 1.5,
+      "MAX_POSITIONS": 4,
+      "SCAN_TOP_N": 15,
+      "MIN_VOLUME_USDT": 500000.0,
+      "MAX_HOLDING_HOURS": 12.0,
+      "DBB_TP_RR": null,
+      "DIV_TP_RR": null,
+      "__blacklist__": 0,
+      "__strategy__": "c60750ee22"
     }
   },
   "8401": {},
@@ -173,5 +189,6 @@
     "at": "2026-08-10 09:57:32"
   },
   "8408": {},
-  "8409": {}
+  "8409": {},
+  "8410": {}
 }
