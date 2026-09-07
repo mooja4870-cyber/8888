@@ -1,3 +1,18 @@
+## v11.0.43
+Date: 2026-09-07
+
+### 변경 내용
+* 대시보드 쿨다운 상태 봇 시각화 강화 ('노랑색 테두리 + 0.5초 단위 깜박임')
+  - '당일 연속손절 보호 쿨다운 (진입 정지)' 발동 봇 (8409 등) 감지
+  - '방향성 자동 스위칭 쿨다운 (스위칭 잠금)' 상태 봇 (8401 등) 감지
+  - app.py check_cooldown_status() 함수 추가 및 bot_status에 is_cooldown, cooldown_desc 탑재
+  - dashboard.html에 @keyframes yellow-blink (0.5초 주기) 및 .card.cooldown-blink 스타일/뱃지 실시간 연동
+
+### 수정 파일
+* app.py
+* dashboard.html
+* ver.md
+
 ## v11.0.42
 Date: 2026-09-07
 

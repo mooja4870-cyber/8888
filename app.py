@@ -934,6 +934,78 @@ def app_debug_time(folder):
 
 import hashlib
 
+def check_cooldown_status(folder):
+    """
+    봇의 쿨다운 상태 판별:
+    1) 당일 연속손절 보호 쿨다운 (진입 정지) / 글로벌 쿨다운
+    2) 방향성 자동 스위칭 쿨다운 (스위칭 잠금) 또는 4시간 쿨다운 가드
+    """
+    is_cooldown = False
+    reasons = []
+    cd_type = ""
+    now_ts = time.time()
+    
+    d = os.path.join(BASE, folder, "data")
+    
+    # 1. stats.json (당일 연속손절 정지 & 글로벌 진입차단)
+    sp = os.path.join(d, "stats.json")
+    if os.path.exists(sp):
+        try:
+            s = safe_load_json(sp, {})
+            if s.get("halted_by_consec_sl"):
+                is_cooldown = True
+                sl_cnt = s.get("daily_consec_sl", 0)
+                reasons.append(f"당일 연속손절 보호 쿨다운 (연속 {sl_cnt}회 손절 정지)")
+                cd_type = "consec_sl_halt"
+            gcd = s.get("global_cooldown_until")
+            if gcd:
+                cd_clean = str(gcd).replace("T", " ")[:19]
+                if time.mktime(time.strptime(cd_clean, "%Y-%m-%d %H:%M:%S")) > now_ts:
+                    is_cooldown = True
+                    reasons.append("글로벌 진입차단 쿨다운")
+                    cd_type = "global_cooldown"
+        except Exception:
+            pass
+
+    # 2. switch_state.json (4시간 쿨다운 가드 & 방향성 자동 스위칭 쿨다운)
+    sw_file = os.path.join(d, "switch_state.json")
+    if os.path.exists(sw_file):
+        try:
+            sw = safe_load_json(sw_file, {})
+            act = str(sw.get("action", ""))
+            upd = str(sw.get("updated_at", ""))
+            
+            # 8407/8409의 4시간 쿨다운 가드
+            if "4.0h_cooldown" in act and upd:
+                upd_t = time.mktime(time.strptime(upd[:19], "%Y-%m-%d %H:%M:%S"))
+                if upd_t + 4 * 3600 > now_ts:
+                    is_cooldown = True
+                    reasons.append("4시간 글로벌 쿨다운 가드 작동 중")
+                    cd_type = "4h_guard"
+
+            # 방향성 자동 스위칭 쿨다운 (새 방향 최소 3거래 잠금)
+            if not is_cooldown and "keep_forward" not in act:
+                anchor = str(sw.get("updated_at") or sw.get("last_switched_key") or "")
+                hist_p = os.path.join(d, "trade_history.csv")
+                if anchor and os.path.exists(hist_p):
+                    after_cnt = 0
+                    with open(hist_p, "r", encoding="utf-8", errors="ignore") as hf:
+                        rdr = csv.reader(hf)
+                        for row in rdr:
+                            if len(row) > 2 and row[2].strip() in ["청산", "exit", "close"]:
+                                exit_time = row[0].strip()
+                                if exit_time > anchor[:19]:
+                                    after_cnt += 1
+                    if after_cnt < 3:
+                        is_cooldown = True
+                        reasons.append(f"방향성 스위칭 쿨다운 (새 방향 {after_cnt}/3건)")
+                        cd_type = "switch_lock"
+        except Exception:
+            pass
+            
+    return is_cooldown, " | ".join(reasons), cd_type
+
+
 def bot_status(folder, port, ex):
     # port로 정확하게 봇 ID 추출, 포트-폴더 매칭 명시
     bot_id = str(port)  # port 8401 → bot_id "8401"
@@ -946,6 +1018,11 @@ def bot_status(folder, port, ex):
     r["golden_compromised"] = False
     r["compromised_files"] = []
 
+    # 쿨다운 상태 검사 (당일 연속손절 정지 및 방향성 스위칭 쿨다운)
+    cd_active, cd_desc, cd_type = check_cooldown_status(folder)
+    r["is_cooldown"] = cd_active
+    r["cooldown_desc"] = cd_desc
+    r["cooldown_type"] = cd_type
 
     # 실시간 메모리 / stats.json 데이터 로딩
     sp = os.path.join(d, "stats.json")
