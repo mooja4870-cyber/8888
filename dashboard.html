@@ -791,9 +791,11 @@ function renderModernCanvasChart(folder, m) {
     }
 
     const allVals = [...sample, m.max_dr, m.min_dr, m.curr_dr].filter(v => v !== undefined && !isNaN(v));
-    const hi = Math.max(...allVals);
+    const maxVal = Math.max(...allVals);
     const lo = Math.min(...allVals);
-    const rng = (hi - lo) || 1.0;
+    // [2026-09-07] Y축 7% 이하인 것은 수정하지 않고, 7% 이상인 것만 최대 7.0%로 잘라서 표기 (보스 특별 지시)
+    const hi = maxVal > 7.0 ? 7.0 : maxVal;
+    const rng = (hi - lo) > 0 ? (hi - lo) : 1.0;
 
     // 글자를 133%로 키웠으므로 여백도 함께 넓힌다(안 그러면 '−0.72%'가 잘린다)
     const padLeft = 64;
@@ -845,6 +847,12 @@ function renderModernCanvasChart(folder, m) {
         ctx.stroke();
         ctx.restore();
     }
+
+    // 7% 초과 영역 클리핑 (상단 컷오프)
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(padLeft, padTop, plotW, plotH + 5);
+    ctx.clip();
 
     const fillGrad = ctx.createLinearGradient(0, padTop, 0, H - padBottom);
     fillGrad.addColorStop(0, 'rgba(77, 159, 255, 0.35)');
@@ -976,6 +984,7 @@ function renderModernCanvasChart(folder, m) {
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2;
     ctx.stroke();
+    ctx.restore();
 
     canvas.onmousemove = function(e) {
         const r = canvas.getBoundingClientRect();
