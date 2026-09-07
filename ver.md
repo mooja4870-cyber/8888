@@ -1,3 +1,16 @@
+## v11.0.42
+Date: 2026-09-07
+
+### 변경 내용
+* 디스코드 알림 전송 내결함성(Fault Tolerance) 대폭 강화
+  - 네트워크 환경(Wi-Fi/IP/핫스팟) 변경 시 발생하는 urllib 소켓 stale(Connection refused) 현상 해결
+  - requests 라이브러리 우선 전송 및 urllib.request 2순위 폴백 2중화 구조 적용
+  - 8888 앱 프로세스 재기동 및 실시간 알림 전송 정상화
+
+### 수정 파일
+* discord_alert.py
+* ver.md
+
 ## v11.0.41
 Date: 2026-09-07
 

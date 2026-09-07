@@ -255,16 +255,33 @@ def _post(content):
     url = _load_webhook()
     if not url:
         return False, "webhook URL 없음(discord_webhook.txt)"
-    payload = json.dumps({"content": content, "username": USERNAME}).encode("utf-8")
-    # 디스코드는 User-Agent 없는 요청을 403으로 거부 → 명시 필요
-    req = urllib.request.Request(url, data=payload,
-                                 headers={"Content-Type": "application/json",
-                                          "User-Agent": "8888-monitor/1.0 (+discord-webhook)"})
+    
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "8888-monitor/1.0 (+discord-webhook)"
+    }
+    payload_data = {"content": content, "username": USERNAME}
+
+    # 1순위: requests 라이브러리 사용 (네트워크/IP 변경 시에도 소켓 stale 방지 및 안정적 전송)
+    err_req = ""
     try:
+        import requests
+        res = requests.post(url, json=payload_data, headers=headers, timeout=10)
+        if res.status_code in (200, 204):
+            return True, f"status={res.status_code}"
+        else:
+            return False, f"status={res.status_code} ({res.text[:100]})"
+    except Exception as e_req:
+        err_req = str(e_req)[:100]
+
+    # 2순위 폴백: urllib.request
+    try:
+        payload = json.dumps(payload_data).encode("utf-8")
+        req = urllib.request.Request(url, data=payload, headers=headers)
         with urllib.request.urlopen(req, timeout=10) as r:
             return (r.status in (200, 204)), f"status={r.status}"
-    except Exception as e:
-        return False, str(e)[:150]
+    except Exception as e_url:
+        return False, f"req_err={err_req} | url_err={str(e_url)[:100]}"
 
 
 def recalc_data(data, exclude_names):
