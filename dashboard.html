@@ -791,10 +791,9 @@ function renderModernCanvasChart(folder, m) {
     }
 
     const allVals = [...sample, m.max_dr, m.min_dr, m.curr_dr].filter(v => v !== undefined && !isNaN(v));
-    // [2026-09-07] 5개 핵심 봇 일평균수익률 추이 차트 Y축 최대값 7.0% 고정 (보스 특별 지시)
-    const hi = 7.0;
+    const hi = Math.max(...allVals);
     const lo = Math.min(...allVals);
-    const rng = (hi - lo) > 0 ? (hi - lo) : 1.0;
+    const rng = (hi - lo) || 1.0;
 
     // 글자를 133%로 키웠으므로 여백도 함께 넓힌다(안 그러면 '−0.72%'가 잘린다)
     const padLeft = 64;
@@ -811,8 +810,7 @@ function renderModernCanvasChart(folder, m) {
     }
 
     function getY(val) {
-        const clamped = Math.min(hi, Math.max(lo, val));
-        return padTop + ((hi - clamped) / rng) * plotH;
+        return padTop + ((hi - val) / rng) * plotH;
     }
 
     ctx.clearRect(0, 0, W, H);
