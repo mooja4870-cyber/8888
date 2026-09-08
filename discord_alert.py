@@ -399,13 +399,13 @@ def tick(data, tick_count=0, include_bot_charts=False):
 
     results = []
     if actual_1:
-        ok1, info1 = _process_subset(data, actual_1, "_group_1.json", "그룹1 (8407, 8409)", include_bot_charts=include_bot_charts)
+        ok1, info1 = _process_subset(data, actual_1, "_group_1.json", "그룹1", include_bot_charts=include_bot_charts)
         results.append(f"Group 1({len(actual_1)}): {info1}")
         if actual_2:
             time.sleep(1.0)  # 웹훅 연속 발송 레이트리밋 방지 딜레이
 
     if actual_2:
-        ok2, info2 = _process_subset(data, actual_2, "_group_2.json", "그룹2 (8401, 8402, 8410)", include_bot_charts=include_bot_charts)
+        ok2, info2 = _process_subset(data, actual_2, "_group_2.json", "그룹2", include_bot_charts=include_bot_charts)
         results.append(f"Group 2({len(actual_2)}): {info2}")
 
     return (len(results) > 0), " | ".join(results) if results else "No bots in any group"
