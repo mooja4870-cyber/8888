@@ -986,6 +986,10 @@ def check_cooldown_status(folder):
             # 방향성 자동 스위칭 쿨다운 (새 방향 최소 3거래 잠금)
             if not is_cooldown and "keep_forward" not in act:
                 anchor = str(sw.get("updated_at") or sw.get("last_switched_key") or "")
+                # [초기화 가드] 봇 초기화 시점(perf_start_time) 이전의 구세션 스위칭 기록은 무효화
+                perf_start = s.get("perf_start_time") if isinstance(s, dict) else None
+                if perf_start and anchor and anchor[:19] < perf_start[:19]:
+                    anchor = ""
                 hist_p = os.path.join(d, "trade_history.csv")
                 if anchor and os.path.exists(hist_p):
                     after_cnt = 0
