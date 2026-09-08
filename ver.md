@@ -1,3 +1,24 @@
+## v11.0.63
+Date: 2026-09-09
+
+### 변경 내용
+* 8888 통합 관제 대시보드 5대 핵심 봇 전략명 및 타임프레임(1d/15m) 정합성 전면 개편
+  - [보스 특별 지침 반영] 봇 내부 레거시 설정 식별자와 무관하게, 8888 관제 화면에서 실제 가동 중인 팩트 100% 일치 표기:
+    1. 8401 (OKX): `DonchianVol 국면 라우터 (1d)` | 지표: `Donchian55, Vol, EMA200`
+    2. 8402 (OKX): `DonchianVol 국면 라우터 (1d)` | 지표: `Donchian55, Vol, EMA200`
+    3. 8407 (Binance 선물): `QPB-Alpha 부스터 (15m)` | 지표: `KER, CMF, 펀딩스퀴즈, ATR`
+    4. 8409 (Binance 선물): `TSMOM 시계열 모멘텀 (15m)` | 지표: `TSMOM(20), ATR14`
+    5. 8410 (Binance 선물): `BBTS 변동성 확장 돌파 (1d)` | 지표: `BB(40/2.5), ATR`
+  - `8888/app.py`: `read_bot_config(folder)` 내 레거시 하드코딩 제거 및 실시간 동적 매핑 로직 탑재
+  - `8888/dashboard.html`:
+    * 각 봇 개별 카드 상단 헤더에 `🎯 ${b.config.strategy}` 뱃지 직관적 표기 추가
+    * 하단 전체 봇 비교 테이블의 타임프레임(Sky Blue 볼드) 및 전략명(White 볼드) 가독성 극대화 하이라이트 적용
+
+### 수정 파일
+* app.py
+* dashboard.html
+* ver.md
+
 ## v11.0.62
 Date: 2026-09-09
 

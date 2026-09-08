@@ -525,9 +525,18 @@ def read_bot_config(folder):
     try:
         cfg = safe_load_json(cfg_path, {})
 
-        # 1. 전략명 (strategy)
-        if folder in ("8407", "8409"):
-            strategy = "돈치안 채널 돌파"
+        # 1. 전략명 (strategy) — [2026-09-09 보스 특별 지침] 실제 가동 팩트 100% 반영
+        tf = cfg.get("TIMEFRAME", "1d")
+        if folder == "8401":
+            strategy = f"DonchianVol 국면 라우터 ({tf})"
+        elif folder == "8402":
+            strategy = f"DonchianVol 국면 라우터 ({tf})"
+        elif folder == "8407":
+            strategy = f"QPB-Alpha 부스터 ({tf})"
+        elif folder == "8409":
+            strategy = f"TSMOM 시계열 모멘텀 ({tf})"
+        elif folder == "8410":
+            strategy = f"BBTS 변동성 확장 돌파 ({tf})"
         elif cfg.get("USE_REGIME_ROUTER"):
             regime_map = cfg.get("REGIME_STRATEGY_MAP", {})
             bull_strat = regime_map.get("BULL", "DonchianVol")
@@ -546,9 +555,18 @@ def read_bot_config(folder):
             strategy = "기본 추세 돌파"
 
         # 2. 지표 설정 (indicators)
-        if folder in ("8407", "8409"):
-            lb = cfg.get("TSMOM_LOOKBACK") or cfg.get("DON_LEN") or 20
-            ind_str = f"Donchian{lb}, ATR14"
+        if folder in ("8401", "8402"):
+            don_len = cfg.get("DON_LEN", 55)
+            ind_str = f"Donchian{don_len}, Vol, EMA200"
+        elif folder == "8407":
+            ind_str = "KER, CMF, 펀딩스퀴즈, ATR"
+        elif folder == "8409":
+            lb = cfg.get("TSMOM_LOOKBACK") or 20
+            ind_str = f"TSMOM({lb}), ATR14"
+        elif folder == "8410":
+            bb_p = cfg.get("BB_PERIOD", 40)
+            bb_std = cfg.get("BB_STD_DEV", 2.5)
+            ind_str = f"BB({bb_p}/{bb_std}), ATR"
         elif cfg.get("USE_REGIME_ROUTER"):
             don_len = cfg.get("DON_LEN", 55)
             ind_str = f"Donchian{don_len}, Vol, EMA200"

@@ -392,6 +392,7 @@ function render(d,anim){
    <div class="head" style="align-items:flex-start;"><span class="dot" style="background:${dot};margin-top:6px;"></span>
     <div style="display:flex;flex-direction:column;line-height:1.2;">
      <div><span class="name" style="color:#ffffff; animation:cardblink 1s ease-in-out infinite">${((b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog)?"<span style=\"color:#ff5a5a;font-weight:bold;margin-right:4px;\">[역]</span>":"<span style=\"color:#4d9fff;font-weight:bold;margin-right:4px;\">[순]</span>")+b.name}</span>${_isCooldown ? `<span style="background:#ffd700;color:#111;font-size:11.5px;font-weight:bold;padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:middle;box-shadow:0 0 6px rgba(255,215,0,0.8);" title="${_cdTitle}">쿨다운</span>` : ''}${b.config&&b.config.timeframe?' <span style="font-size:17px;font-weight:600;color:var(--muted);vertical-align:bottom;">['+b.config.timeframe+']</span>':''}</div>
+     ${b.config&&b.config.strategy?`<div style="font-size:11.5px;color:#94a3b8;margin-top:3px;font-weight:600;letter-spacing:-0.2px;">🎯 ${b.config.strategy}</div>`:''}
     </div>
     <span class="badge ${b.ex.toLowerCase()}" style="margin-top:3px;">${b.ex}</span>
    </div>
@@ -435,8 +436,8 @@ function render(d,anim){
      <td style="padding:8px;text-align:center">${(b.seed===null||b.seed===undefined)?"—":"$"+(+b.seed).toFixed(2)}</td><td style="padding:8px;text-align:center">${b.ex||"OKX"}</td><td style="padding:8px;text-align:center">${cfg.leverage!=null?cfg.leverage:"10x"}</td>
     <td style="padding:8px;text-align:center">${cfg.margin_usdt!=null?cfg.margin_usdt:"$10"}</td><td style="padding:8px;text-align:center">${cfg.max_positions!=null?cfg.max_positions:"3"}</td>
     <td style="padding:8px;text-align:center">${cfg.stop_loss_pct!=null?cfg.stop_loss_pct:"-2.0%"}</td><td style="padding:8px;text-align:center">${cfg.take_profit_pct!=null?cfg.take_profit_pct:"+3.0%"}</td>
-    <td style="padding:8px;text-align:center">${cfg.timeframe||"1h"}</td><td style="padding:8px;text-align:center">${cfg.indicators||"RSI/BB"}</td>
-    <td style="padding:8px;text-align:center">${cfg.strategy||"스캐너"}</td><td style="padding:8px;text-align:center">${cfg.scan_targets||"TOP20"}</td><td style="padding:8px;text-align:center">${cfg.max_holding_hours||"24h"}</td>
+    <td style="padding:8px;text-align:center;font-weight:700;color:#38bdf8">${cfg.timeframe||"1h"}</td><td style="padding:8px;text-align:center;color:#cbd5e1">${cfg.indicators||"RSI/BB"}</td>
+    <td style="padding:8px;text-align:center;font-weight:700;color:#f8fafc">${cfg.strategy||"스캐너"}</td><td style="padding:8px;text-align:center">${cfg.scan_targets||"TOP20"}</td><td style="padding:8px;text-align:center">${cfg.max_holding_hours||"24h"}</td>
     <td style="padding:8px;text-align:center;color:${cfg.use_auto_mode_switch ? 'var(--green)' : '#e24b4a'};font-weight:600">${cfg.use_auto_mode_switch ? 'O' : 'X'}</td></tr>`;
    }).join("")}</tbody></table>`;
   const _periods=[['1h','1시간 내'],['6h','6시간 내'],['12h','12시간 내'],['24h','24시간 내'],['48h','48시간 내'],['72h','72시간 내'],['1w','1주일간']];
