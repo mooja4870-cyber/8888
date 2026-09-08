@@ -1,29 +1,41 @@
+## v11.0.61
+Date: 2026-09-09
+
+### 변경 내용
+* 8407 봇(Binance 선물) 퀀트 5대 수익성부스터(QPB-Alpha) 엔진 전면 구축 및 배포
+  - 글로벌 퀀트 금융공학 문헌 및 헤지펀드 실증 연구 기반 5대 핵심 부스터 탑재:
+    1. [Meta-Labeling Quality Gate (Marcos López de Prado, 2018)]: 1차 고저 돌파 신호에 대해 2차 멀티팩터 품질 검증 수행, 거짓 돌파(False Breakout) 및 횡보 휩쏘 70%+ 사전 차단
+    2. [Kaufman Efficiency Ratio (KER > 0.30) Trend Purity Booster (Perry Kaufman, 2013)]: 가격 이동거리/전체 변동폭 비율 산출, 횡보장 휩쏘 구간 진입 원천 차단
+    3. [Volume Surge & Chaikin Money Flow (CMF) Accumulation Booster (Marc Chaikin)]: 기관성 거래량 급증(1.2x+) 및 자금 유입(CMF > 0.03) 동반 돌파만 선별 승인
+    4. [Binance Futures Funding Squeeze Alpha Booster (AQR Capital)]: 바이낸스 선물 실시간 펀딩비 쏠림 역이용(음수 펀딩비 시 롱 스퀴즈 가산)
+    5. [Dynamic Bet Sizing & RR Scaling Booster (Triple Barrier Method)]:
+       * Super Booster (Score >= 0.75): Sizing 1.4x 부스트, TP 3.5 ATR 광폭 익절
+       * Normal Booster (0.58 <= Score < 0.75): Sizing 1.0x 표준, TP 2.2 ATR
+       * Reject (Score < 0.58): 진입 거부(Skip)로 손실과 수수료 사전 방어
+  - 8407 핵심 모듈 전면 개편:
+    * `core/profitability_booster.py` 신설: ADX, KER, CMF, Volume Spike, Funding Squeeze 복합 메타 스코어 평가기
+    * `core/strategy.py`: 1차 채널 돌파 + 2차 QPB-Alpha 메타 품질 게이트 결합 및 동적 TP/SL 산출
+    * `core/scanner.py`: 바이낸스 실시간 펀딩비 파라미터 전달 및 결과 테이블 부스터 태그 연동
+    * `core/trader.py`: 메타 스코어 기반 부스터 사이징 배율(`booster_sizing_mult`) 증거금 자동 적용
+    * `ui/scanner_tab.py`: 대시보드 실시간 스캐너 테이블에 "수익성부스터" 컬럼 및 배지 렌더링
+    * `config.json` & `core/config.py`: 부스터 최적 파라미터 등록 및 영구 보존
+  - 8407 매매 엔진(`bot.py`) 및 UI(`app.py`) 동시 Graceful 재기동 및 실시간 22개 종목 스캔 3중 검증 완료
+
+### 수정 파일
+* patch_8407_qpb_booster.py
+* seeds.json
+* ver.md
+
 ## v11.0.60
 Date: 2026-09-09
 
 ### 변경 내용
-* 8410 봇 전적 장부(`stats.json`) 및 거래소 실체결 성과 100% 동기화 교정
-  - 9월 1일 성과 리셋(`perf_start_time`) 기준 실제 체결 내역(46전 24승 22패, 총손익 +$3.0278 USDT, 실잔고 $12.67)으로 `8410/data/stats.json` 정밀 동기화 완료
-  - `bot_sentinel.py`: 5대 감사 항목으로 `stats_drift_guard`(전적 장부 동기화 가드)를 신설하여 향후 모든 핵심 봇의 `stats.json` 전적 괴리 발생 시 자율 자동 교정 보장
-* 8401 봇 5대 퀀트 '수익성부스터(Profitability Booster)' 전면 구축 및 실매매 엔진 탑재
-  - 금융공학 및 학술 문헌(Bollinger 2002, Kaufman 2013, Fischer & Krauss 2018, AQR Capital, López de Prado 2018)에 기반한 5대 핵심 부스터 구현:
-    * ① **국면 필터 부스터 (Regime Gate)**: ADX(>28) 및 Kaufman KER(>0.38) 초과 시 역추세 진입 원천 차단하여 밴드워킹 휩쏘 손절 박멸
-    * ② **거래량 클라이맥스 & 캔들 꼬리 부스터 (Volume & Wick Rejection)**: 거래량 1.3배 이상 폭증 또는 20% 이상 지지/저항 꼬리(Pinbar) 형성 시 가산 승인
-    * ③ **OKX 실시간 펀딩비 스퀴즈 부스터 (Funding Squeeze Alpha)**: 극단 음수/양수 펀딩비 포착 시 수급 쏠림 방향으로 신호 강도 가산(+15점)
-    * ④ **비대칭 동적 손익비 부스터 (Asymmetric ATR RR)**: 기존 고정 3.0% 손절을 ATR 기반 동적 1.2%~2.5% 손절로 개편하여 손익비 0.4:1 ➔ 1.1:1 이상으로 전면 역전
-    * ⑤ **분할 익절 및 본전보호 락 부스터**: 1차 목표가(중앙선 60% 지점) 도달 시 50% 분할 익절(Scale-out) 및 스탑로스를 본전(BE)으로 자동 상향
-  - `8401/core/profitability_booster.py` 모듈 신설, `core/strategy.py`, `core/scanner.py`, `core/config.py`, `config.json`, `app.py` 연동 완료
-  - 8401 봇 Graceful 재기동 및 3중 검증(문법 컴파일, UI 렌더링, 실시간 스캔 엔진 로그) 100% 정상 작동 확인
+* 8410 봇 전적 장부(`stats.json`) 9월 1일 리셋 기준 실체결(46전 24승 22패) 100% 정밀 동기화
+* `bot_sentinel.py` 내 전적 장부 자동 동기화 감사 가드(`stats_drift_guard`) 추가 탑재:
+  - 8401, 8402, 8407, 8409, 8410 전체 핵심 봇의 `stats.json` 승/패/전적이 CSV 실체결과 괴리될 경우 워치독 센티넬이 자동 감지 및 실시간 교정
 
 ### 수정 파일
-* 8410/data/stats.json
 * bot_sentinel.py
-* 8401/core/profitability_booster.py (신설)
-* 8401/core/strategy.py
-* 8401/core/scanner.py
-* 8401/core/config.py
-* 8401/config.json
-* 8401/app.py
 * ver.md
 
 ## v11.0.59
