@@ -171,8 +171,9 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
     ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())   # 매 알림 첫 라인 = 시스템 시각
     assets = s.get("assets")
     cum_delta = s.get("cum_delta")
-    asset_str = f"[{assets:.2f}] " if assets is not None else ""   # 전체 일평균 줄 앞에 총자산 금액
+    asset_str = f"{assets:.2f} " if assets is not None else ""   # 전체 일평균 줄 앞에 총자산 금액 (대괄호 제거)
     delta_str = f"{cum_delta:+.2f} " if cum_delta is not None else ""
+    ret_str = f"{tot_str}%" if total is not None else "—"
     
     bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
     
@@ -184,8 +185,7 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
     h72 = _ago_str(total, series or [], now_ts, *LOOKBACK[3])
 
     lines = [ts,
-             f"📊 {title_prefix} 일평균수익률 ({head_days})",
-             f"{asset_str}{delta_str}{tot_str}% [1m]{delta:.2f}%{arrow} [1]{h1} [24]{h24} [48]{h48} [72]{h72}",
+             f"📊 {title_prefix} 일평균수익률 ({head_days}) : {asset_str}{delta_str}{ret_str}, [1m]{delta:.2f}%{arrow} [1]{h1} [24]{h24} [48]{h48} [72]{h72}",
              "─" * 38]
     bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
     for b in bots:
