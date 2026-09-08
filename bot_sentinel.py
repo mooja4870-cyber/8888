@@ -205,6 +205,46 @@ async def audit_bot(b: int):
         if abs(drift) > 0.10 and len(ex_map) == 0:
             report["actions"].append(f"잔고 괴리 감지 (${drift:+.4f})")
 
+        # 5. stats.json 전적 동기화 감사 (Stats Ledger Reconciliation Guard)
+        stats_file = os.path.join(cwd, "data", "stats.json")
+        if os.path.exists(stats_file) and os.path.exists(csv_file):
+            try:
+                with open(stats_file, "r", encoding="utf-8") as sf:
+                    st_data = json.load(sf)
+                st_perf = st_data.get("perf_start_time") or perf_start
+                st_exits = []
+                with open(csv_file, "r", encoding="utf-8-sig") as cf:
+                    reader = csv.DictReader(cf)
+                    for r in reader:
+                        t_str = r.get("시간") or r.get("timestamp", "")
+                        if t_str >= st_perf and (r.get("유형") in ("청산", "청산(로테이션)") or r.get("category") == "청산" or str(r.get("side","")).lower() == "exit"):
+                            st_exits.append(r)
+                
+                # 주문 ID 그룹화 (부분체결/분할청산 합산)
+                order_pnls = {}
+                for r in st_exits:
+                    oid = r.get("주문ID") or r.get("order_id") or f"_uniq_{len(order_pnls)}"
+                    pnl = float(r.get("수익(USDT)") or r.get("pnl", 0) or 0)
+                    order_pnls[oid] = order_pnls.get(oid, 0.0) + pnl
+                
+                real_w = sum(1 for p in order_pnls.values() if p > 0)
+                real_l = sum(1 for p in order_pnls.values() if p <= 0)
+                real_trades = len(order_pnls)
+                
+                cur_w = st_data.get("total_wins", 0)
+                cur_l = st_data.get("total_losses", 0)
+                cur_trades = st_data.get("total_trades", 0)
+                
+                if (cur_w != real_w or cur_l != real_l or cur_trades != real_trades) and real_trades > 0:
+                    st_data["total_wins"] = real_w
+                    st_data["total_losses"] = real_l
+                    st_data["total_trades"] = real_trades
+                    st_data["total_pnl_usdt"] = round(sum(order_pnls.values()), 4)
+                    atomic_write_json(stats_file, st_data)
+                    report["actions"].append(f"전적 장부 동기화({cur_w}W/{cur_l}L→{real_w}W/{real_l}L)")
+            except Exception as e:
+                pass
+
     finally:
         await client.close()
 

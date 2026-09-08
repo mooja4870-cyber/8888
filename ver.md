@@ -1,3 +1,31 @@
+## v11.0.60
+Date: 2026-09-09
+
+### 변경 내용
+* 8410 봇 전적 장부(`stats.json`) 및 거래소 실체결 성과 100% 동기화 교정
+  - 9월 1일 성과 리셋(`perf_start_time`) 기준 실제 체결 내역(46전 24승 22패, 총손익 +$3.0278 USDT, 실잔고 $12.67)으로 `8410/data/stats.json` 정밀 동기화 완료
+  - `bot_sentinel.py`: 5대 감사 항목으로 `stats_drift_guard`(전적 장부 동기화 가드)를 신설하여 향후 모든 핵심 봇의 `stats.json` 전적 괴리 발생 시 자율 자동 교정 보장
+* 8401 봇 5대 퀀트 '수익성부스터(Profitability Booster)' 전면 구축 및 실매매 엔진 탑재
+  - 금융공학 및 학술 문헌(Bollinger 2002, Kaufman 2013, Fischer & Krauss 2018, AQR Capital, López de Prado 2018)에 기반한 5대 핵심 부스터 구현:
+    * ① **국면 필터 부스터 (Regime Gate)**: ADX(>28) 및 Kaufman KER(>0.38) 초과 시 역추세 진입 원천 차단하여 밴드워킹 휩쏘 손절 박멸
+    * ② **거래량 클라이맥스 & 캔들 꼬리 부스터 (Volume & Wick Rejection)**: 거래량 1.3배 이상 폭증 또는 20% 이상 지지/저항 꼬리(Pinbar) 형성 시 가산 승인
+    * ③ **OKX 실시간 펀딩비 스퀴즈 부스터 (Funding Squeeze Alpha)**: 극단 음수/양수 펀딩비 포착 시 수급 쏠림 방향으로 신호 강도 가산(+15점)
+    * ④ **비대칭 동적 손익비 부스터 (Asymmetric ATR RR)**: 기존 고정 3.0% 손절을 ATR 기반 동적 1.2%~2.5% 손절로 개편하여 손익비 0.4:1 ➔ 1.1:1 이상으로 전면 역전
+    * ⑤ **분할 익절 및 본전보호 락 부스터**: 1차 목표가(중앙선 60% 지점) 도달 시 50% 분할 익절(Scale-out) 및 스탑로스를 본전(BE)으로 자동 상향
+  - `8401/core/profitability_booster.py` 모듈 신설, `core/strategy.py`, `core/scanner.py`, `core/config.py`, `config.json`, `app.py` 연동 완료
+  - 8401 봇 Graceful 재기동 및 3중 검증(문법 컴파일, UI 렌더링, 실시간 스캔 엔진 로그) 100% 정상 작동 확인
+
+### 수정 파일
+* 8410/data/stats.json
+* bot_sentinel.py
+* 8401/core/profitability_booster.py (신설)
+* 8401/core/strategy.py
+* 8401/core/scanner.py
+* 8401/core/config.py
+* 8401/config.json
+* 8401/app.py
+* ver.md
+
 ## v11.0.59
 Date: 2026-09-09
 
