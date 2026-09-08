@@ -1,3 +1,25 @@
+## v11.0.57
+Date: 2026-09-09
+
+### 변경 내용
+* 4대 무결성 상시 감사탑 센티넬(`bot_sentinel.py`) 개발 및 중앙 워치독(`watchdog_entry.py`) 완전 탑재
+  - `bot_sentinel.py` 핵심 기능:
+    * ① 유령 포지션(Ghost Position) 사냥: 오프라인 스탑로스(SL)/익절(TP) 또는 거래소 청산으로 사라진 포지션을 즉시 감지하여 체결 내역을 장부에 자동 기록 후 `active_positions.json` 원자적 정리
+    * ② 고아 포지션(Orphan Position) 복원: 거래소에는 진입되어 있으나 디스크 저장 지연 등으로 누락된 포지션을 자동 발굴하여 `active_positions.json`에 즉각 복원 추적
+    * ③ 분할 체결 및 누락 체결 자동 대사: CCXT/거래소 최근 체결 내역과 대사하여 누락된 분할 익절(Scale-out) 및 슬립 거래 복원
+    * ④ 장부 괴리율 감시탑(Ledger Drift Guard): 거래소 실제 지갑 잔고 vs 이론적 장부 잔고(원금 + 누적순손익 + 미실현손익) 간 실시간 괴리율 감시
+    * ⑤ 원자적 파일 쓰기(Atomic File I/O): `NamedTemporaryFile` + `os.replace`로 실행 중인 봇 엔진 프로세스와의 동시 쓰기 경합(Race Condition) 원천 차단
+    * ⑥ 프로세스 격리형 실행 구조: Python 모듈 및 거래소 API Key 캐싱 오염 방지를 위해 각 봇 디렉토리 환경에서 독립 서브프로세스로 실행
+  - `watchdog_entry.py` 통합 및 상시 가동:
+    * `audit_trade_reconciliation()`을 `bot_sentinel.py` 서브프로세스 호출 구조로 전면 교체
+    * 상시 기본 관리 대상 5개 핵심 봇(8401, 8402, 8407, 8409, 8410)을 매 순찰 주기(60초)마다 자율 감사 수행
+    * 워치독 데몬 재기동 및 실시간 로그(`watchdog_entry.log`) 정상 가동 검증 완료
+
+### 수정 파일
+* bot_sentinel.py
+* watchdog_entry.py
+* ver.md
+
 ## v11.0.56
 Date: 2026-09-09
 

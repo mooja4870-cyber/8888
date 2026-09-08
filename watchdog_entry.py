@@ -109,29 +109,50 @@ def check_exit_readiness(b: int, cwd: str) -> str:
 
 def audit_trade_reconciliation(b: int, cwd: str) -> None:
     """
-    [보스 특별 지침] 거래소 체결 내역 vs 로컬 장부(trade_history.csv) 누락 상시 감사:
-    - 봇 프로세스 일시 다운 또는 오프라인 SL/TP 발생 시 체결 장부 누락을 감지하고 자동 동기화.
-    - Rate limit 보호를 위해 봇 자체의 PnLReconciler를 안전하게 호출.
+    [보스 특별 지침] 거래소 체결 내역 vs 로컬 장부(trade_history.csv) 4대 무결성 상시 감사:
+    1) 유령 포지션(Ghost) 사냥 및 오프라인 SL/TP 자동 청산
+    2) 고아 포지션(Orphan) 감지 및 추적 복원
+    3) 분할 익절(Scale-out Partial Exit) 합산 누락 자동 복원
+    4) 장부 괴리율(Ledger Drift Guard) 정밀 모니터링
     """
+    sentinel_script = "/Users/l/project/8888/bot_sentinel.py"
+    if not os.path.exists(sentinel_script):
+        return
+
     try:
-        sync_cmd = (
-            f"python3 -c '"
-            f"import asyncio, sys, os; "
-            f"sys.path.insert(0, \"{cwd}\"); "
-            f"from core.api_keys import load_api_keys; "
-            f"load_api_keys(override=True); "
-            f"from core.engine import QuantumEngine; "
-            f"eng = QuantumEngine.get_instance(); "
-            f"async def _run(): "
-            f"    if hasattr(eng, \"pnl_reconciler\") and eng.pnl_reconciler: "
-            f"        await eng.pnl_reconciler.sync_trades_async(); "
-            f"asyncio.run(_run())"
-            f"'"
+        res = subprocess.run(
+            [sys.executable, sentinel_script, str(b)],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=25
         )
-        subprocess.run(sync_cmd, shell=True, cwd=cwd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
-        logger.info(f"[{b}] 📋 체결 장부 무결성 감사(Reconciliation) 점검 완료")
+        if res.returncode == 0 and res.stdout.strip():
+            lines = [l.strip() for l in res.stdout.strip().split("\n") if l.strip()]
+            data = None
+            for l in reversed(lines):
+                if l.startswith("{") and l.endswith("}"):
+                    try:
+                        data = json.loads(l)
+                        break
+                    except Exception:
+                        pass
+            if data:
+                actions = data.get("actions", [])
+                diff = data.get("balance_diff", 0.0)
+                if actions:
+                    logger.warning(f"[{b}] 🛡 센티넬 감사 조치: {', '.join(actions)} (잔고괴리: ${diff:+.4f})")
+                else:
+                    logger.info(f"[{b}] 📋 체결 장부 4대 무결성 정상 (잔고괴리: ${diff:+.4f})")
+            else:
+                logger.info(f"[{b}] 📋 체결 장부 4대 무결성 점검 완료")
+        else:
+            err = res.stderr.strip()[:100] if res.stderr else "unknown"
+            logger.debug(f"[{b}] 센티넬 감사 경미한 오류: {err}")
+    except subprocess.TimeoutExpired:
+        logger.warning(f"[{b}] ⚠️ 센티넬 감사 타임아웃 (25초 초과)")
     except Exception as e:
-        logger.debug(f"[{b}] 체결 장부 감사 중 경미한 예외: {e}")
+        logger.debug(f"[{b}] 체결 장부 무결성 감사 중 경미한 예외: {e}")
 
 def is_process_running(cwd: str, script_name: str) -> bool:
     """Check if a specific script is running within the given working directory."""
