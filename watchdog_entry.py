@@ -16,13 +16,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger("Watchdog")
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 # 상시 기본 관리 대상 5개 핵심 봇 최우선 순찰
 CORE_BOTS = [8401, 8402, 8407, 8409, 8410]
 BOT_LIST = [8401, 8402, 8407, 8409, 8410, 8403, 8404, 8405]
 HEALTH_CHECK_SEC = 60  # 1 minute for process health
 CONFIG_CHECK_CYCLES = 5  # Check config drift every 5 cycles (5 minutes)
+FLAT_BOT_CHECK_CYCLES = 5  # [보스 지침] 5분 주기 무포지션 봇 정밀 건전성 감사 및 적의조치
 
 def check_exit_readiness(b: int, cwd: str) -> str:
     """
@@ -177,7 +178,93 @@ def is_process_running(cwd: str, script_name: str) -> bool:
         pass
     return False
 
-def check_and_fix_bot(b: int, do_config_check: bool = True):
+def check_flat_bot_readiness(b: int, cwd: str) -> tuple:
+    """
+    [보스 특별 지침] 5분 주기 무포지션 봇 정밀 건전성 감사 및 데드락 자동 탐지:
+    1. 포지션 보유 여부 확인 (active_positions.json이 비어있는 무포지션 봇 대상)
+    2. config.json의 AUTO_TRADING 활성화 여부 확인
+    3. stats.json의 과거 날짜 연속손절 정지(halted_by_consec_sl) 잔존 검사
+    4. 최근 엔진 로그에서 'trader disabled' 최근(15분 이내) 발생 검사
+    5. 스캐너 진행 정체(Scanner Stall: 최근 15분간 로그 갱신 여부) 검사
+    반환값: (이상 발생 여부: bool, 이상 사유: str)
+    """
+    act_file = os.path.join(cwd, "data", "active_positions.json")
+    if os.path.exists(act_file):
+        try:
+            with open(act_file, "r") as f:
+                pdata = json.load(f)
+            if pdata and len(pdata) > 0:
+                return False, f"포지션 {len(pdata)}건 보유 중 (건전)"
+        except Exception:
+            pass
+
+    # 1) config.json 검사 (사용자 의도적 정지 여부)
+    cfg_file = os.path.join(cwd, "config.json")
+    if os.path.exists(cfg_file):
+        try:
+            with open(cfg_file, "r") as f:
+                cfg = json.load(f)
+            if not cfg.get("AUTO_TRADING", True):
+                return False, "AUTO_TRADING=False (수동 일시 정지)"
+        except Exception:
+            pass
+
+    # 2) stats.json 과거 날짜 consecutive SL 정지 락 잔존 검사
+    stats_file = os.path.join(cwd, "data", "stats.json")
+    if os.path.exists(stats_file):
+        try:
+            with open(stats_file, "r") as f:
+                sdata = json.load(f)
+            today_kst = (datetime.utcnow() + timedelta(hours=9)).strftime("%Y-%m-%d")
+            s_date = sdata.get("consec_sl_date", "")
+            is_halted = sdata.get("halted_by_consec_sl", False)
+            if is_halted and s_date and s_date < today_kst:
+                return True, f"전일({s_date}) 연속손절 정지 락 잔존 데드락"
+        except Exception:
+            pass
+
+    # 3) 최근 엔진 로그 trader disabled 발생 검사 (최근 15분 이내)
+    now_kst = datetime.utcnow() + timedelta(hours=9)
+    for log_name in ["bot_stdout.log", "bot_engine.log"]:
+        log_path = os.path.join(cwd, log_name)
+        if os.path.exists(log_path):
+            try:
+                with open(log_path, "rb") as lf:
+                    lf.seek(0, os.SEEK_END)
+                    size = lf.tell()
+                    seek_pos = max(0, size - 8192)
+                    lf.seek(seek_pos)
+                    tail_data = lf.read().decode("utf-8", errors="ignore")
+                if "trader disabled" in tail_data:
+                    lines = [l for l in tail_data.split("\n") if "trader disabled" in l]
+                    if lines:
+                        last_line = lines[-1].strip()
+                        try:
+                            ts_str = last_line[:19]
+                            log_dt = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S")
+                            diff_sec = abs((now_kst - log_dt).total_seconds())
+                            if diff_sec < 900:
+                                return True, f"인메모리 트레이더 비활성(trader disabled) 최근 감지 ({int(diff_sec)}초 전)"
+                        except Exception:
+                            return True, f"인메모리 트레이더 비활성 감지: {last_line[:80]}"
+            except Exception:
+                pass
+
+    # 4) 스캐너 진행 정체(Scanner Stall: 최근 15분간 로그 무반응) 검사
+    for log_name in ["bot_stdout.log", "bot_engine.log"]:
+        log_path = os.path.join(cwd, log_name)
+        if os.path.exists(log_path):
+            try:
+                mtime = os.path.getmtime(log_path)
+                elapsed = time.time() - mtime
+                if elapsed > 900:
+                    return True, f"스캐너 루프 정체(Stall: {int(elapsed/60)}분간 로그 갱신 없음)"
+            except Exception:
+                pass
+
+    return False, "무포지션 대기 중 정상 (정상 스캔 지속)"
+
+def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool = False):
     cwd = f"/Users/l/project/{b}"
     if not os.path.exists(cwd):
         logger.warning(f"[{b}] 봇 폴더가 존재하지 않습니다.")
@@ -194,6 +281,19 @@ def check_and_fix_bot(b: int, do_config_check: bool = True):
         logger.error(f"[{b}] 🚨 bot.py 프로세스가 죽어 있습니다!")
         needs_restart = True
         action_taken.append("프로세스 다운 (재기동 필요)")
+
+    # 1.5. [보스 특별 지침] 5분 주기 무포지션 봇 정밀 건전성 감사 및 데드락 자동 복구
+    if do_flat_check and not needs_restart:
+        try:
+            flat_issue, flat_reason = check_flat_bot_readiness(b, cwd)
+            if flat_issue:
+                logger.warning(f"[{b}] 🚨 무포지션 건전성 이상 감지: {flat_reason}")
+                needs_restart = True
+                action_taken.append(flat_reason)
+            else:
+                logger.info(f"[{b}] 🛡 무포지션 건전성: {flat_reason}")
+        except Exception as e:
+            logger.error(f"[{b}] 무포지션 건전성 감사 중 예외: {e}")
 
     # 2. 방향성(순/역매매) 오염 및 Phantom Overwrite 검사 -> 워치독 자율 스위칭
     if do_config_check:
@@ -324,11 +424,12 @@ def main():
     while True:
         cycle += 1
         do_config_check = (cycle % CONFIG_CHECK_CYCLES == 1) or (CONFIG_CHECK_CYCLES == 1)
+        do_flat_check = (cycle % FLAT_BOT_CHECK_CYCLES == 0) or (cycle == 1)
         
-        logger.info(f"--- 순찰 사이클 {cycle} 시작 (Config 검증: {do_config_check}) ---")
+        logger.info(f"--- 순찰 사이클 {cycle} 시작 (Config 검증: {do_config_check}, 무포지션 감사: {do_flat_check}) ---")
         for bot in BOT_LIST:
             try:
-                check_and_fix_bot(bot, do_config_check)
+                check_and_fix_bot(bot, do_config_check=do_config_check, do_flat_check=do_flat_check)
             except Exception as e:
                 logger.error(f"[{bot}] 워치독 순찰 중 치명적 오류: {e}")
         

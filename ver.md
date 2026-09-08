@@ -1,3 +1,18 @@
+## v11.0.59
+Date: 2026-09-09
+
+### 변경 내용
+* 중앙 워치독 5분 주기 무포지션 봇 정밀 건전성 감사 및 자율 적의조치(Self-Healing) 기능 탑재
+  - `watchdog_entry.py`:
+    * `check_flat_bot_readiness(b, cwd)` 신설: 포지션이 0개인 무포지션(Flat) 봇을 대상으로 5대 핵심 상태(자동매매 ON 여부, 전일 연속손절 락 잔존 여부, 인메모리 `trader disabled` 발생 여부, 스캐너 루프 정체 여부)를 5분 주기로 정밀 감사
+    * 이상 발생 시 사살 유예(Deferred Patch) 없이 즉시 2-Step Graceful 재기동(`bash run.sh`)을 실행하여 봇이 신규 진입 기회를 유실하지 않도록 자율 정상화
+    * 조치 내역을 `watchdog_entry.log`에 실시간 기록하고 텔레그램 긴급 상황 보고 발송 연동
+  - 8개 전체 봇 및 5대 핵심 봇 실시간 순찰 가동 및 3중 자체 검증 완료
+
+### 수정 파일
+* watchdog_entry.py
+* ver.md
+
 ## v11.0.58
 Date: 2026-09-09
 
