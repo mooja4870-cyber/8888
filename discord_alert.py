@@ -185,7 +185,7 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
     h72 = _ago_str(total, series or [], now_ts, *LOOKBACK[3])
 
     lines = [ts,
-             f"📊 {title_prefix} 일평균수익률 ({head_days}) : {asset_str}{delta_str}{ret_str}, [1m]{delta:.2f}%{arrow} [1]{h1} [24]{h24} [48]{h48} [72]{h72}",
+             f"📊 {title_prefix} 일평균수익률 ({head_days}) : {asset_str}{delta_str}{ret_str} [1m]{delta:.2f}%{arrow} [1]{h1} [24]{h24} [48]{h48} [72]{h72}",
              "─" * 38]
     bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
     for b in bots:
@@ -399,7 +399,7 @@ def tick(data, tick_count=0, include_bot_charts=False):
 
     results = []
     if actual_1:
-        ok1, info1 = _process_subset(data, actual_1, "_group_1.json", "그룹1", include_bot_charts=include_bot_charts)
+        ok1, info1 = _process_subset(data, actual_1, "_group_1.json", "그룹1 (8407, 8409)", include_bot_charts=include_bot_charts)
         results.append(f"Group 1({len(actual_1)}): {info1}")
         if actual_2:
             time.sleep(1.0)  # 웹훅 연속 발송 레이트리밋 방지 딜레이
