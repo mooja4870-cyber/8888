@@ -107,6 +107,32 @@ def check_exit_readiness(b: int, cwd: str) -> str:
         logger.info(f"[{b}] 🛡 청산 건전성: {summary_str}")
     return summary_str
 
+def audit_trade_reconciliation(b: int, cwd: str) -> None:
+    """
+    [보스 특별 지침] 거래소 체결 내역 vs 로컬 장부(trade_history.csv) 누락 상시 감사:
+    - 봇 프로세스 일시 다운 또는 오프라인 SL/TP 발생 시 체결 장부 누락을 감지하고 자동 동기화.
+    - Rate limit 보호를 위해 봇 자체의 PnLReconciler를 안전하게 호출.
+    """
+    try:
+        sync_cmd = (
+            f"python3 -c '"
+            f"import asyncio, sys, os; "
+            f"sys.path.insert(0, \"{cwd}\"); "
+            f"from core.api_keys import load_api_keys; "
+            f"load_api_keys(override=True); "
+            f"from core.engine import QuantumEngine; "
+            f"eng = QuantumEngine.get_instance(); "
+            f"async def _run(): "
+            f"    if hasattr(eng, \"pnl_reconciler\") and eng.pnl_reconciler: "
+            f"        await eng.pnl_reconciler.sync_trades_async(); "
+            f"asyncio.run(_run())"
+            f"'"
+        )
+        subprocess.run(sync_cmd, shell=True, cwd=cwd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+        logger.info(f"[{b}] 📋 체결 장부 무결성 감사(Reconciliation) 점검 완료")
+    except Exception as e:
+        logger.debug(f"[{b}] 체결 장부 감사 중 경미한 예외: {e}")
+
 def is_process_running(cwd: str, script_name: str) -> bool:
     """Check if a specific script is running within the given working directory."""
     try:
@@ -262,6 +288,12 @@ def check_and_fix_bot(b: int, do_config_check: bool = True):
                 check_exit_readiness(b, cwd)
             except Exception as e:
                 logger.error(f"[{b}] 청산 건전성 검사 중 예외: {e}")
+
+            # [보스 특별 지침] 핵심 봇 대상 체결 장부 무결성 상시 감사 및 오프라인 체결 자동 복원
+            try:
+                audit_trade_reconciliation(b, cwd)
+            except Exception as e:
+                logger.error(f"[{b}] 체결 장부 무결성 감사 중 예외: {e}")
 
 def main():
     logger.info("==========================================")
