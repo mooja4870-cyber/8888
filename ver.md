@@ -5684,3 +5684,68 @@ CSV가 진실로 교정되면서 **대시보드상 손익·승률이 나빠 보�
 ### 수정 파일
 * lab/ledger_reconcile.py (신규), lab/ledger_fix_values.py (신규)
 * 8407·8409 `data/trade_history.csv` (원장 기준 복구, 각 백업 보유)
+
+---
+
+## v11.0.70 — 연속손절 정지 플래그 디스크 미반영 수정 (2026-09-11 01:50)
+
+### 증상
+8409 대시보드가 쿨다운으로 표시되는데 **실제 매매는 정상**이었다.
+
+```
+stats.json   halted_by_consec_sl = True
+             daily_consec_sl     = 0          ← 카운터는 0인데 정지
+             consec_sl_date      = 2026-09-10 ← 어제 날짜
+실제         09-11 00:42 UAI 진입 / 01:08 1000PEPE 진입 / 01:09 ZEC 진입
+```
+
+09-09 로그에는 모순이 그대로 남아 있었다:
+```
+[RISK BLOCK] ENA — 당일 연속손절 정지: 0연속 손절 (한도 3회, 다음날 재개)
+```
+
+### 원인 — 메모리는 풀고 디스크는 안 썼다
+`core/trader.py` `_reset_daily_if_needed()`:
+
+```python
+if self._halted_by_consec_sl:
+    self._halted_by_consec_sl = False     # 메모리만 해제
+    self.enable()
+...
+_s["orders_today"] = 0
+_s["daily_pnl_usdt"] = 0.0
+stats_store.save_stats(_s)                # 이 두 개만 저장
+```
+
+자정에 정지를 풀면서 `halted_by_consec_sl`·`daily_consec_sl`·`consec_sl_date`를
+**디스크에 반영하지 않는다.** 대시보드(8888 `app.py:973`)는 `stats.json`을 읽어
+쿨다운을 판정하므로, 봇 메모리와 화면이 어긋난 채로 남는다.
+`save_cooldowns()`가 다음 청산에서 덮어쓸 때까지 계속된다.
+
+**5봇 전부 동일한 결함**이었다(8401·8402·8407·8409·8410).
+
+### 조치
+* 리셋 블록에서 3개 키를 함께 저장하도록 수정 (5봇)
+* 잔존 플래그 즉시 교정 — 8409만 해당(`halted=True`·`date=09-10` → `False`·`09-11`)
+* 5봇 재기동, 봇당 1프로세스·오류 0건 확인
+
+### 결과
+```
+8407  ✅ 해제
+8409  ✅ 해제 (교정)
+8410  🟡 스위칭락(0/3) — 정상 동작
+```
+
+### 참고 — 쿨다운 표시의 세 갈래
+| 종류 | 근거 파일 | 매매 차단 |
+|---|---|---|
+| 연속손절 정지 | `stats.json` `halted_by_consec_sl` | **차단함** |
+| 글로벌 쿨다운 | `stats.json` `global_cooldown_until` | 차단함 |
+| 방향성 스위칭 락 | `switch_state.json` + CSV 청산 3건 | **표시만** |
+
+8407·8410의 뱃지는 세 번째(스위칭 후 새 방향 3건 검증 대기)로 정상이다.
+
+### 수정 파일
+* 8401·8402·8407·8409·8410 `core/trader.py`
+* 8409 `data/stats.json` (잔존 플래그 교정)
+* backup_20260911_014626/

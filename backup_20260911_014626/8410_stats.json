@@ -1,0 +1,26 @@
+{
+  "today_date": "2026-09-11",
+  "orders_today": 0,
+  "daily_pnl_usdt": 0.0,
+  "total_pnl_usdt": 1.31,
+  "total_trades": 50,
+  "total_wins": 24,
+  "total_losses": 26,
+  "seed_money": 10.005,
+  "perf_start_time": "2026-09-01 11:44:06",
+  "baseline_unrealized_pnl_usdt": 0.0,
+  "baseline_used_margin_usdt": 0.0,
+  "global_cooldown_until": null,
+  "symbol_cooldown_until": {
+    "DOT/USDT:USDT": "2026-09-09T23:23:05.237612"
+  },
+  "daily_consec_sl": 2,
+  "consec_sl_date": "2026-09-09",
+  "halted_by_consec_sl": false,
+  "symbol_loss_streak": {
+    "ADA/USDT:USDT": 1,
+    "HYPE/USDT:USDT": 1,
+    "NEAR/USDT:USDT": 1,
+    "DOT/USDT:USDT": 1
+  }
+}
