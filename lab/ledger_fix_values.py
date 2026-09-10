@@ -99,7 +99,17 @@ async def main():
     for r in rows:
         if r.get("유형") != "청산" or r.get("시간", "") < since_s:
             continue
-        ids = [x for x in (r.get("체결ID") or "").split("|") if x.strip()]
+        # [2026-09-11] CSV가 체결ID를 float 문자열로 적은 행이 있다("775493040.0").
+        # 원장은 정수 문자열이라 그대로는 매칭이 실패하고, 그 행의 틀린 값이
+        # 영원히 교정되지 않는다(8407 TAO +1.0488 실측, 원장은 그 값이 아니다).
+        ids = []
+        for x in (r.get("체결ID") or "").split("|"):
+            x = x.strip()
+            if not x:
+                continue
+            if x.endswith(".0"):
+                x = x[:-2]
+            ids.append(x)
         hit = [book[i] for i in ids if i in book]
         if not hit or len(hit) != len(ids):
             unmatched += 1
