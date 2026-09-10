@@ -30,6 +30,7 @@ BASE = "/Users/l/project"
 BOTS = ["8401", "8402", "8407", "8409", "8410"]
 OKX = {"8401", "8402"}
 PASS, FAIL, WARN, NA, UNK = "PASS", "FAIL", "WARN", "N/A", "UNK"
+FAST = False   # --fast 시 원장 조회를 건너뛴다
 
 
 def jload(p, d=None):
@@ -121,7 +122,7 @@ async def collect(c):
             r = await ex.privateGetTradeOrdersAlgoPending({"instType": "SWAP", "ordType": "oco"})
             c.algo = r.get("data", [])
             rows, after = [], None
-            for _ in range(25):
+            for _ in range(0 if FAST else 25):
                 q = {"instType": "SWAP", "limit": "100"}
                 if after:
                     q["after"] = after
@@ -147,7 +148,7 @@ async def collect(c):
             c.algo = [a for a in (await ex.fapiPrivateGetOpenAlgoOrders({}) or [])
                       if str(a.get("algoStatus")) == "NEW"]
             syms, s = set(), since
-            while True:
+            while not FAST:
                 rr = await ex.fapiPrivateGetIncome({"startTime": s, "limit": 1000})
                 if not rr:
                     break
@@ -205,6 +206,9 @@ def a01(c):
     if sig == 0:
         return UNK, "로그 구간 내 신호 0건 — 판정 불가"
     if ok == 0 and blocked > 0:
+        # 연속손절 정지가 걸려 있으면 전량 차단이 **정상 동작**이다.
+        if c.stats.get("halted_by_consec_sl"):
+            return PASS, f"연속손절 정지 중이라 전량 차단 (신호 {sig} / 차단 {blocked}) — 정상"
         return FAIL, f"신호 {sig}건 전량 차단 (차단 {blocked} / 통과 0)"
     return PASS, f"신호 {sig} · 통과 {ok} · 차단 {blocked}"
 
@@ -286,6 +290,8 @@ def a10(c):
 
 def a11(c):
     ent = c.entries(7)
+    if FAST:
+        return (PASS, f"CSV 진입 {len(ent)}건") if ent else (WARN, "최근 진입 기록 0건")
     if not c.ledger:
         return UNK, "원장 없음"
     return PASS, f"CSV 진입 {len(ent)}건 기록됨" if ent else (WARN, "최근 7일 진입 기록 0건")
@@ -400,17 +406,24 @@ def b20(c):
 
 
 def b21(c):
+    if FAST:
+        return NA, "--fast 생략 (원장 조회 필요)"
     ex = c.exits(7)
     if not ex or not c.ledger:
         return UNK, "표본 없음"
     csv_sum = sum(float(r.get("수익(USDT)") or 0) for r in ex)
     led_sum = sum(x["pnl"] for x in c.ledger)
     d = csv_sum - led_sum
-    if abs(d) > 0.30:
-        return FAIL, f"CSV {csv_sum:+.4f} vs 원장 {led_sum:+.4f} (차이 {d:+.4f})"
-    if abs(d) > 0.05:
-        return WARN, f"차이 {d:+.4f}"
-    return PASS, f"CSV {csv_sum:+.4f} ≈ 원장 {led_sum:+.4f}"
+    # [2026-09-11] CSV는 **체결 단위**, 원장 사이클은 **포지션 단위**다.
+    # 분할 청산과 7일 경계에 걸친 사이클 때문에 합계는 항상 조금 어긋난다.
+    # 실제 값 오염은 규모가 다르다(8407 실측 +2.08). 문턱을 그에 맞춘다.
+    # 정밀 대조가 필요하면 lab/ledger_fix_values.py로 체결ID 1:1 매칭할 것.
+    note = f"CSV {csv_sum:+.4f}(체결{len(ex)}건) vs 원장 {led_sum:+.4f}(포지션{len(c.ledger)}건)"
+    if abs(d) > 1.0:
+        return FAIL, f"값 오염 의심 — {note} 차이 {d:+.4f}"
+    if abs(d) > 0.3:
+        return WARN, f"{note} 차이 {d:+.4f} (단위차 포함)"
+    return PASS, f"{note} 차이 {d:+.4f}"
 
 
 def b22(c):
@@ -421,6 +434,8 @@ def b22(c):
     항상 어긋난다. 그 탓에 5봇 전부 FAIL로 오판했다.
     실제로 문제가 되는 것은 '원장에 있는데 CSV에 없는' 누락뿐이므로 그것만 센다.
     """
+    if FAST:
+        return NA, "--fast 생략 (원장 조회 필요)"
     if not c.ledger:
         return UNK, "원장 없음"
     keys = set()
@@ -549,8 +564,15 @@ def c31(c):
     today = dt.datetime.now().strftime("%Y-%m-%d")
     traded = any(r.get("유형") == "진입" and r.get("시간", "").startswith(today)
                  for r in c.rows)
-    if halted and traded:
-        return FAIL, "stats는 정지인데 오늘 진입 발생 — 표시/실제 불일치"
+    # [2026-09-11] 종전에는 '오늘 진입이 있는데 halted'를 무조건 불일치로 봤다.
+    # 정지는 하루 중 언제든 걸리므로 그 전의 진입은 모순이 아니다.
+    # 카운터가 한도에 도달했으면 정당한 정지이고, 미달인데 정지면 모순이다.
+    if halted:
+        cnt = int(c.stats.get("daily_consec_sl", 0) or 0)
+        cap = int(c.cfg.get("MAX_CONSEC_SL_PER_DAY", 0) or 0)
+        if cap > 0 and cnt >= cap:
+            return PASS, f"정당한 정지 ({cnt}/{cap}연속 손절) · 오늘진입={traded}"
+        return FAIL, f"카운터 미달({cnt}/{cap})인데 정지 — 표시/실제 불일치"
     kind = "연속손절정지" if halted else (f"스위칭락({n}/3)" if dash_cd else "없음")
     return PASS, f"대시보드 쿨다운={dash_cd} ({kind}) · 오늘진입={traded}"
 
@@ -603,7 +625,14 @@ ITEMS = [
 
 
 async def main():
-    only = sys.argv[1:] or BOTS
+    args = [a for a in sys.argv[1:] if not a.startswith("-")]
+    flags = {a for a in sys.argv[1:] if a.startswith("-")}
+    # [2026-09-11] --fast: 원장 조회(항목 21·22)를 건너뛴다.
+    # 그 둘이 API 호출의 90%를 쓰는데(종목별 userTrades) 나머지 31개는
+    # 포지션·상태파일·소스·로그만으로 판정된다. 5분 주기 상시 감시용이다.
+    global FAST
+    FAST = "--fast" in flags
+    only = args or BOTS
     grand = {}
     details = []
     for bot in only:
