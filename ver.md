@@ -5877,3 +5877,34 @@ N/A      11        →     13
 
 ### 수정 파일
 * lab/audit_scheduler.py (신규), lab/audit_33_items.py (`--fast` 모드 + 판정 3건 교정)
+
+---
+
+## v11.0.74 — 감사 알림 경로 교정 (2026-09-11 02:40)
+
+### 두 번 틀렸다
+**① 텔레그램은 애초에 죽어 있었다**
+`core.alert.send_telegram_alert`를 빌려 붙였는데 8401 `.env`의
+`TELEGRAM_BOT_TOKEN`이 **빈 값**이었다(토큰 길이 0). 알림이 아무데도 가지 않았다.
+`.env`를 마스킹 출력(`sed 's/=.*/=<설정됨>/'`)으로 확인한 탓에
+키의 **존재**를 값의 **유효성**으로 착각했다.
+
+실제 채널은 디스코드다 — `discord_state_group_2.json`이 상시 갱신되고 있었다.
+
+**② 디스코드로 바꿨더니 403 Forbidden**
+User-Agent 헤더 없이 보내면 디스코드가 거부한다.
+`8888/discord_alert.py`는 처음부터 UA를 넣고 있었는데 그 구조를 안 보고 새로 짰다.
+
+```python
+headers = {"Content-Type": "application/json",
+           "User-Agent": "8888-audit/1.0 (+discord-webhook)"}
+```
+requests 1순위 · urllib 폴백까지 기존 구현을 그대로 따랐다.
+
+### 교훈
+**알림 경로는 "설정이 있다"가 아니라 "실제로 도달했다"로 확인해야 한다.**
+mooja님이 "어떻게 알려주니?"라고 묻지 않았다면 죽은 알림을 붙여둔 채
+스케줄러가 정상 작동한다고 보고할 뻔했다.
+
+### 수정 파일
+* lab/audit_scheduler.py (notify 경로 텔레그램 → 디스코드, UA·폴백 추가)

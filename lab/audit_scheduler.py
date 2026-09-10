@@ -96,15 +96,50 @@ def fails(res):
     return out
 
 
+WEBHOOK_FILE = os.path.join(ROOT, "discord_webhook.txt")
+
+
 def notify(msg):
-    """봇이 쓰는 알림 경로를 그대로 빌린다. 실패해도 감사는 계속된다."""
+    """디스코드 웹훅으로 보낸다. 실패해도 감사는 계속된다.
+
+    [2026-09-11] 처음에는 봇의 `core.alert.send_telegram_alert`를 빌렸는데
+    **8401 .env의 TELEGRAM_BOT_TOKEN이 빈 값**이라 아무데도 가지 않았다.
+    실제로 쓰이는 채널은 디스코드다(`discord_state_*.json`이 상시 갱신된다).
+    알림 경로는 반드시 **실제 도달 여부로** 확인할 것.
+    """
     try:
-        d = "/Users/l/project/8401"
-        code = (f"import sys; sys.path.insert(0,'{d}');"
-                f"import core.alert as a; a.send_telegram_alert({msg!r})")
-        subprocess.run([PY, "-c", code], capture_output=True, timeout=25, cwd=d)
+        with open(WEBHOOK_FILE, encoding="utf-8") as f:
+            url = f.read().strip()
+    except OSError:
+        log("⚠️  디스코드 웹훅 파일 없음 — 알림 생략")
+        return
+    if not url.startswith("https://discord"):
+        log("⚠️  웹훅 형식 이상 — 알림 생략")
+        return
+    # [2026-09-11] User-Agent가 없으면 디스코드가 **403 Forbidden**으로 막는다.
+    # 처음에 UA 없이 보냈다가 전량 거부됐다. 8888/discord_alert.py의 검증된
+    # 헤더·폴백 구조를 그대로 따른다(requests 1순위, urllib 2순위).
+    headers = {"Content-Type": "application/json",
+               "User-Agent": "8888-audit/1.0 (+discord-webhook)"}
+    payload = {"content": msg[:1900], "username": "봇 자가진단"}
+    try:
+        import requests
+        r = requests.post(url, json=payload, headers=headers, timeout=15)
+        if r.status_code in (200, 204):
+            return
+        log(f"⚠️  디스코드 status={r.status_code} {r.text[:80]}")
+        return
     except Exception:
         pass
+    try:
+        import urllib.request
+        body = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(url, data=body, headers=headers)
+        with urllib.request.urlopen(req, timeout=15) as r:
+            if r.status not in (200, 204):
+                log(f"⚠️  디스코드 응답 {r.status}")
+    except Exception as e:
+        log(f"⚠️  알림 전송 실패: {str(e)[:80]}")
 
 
 def main():
