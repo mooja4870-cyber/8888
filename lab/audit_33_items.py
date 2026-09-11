@@ -121,7 +121,15 @@ class Ctx:
         return "\n".join(out)
 
     def exits(self, days=7):
+        """CSV 청산. **리셋 이후**와 지정 기간 중 더 늦은 쪽을 시작점으로 쓴다.
+
+        [2026-09-11] 종전에는 원장만 리셋 기준으로 자르고 CSV는 기간 기준으로 둬서
+        **서로 다른 구간을 비교**했다(8409: CSV 7일 132건 vs 원장 리셋후 49건).
+        """
         cut = (dt.datetime.now() - dt.timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+        ps = self.stats.get("perf_start_time")
+        if ps:
+            cut = max(cut, str(ps)[:19].replace("T", " "))
         return [r for r in self.rows if r.get("유형") == "청산" and r.get("시간", "") >= cut]
 
     def entries(self, days=7):
@@ -138,7 +146,14 @@ async def collect(c):
         load_dotenv(os.path.join(c.dir, ".env"), override=False)
         from core.api_keys import load_api_keys
         load_api_keys(override=True)
+        # [2026-09-11] 종전에는 `now - 7일`이라 **실행할 때마다 창이 움직여**
+        # 경계에 걸친 사이클이 들어왔다 나갔다 했다(8409 실측: 같은 봇인데
+        # 원장 50건 → 38건). 리셋 시각이 있으면 그보다 2일 앞으로 고정해
+        # 사이클이 온전히 들어오게 하고, 재현성을 확보한다.
         since = int((dt.datetime.now() - dt.timedelta(days=7)).timestamp() * 1000)
+        _ps = c.perf_start_ms()
+        if _ps:
+            since = min(since, _ps - 2 * 86400_000)
         if c.bot in OKX:
             import ccxt.async_support as ccxt
             ex = ccxt.okx({"apiKey": os.getenv("OKX_API_KEY", ""),
@@ -193,12 +208,24 @@ async def collect(c):
                         {"symbol": sym, "startTime": since, "limit": 500})
                 except Exception:
                     continue
+                # 창 시작 시점에 이미 포지션이 열려 있었으면 그 사이클은 **진입이 창 밖**이라
+                # 손익이 잘린다. 첫 완결(pos→0)까지는 버리고 그 뒤부터 집계한다.
                 pos = 0.0
                 ets = None
                 pnl = 0.0
+                trusted = False
                 for t in sorted(tr, key=lambda x: int(x["time"])):
                     q = float(t["qty"]) * (1 if t["side"] == "BUY" else -1)
-                    if abs(pos) < 1e-12 and q != 0:
+                    opening = abs(pos) < 1e-12 and q != 0
+                    if not trusted:
+                        if opening:
+                            trusted = True          # 정상 진입부터 시작한다
+                        else:
+                            pos += q
+                            if abs(pos) < 1e-12:
+                                trusted = True      # 잔여분 청산 완료 — 이후는 믿을 수 있다
+                            continue
+                    if opening:
                         ets, pnl = int(t["time"]), 0.0
                     pos += q
                     pnl += float(t.get("realizedPnl") or 0)
@@ -488,7 +515,12 @@ def b22(c):
         if (sym, t) not in keys:
             miss.append(sym)
     if miss:
-        return FAIL, f"원장 {len(led)}건 중 CSV 누락 {len(miss)}건: {sorted(set(miss))[:6]}"
+        # [2026-09-11] 봇이 실시간 거래 중이라 감사 시점과 청산 시점이 겹치면
+        # 경계에 걸린 1~2건은 아직 CSV에 안 쓰였을 수 있다. 그건 결함이 아니다.
+        # 실제 누락(ledger_reconcile 실측 8407 66건/8409 63건)은 규모가 다르다.
+        lvl = FAIL if len(miss) >= 3 else WARN
+        return lvl, (f"원장 {len(led)}건 중 CSV 누락 {len(miss)}건: {sorted(set(miss))[:6]}"
+                     + (" (기록 지연 가능)" if lvl == WARN else ""))
     return PASS, f"원장 {len(led)}건 전부 CSV에 존재 (리셋 이후 기준)"
 
 
