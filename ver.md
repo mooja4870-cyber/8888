@@ -5985,3 +5985,18 @@ engine.py:856  register_trade_result → 2연패 시 COOLDOWN_HOURS(4h)로 덮�
 * 8401 `config.json`, `core/trader.py`
 * lab/sltp_backtest.py (신규·기각된 접근), lab/freq_backtest.py (신규·채택)
 * backup_20260911_110355/
+
+---
+
+## v11.0.76 — 무포지션 봇 빨강색 테두리 두께 25%(0.165mm) 축소 조정 (2026-09-11 11:53)
+
+### 변경 내용
+* **8888 통합 관제 대시보드 무포지션 봇 빨강색 테두리 두께 25% 축소 조정 [보스 특별 지침 반영]**:
+  - `dashboard.html` 및 `index.html` 내 무포지션(`b.holding === false`) 봇의 빨강색 테두리(`#e24b4a`) 두께를 기존 `0.66mm`의 25%인 `0.165mm`로 축소 적용
+  - 포지션 보유 상태(`0.66mm` 흰색) 및 쿨다운 상태(`0.85mm` 핑크/노랑 점멸)와 시각적 위계 구분 명확화 완료
+
+### 수정 파일
+* dashboard.html
+* index.html
+* ver.md
+

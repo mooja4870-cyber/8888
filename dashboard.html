@@ -383,8 +383,9 @@ function render(d,anim){
   const _isCooldown = (b.is_cooldown === true);
   const _isSwitchLock = _isCooldown && (b.cooldown_type === 'switch_lock');
   const _isHalt = _isCooldown && !_isSwitchLock;
-  const _bc = _isSwitchLock ? '#ff2d75' : (_isHalt ? '#ffd700' : ((b.holding===false)?'#e24b4a':'#ffffff'));
-  const _bw = _isCooldown ? '0.85mm' : '0.66mm';   // 전체 봇 테두리 0.66mm, 쿨다운 시 0.85mm (스위칭락 핑크, 진입정지 노랑) 테두리
+  const _isFlat = (b.holding === false);
+  const _bc = _isSwitchLock ? '#ff2d75' : (_isHalt ? '#ffd700' : (_isFlat ? '#e24b4a' : '#ffffff'));
+  const _bw = _isCooldown ? '0.85mm' : (_isFlat ? '0.165mm' : '0.66mm');   // 무포지션 빨강 테두리 25% 굵기(0.165mm), 보유 0.66mm, 쿨다운 0.85mm
   const hi='border:'+_bw+' solid '+_bc+';box-shadow:0 4px 11px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.12), inset 0 -2px 4px rgba(0,0,0,.35);';
   // Expectancy(거래당 평균손익) — 미래수익 최강 예측지표 → 카드 최상단 강조
   const _ex=b.expectancy;
