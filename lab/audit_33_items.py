@@ -91,6 +91,35 @@ class Ctx:
                     pass
         return out
 
+    def perf_start_ms(self):
+        """봇 리셋 시각(ms). 리셋 전 원장은 CSV에 없는 게 정상이므로 대조에서 뺀다."""
+        ps = self.stats.get("perf_start_time")
+        if not ps:
+            return 0
+        try:
+            return int(dt.datetime.fromisoformat(str(ps)).timestamp() * 1000)
+        except Exception:
+            return 0
+
+    def ledger_since_reset(self):
+        cut = self.perf_start_ms()
+        return [x for x in self.ledger if x["ts"] >= cut] if cut else self.ledger
+
+    def log_since_reset(self):
+        """리셋 이후 로그만. 로직을 갈아끼운 봇은 이전 로그가 남의 것이다."""
+        ps = self.stats.get("perf_start_time")
+        if not ps:
+            return self.log
+        cut = str(ps)[:19].replace("T", " ")
+        out, on = [], False
+        for ln in self.log.splitlines():
+            m = re.match(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})", ln)
+            if m:
+                on = m.group(1) >= cut
+            if on:
+                out.append(ln)
+        return "\n".join(out)
+
     def exits(self, days=7):
         cut = (dt.datetime.now() - dt.timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
         return [r for r in self.rows if r.get("유형") == "청산" and r.get("시간", "") >= cut]
@@ -200,11 +229,14 @@ async def collect(c):
 
 # ────────────────────────── 섹션 A · 진입 11항목 ──────────────────────────
 def a01(c):
-    sig = len(re.findall(r"\[SIGNAL\]", c.log))
-    blocked = len(re.findall(r"\[RISK BLOCK\]|\[ENTRY BLOCK\]", c.log))
-    ok = len(re.findall(r"\[RISK OK\]|\[ENTRY OK\]", c.log))
+    # [2026-09-11] 로직을 교체한 봇은 리셋 이전 로그가 **다른 전략의 것**이다.
+    # 8407을 8402 로직으로 복제한 뒤, QPB 시절 차단 로그를 보고 FAIL로 오판했다.
+    lg = c.log_since_reset()
+    sig = len(re.findall(r"\[SIGNAL\]", lg))
+    blocked = len(re.findall(r"\[RISK BLOCK\]|\[ENTRY BLOCK\]", lg))
+    ok = len(re.findall(r"\[RISK OK\]|\[ENTRY OK\]", lg))
     if sig == 0:
-        return UNK, "로그 구간 내 신호 0건 — 판정 불가"
+        return UNK, "리셋 이후 신호 0건 — 판정 불가"
     if ok == 0 and blocked > 0:
         # 연속손절 정지가 걸려 있으면 전량 차단이 **정상 동작**이다.
         if c.stats.get("halted_by_consec_sl"):
@@ -409,16 +441,17 @@ def b21(c):
     if FAST:
         return NA, "--fast 생략 (원장 조회 필요)"
     ex = c.exits(7)
-    if not ex or not c.ledger:
-        return UNK, "표본 없음"
+    led = c.ledger_since_reset()
+    if not ex or not led:
+        return NA, "리셋 이후 표본 없음"
     csv_sum = sum(float(r.get("수익(USDT)") or 0) for r in ex)
-    led_sum = sum(x["pnl"] for x in c.ledger)
+    led_sum = sum(x["pnl"] for x in led)
     d = csv_sum - led_sum
     # [2026-09-11] CSV는 **체결 단위**, 원장 사이클은 **포지션 단위**다.
     # 분할 청산과 7일 경계에 걸친 사이클 때문에 합계는 항상 조금 어긋난다.
     # 실제 값 오염은 규모가 다르다(8407 실측 +2.08). 문턱을 그에 맞춘다.
     # 정밀 대조가 필요하면 lab/ledger_fix_values.py로 체결ID 1:1 매칭할 것.
-    note = f"CSV {csv_sum:+.4f}(체결{len(ex)}건) vs 원장 {led_sum:+.4f}(포지션{len(c.ledger)}건)"
+    note = f"CSV {csv_sum:+.4f}(체결{len(ex)}건) vs 원장 {led_sum:+.4f}(포지션{len(led)}건)"
     if abs(d) > 1.0:
         return FAIL, f"값 오염 의심 — {note} 차이 {d:+.4f}"
     if abs(d) > 0.3:
@@ -436,8 +469,11 @@ def b22(c):
     """
     if FAST:
         return NA, "--fast 생략 (원장 조회 필요)"
-    if not c.ledger:
-        return UNK, "원장 없음"
+    # [2026-09-11] 봇을 리셋(로직 교체 등)하면 CSV는 비고 원장만 남는다.
+    # 그건 의도된 상태이므로 **리셋 이후 원장만** 대조한다.
+    led = c.ledger_since_reset()
+    if not led:
+        return NA, "리셋 이후 원장 없음 (새로 시작한 봇)"
     keys = set()
     for r in c.rows:
         if r.get("유형") != "청산":
@@ -446,14 +482,14 @@ def b22(c):
         if t:
             keys.add((r.get("심볼", "").split("/")[0], t))
     miss = []
-    for x in c.ledger:
+    for x in led:
         sym = x["sym"].replace("USDT", "").replace("-", "").replace("SWAP", "").strip("/")
         t = dt.datetime.fromtimestamp(x["ts"] / 1000).strftime("%Y-%m-%d %H:%M")
         if (sym, t) not in keys:
             miss.append(sym)
     if miss:
-        return FAIL, f"원장 {len(c.ledger)}건 중 CSV 누락 {len(miss)}건: {sorted(set(miss))[:6]}"
-    return PASS, f"원장 {len(c.ledger)}건 전부 CSV에 존재"
+        return FAIL, f"원장 {len(led)}건 중 CSV 누락 {len(miss)}건: {sorted(set(miss))[:6]}"
+    return PASS, f"원장 {len(led)}건 전부 CSV에 존재 (리셋 이후 기준)"
 
 
 # ────────────────────────── 섹션 C · 쿨다운 11항목 ──────────────────────────
