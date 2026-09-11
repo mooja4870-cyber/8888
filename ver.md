@@ -1,3 +1,19 @@
+## v11.0.72
+Date: 2026-09-11
+
+### 변경 내용
+* 대시보드 구조 개편 (Fool-Proof 재발방지책 적용)
+  - `app.py` 내부의 봇 전략/지표 파싱에서 폴더명 기반 하드코딩 완전 철거
+  - 각 봇의 `config.json` 내 `DASHBOARD_META` 객체를 최우선으로 읽어오도록 Data-Driven 구조로 리팩토링
+  - (8401~8410 총 9개 봇의 `config.json`에 `DASHBOARD_META` 일괄 주입 완료)
+
+### 수정 파일
+* app.py
+* ver.md
+
+### 비고
+* Data-Driven 방식 도입으로 향후 봇 전략 교체 시 누락 가능성 원천 차단
+
 ## v11.0.71
 Date: 2026-09-11
 

@@ -525,55 +525,61 @@ def read_bot_config(folder):
     try:
         cfg = safe_load_json(cfg_path, {})
 
-        # 1. 전략명 (strategy) — [2026-09-09 보스 특별 지침] 실제 가동 팩트 100% 반영
-        tf = cfg.get("TIMEFRAME", "1d")
-        if folder in ("8401", "8402", "8407"):
-            strategy = f"DonchianVol 국면 라우터 ({tf})"
-        elif folder == "8409":
-            strategy = f"TSMOM 시계열 모멘텀 ({tf})"
-        elif folder == "8410":
-            strategy = f"BBTS 변동성 확장 돌파 ({tf})"
-        elif cfg.get("USE_REGIME_ROUTER"):
-            regime_map = cfg.get("REGIME_STRATEGY_MAP", {})
-            bull_strat = regime_map.get("BULL", "DonchianVol")
-            strategy = f"{bull_strat} (국면 라우터)"
-        elif cfg.get("STRATEGY_NAME"):
-            strategy = cfg.get("STRATEGY_NAME")
-        elif cfg.get("STRATEGY_MODE"):
-            strategy = cfg.get("STRATEGY_MODE")
-        elif "DON_LEN" in cfg:
-            strategy = "돈치안 채널 돌파"
-        elif "MACD_FAST" in cfg:
-            strategy = "AKMCD + SSL 하이브리드"
-        elif "BB_PERIOD" in cfg:
-            strategy = "TTM Squeeze 돌파" + (" + RSI" if cfg.get("USE_RSI_FILTER") else "")
+        # 1. 대시보드 메타 최우선 적용 (Data-Driven Architecture)
+        meta = cfg.get("DASHBOARD_META")
+        if meta:
+            strategy = meta.get("strategy", "알 수 없는 전략")
+            ind_str = meta.get("indicators", "지표 없음")
         else:
-            strategy = "기본 추세 돌파"
+            # 1-1. 레거시 전략명 (strategy) 폴백
+            tf = cfg.get("TIMEFRAME", "1d")
+            if folder in ("8401", "8402", "8407"):
+                strategy = f"DonchianVol 국면 라우터 ({tf})"
+            elif folder == "8409":
+                strategy = f"TSMOM 시계열 모멘텀 ({tf})"
+            elif folder == "8410":
+                strategy = f"BBTS 변동성 확장 돌파 ({tf})"
+            elif cfg.get("USE_REGIME_ROUTER"):
+                regime_map = cfg.get("REGIME_STRATEGY_MAP", {})
+                bull_strat = regime_map.get("BULL", "DonchianVol")
+                strategy = f"{bull_strat} (국면 라우터)"
+            elif cfg.get("STRATEGY_NAME"):
+                strategy = cfg.get("STRATEGY_NAME")
+            elif cfg.get("STRATEGY_MODE"):
+                strategy = cfg.get("STRATEGY_MODE")
+            elif "DON_LEN" in cfg:
+                strategy = "돈치안 채널 돌파"
+            elif "MACD_FAST" in cfg:
+                strategy = "AKMCD + SSL 하이브리드"
+            elif "BB_PERIOD" in cfg:
+                strategy = "TTM Squeeze 돌파" + (" + RSI" if cfg.get("USE_RSI_FILTER") else "")
+            else:
+                strategy = "기본 추세 돌파"
 
-        # 2. 지표 설정 (indicators)
-        if folder in ("8401", "8402", "8407"):
-            don_len = cfg.get("DON_LEN", 55)
-            ind_str = f"Donchian{don_len}, Vol, EMA200"
-        elif folder == "8409":
-            lb = cfg.get("TSMOM_LOOKBACK") or 20
-            ind_str = f"TSMOM({lb}), ATR14"
-        elif folder == "8410":
-            bb_p = cfg.get("BB_PERIOD", 40)
-            bb_std = cfg.get("BB_STD_DEV", 2.5)
-            ind_str = f"BB({bb_p}/{bb_std}), ATR"
-        elif cfg.get("USE_REGIME_ROUTER"):
-            don_len = cfg.get("DON_LEN", 55)
-            ind_str = f"Donchian{don_len}, Vol, EMA200"
-        else:
-            indicators = []
-            if cfg.get("EMA_PERIOD"): indicators.append(f"EMA{cfg['EMA_PERIOD']}")
-            elif cfg.get("MARKET_GATE_EMA"): indicators.append(f"EMA{cfg['MARKET_GATE_EMA']}")
-            if cfg.get("RSI_PERIOD"): indicators.append(f"RSI{cfg['RSI_PERIOD']}")
-            elif cfg.get("USE_RSI_FILTER"): indicators.append("RSI(Dyn)" if cfg.get("USE_DYNAMIC_RSI") else "RSI")
-            if cfg.get("MACD_FAST"): indicators.append(f"MACD({cfg['MACD_FAST']},{cfg['MACD_SLOW']})")
-            if cfg.get("SSL_PERIOD"): indicators.append(f"SSL{cfg['SSL_PERIOD']}")
-            if cfg.get("BB_PERIOD"): indicators.append(f"BB{cfg['BB_PERIOD']}")
-            ind_str = ", ".join(indicators) if indicators else "—"
+            # 1-2. 레거시 지표 설정 (indicators) 폴백
+            if folder in ("8401", "8402", "8407"):
+                don_len = cfg.get("DON_LEN", 55)
+                ind_str = f"Donchian{don_len}, Vol, EMA200"
+            elif folder == "8409":
+                lb = cfg.get("TSMOM_LOOKBACK") or 20
+                ind_str = f"TSMOM({lb}), ATR14"
+            elif folder == "8410":
+                bb_p = cfg.get("BB_PERIOD", 40)
+                bb_std = cfg.get("BB_STD_DEV", 2.5)
+                ind_str = f"BB({bb_p}/{bb_std}), ATR"
+            elif cfg.get("USE_REGIME_ROUTER"):
+                don_len = cfg.get("DON_LEN", 55)
+                ind_str = f"Donchian{don_len}, Vol, EMA200"
+            else:
+                indicators = []
+                if cfg.get("EMA_PERIOD"): indicators.append(f"EMA{cfg['EMA_PERIOD']}")
+                elif cfg.get("MARKET_GATE_EMA"): indicators.append(f"EMA{cfg['MARKET_GATE_EMA']}")
+                if cfg.get("RSI_PERIOD"): indicators.append(f"RSI{cfg['RSI_PERIOD']}")
+                elif cfg.get("USE_RSI_FILTER"): indicators.append("RSI(Dyn)" if cfg.get("USE_DYNAMIC_RSI") else "RSI")
+                if cfg.get("MACD_FAST"): indicators.append(f"MACD({cfg['MACD_FAST']},{cfg['MACD_SLOW']})")
+                if cfg.get("SSL_PERIOD"): indicators.append(f"SSL{cfg['SSL_PERIOD']}")
+                if cfg.get("BB_PERIOD"): indicators.append(f"BB{cfg['BB_PERIOD']}")
+                ind_str = ", ".join(indicators) if indicators else "—"
 
         # 3. 손절률 / 수익목표 (stop_loss_pct, take_profit_pct)
         if cfg.get("USE_ATR_SL", False):
@@ -599,8 +605,11 @@ def read_bot_config(folder):
         # 5. 순/역 모드
         use_bf = cfg.get("USE_BLUEFROG", False)
 
-        # 6. 자동반전 플래그 (8409 폐지 X, 8401·8402·8407·8410 실제 가동 O)
-        auto_switch = False if folder == "8409" else bool(cfg.get("USE_AUTO_MODE_SWITCH", False))
+        # 6. 자동반전 플래그 (메타 우선)
+        if meta and "auto_switch" in meta:
+            auto_switch = bool(meta["auto_switch"])
+        else:
+            auto_switch = False if folder == "8409" else bool(cfg.get("USE_AUTO_MODE_SWITCH", False))
 
         return {
             "leverage": cfg.get("LEVERAGE", "—"),
