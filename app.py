@@ -527,12 +527,8 @@ def read_bot_config(folder):
 
         # 1. 전략명 (strategy) — [2026-09-09 보스 특별 지침] 실제 가동 팩트 100% 반영
         tf = cfg.get("TIMEFRAME", "1d")
-        if folder == "8401":
+        if folder in ("8401", "8402", "8407"):
             strategy = f"DonchianVol 국면 라우터 ({tf})"
-        elif folder == "8402":
-            strategy = f"DonchianVol 국면 라우터 ({tf})"
-        elif folder == "8407":
-            strategy = f"QPB-Alpha 부스터 ({tf})"
         elif folder == "8409":
             strategy = f"TSMOM 시계열 모멘텀 ({tf})"
         elif folder == "8410":
@@ -555,11 +551,9 @@ def read_bot_config(folder):
             strategy = "기본 추세 돌파"
 
         # 2. 지표 설정 (indicators)
-        if folder in ("8401", "8402"):
+        if folder in ("8401", "8402", "8407"):
             don_len = cfg.get("DON_LEN", 55)
             ind_str = f"Donchian{don_len}, Vol, EMA200"
-        elif folder == "8407":
-            ind_str = "KER, CMF, 펀딩스퀴즈, ATR"
         elif folder == "8409":
             lb = cfg.get("TSMOM_LOOKBACK") or 20
             ind_str = f"TSMOM({lb}), ATR14"
@@ -582,7 +576,12 @@ def read_bot_config(folder):
             ind_str = ", ".join(indicators) if indicators else "—"
 
         # 3. 손절률 / 수익목표 (stop_loss_pct, take_profit_pct)
-        if folder in ("8407", "8409"):
+        if cfg.get("USE_ATR_SL", False):
+            sl_mult = cfg.get("ATR_SL_MULT", 1.5)
+            tp_mult = cfg.get("ATR_TP_MULT", 3.0)
+            sl_str = f"ATR×{sl_mult:.1f}"
+            tp_str = f"ATR×{tp_mult:.1f} (1:2)"
+        elif folder == "8409":
             sl_mult = cfg.get("TSMOM_SL_ATR_MULT") or cfg.get("DL_SL_ATR_MULT") or 2.0
             tp_mult = cfg.get("TSMOM_TP_ATR_MULT") or cfg.get("DL_TP_ATR_MULT") or (sl_mult * 2.0)
             sl_str = f"ATR×{sl_mult:.1f}"
@@ -600,8 +599,8 @@ def read_bot_config(folder):
         # 5. 순/역 모드
         use_bf = cfg.get("USE_BLUEFROG", False)
 
-        # 6. 자동반전 플래그 (8407·8409 폐지 X, 8401·8402·8410 실제 가동 O)
-        auto_switch = False if folder in ("8407", "8409") else bool(cfg.get("USE_AUTO_MODE_SWITCH", False))
+        # 6. 자동반전 플래그 (8409 폐지 X, 8401·8402·8407·8410 실제 가동 O)
+        auto_switch = False if folder == "8409" else bool(cfg.get("USE_AUTO_MODE_SWITCH", False))
 
         return {
             "leverage": cfg.get("LEVERAGE", "—"),
