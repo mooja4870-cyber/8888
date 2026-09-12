@@ -1,3 +1,48 @@
+## v11.0.91
+Date: 2026-09-13
+
+### 변경 내용
+* **8403 ← 8409 · 8404 ← 8410 복제** (mooja 지시, 각 봇 `v6.4.0`)
+  - 매매전략·설정값·UI만 교체. **계정·API·포트·`data/`는 본래 것 유지**
+* `config_sentinel.py` — **8403 감시 해제** (`PER_BOT = {}`)
+  - 기대값이 폐기된 이동평균 20/100 일봉 전략의 것이라, 그대로 두면 매 점검마다
+    "설정 7건 불일치"를 쏟아낸다(09-11·09-12 로그에 실제로 계속 찍혔다)
+  - 원복용으로 `_RETIRED_8403_MA20_100`에 보존. `VENUE` 검사(OKX)는 유지
+
+### 거래소가 다른데 복제가 가능한 이유
+```
+8403 · 8404 → OKX          8409 · 8410 → 바이낸스
+```
+8409/8410 코드는 **거래소 중립**이다. `core/exchange.py:1046`에
+`OKXClient = BinanceClient` 별칭이 있어 상위 코드는 전부 `OKXClient` 이름만 쓴다.
+8403/8404에는 반대로 `BinanceClient = OKXClient`가 있다.
+→ **`exchange.py`와 `api_keys.py`만 대상 봇 것을 남기면** 나머지는 그대로 복제해도 OKX로 붙는다.
+
+### 이식 중 잡은 버그 — 조용한 인증 실패
+복제한 `bot.py`·`app.py`가 **`BINANCE_*` 환경변수명**으로 키를 읽는다(원본이 바이낸스 봇).
+OKX는 패스프레이즈가 필수인데 `BINANCE_PASSPHRASE`가 비어 있어
+`okx requires "password" credential`로 **포지션 조회가 전부 실패**했다(실측 07:54).
+스캐너는 멀쩡히 돌아 겉보기엔 정상이었다 — [[silent-failure-pattern]] 그대로다.
+→ `core/api_keys.py`가 api.md의 OKX 키를 `OKX_*`·`BINANCE_*` **양쪽 이름에 주입**하도록 수정
+
+### 최종 상태
+```
+  8403  PID 7992  OKX  QAR 15분봉  17종목  AUTO_TRADING=False  잔고 $10.00  HTTP 200
+  8404  PID 6955  OKX  BBTS 일봉   25종목  AUTO_TRADING=False  잔고 $10.00  HTTP 200
+```
+* 화이트리스트 탈락: 8403은 UAI·T·PAXG(OKX 미상장) + USELESS(일괄 티커 미반환) → 21→17
+  · 8404는 25종목 전량 유지
+* 8404에서 AR이 매 스캔 제외되는데 이는 **정상 필터**다(거래대금 $262K < 기준 $500K)
+* 대시보드 7개 포트 전부 HTTP 200 확인
+
+### 수정 파일
+* config_sentinel.py
+* ver.md
+* (봇 폴더) 8403·8404 — 각 저장소에 `v6.4.0` 커밋·태깅 완료
+
+### 비고
+* **AUTO_TRADING은 False로 둔다.** mooja 지시가 있을 때까지 매매하지 않는다
+
 ## v11.0.90
 Date: 2026-09-13
 
