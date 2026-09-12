@@ -22,7 +22,11 @@ GROUP_2_BOTS = [
     ("8402", "8402_OKX"),
     ("8410", "8410_BNC"),
 ]
-BOTS = GROUP_1_BOTS + GROUP_2_BOTS
+GROUP_3_BOTS = [
+    ("8403", "8403_OKX"),
+    ("8404", "8404_OKX"),
+]
+BOTS = GROUP_1_BOTS + GROUP_2_BOTS + GROUP_3_BOTS
 
 INTERVALS = [
     ("1h", 3600, "1시간"),
@@ -175,6 +179,24 @@ def build_discord_messages(now_str, overall, by_bot, bot_modes, bot_seq):
     lines.append(f"--------------------------------------------------")
     lines.append(f"🤖 **[그룹2 (8401, 8402, 8410) 봇별 4개 구간 승패 상세]**")
     for bot_id, name in GROUP_2_BOTS:
+        is_bf = bot_modes.get(bot_id, False)
+        mode_tag = "**[역]** 🐸 역방향(청개구리)" if is_bf else "**[순]** 🎯 순방향(정방향)"
+        lines.append(f"🔹 **[{name}]** {mode_tag}")
+        for key, _, label in INTERVALS:
+            b_w = by_bot[bot_id][key]["win"]
+            b_l = by_bot[bot_id][key]["loss"]
+            b_pnl = by_bot[bot_id][key]["pnl"]
+            b_rate = format_rate(b_w, b_l)
+            p_str = f"+${b_pnl:.2f}" if b_pnl >= 0 else f"-${abs(b_pnl):.2f}"
+            lines.append(f"   • {label:>4}: {b_w}승 {b_l}패 ({b_rate:5.1f}%) | PnL: `{p_str}`")
+        raw_seq = bot_seq.get(bot_id, "")
+        seq_grouped = " ".join([raw_seq[i:i+5] for i in range(0, len(raw_seq), 5)])
+        if seq_grouped:
+            lines.append(f"   • 승패흐름: {seq_grouped}")
+
+    lines.append(f"--------------------------------------------------")
+    lines.append(f"🤖 **[그룹3 (8403, 8404) 봇별 4개 구간 승패 상세]**")
+    for bot_id, name in GROUP_3_BOTS:
         is_bf = bot_modes.get(bot_id, False)
         mode_tag = "**[역]** 🐸 역방향(청개구리)" if is_bf else "**[순]** 🎯 순방향(정방향)"
         lines.append(f"🔹 **[{name}]** {mode_tag}")

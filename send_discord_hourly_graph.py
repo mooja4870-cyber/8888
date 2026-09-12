@@ -21,8 +21,9 @@ SNAP_FILE = os.path.join(ROOT_DIR, "8888", "snapshots.json")
 
 GROUP_1_IDS = ["8407", "8409"]
 GROUP_2_IDS = ["8401", "8402", "8410"]
+GROUP_3_IDS = ["8403", "8404"]
 GROUP_A_IDS = GROUP_1_IDS
-ALL_BOT_IDS = ["8407", "8409", "8401", "8402", "8410"]
+ALL_BOT_IDS = ["8407", "8409", "8401", "8402", "8410", "8403", "8404"]
 
 BOT_FOLDERS = {
     "8401": "8401", "8402": "8402", "8403": "8403", "8404": "8404", "8405": "8405",
@@ -92,6 +93,7 @@ def collect_hourly_data(num_hours=40):
     
     group_1_series = []
     group_2_series = []
+    group_3_series = []
     bot_series = {bid: [] for bid in ALL_BOT_IDS}
     
     for T in timestamps:
@@ -115,7 +117,12 @@ def collect_hourly_data(num_hours=40):
         avg_ret_2 = sum(bot_rets[bid] * bot_seeds[bid] for bid in GROUP_2_IDS) / tot_seed_2 if tot_seed_2 else 0.0
         group_2_series.append(round(avg_ret_2, 2))
 
-    return timestamps, group_1_series, group_2_series, bot_series
+        # 그룹 3 (8403, 8404) 계산
+        tot_seed_3 = sum(bot_seeds[bid] for bid in GROUP_3_IDS)
+        avg_ret_3 = sum(bot_rets[bid] * bot_seeds[bid] for bid in GROUP_3_IDS) / tot_seed_3 if tot_seed_3 else 0.0
+        group_3_series.append(round(avg_ret_3, 2))
+
+    return timestamps, group_1_series, group_2_series, group_3_series, bot_series
 
 def get_bot_recent_sequence(bid: str) -> str:
     try:
@@ -206,11 +213,12 @@ def post_to_discord(content: str):
 
 def send_report():
     now_str = datetime.now().strftime("%Y-%m-%d %H:00:00")
-    timestamps, series_1, series_2, bot_series = collect_hourly_data(num_hours=40)
+    timestamps, series_1, series_2, series_3, bot_series = collect_hourly_data(num_hours=40)
     
-    # 1) 그룹별 추이 리포트 (그룹 1: 8407, 8409 / 그룹 2: 8401, 8402, 8410)
+    # 1) 그룹별 추이 리포트 (그룹 1: 8407, 8409 / 그룹 2: 8401, 8402, 8410 / 그룹 3: 8403, 8404)
     graph_1 = generate_ascii_graph("그룹1(" + ", ".join(GROUP_1_IDS) + ") 봇 집계", series_1, is_group=True)
     graph_2 = generate_ascii_graph("그룹2(" + ", ".join(GROUP_2_IDS) + ") 봇 집계", series_2, is_group=True)
+    graph_3 = generate_ascii_graph("그룹3(" + ", ".join(GROUP_3_IDS) + ") 봇 집계", series_3, is_group=True)
     
     msg_groups = (
         f"📢 **[8888 봇 그룹별 40시간 일평균수익률 추이 리포트]**\n"
@@ -219,6 +227,8 @@ def send_report():
         f"{graph_1}\n"
         f"--------------------------------------------------\n"
         f"{graph_2}\n"
+        f"--------------------------------------------------\n"
+        f"{graph_3}\n"
         f"--------------------------------------------------"
     )
     

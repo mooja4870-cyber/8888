@@ -74,10 +74,11 @@ SEED_OVERRIDE = None     # 전체 기준금(초기자본금 합). None=각 봇 s
                          # 봇 재초기화 시 seed_money가 갱신되므로 고정값이 아니라 자동합산해야
                          # 봇별 누적수익률과 전체 누적수익률이 항상 정합(전체 cum_delta = Σ봇별 cum_delta).
 
-# [2026-09-06] 현재 가동·관제 대상 5개 봇 (8401, 8402, 8407, 8409, 8410)
+# [2026-09-13] 현재 가동·관제 대상 7개 봇 (8401, 8402, 8403, 8404, 8407, 8409, 8410)
 BOTS = [
-    ("8401", 8401, "OKX"),    ("8402", 8402, "OKX"),    ("8407", 8407, "BNC"),    
-    ("8409", 8409, "BNC"),    ("8410", 8410, "BNC"),
+    ("8401", 8401, "OKX"),    ("8402", 8402, "OKX"),    ("8403", 8403, "OKX"),
+    ("8404", 8404, "OKX"),    ("8407", 8407, "BNC"),    ("8409", 8409, "BNC"),
+    ("8410", 8410, "BNC"),
 ]
 
 
@@ -535,9 +536,9 @@ def read_bot_config(folder):
             tf = cfg.get("TIMEFRAME", "1d")
             if folder in ("8401", "8402", "8407"):
                 strategy = f"DonchianVol 국면 라우터 ({tf})"
-            elif folder == "8409":
+            elif folder in ("8403", "8409"):
                 strategy = f"TSMOM 시계열 모멘텀 ({tf})"
-            elif folder == "8410":
+            elif folder in ("8404", "8410"):
                 strategy = f"BBTS 변동성 확장 돌파 ({tf})"
             elif cfg.get("USE_REGIME_ROUTER"):
                 regime_map = cfg.get("REGIME_STRATEGY_MAP", {})
@@ -560,10 +561,10 @@ def read_bot_config(folder):
             if folder in ("8401", "8402", "8407"):
                 don_len = cfg.get("DON_LEN", 55)
                 ind_str = f"Donchian{don_len}, Vol, EMA200"
-            elif folder == "8409":
+            elif folder in ("8403", "8409"):
                 lb = cfg.get("TSMOM_LOOKBACK") or 20
                 ind_str = f"TSMOM({lb}), ATR14"
-            elif folder == "8410":
+            elif folder in ("8404", "8410"):
                 bb_p = cfg.get("BB_PERIOD", 40)
                 bb_std = cfg.get("BB_STD_DEV", 2.5)
                 ind_str = f"BB({bb_p}/{bb_std}), ATR"
@@ -1929,7 +1930,7 @@ def discord_listener_loop():
 def run_check_auto_mode_switch_all():
     """전체 8개 봇 실시간 매매방향 자동 스위칭(최근 5전 중 2패 이상 시 대칭 반전) 격리 프로세스 실행 함수"""
     import subprocess
-    target_bots = ["8401", "8402", "8407", "8409", "8410"]
+    target_bots = ["8401", "8402", "8403", "8404", "8407", "8409", "8410"]
     for b in target_bots:
         bot_path = os.path.join(os.path.dirname(BASE), str(b))
         if os.path.exists(f"{bot_path}/core/engine.py"):
@@ -1966,7 +1967,7 @@ def get_file_hash(path):
 def checksum_guard_loop():
     """8개 봇의 핵심 로직 파일 변조 감시 및 자동 롤백 스레드"""
     time.sleep(10)
-    target_bots = ["8401", "8402", "8407", "8409", "8410"]
+    target_bots = ["8401", "8402", "8403", "8404", "8407", "8409", "8410"]
     target_files = ["bot.py", "core/strategy.py", "core/trader.py", "core/engine.py", "config.json"]
     
     while True:

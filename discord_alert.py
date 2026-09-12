@@ -232,7 +232,7 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
         if seq_str:
             lines.append(f"  {seq_str}")
             
-        if str(b_name_short).startswith("8404"):
+        if title_prefix == "전체" and str(b_name_short).startswith("8404"):
             lines.append("──────────────────────────────────────")
         
         # 🤖 5분 정각 알림(include_bot_charts=True)일 때 개별 봇 200분(5분봉) 파동 차트 렌더링
@@ -387,26 +387,35 @@ def _process_subset(data, target_names, state_suffix, title_prefix, include_bot_
 
 
 def tick(data, tick_count=0, include_bot_charts=False):
-    """집계 1건을 받아 매 1분마다 디스코드 알림 발송 및 상태 갱신 (2개 그룹 분할 발송)."""
+    """집계 1건을 받아 매 1분마다 디스코드 알림 발송 및 상태 갱신 (3개 그룹 분할 발송)."""
     # 그룹 1: 봇 8407, 8409
     group_1_names = {"8407", "8409"}
     # 그룹 2: 봇 8401, 8402, 8410
     group_2_names = {"8401", "8402", "8410"}
+    # 그룹 3: 봇 8403, 8404
+    group_3_names = {"8403", "8404"}
     
     # 실제 data.get("bots")에 존재하는 봇만 필터링
     actual_1 = {str(b.get("name")) for b in data.get("bots", []) if str(b.get("name")) in group_1_names}
     actual_2 = {str(b.get("name")) for b in data.get("bots", []) if str(b.get("name")) in group_2_names}
+    actual_3 = {str(b.get("name")) for b in data.get("bots", []) if str(b.get("name")) in group_3_names}
 
     results = []
     if actual_1:
         ok1, info1 = _process_subset(data, actual_1, "_group_1.json", "그룹1", include_bot_charts=include_bot_charts)
         results.append(f"Group 1({len(actual_1)}): {info1}")
-        if actual_2:
+        if actual_2 or actual_3:
             time.sleep(1.0)  # 웹훅 연속 발송 레이트리밋 방지 딜레이
 
     if actual_2:
         ok2, info2 = _process_subset(data, actual_2, "_group_2.json", "그룹2", include_bot_charts=include_bot_charts)
         results.append(f"Group 2({len(actual_2)}): {info2}")
+        if actual_3:
+            time.sleep(1.0)  # 웹훅 연속 발송 레이트리밋 방지 딜레이
+
+    if actual_3:
+        ok3, info3 = _process_subset(data, actual_3, "_group_3.json", "그룹3", include_bot_charts=include_bot_charts)
+        results.append(f"Group 3({len(actual_3)}): {info3}")
 
     return (len(results) > 0), " | ".join(results) if results else "No bots in any group"
 
