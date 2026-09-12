@@ -1,3 +1,46 @@
+## v11.0.83
+Date: 2026-09-12
+
+### 변경 내용
+* **8410 자동매매 복구** — `AUTO_TRADING` false → true
+  - 2026-09-11 13:47 이전부터 OFF. 자본잠식 워치독 발동 로그는 없어 수동 토글로 판단
+  - bot.py의 TOGGLE 폴러가 즉시 감지 (`[TOGGLE] AUTO_TRADING=ON` 12:15:44), 재기동 불요
+* **REGIME_STRATEGY_MAP 개편** — 8401·8402·8410
+  - `{BULL: DonchianVol, BEAR: 관망, RANGE: 관망}`
+    → `{BULL: DonchianVol, BEAR: DualBB, RANGE: DonchianVol}`
+  - 종전 설정은 BTC 국면의 **67%(BEAR+RANGE)에서 매매 자체를 하지 않았다**
+* 검증 도구 2종 신설
+  - `lab/regime_map_backtest.py` — 2년·33종목·16개 배정안, 강건성 4관문
+  - `lab/regime_map_adjacent.py` — 인접 파라미터 9격자 안정성(과최적화 탐지)
+
+### 검증 결과 (2024-09-13 ~ 2026-09-12 · 730일 · 33종목 · 3x · 동시보유 3 · 왕복 0.15%)
+강건성 4관문 = ①4분할 전부 양수 ②한 분기 기여도 ≤60% ③종목 2분할 둘 다 양수
+④선택순서 시드 12회 중 하위 25%도 양수
+
+| 배정 | 총수익 | 거래 | 승률 | MDD | 4관문 | 인접 9격자 |
+|:--|--:|--:|--:|--:|:--|:--|
+| 현행 (BEAR·RANGE 관망) | +733% | 41 | 43.9% | 54.1% | ✅❌✅❌ | (기준선) |
+| **BEAR=DualBB / RANGE=DonchianVol** | **+6888%** | 73 | 50.7% | 73.1% | **✅✅✅✅** | **9/9 양수** |
+| BEAR=Donchian / RANGE=DonchianVol | +3052% | 83 | 48.2% | 73.1% | ✅✅✅✅ | 7/9 (기각) |
+| BEAR=DualBB / RANGE=관망 | +3716% | 59 | 50.8% | 59.5% | ✅✅✅✅ | 4/9 (기각) |
+
+* 16개 안 중 4관문 통과 3개, 그중 **인접 9격자 전부 양수는 1개뿐**
+* **현행 설정 자체가 관문 ②④를 못 넘었다** — 한 분기가 전체의 68%, 시드 하위 25% 음수
+* ⚠️ 절대 수익률은 **믿지 말 것**. 최소주문·재진입차단·운영기간 미반영으로 크게 부풀려진다.
+  이 표는 **순위 비교용**이다 ([[min-order-size-wall]] [[backtest-sample-window]])
+* ⚠️ MDD가 54.1% → 73.1%로 커진다. 거래 빈도가 41 → 73건으로 늘어난 대가다
+
+### 수정 파일
+* lab/regime_map_backtest.py (신규)
+* lab/regime_map_adjacent.py (신규)
+* ver.md
+* (봇 폴더) 8401·8402·8410 config.json — `.bak_regimemap_20260912_*` 백업 후 변경
+
+### 비고
+* **REGIME_STRATEGY_MAP은 재기동해야 반영된다.** AUTO_TRADING·USE_BLUEFROG만 런타임
+  폴링 대상이고 나머지 키는 기동 시 1회 로드다. 재기동 전까지 이 변경은 무효다.
+* 봇 소스(.py)는 일절 수정하지 않았다. config.json만 변경했다.
+
 ## v11.0.82
 Date: 2026-09-12
 
