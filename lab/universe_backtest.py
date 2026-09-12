@@ -35,7 +35,10 @@ sys.path.insert(0, "/Users/l/project/8888/lab")
 import regime_map_backtest as B
 
 CACHE = "/Users/l/project/8888/lab/_universe_cache.json"
-YEARS = 2
+# PIT=True: 시점 기준 종목군(상장하면 그때부터 후보). 봇의 실제 동작과 같다.
+# PIT=False: 표본 시작 이전 상장 종목만(구판). 신규 상장을 빼므로 확대안을 시험 못 한다.
+PIT = os.environ.get("PIT", "1") != "0"
+YEARS = int(os.environ.get("YEARS", "2"))
 NEED_BARS = 365 * YEARS + 200 + 40      # 2년 + 200MA + 여유
 MAP = {"BULL": "DonchianVol", "BEAR": "DualBB", "RANGE": "DonchianVol"}
 
@@ -153,7 +156,9 @@ def main():
     days = [d for d in dl if d in reg][-365 * YEARS:]
     start = days[0]
 
+    mode = "시점기준(PIT · 상장하면 그때부터 후보)" if PIT else "표본시작 이전 상장만(구판)"
     print(f"\n  표본 {days[0]} ~ {days[-1]} ({len(days)}일) · 레버리지 3x · 동시보유 3")
+    print(f"  종목군 구성: {mode}")
     print(f"  국면 배정 {MAP}")
     print(f"\n  ⚠️ 생존편향 — '오늘의 상위'는 살아남은 종목이다. 넓은 쪽이 조금 이기는 정도로는")
     print(f"     채택하지 않는다. 넓은 종목군에는 왕복비용을 **2배(0.30%)**로 불리하게 매긴다.\n")
@@ -165,9 +170,17 @@ def main():
     res = []
     for name, syms in uni.items():
         sub = {s: d for s, d in data_all.items() if s in syms and s != "BTC/USDT:USDT"}
-        # 표본 시작 시점에 이미 존재하던 종목만 — 신규 상장의 초기 급등을 빼기 위함
-        sub = {s: d for s, d in sub.items()
-               if pd.to_datetime(d["ts"].iloc[0], unit="ms").strftime("%Y-%m-%d") <= start}
+        if PIT:
+            # [2026-09-13 수정] **시점 기준(point-in-time) 종목군.**
+            # 종전에는 '표본 시작 이전 상장'만 남겼는데, 그러면 최근 돌파를 내는
+            # 신규 상장 종목(KGEN·SAHARA·USO…)이 **통째로 빠져** mooja의 제안을
+            # 시험하지도 않고 기각한 꼴이 됐다(현행 33 → 25 · 상위60 → 20).
+            # 돈치안은 rolling(DON_LEN)이라 상장 직후엔 자동으로 NaN → 신호 없음이다.
+            # 즉 필터 없이 넣어도 미래참조가 생기지 않는다. 봇의 실제 동작과 같다.
+            pass
+        else:
+            sub = {s: d for s, d in sub.items()
+                   if pd.to_datetime(d["ts"].iloc[0], unit="ms").strftime("%Y-%m-%d") <= start}
         if not sub:
             print(f"  {name:20} 2년 이력 보유 종목 없음 — 제외")
             continue
