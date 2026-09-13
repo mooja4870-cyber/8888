@@ -25,6 +25,8 @@ GROUP_2_BOTS = [
 GROUP_3_BOTS = [
     ("8403", "8403_OKX"),
     ("8404", "8404_OKX"),
+    ("8405", "8405_OKX"),
+    ("8406", "8406_OKX"),
 ]
 BOTS = GROUP_1_BOTS + GROUP_2_BOTS + GROUP_3_BOTS
 
@@ -195,7 +197,7 @@ def build_discord_messages(now_str, overall, by_bot, bot_modes, bot_seq):
             lines.append(f"   • 승패흐름: {seq_grouped}")
 
     lines.append(f"--------------------------------------------------")
-    lines.append(f"🤖 **[그룹3 (8403, 8404) 봇별 4개 구간 승패 상세]**")
+    lines.append(f"🤖 **[그룹3 (8403, 8404, 8405, 8406) 봇별 4개 구간 승패 상세]**")
     for bot_id, name in GROUP_3_BOTS:
         is_bf = bot_modes.get(bot_id, False)
         mode_tag = "**[역]** 🐸 역방향(청개구리)" if is_bf else "**[순]** 🎯 순방향(정방향)"
