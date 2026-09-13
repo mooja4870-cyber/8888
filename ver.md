@@ -1,3 +1,26 @@
+## v11.0.96
+Date: 2026-09-13
+
+### 변경 내용
+* **8403 봇 매매방향 자동 스위칭(check_auto_mode_switch) 4전 3패(xxOx 등) 누락 및 stale 기준선 버그 원천 해결**
+  - **원인 분석**:
+    1. `M == 4`일 때 4전 3패(`xxOx` 등) 조건문 누락: 주석에는 첫 3~4회 청산 시 3회 손실 발생 시 스위칭된다고 명시되어 있었으나, 실제 코드는 `elif all(_lost(t) for t in window[-3:]):`로 3연패(`xxx`)만 처리되어 `xxOx`가 스위칭되지 않음.
+    2. 과거 `data/switch_state.json`의 stale 키(`last_switched_key: 2026-09-01`)와 `last_switched_on_count: 4`가 남아 있어, 오늘 발생한 5건 중 4건이 잘려나가 윈도우 크기 `M=1`로 인식되어 스위칭 검사가 스킵됨.
+  - **조치 사항**:
+    1. `core/engine.py`의 `check_auto_mode_switch` 수정: `M == 4`일 때 3패 이상(`xxOx`, `xOxx`, `xxxO`, `xxxx`) 발생 시 즉시 역매매(청개구리) 모드로 스위칭 발동하도록 조건문 추가.
+    2. 과거 stale 키 불일치 시 현재 신규 거래 전체를 윈도우로 안전하게 수용하도록 기준선 산정 로직 개선.
+    3. 모드 전환 시 `config.json`의 `USE_BLUEFROG`만 원자적으로 수정하여 타 UI 설정 보존.
+    4. 패치 적용 즉시 8403의 5전 4패(`xxOxx`) 상태 감지되어 🎯 순방향 ➡️ 🐸 역방향(청개구리) 모드로 자동 스위칭 완료 및 실매매 엔진(PID 14488) 실시간 핫 리로드 완료.
+  - **단위 테스트**: `test_auto_mode_switch_4trades_3losses` 추가 및 100% 검증 통과.
+
+### 수정 파일
+* patch_8403_auto_switch_fix.py
+* /Users/l/project/8403/core/engine.py
+* /Users/l/project/8403/tests/test_auto_mode_switch_8403.py
+* ver.md
+
+---
+
 ## v11.0.95
 Date: 2026-09-13
 
