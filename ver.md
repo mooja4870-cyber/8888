@@ -1,3 +1,23 @@
+## v11.0.98
+Date: 2026-09-13
+
+### 변경 내용
+* **8888 통합 관제 대시보드 '4개씩(3열)' 레이아웃 옵션 추가 및 기본값(selected) 지정**
+  - `dashboard.html` & `index.html`:
+    * 배치 형태 드롭다운(`<select id="layout">`)에 `<option value="four_three" selected>4개씩(3열)</option>` 추가 및 기존 기본값 전환
+    * 봇 필터(`<select id="botfilter">`) 옵션을 총 9개 봇 가동 체제에 맞춰 `전체 봇 (9개)`로 동기화
+    * JS 렌더러 `render()`의 레이아웃 슬라이스 분기에 `four_three` 추가 (`[[0,4],[4,8],[8,Math.max(12,_cards.length)]]`)
+    * 3열 배치 시 9개 봇 카드(1행 4개, 2행 4개, 3행 1개)가 줌 0.85 스타일(`.cards.four`)과 시차 애니메이션을 정상 유지하도록 연동
+    * 빈 행(empty row) 렌더링 방지 필터링 적용 (`s < _cards.length`)
+
+### 수정 파일
+* dashboard.html
+* index.html
+* ver.md
+
+### 비고
+* 실시간 브라우저 렌더링 및 9개 봇 카드 3행 배치 정상 동작 3중 자체 검증 완료
+
 ## v11.0.97
 Date: 2026-09-13
 
