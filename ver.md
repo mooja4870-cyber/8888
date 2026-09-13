@@ -1,3 +1,26 @@
+## v11.0.99
+Date: 2026-09-14
+
+### 변경 내용
+* **봇 카드 배치에 '5개씩(2줄)' 추가 + 기본값으로 지정** (mooja 요청)
+  - 드롭다운 `#layout`에 `<option value="five">5개씩(2줄)</option>` 추가, `selected`를 여기로 이동
+  - 폴백 기본값도 `'four_three'` → `'five'`로 통일 (요소 부재 시에도 같은 배치)
+  - 행 분할: `[[0,5],[5,Math.max(10,_cards.length)]]` — 봇이 10개를 넘으면 둘째 줄이 흡수
+  - `.cards.five` 클래스 토글 + CSS `zoom:.78` (한 줄 5장 = 250px×5 = 1250px → 약 975px)
+    · 참고 기존값: `.three` .95 · `.four` .85
+
+### 수정 파일
+* dashboard.html  (app.py:1598이 요청마다 새로 읽으므로 서버 재시작 불필요)
+* index.html      (같은 헤더를 쓰는 사본 — 함께 갱신해 어긋나지 않게 유지)
+* ver.md
+
+### 검증
+* 서빙 페이지(HTTP 200)에서 확인 — 드롭다운 `<option value="five" selected>` · CSS `.cards.five` · JS `_lay==='five'` 모두 포함
+* 삼항 연산자 중첩 추가에 따른 괄호·대괄호 균형 0 확인
+
+### 비고
+* 백업: `dashboard.html.bak_five_*` · `index.html.bak_five_*`
+
 ## v11.0.98
 Date: 2026-09-13
 
