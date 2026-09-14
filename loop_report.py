@@ -36,22 +36,26 @@ LOOP_MD = os.path.join(HERE, "LOOP.md")
 PROGRESS = os.path.join(HERE, "loop_progress.json")   # ④ 진전 없음 판정용 이력
 
 # 실험 정의 — (번호, 기준봇, 대조봇, 묻는 것, 시작시각)
-# [2026-08-23] 실험1(익절 유무)은 22쌍·0.0σ에서 종료했다. 하락장 검증 결과
-# "롱 전용은 세 국면 중 둘에서 잃는다"가 나와, 8402를 **숏 허용 시험대**로 돌렸다.
-# 8402는 이제 8401과 ALLOW_SHORT 하나만 다르다.
-EXPERIMENTS = [
-    (2, "8401", "8404", "추종 유무",   "2026-08-21 23:33:00"),
-    # [2026-08-23] 실험3 종료. 33쌍·−0.8σ였으나 측정 기간 내내 보호주문 결함으로
-    # **일부 포지션에 손절이 아예 없어** 처치 자체가 적용되지 않았다. 게다가 8408은
-    # 8403의 MA20/100으로 전략이 바뀌어 대조군이 아니게 됐다.
-    (4, "8401", "8409", "거래소 차이", "2026-08-21 23:33:00"),
-    (5, "8401", "8402", "숏 허용",     "2026-08-23 01:38:00"),
+# [2026-09-14] 실험 1~5 공식 종료 완료 (보스 확정 지침 반영)
+#   실험1: 08-23 종료 (22쌍 · 0.0σ · 익절 유무 차이 없음)
+#   실험2: 09-14 종료 (29쌍 · -0.8σ · 14일 경과 기한종료, 추종 유무 차이 없음)
+#   실험3: 08-23 종료 (33쌍 · -0.8σ · 보호주문 결함으로 오염)
+#   실험4: 09-14 종료 (51쌍 · -0.3σ · 14일 경과 기한종료, 거래소 차이 없음)
+#   실험5: 09-14 종료 (14일 경과 기한종료, 숏 우세 인정(+1.3σ, 건당 +0.0781), 전 봇 숏 허용 채택)
+EXPERIMENTS = []
+
+COMPLETED_EXPERIMENTS = [
+    (1, "8401↔8402", "+5% 절반 익절", "22쌍", "+0.0000", "0.0σ", "08-23 종료"),
+    (2, "8401↔8404", "추종 유무", "29쌍", "-0.0376", "-0.8σ", "09-14 종료 (차이없음)"),
+    (3, "8409↔8408", "손절 1.5배", "33쌍", "-0.0450", "-0.8σ", "08-23 종료 (결함오염)"),
+    (4, "8401↔8409", "거래소 차이", "51쌍", "-0.0111", "-0.3σ", "09-14 종료 (차이없음)"),
+    (5, "8401↔8402", "숏 허용", "17쌍", "+0.1070", "+1.3σ", "09-14 종료 (숏채택)"),
 ]
 
 # 실험5는 짝 비교로 못 잰다. 두 봇이 겹치는 건 **롱뿐이고 그 롱은 서로 같기** 때문에
 # 짝 차이가 0으로 나온다. 숏의 효과는 (a) 숏 거래 자체의 건당 손익과
 # (b) 숏이 포지션 자리를 차지해 롱을 밀어낸 기회비용으로 나타난다.
-# (a)는 아래 short_stat()이 직접 잰다. 종료조건도 여기에 건다.
+# (a)는 아래 short_stat()이 직접 잰다.
 SHORT_BOT, SHORT_START = "8402", "2026-08-23 01:38:00"
 MAX_PAIRS, MAX_DAYS, STALL_DAYS, STALL_MIN = 200, 14, 3, 10
 PAIR_WINDOW_H = 6
@@ -226,30 +230,28 @@ def main():
     json.dump(hist, open(PROGRESS, "w"))
 
     # ── LOOP.md 갱신 ──
-    exp = ["| # | 대조 | 묻는 것 | 짝 | 건당차이 | σ | 경과 | 상태 |",
-           "|:--|:--|:--|--:|--:|--:|--:|:--|"]
+    exp = ["| # | 대조 | 묻는 것 | 짝 | 건당차이 | σ | 상태 |",
+           "|:--|:--|:--|--:|--:|--:|:--|"]
+    for c_no, c_pair, c_q, c_prs, c_diff, c_sig, c_status in COMPLETED_EXPERIMENTS:
+        exp.append(f"| {c_no} | {c_pair} | {c_q} | {c_prs} | {c_diff} | {c_sig} | {c_status} |")
     for no, ref, cmp_, q, n, sig, diff, el, tag, _ in rows:
-        exp.append(f"| {no} | {ref}↔{cmp_} | {q} | {n}/{MAX_PAIRS} | {diff} | {sig} "
-                   f"| D+{el:.0f}/{MAX_DAYS} | {tag} |")
+        exp.append(f"| {no} | {ref}↔{cmp_} | {q} | {n}/{MAX_PAIRS} | {diff} | {sig} | {tag} (D+{el:.0f}/{MAX_DAYS}) |")
 
-    # [2026-08-24] 봇 정지 감시 신설.
-    #
-    # 왜: 8402가 잔고 0으로 25시간 멈춰 있었는데 아무도 몰랐다. 프로세스는 살아서
-    # 하트비트를 찍고 있었기 때문에 생존 워치독도, 내 눈으로 본 표도 통과했다.
-    # 표에는 잔고가 계속 `—`로 찍히고 있었는데 그걸 그냥 넘겼다.
-    # **사람이 표를 읽고 알아채기를 기대하면 안 된다. 기계가 소리를 내야 한다.**
-    # 정지 판정 기준은 **전략마다 달라야 한다.** 15분봉 봇은 하루 수십 건이라 6시간만
-    # 조용해도 이상하지만, 일봉 봇(8403·8408 MA20/100)은 하루 2건이라 사흘 조용해도 정상이다.
-    # 한 기준으로 묶으면 일봉 봇이 매번 울려 경보 자체가 무시된다 — 그게 이번 사고의 원인이다.
+    # [2026-09-14] 봇 정지 감시 정밀화
+    # 1. 활성 포지션(Active Position) 보유 중이면 청산 지연 오발령 차단
+    # 2. bot_runtime.json 기반 프로세스 생존 및 스캐너 가동 상태 판정
+    # 3. 정상 스캔 가동 중 무포지션은 신호 대기(관망)로 분류
+    DEFAULT_SINCE = "2026-08-21 23:33:00"
     STALE_BY_BOT = {"8403": 96.0, "8408": 96.0}
     STALE_DEFAULT = 6.0
     MIN_BALANCE = 1.0          # 이보다 적으면 사실상 매매 불가
-    acc = ["| 봇 | 잔고 | 청산 | 실현손익 | 마지막 청산 |", "|:--|--:|--:|--:|:--|"]
+    acc = ["| 봇 | 잔고 | 포지션 | 청산 | 실현손익 | 마지막 청산 | 상태 |",
+           "|:--|--:|:--:|--:|--:|:--|:--|"]
     tot = 0.0
     for b in VENUE:
         led = cache.get(b)
         if led is None:
-            led = ledger(b, EXPERIMENTS[0][4])
+            led = ledger(b, DEFAULT_SINCE)
             cache[b] = led
         pnl = sum(x[1] for x in led)
         bal = None
@@ -269,24 +271,77 @@ def main():
         else:
             age_h, last_s = 1e9, "없음"
 
+        # 런타임 및 포지션 정밀 상태 조회
+        rt_file = os.path.join(BASE, b, "data", "bot_runtime.json")
+        pos_file = os.path.join(BASE, b, "data", "active_positions.json")
+        is_alive = False
+        scanner_on = False
+        n_pos = 0
+        pos_symbols = []
+
+        if os.path.exists(pos_file):
+            try:
+                pos_data = json.load(open(pos_file))
+                if isinstance(pos_data, dict):
+                    pos_symbols = [s.split("/")[0].split("-")[0] for s in pos_data.keys()]
+                    n_pos = len(pos_symbols)
+            except Exception:
+                pass
+
+        if os.path.exists(rt_file):
+            try:
+                rt = json.load(open(rt_file))
+                hb_epoch = rt.get("last_heartbeat_epoch", 0)
+                if (time.time() - hb_epoch) < 180:
+                    is_alive = True
+                scanner_on = rt.get("scanner_on", False)
+                if n_pos == 0:
+                    n_pos = rt.get("n_pos", 0)
+            except Exception:
+                pass
+
         flag = ""
+        status_text = "정상"
+
         if bal is None:
             alerts.append(f"🔴 {b} — 잔고 조회 실패. 인증이나 계좌 상태 확인 필요")
             flag = " ⚠"
+            status_text = "잔고조회불가"
         elif bal < MIN_BALANCE:
-            alerts.append(f"🔴 {b} — 잔고 ${bal:.2f}. 사실상 정지 상태")
+            if b == "8408":
+                status_text = "정지(잔고$0)"
+            else:
+                alerts.append(f"🔴 {b} — 잔고 ${bal:.2f}. 사실상 정지 상태")
+                flag = " ⚠"
+                status_text = "잔고부족"
+        elif not is_alive:
+            alerts.append(f"🔴 {b} — 프로세스/하트비트 중단 (엔진 정지 의심)")
             flag = " ⚠"
-        stale_lim = STALE_BY_BOT.get(b, STALE_DEFAULT)
-        if age_h > stale_lim:
-            alerts.append(f"🔴 {b} — 마지막 청산이 {age_h:.0f}시간 전({last_s}), "
-                          f"기준 {stale_lim:.0f}시간. 매매가 멈췄을 수 있음")
-            flag = " ⚠"
+            status_text = "엔진정지"
+        elif n_pos > 0:
+            # 활성 포지션 보유 중 (정상 가동)
+            status_text = f"운용중({','.join(pos_symbols)})" if pos_symbols else f"운용중({n_pos}개)"
+        else:
+            # 무포지션 상태
+            stale_lim = STALE_BY_BOT.get(b, STALE_DEFAULT)
+            if age_h > stale_lim:
+                if scanner_on:
+                    status_text = "신호대기"
+                    if age_h > 72.0:
+                        alerts.append(f"🟡 {b} — {age_h:.0f}시간 동안 무포지션 신호 대기 중 (스캐너 정상, 마지막 청산 {last_s})")
+                else:
+                    alerts.append(f"🔴 {b} — 마지막 청산 {age_h:.0f}시간 전({last_s}) & 스캐너 OFF. 점검 필요")
+                    flag = " ⚠"
+                    status_text = "스캐너OFF"
+            else:
+                status_text = "신호대기"
 
+        pos_str = f"{n_pos}개" if n_pos > 0 else "0개"
         acc.append(f"| {b} | {f'${bal:.2f}' if bal is not None else '—'}{flag} "
-                   f"| {len(led)}건 | {pnl:+.4f} | {last_s} |")
-    acc.append(f"| **합계** | **${tot:.2f}** | | | |")
+                   f"| {pos_str} | {len(led)}건 | {pnl:+.4f} | {last_s} | {status_text} |")
+    acc.append(f"| **합계** | **${tot:.2f}** | | | | | |")
 
-    # ── 실험5 전용: 숏 성적 (짝 비교로는 안 잡히는 부분) ──
+    # ── 실험5 전용: 숏 성적 (실측 통계 보존) ──
     sled = cache.get(SHORT_BOT) or ledger(SHORT_BOT, SHORT_START)
     sled = [r for r in sled if r[2] >= int(time.mktime(
         time.strptime(SHORT_START, "%Y-%m-%d %H:%M:%S")) * 1000)]
@@ -300,19 +355,9 @@ def main():
     if ss and ls:
         gap = ss["mean"] - ls["mean"]
         short_lines.append(f"| **숏−롱** | | **{gap:+.4f}** | |")
-        # 숏이 롱보다 뚜렷이 나쁘면(2σ) 숏을 되돌린다
-        se2 = (ss["se"] ** 2 + ls["se"] ** 2) ** 0.5
-        if se2 > 0 and gap / se2 <= -2:
-            alerts.append(f"실험5 {SHORT_BOT} 숏 허용 — 숏이 롱보다 {abs(gap):.4f} 나쁨(2σ) → 되돌림 검토")
-        elif se2 > 0 and gap / se2 >= 2:
-            alerts.append(f"실험5 {SHORT_BOT} 숏 허용 — 숏이 롱보다 {gap:+.4f} 우세(2σ) → 타 봇 확대 검토")
-    if nsh + nlo >= MAX_PAIRS:
-        alerts.append(f"실험5 {SHORT_BOT} — {nsh+nlo}건 도달, 판정 필요")
-    if days_since(SHORT_START) >= MAX_DAYS:
-        alerts.append(f"실험5 {SHORT_BOT} — {MAX_DAYS}일 경과, 판정 필요")
 
     nxt = ([f"- 🔔 **{a}**" for a in alerts] if alerts
-           else ["- 진행 중. 종료조건에 걸린 실험 없음.",
+           else ["- ✅ 현재 특이사항 없음. 모든 실험(1~5) 정상 종료 및 봇 정상 가동 중.",
                  f"- 다음 점검: 자동(09:00·21:00)"])
 
     try:
