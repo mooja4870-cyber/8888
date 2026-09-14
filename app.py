@@ -74,10 +74,11 @@ SEED_OVERRIDE = None     # 전체 기준금(초기자본금 합). None=각 봇 s
                          # 봇 재초기화 시 seed_money가 갱신되므로 고정값이 아니라 자동합산해야
                          # 봇별 누적수익률과 전체 누적수익률이 항상 정합(전체 cum_delta = Σ봇별 cum_delta).
 
-# [2026-09-14] 집계 및 관제 대상 9개 봇 (8401, 8402, 8403, 8404, 8405, 8406, 8407, 8409, 8410)
+# [2026-09-15] 집계 및 관제 대상 9개 봇 (8401, 8402, 8403, 8404, 8405, 8406, 8407, 8409, 8410)
 BOTS = [
-    ("8401", 8401, "OKX"),    ("8402", 8402, "OKX"),    ("8403", 8403, "OKX"),
-    ("8404", 8404, "OKX"),    ("8405", 8405, "OKX"),    ("8406", 8406, "OKX"),
+    ("8401", 8401, "OKX"),    ("8402", 8402, "OKX"),
+    ("8403", 8403, "OKX"),    ("8404", 8404, "OKX"),
+    ("8405", 8405, "OKX"),    ("8406", 8406, "OKX"),
     ("8407", 8407, "BNC"),    ("8409", 8409, "BNC"),    ("8410", 8410, "BNC"),
 ]
 
@@ -532,46 +533,38 @@ def read_bot_config(folder):
             strategy = meta.get("strategy", "알 수 없는 전략")
             ind_str = meta.get("indicators", "지표 없음")
         else:
-            # 1-1. 레거시 전략명 (strategy) 폴백
+            # 1-1. 전략명 (strategy) 동적 파싱
             tf = cfg.get("TIMEFRAME", "1d")
-            if folder in ("8401", "8402", "8407"):
-                strategy = f"DonchianVol 국면 라우터 ({tf})"
-            elif folder in ("8403", "8405", "8409"):
-                strategy = f"TSMOM 시계열 모멘텀 ({tf})"
-            elif folder in ("8404", "8410"):
-                strategy = f"BBTS 변동성 확장 돌파 ({tf})"
-            elif folder == "8406":
-                strategy = f"QAR-ARE Ultra 적응형 ({tf})"
-            elif cfg.get("USE_REGIME_ROUTER"):
+            if cfg.get("USE_REGIME_ROUTER"):
                 regime_map = cfg.get("REGIME_STRATEGY_MAP", {})
                 bull_strat = regime_map.get("BULL", "DonchianVol")
-                strategy = f"{bull_strat} (국면 라우터)"
+                strategy = f"{bull_strat} (국면 라우터) ({tf})"
             elif cfg.get("STRATEGY_NAME"):
-                strategy = cfg.get("STRATEGY_NAME")
+                strategy = f"{cfg.get('STRATEGY_NAME')} ({tf})"
             elif cfg.get("STRATEGY_MODE"):
-                strategy = cfg.get("STRATEGY_MODE")
+                strategy = f"{cfg.get('STRATEGY_MODE')} ({tf})"
+            elif "TSMOM_LOOKBACK_BARS" in cfg or "TSMOM_LOOKBACK" in cfg:
+                strategy = f"TSMOM 시계열 모멘텀 ({tf})"
             elif "DON_LEN" in cfg:
-                strategy = "돈치안 채널 돌파"
+                strategy = f"DonchianVol 국면 라우터 ({tf})"
             elif "MACD_FAST" in cfg:
-                strategy = "AKMCD + SSL 하이브리드"
+                strategy = f"AKMCD + SSL 하이브리드 ({tf})"
             elif "BB_PERIOD" in cfg:
-                strategy = "TTM Squeeze 돌파" + (" + RSI" if cfg.get("USE_RSI_FILTER") else "")
+                strategy = f"BBTS 변동성 확장 돌파 ({tf})"
             else:
-                strategy = "기본 추세 돌파"
+                strategy = f"기본 추세 돌파 ({tf})"
 
-            # 1-2. 레거시 지표 설정 (indicators) 폴백
-            if folder in ("8401", "8402", "8407"):
+            # 1-2. 지표 설정 (indicators) 동적 파싱
+            if "TSMOM_LOOKBACK_BARS" in cfg or "TSMOM_LOOKBACK" in cfg:
+                lb = cfg.get("TSMOM_LOOKBACK_BARS") or cfg.get("TSMOM_LOOKBACK") or 20
+                ind_str = f"TSMOM({lb}), ATR14"
+            elif "DON_LEN" in cfg and cfg.get("USE_REGIME_ROUTER"):
                 don_len = cfg.get("DON_LEN", 55)
                 ind_str = f"Donchian{don_len}, Vol, EMA200"
-            elif folder in ("8403", "8405", "8409"):
-                lb = cfg.get("TSMOM_LOOKBACK") or 20
-                ind_str = f"TSMOM({lb}), ATR14"
-            elif folder in ("8404", "8410"):
+            elif "BB_PERIOD" in cfg:
                 bb_p = cfg.get("BB_PERIOD", 40)
                 bb_std = cfg.get("BB_STD_DEV", 2.5)
                 ind_str = f"BB({bb_p}/{bb_std}), ATR"
-            elif folder == "8406":
-                ind_str = "분수차분(d=0.4), Triple Barrier, CSMOM"
             elif cfg.get("USE_REGIME_ROUTER"):
                 don_len = cfg.get("DON_LEN", 55)
                 ind_str = f"Donchian{don_len}, Vol, EMA200"
@@ -584,6 +577,7 @@ def read_bot_config(folder):
                 if cfg.get("MACD_FAST"): indicators.append(f"MACD({cfg['MACD_FAST']},{cfg['MACD_SLOW']})")
                 if cfg.get("SSL_PERIOD"): indicators.append(f"SSL{cfg['SSL_PERIOD']}")
                 if cfg.get("BB_PERIOD"): indicators.append(f"BB{cfg['BB_PERIOD']}")
+                if "DON_LEN" in cfg: indicators.append(f"Donchian{cfg['DON_LEN']}")
                 ind_str = ", ".join(indicators) if indicators else "—"
 
         # 3. 손절률 / 수익목표 (stop_loss_pct, take_profit_pct)
@@ -1354,7 +1348,11 @@ def bot_days(perf_start):
         return 1.0
 
 
-EXCLUDED_BOTS = []
+# [2026-09-14] 집계 및 디스코드 알림 제외 대상 봇 (8403, 8405)
+EXCLUDED_BOTS = [
+    ("8403", 8403, "OKX"),
+    ("8405", 8405, "OKX"),
+]
 
 
 def collect_bots(bot_tuples):

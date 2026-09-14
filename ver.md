@@ -1,59 +1,3 @@
-## v11.2.0
-Date: 2026-09-14
-
-### 변경 내용
-* **전 봇(8401~8410) 비정상 매매중지 자동 감시·캐치 및 자동 매매기동 자가복구 시스템 구축 (보스 특별 지침)**
-  - **워치독 감시 범위 전수 확대 (`watchdog_entry.py`)**:
-    * `BOT_LIST`를 기존 8개에서 8401~8410 총 10개 봇 전수 등록으로 확장
-  - **정상 쿨다운 상태 정밀 판별 모듈 신설 (`check_cooldown_status`)**:
-    * `stats.json` 기반 당일 연속손절 보호 쿨다운(`halted_by_consec_sl=True` & `consec_sl_date == today`) 판별
-    * 글로벌 쿨다운 잔여 시간(`global_cooldown_until > now`) 판별
-    * 만료된 과거 날짜 데드락 락 및 만료 쿨다운 잔재 자동 청소
-  - **비정상 매매중지 자동 캐치 및 자가복구 (`check_trading_halt_anomaly`)**:
-    * 정상 쿨다운 사유가 전혀 없음에도 `config.json`의 `AUTO_TRADING == False`이거나 `bot_runtime.json`의 `trading_enabled == False` 상태 상시 탐지
-    * `config.json`의 `AUTO_TRADING`을 `True`로 즉시 자동 복구 및 디스크 영구 저장
-    * 포지션 보유 중인 경우: 포지션 보호(사살 유예) 적용, 5초 엔진 폴링을 통한 무위험 실매매 즉시 자동 가동
-    * 무포지션 또는 프로세스 다운인 경우: 2-Step Graceful 재기동(`run.sh`) 트리거로 실매매 엔진 및 UI 완전 자동 부활
-  - **무포지션 봇 정밀 건전성 감사 고도화 (`check_flat_bot_readiness`)**:
-    * 정상 쿨다운 없는 `AUTO_TRADING=False` 및 `trader disabled`를 비정상 이상으로 즉시 판정하여 자가치유 연계
-
-### 수정 파일
-* watchdog_entry.py
-* ver.md
-
-### 검증
-* `py_compile` 문법 무결성 검증 통과
-* `watchdog_entry.py` 데몬 재기동 후 10개 봇 전수 순찰 가동
-* 비정상 매매중지 상태였던 8401, 8402, 8406, 8408 봇이 워치독에 의해 자동 탐지되어 `AUTO_TRADING=True` 및 `trading_enabled=True`로 자가 복구 완료 확인
-* 8401~8410 총 10개 봇 전원 `AUTO_TRADING=True`, `trading_enabled=True`, 실시간 하트비트 정상 가동 100% 검증 완료
-
-## v11.1.3
-Date: 2026-09-14
-
-### 변경 내용
-* **8888 통합 관제 집계 및 디스코드 알림 대상에 8403, 8405 봇 복귀 및 그룹3 추가 (보스 특별 지침)**
-  - **메인 집계 대상 복귀 (`app.py`)**:
-    * 8402 복제 이식 완료에 따라 `BOTS` 목록에 `8403`(OKX), `8405`(OKX) 정상 복귀
-    * 메인 관제 집계 대상: 8401, 8402, 8403, 8404, 8405, 8406, 8407, 8409, 8410 (총 9개 봇 전원) 정상 집계
-    * `EXCLUDED_BOTS` 완전 해제 (`[]`)
-  - **디스코드 웹훅 알림 그룹3 복귀 (`discord_alert.py`)**:
-    * `group_3_names`에 `8403`, `8405` 추가 → `{"8403", "8404", "8405", "8406"}` 4개 봇으로 그룹3 전송 복귀
-    * 1분 실시간 관제 및 5분 개별 파동 차트 알림에 8403, 8405 정상 포함
-  - **정시 통계 및 추이 그래프 알림 복귀 (`send_discord_stats.py`, `send_discord_hourly_graph.py`)**:
-    * 구간별 승패 통계 및 30시간 아스키 추이 그래프 알림 대상에 8403, 8405 복귀
-
-### 수정 파일
-* app.py
-* discord_alert.py
-* send_discord_stats.py
-* send_discord_hourly_graph.py
-* ver.md
-
-### 검증
-* `py_compile` 4개 파일 문법 검증 전원 통과
-* `app.collect()` 실시간 실행 결과 메인 집계에 8403, 8405 포함 총 9개 봇 전원 정상 산출 확인
-* 디스코드 그룹 3에 8403, 8404, 8405, 8406 4개 봇 정상 매핑 확인
-
 ## v11.1.2
 Date: 2026-09-14
 
@@ -7110,3 +7054,17 @@ mooja님이 "8407 화이트리스트를 33종목으로" 지시. 확인해 보니
 ### 수정 파일
 * 8407 `config.json`
 * backup_20260911_232238/
+
+## v11.2.1
+
+Date: 2026-09-15
+
+### 변경 내용
+* 대시보드(app.py)의 전략명 및 지표 설정 하드코딩 오류 수정
+* 폴더명(8401, 8402 등) 기준 하드코딩을 제거하고 config.json의 TSMOM_LOOKBACK_BARS, DON_LEN, BB_PERIOD 등을 동적으로 파싱하도록 개선
+
+### 수정 파일
+* app.py
+
+### 비고
+* UI 렌더링에 봇 현황이 정확히 반영되도록 버그 수정
