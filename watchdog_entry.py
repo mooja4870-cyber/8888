@@ -178,6 +178,72 @@ def is_process_running(cwd: str, script_name: str) -> bool:
         pass
     return False
 
+def check_entry_failure_readiness(b: int, cwd: str) -> tuple:
+    """
+    [보스 특별 지침] 5분 주기 진입 실패 및 거래소 주문 거절 실시간 감사:
+    1. 최근 15분간 엔진 로그에서 진입 주문 실패/거절 패턴(notional, API rejection 등) 추적
+    2. 반복(2회 이상) 발생 시 이상으로 판정하여 적의조처(자가 치유 및 재기동) 연계
+    반환값: (이상 발생 여부: bool, 이상 상세: str, 오류 유형: str)
+    """
+    order_err_keywords = [
+        "주문 거절", "주문 실패", "order's notional must be no smaller than",
+        "-4164", "order timeout/error", "최소 주문 단위", "무방비 진입"
+    ]
+    now_kst = datetime.utcnow() + timedelta(hours=9)
+    recent_fails = []
+    
+    # bot_engine.log를 우선 탐색, 부재 시 bot_stdout.log 확인
+    target_logs = [os.path.join(cwd, "bot_engine.log")]
+    if not os.path.exists(target_logs[0]):
+        target_logs = [os.path.join(cwd, "bot_stdout.log")]
+        
+    for log_path in target_logs:
+        if not os.path.exists(log_path):
+            continue
+        try:
+            with open(log_path, "rb") as lf:
+                lf.seek(0, os.SEEK_END)
+                size = lf.tell()
+                seek_pos = max(0, size - 49152)  # 최근 48KB 정밀 스캔
+                lf.seek(seek_pos)
+                tail_data = lf.read().decode("utf-8", errors="ignore")
+            
+            seen_lines = set()
+            for line in tail_data.split("\n"):
+                line_str = line.strip()
+                if not line_str or line_str in seen_lines:
+                    continue
+                if any(kw in line_str.lower() for kw in order_err_keywords):
+                    try:
+                        ts_str = line_str[:19]
+                        log_dt = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S")
+                        diff_sec = abs((now_kst - log_dt).total_seconds())
+                        if diff_sec < 900:  # 최근 15분 이내 발생
+                            recent_fails.append(line_str)
+                            seen_lines.add(line_str)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+    if len(recent_fails) >= 2:
+        last_fail = recent_fails[-1]
+        err_type = "ORDER_REJECTED"
+        reason_summary = "주문 반복 거절/실패"
+        if "notional" in last_fail.lower() or "-4164" in last_fail:
+            err_type = "NOTIONAL_MIN_ERROR"
+            reason_summary = "최소 주문 명목가치(Notional < 5 USDT) 미달 거절"
+        elif "insufficient" in last_fail.lower() or "잔고" in last_fail:
+            err_type = "INSUFFICIENT_FUNDS"
+            reason_summary = "증거금 잔고 부족 주문 거절"
+        elif "timeout" in last_fail.lower():
+            err_type = "API_TIMEOUT_ERROR"
+            reason_summary = "거래소 주문 API 타임아웃"
+            
+        return True, f"진입 주문 반복 거절/실패 감지 ({len(recent_fails)}회 발생: {reason_summary})", err_type
+        
+    return False, "진입 주문 정상", ""
+
 def check_flat_bot_readiness(b: int, cwd: str) -> tuple:
     """
     [보스 특별 지침] 5분 주기 무포지션 봇 정밀 건전성 감사 및 데드락 자동 탐지:
@@ -282,18 +348,46 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
         needs_restart = True
         action_taken.append("프로세스 다운 (재기동 필요)")
 
-    # 1.5. [보스 특별 지침] 5분 주기 무포지션 봇 정밀 건전성 감사 및 데드락 자동 복구
+    # 1.5. [보스 특별 지침] 5분 주기 진입 실패/거절 감사 및 무포지션 건전성 감사
     if do_flat_check and not needs_restart:
         try:
-            flat_issue, flat_reason = check_flat_bot_readiness(b, cwd)
-            if flat_issue:
-                logger.warning(f"[{b}] 🚨 무포지션 건전성 이상 감지: {flat_reason}")
+            # 1) 진입 주문 거절/실패 반복 발생 전수 감사 (포지션 유무 무관)
+            entry_issue, entry_reason, err_type = check_entry_failure_readiness(b, cwd)
+            if entry_issue:
+                logger.warning(f"[{b}] 🚨 진입 주문 거절/실패 이상 감지: {entry_reason}")
+                action_taken.append(entry_reason)
+                
+                # [적의조처: Notional 미달 자동 치유]
+                if err_type == "NOTIONAL_MIN_ERROR":
+                    cfg_file = os.path.join(cwd, "config.json")
+                    if os.path.exists(cfg_file):
+                        try:
+                            with open(cfg_file, "r", encoding="utf-8") as cf:
+                                b_cfg = json.load(cf)
+                            b_lev = float(b_cfg.get("LEVERAGE", 3.0) or 3.0)
+                            cur_margin = float(b_cfg.get("MARGIN_USDT", 1.5) or 1.5)
+                            req_margin = round(5.5 / b_lev, 1)
+                            if cur_margin < req_margin:
+                                b_cfg["MARGIN_USDT"] = req_margin
+                                with open(cfg_file, "w", encoding="utf-8") as cf:
+                                    json.dump(b_cfg, cf, indent=4, ensure_ascii=False)
+                                msg_fix = f"MARGIN_USDT 자가 상향 치유({cur_margin}→{req_margin})"
+                                logger.info(f"[{b}] 🛠 {msg_fix}")
+                                action_taken.append(msg_fix)
+                        except Exception as ce:
+                            logger.error(f"[{b}] config.json Notional 치유 실패: {ce}")
                 needs_restart = True
-                action_taken.append(flat_reason)
             else:
-                logger.info(f"[{b}] 🛡 무포지션 건전성: {flat_reason}")
+                # 2) 무포지션 봇 정밀 건전성 감사
+                flat_issue, flat_reason = check_flat_bot_readiness(b, cwd)
+                if flat_issue:
+                    logger.warning(f"[{b}] 🚨 무포지션 건전성 이상 감지: {flat_reason}")
+                    needs_restart = True
+                    action_taken.append(flat_reason)
+                else:
+                    logger.info(f"[{b}] 🛡 무포지션 건전성: {flat_reason}")
         except Exception as e:
-            logger.error(f"[{b}] 무포지션 건전성 감사 중 예외: {e}")
+            logger.error(f"[{b}] 진입 건전성 감사 중 예외: {e}")
 
     # 2. 방향성(순/역매매) 오염 및 Phantom Overwrite 검사 -> 워치독 자율 스위칭
     if do_config_check:
@@ -374,6 +468,15 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                     needs_restart = False
         except Exception as e:
             logger.error(f"[{b}] ⚠️ 포지션 상태 확인 실패: {e}")
+
+    # [보스 지침] 이상이 감지되었으나 포지션 보호로 재기동이 유예된 경우 텔레그램 경보 발송
+    if action_taken and not needs_restart and bot_alive:
+        try:
+            alert_msg = f"⚠️ **[워치독 진입 이상 감지 (재기동 유예): {b}]**\\n\\n감지 내역: {', '.join(action_taken)}\\n상태: 포지션 보호를 위해 청산 후 재기동 유예 (Config 교정 완료)."
+            py_cmd = f"import sys; sys.path.insert(0, '{cwd}'); import core.alert as alert; alert.send_telegram_alert('{alert_msg}')"
+            subprocess.run(["python3", "-c", py_cmd], cwd=cwd)
+        except Exception as e:
+            logger.error(f"[{b}] 텔레그램 알림 발송 실패: {e}")
 
     # 3. 조치 (재기동 및 교정)
     if needs_restart:
