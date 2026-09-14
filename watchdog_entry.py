@@ -18,9 +18,9 @@ logger = logging.getLogger("Watchdog")
 
 from datetime import datetime, timedelta, timezone
 
-# 상시 기본 관리 대상 5개 핵심 봇 최우선 순찰
+# 상시 기본 관리 대상 5개 핵심 봇 최우선 순찰 및 전 봇(10개) 순찰 목록
 CORE_BOTS = [8401, 8402, 8407, 8409, 8410]
-BOT_LIST = [8401, 8402, 8407, 8409, 8410, 8403, 8404, 8405]
+BOT_LIST = [8401, 8402, 8407, 8409, 8410, 8403, 8404, 8405, 8406, 8408]
 HEALTH_CHECK_SEC = 60  # 1 minute for process health
 CONFIG_CHECK_CYCLES = 5  # Check config drift every 5 cycles (5 minutes)
 FLAT_BOT_CHECK_CYCLES = 5  # [보스 지침] 5분 주기 무포지션 봇 정밀 건전성 감사 및 적의조치
@@ -244,11 +244,110 @@ def check_entry_failure_readiness(b: int, cwd: str) -> tuple:
         
     return False, "진입 주문 정상", ""
 
+def check_cooldown_status(cwd: str) -> tuple:
+    """
+    [보스 특별 지침] 정상적인 봇 관리범위 내의 쿨다운/보호정지 상태 여부를 정밀 판별:
+    1. 당일 연속손절 보호 정지 여부 (halted_by_consec_sl == True and consec_sl_date == today_kst)
+    2. 글로벌 쿨다운 유효 잔여 여부 (global_cooldown_until > now)
+    반환: (is_valid_cooldown: bool, reason: str)
+    """
+    stats_file = os.path.join(cwd, "data", "stats.json")
+    if not os.path.exists(stats_file):
+        return False, "stats.json 없음"
+
+    try:
+        with open(stats_file, "r", encoding="utf-8") as sf:
+            sdata = json.load(sf)
+
+        now = datetime.now()
+        now_kst = datetime.utcnow() + timedelta(hours=9)
+        today_kst = now_kst.strftime("%Y-%m-%d")
+
+        # 1) 당일 연속손절 락 검사
+        if sdata.get("halted_by_consec_sl", False):
+            s_date = sdata.get("consec_sl_date", "")
+            if s_date == today_kst:
+                return True, f"당일({today_kst}) 연속손절 보호 쿨다운 정지 중"
+            elif s_date and s_date < today_kst:
+                # 과거 날짜 데드락 잔존 -> 즉시 해제 치유
+                sdata["halted_by_consec_sl"] = False
+                try:
+                    with open(stats_file, "w", encoding="utf-8") as wf:
+                        json.dump(sdata, wf, indent=2, ensure_ascii=False)
+                except Exception:
+                    pass
+
+        # 2) 글로벌 쿨다운 만료 시각 검사
+        gcd_str = sdata.get("global_cooldown_until")
+        if gcd_str:
+            try:
+                clean_gcd = str(gcd_str).replace("Z", "").split("+")[0]
+                gcd_dt = datetime.fromisoformat(clean_gcd)
+                if now < gcd_dt:
+                    rem_sec = (gcd_dt - now).total_seconds()
+                    return True, f"글로벌 쿨다운 진행 중 (남은시간: {int(rem_sec)}초)"
+                else:
+                    # 만료된 과거 쿨다운 잔재 청소
+                    sdata["global_cooldown_until"] = None
+                    try:
+                        with open(stats_file, "w", encoding="utf-8") as wf:
+                            json.dump(sdata, wf, indent=2, ensure_ascii=False)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+    except Exception as e:
+        logger.debug(f"쿨다운 상태 확인 중 예외: {e}")
+
+    return False, "정상 쿨다운 없음"
+
+def check_trading_halt_anomaly(b: int, cwd: str) -> tuple:
+    """
+    [보스 특별 지침] 비정상 매매중지 감시 및 자동 캐치:
+    쿨다운 등 정상적인 관리범위 내 조건이 아님에도 불구하고
+    AUTO_TRADING=False 이거나 trading_enabled=False 인 비정상 매매중지 상태를 탐지.
+    반환: (is_abnormal_halt: bool, reason: str)
+    """
+    is_valid_cd, cd_reason = check_cooldown_status(cwd)
+    if is_valid_cd:
+        return False, f"관리범위 내 정상 대기 ({cd_reason})"
+
+    cfg_file = os.path.join(cwd, "config.json")
+    rt_file = os.path.join(cwd, "data", "bot_runtime.json")
+
+    reasons = []
+
+    # 1) config.json의 AUTO_TRADING 확인
+    if os.path.exists(cfg_file):
+        try:
+            with open(cfg_file, "r", encoding="utf-8") as cf:
+                cfg = json.load(cf)
+            if not cfg.get("AUTO_TRADING", True):
+                reasons.append("config.json AUTO_TRADING=False")
+        except Exception as e:
+            reasons.append(f"config.json 읽기 오류({e})")
+
+    # 2) bot_runtime.json의 trading_enabled 확인
+    if os.path.exists(rt_file):
+        try:
+            with open(rt_file, "r", encoding="utf-8") as rf:
+                rdata = json.load(rf)
+            if rdata.get("trading_enabled") is False:
+                reasons.append("runtime trading_enabled=False")
+        except Exception:
+            pass
+
+    if reasons:
+        return True, " / ".join(reasons)
+
+    return False, "매매 기동 정상 (AUTO_TRADING=True)"
+
 def check_flat_bot_readiness(b: int, cwd: str) -> tuple:
     """
     [보스 특별 지침] 5분 주기 무포지션 봇 정밀 건전성 감사 및 데드락 자동 탐지:
     1. 포지션 보유 여부 확인 (active_positions.json이 비어있는 무포지션 봇 대상)
-    2. config.json의 AUTO_TRADING 활성화 여부 확인
+    2. config.json의 AUTO_TRADING 활성화 여부 확인 (정상 쿨다운 예외 판정)
     3. stats.json의 과거 날짜 연속손절 정지(halted_by_consec_sl) 잔존 검사
     4. 최근 엔진 로그에서 'trader disabled' 최근(15분 이내) 발생 검사
     5. 스캐너 진행 정체(Scanner Stall: 최근 15분간 로그 갱신 여부) 검사
@@ -264,14 +363,18 @@ def check_flat_bot_readiness(b: int, cwd: str) -> tuple:
         except Exception:
             pass
 
-    # 1) config.json 검사 (사용자 의도적 정지 여부)
+    # 1) config.json 및 쿨다운 검사
+    is_cd, cd_msg = check_cooldown_status(cwd)
     cfg_file = os.path.join(cwd, "config.json")
     if os.path.exists(cfg_file):
         try:
             with open(cfg_file, "r") as f:
                 cfg = json.load(f)
             if not cfg.get("AUTO_TRADING", True):
-                return False, "AUTO_TRADING=False (수동 일시 정지)"
+                if is_cd:
+                    return False, f"관리범위 내 정상 대기 ({cd_msg})"
+                else:
+                    return True, "정상 쿨다운 사유 없는 비정상 매매중지(AUTO_TRADING=False)"
         except Exception:
             pass
 
@@ -310,9 +413,12 @@ def check_flat_bot_readiness(b: int, cwd: str) -> tuple:
                             log_dt = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S")
                             diff_sec = abs((now_kst - log_dt).total_seconds())
                             if diff_sec < 900:
+                                if is_cd:
+                                    return False, f"관리범위 내 정상 대기 중 trader disabled ({cd_msg})"
                                 return True, f"인메모리 트레이더 비활성(trader disabled) 최근 감지 ({int(diff_sec)}초 전)"
                         except Exception:
-                            return True, f"인메모리 트레이더 비활성 감지: {last_line[:80]}"
+                            if not is_cd:
+                                return True, f"인메모리 트레이더 비활성 감지: {last_line[:80]}"
             except Exception:
                 pass
 
@@ -347,6 +453,43 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
         logger.error(f"[{b}] 🚨 bot.py 프로세스가 죽어 있습니다!")
         needs_restart = True
         action_taken.append("프로세스 다운 (재기동 필요)")
+
+    # 1.2. [보스 특별 지침] 비정상 매매중지 감시·캐치 및 자동 매매기동 (상시 매 사이클 점검)
+    halt_anomaly, halt_reason = check_trading_halt_anomaly(b, cwd)
+    if halt_anomaly:
+        logger.warning(f"[{b}] 🚨 비정상 매매중지 감지: {halt_reason} (정상 쿨다운 사유 없음)")
+
+        # 1) config.json AUTO_TRADING=True 자동 치유 및 디스크 영구 보존
+        cfg_file = os.path.join(cwd, "config.json")
+        try:
+            if os.path.exists(cfg_file):
+                with open(cfg_file, "r", encoding="utf-8") as cf:
+                    cfg = json.load(cf)
+                if not cfg.get("AUTO_TRADING", True):
+                    cfg["AUTO_TRADING"] = True
+                    with open(cfg_file, "w", encoding="utf-8") as cf:
+                        json.dump(cfg, cf, indent=4, ensure_ascii=False)
+                    logger.info(f"[{b}] 🛠 config.json AUTO_TRADING=True 자동 복구 저장 완료")
+        except Exception as ce:
+            logger.error(f"[{b}] config.json AUTO_TRADING 복구 실패: {ce}")
+
+        action_taken.append(f"비정상 매매중지 캐치 및 AUTO_TRADING=ON 복구 ({halt_reason})")
+
+        # 2) 기동 조치: 포지션이 없거나 프로세스가 정지 상태인 경우 재기동 트리거
+        active_pos_file = os.path.join(cwd, "data", "active_positions.json")
+        has_pos = False
+        if os.path.exists(active_pos_file):
+            try:
+                with open(active_pos_file, "r", encoding="utf-8") as pf:
+                    pdata = json.load(pf)
+                has_pos = bool(pdata and len(pdata) > 0)
+            except Exception:
+                pass
+
+        if not has_pos:
+            needs_restart = True
+        else:
+            logger.info(f"[{b}] 🛡 포지션 보유 중이므로 프로세스 강제 재기동 없이 엔진 폴링으로 실매매 자동 재가동")
 
     # 1.5. [보스 특별 지침] 5분 주기 진입 실패/거절 감사 및 무포지션 건전성 감사
     if do_flat_check and not needs_restart:

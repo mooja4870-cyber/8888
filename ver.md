@@ -1,3 +1,32 @@
+## v11.2.0
+Date: 2026-09-14
+
+### 변경 내용
+* **전 봇(8401~8410) 비정상 매매중지 자동 감시·캐치 및 자동 매매기동 자가복구 시스템 구축 (보스 특별 지침)**
+  - **워치독 감시 범위 전수 확대 (`watchdog_entry.py`)**:
+    * `BOT_LIST`를 기존 8개에서 8401~8410 총 10개 봇 전수 등록으로 확장
+  - **정상 쿨다운 상태 정밀 판별 모듈 신설 (`check_cooldown_status`)**:
+    * `stats.json` 기반 당일 연속손절 보호 쿨다운(`halted_by_consec_sl=True` & `consec_sl_date == today`) 판별
+    * 글로벌 쿨다운 잔여 시간(`global_cooldown_until > now`) 판별
+    * 만료된 과거 날짜 데드락 락 및 만료 쿨다운 잔재 자동 청소
+  - **비정상 매매중지 자동 캐치 및 자가복구 (`check_trading_halt_anomaly`)**:
+    * 정상 쿨다운 사유가 전혀 없음에도 `config.json`의 `AUTO_TRADING == False`이거나 `bot_runtime.json`의 `trading_enabled == False` 상태 상시 탐지
+    * `config.json`의 `AUTO_TRADING`을 `True`로 즉시 자동 복구 및 디스크 영구 저장
+    * 포지션 보유 중인 경우: 포지션 보호(사살 유예) 적용, 5초 엔진 폴링을 통한 무위험 실매매 즉시 자동 가동
+    * 무포지션 또는 프로세스 다운인 경우: 2-Step Graceful 재기동(`run.sh`) 트리거로 실매매 엔진 및 UI 완전 자동 부활
+  - **무포지션 봇 정밀 건전성 감사 고도화 (`check_flat_bot_readiness`)**:
+    * 정상 쿨다운 없는 `AUTO_TRADING=False` 및 `trader disabled`를 비정상 이상으로 즉시 판정하여 자가치유 연계
+
+### 수정 파일
+* watchdog_entry.py
+* ver.md
+
+### 검증
+* `py_compile` 문법 무결성 검증 통과
+* `watchdog_entry.py` 데몬 재기동 후 10개 봇 전수 순찰 가동
+* 비정상 매매중지 상태였던 8401, 8402, 8406, 8408 봇이 워치독에 의해 자동 탐지되어 `AUTO_TRADING=True` 및 `trading_enabled=True`로 자가 복구 완료 확인
+* 8401~8410 총 10개 봇 전원 `AUTO_TRADING=True`, `trading_enabled=True`, 실시간 하트비트 정상 가동 100% 검증 완료
+
 ## v11.1.3
 Date: 2026-09-14
 
