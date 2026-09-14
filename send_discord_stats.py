@@ -23,7 +23,9 @@ GROUP_2_BOTS = [
     ("8410", "8410_BNC"),
 ]
 GROUP_3_BOTS = [
+    ("8403", "8403_OKX"),
     ("8404", "8404_OKX"),
+    ("8405", "8405_OKX"),
     ("8406", "8406_OKX"),
 ]
 BOTS = GROUP_1_BOTS + GROUP_2_BOTS + GROUP_3_BOTS
