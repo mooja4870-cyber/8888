@@ -184,9 +184,12 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
     h48 = _ago_str(total, series or [], now_ts, *LOOKBACK[2])
     h72 = _ago_str(total, series or [], now_ts, *LOOKBACK[3])
 
-    lines = [ts,
+    lines = [ts]
+    if title_prefix == "그룹1":
+        lines.append("========================")
+    lines.extend([
              f"📊 {title_prefix} 일평균수익률 ({head_days}) : {asset_str}{delta_str}{ret_str} [1m]{delta:.2f}%{arrow} [1]{h1} [24]{h24} [48]{h48} [72]{h72}",
-             "─" * 38]
+             "─" * 38])
     bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
     for b in bots:
         dr = b.get("daily_ret")
