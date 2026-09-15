@@ -968,6 +968,8 @@ def check_cooldown_status(folder):
     is_cooldown = False
     reasons = []
     cd_type = ""
+    is_switch_lock = False
+    switch_lock_desc = ""
     now_ts = time.time()
     
     d = os.path.join(BASE, folder, "data")
@@ -1026,13 +1028,13 @@ def check_cooldown_status(folder):
                                 if exit_time > anchor[:19]:
                                     after_cnt += 1
                     if after_cnt < 3:
-                        is_cooldown = True
-                        reasons.append(f"방향성 스위칭 쿨다운 (새 방향 {after_cnt}/3건)")
-                        cd_type = "switch_lock"
+                        # DO NOT set is_cooldown = True here, it's NOT a halt!
+                        is_switch_lock = True
+                        switch_lock_desc = f"방향성 스위칭 대기 중 (새 방향 {after_cnt}/3건)"
         except Exception:
             pass
             
-    return is_cooldown, " | ".join(reasons), cd_type
+    return is_cooldown, " | ".join(reasons), cd_type, is_switch_lock, switch_lock_desc
 
 
 def bot_status(folder, port, ex):
@@ -1048,10 +1050,12 @@ def bot_status(folder, port, ex):
     r["compromised_files"] = []
 
     # 쿨다운 상태 검사 (당일 연속손절 정지 및 방향성 스위칭 쿨다운)
-    cd_active, cd_desc, cd_type = check_cooldown_status(folder)
+    cd_active, cd_desc, cd_type, sw_lock, sw_desc = check_cooldown_status(folder)
     r["is_cooldown"] = cd_active
     r["cooldown_desc"] = cd_desc
     r["cooldown_type"] = cd_type
+    r["is_switch_lock"] = sw_lock
+    r["switch_lock_desc"] = sw_desc
 
     # 실시간 메모리 / stats.json 데이터 로딩
     sp = os.path.join(d, "stats.json")

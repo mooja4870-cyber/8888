@@ -180,7 +180,7 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
 
 <h2>매매기법 비교</h2>
 <div id="comparisonTable" style="overflow-x:auto;margin-bottom:22px"></div>
-<div id="watchdogTable" style="overflow-x:auto;margin-bottom:22px"></div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 let chart=null;
@@ -382,20 +382,20 @@ function render(d,anim){
   // 테두리: 봇 번호별 고정색 (8401·8402 빨강 / 8403·8406 주황 / 8404·8405 밝은회색)
   // 테두리: 흰색 0.01mm 기본, 무포지션(holding=false)만 빨강 0.1mm (mooja 2026-07-01)
   const _isCooldown = (b.is_cooldown === true);
-  const _isSwitchLock = _isCooldown && (b.cooldown_type === 'switch_lock');
-  const _isHalt = _isCooldown && !_isSwitchLock;
+  const _isSwitchLock = (b.is_switch_lock === true);
+  const _isHalt = _isCooldown; // 실제 쿨다운 (거래 정지)
   const _isFlat = (b.holding === false);
-  const _bc = _isSwitchLock ? '#ff2d75' : (_isHalt ? '#ffd700' : (_isFlat ? '#e24b4a' : '#ffffff'));
-  const _bw = _isCooldown ? '0.85mm' : (_isFlat ? '0.165mm' : '0.66mm');   // 무포지션 빨강 테두리 25% 굵기(0.165mm), 보유 0.66mm, 쿨다운 0.85mm
+  const _bc = _isHalt ? '#ffd700' : (_isFlat ? '#e24b4a' : '#ffffff');
+  const _bw = _isHalt ? '0.85mm' : (_isFlat ? '0.165mm' : '0.66mm');   // 무포지션 빨강 테두리 25% 굵기(0.165mm), 보유 0.66mm, 쿨다운 0.85mm
   const hi='border:'+_bw+' solid '+_bc+';box-shadow:0 4px 11px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.12), inset 0 -2px 4px rgba(0,0,0,.35);';
   // Expectancy(거래당 평균손익) — 미래수익 최강 예측지표 → 카드 최상단 강조
   const _ex=b.expectancy;
   const _exTxt=(_ex==null)?'—':((_ex>0?'+':'')+_ex.toFixed(2));
   const _exCol=(_ex==null)?'var(--muted)':(_ex>0?'var(--profit)':(_ex<0?'var(--loss)':'var(--muted)'));
-  const _cdClass = _isSwitchLock ? ' switch-lock-blink' : (_isHalt ? ' cooldown-blink' : '');
-  const _cdTitle = _isCooldown ? (b.cooldown_desc || (_isSwitchLock ? '방향성 스위칭 락 잠금 중' : '쿨다운 정지 중')) : '';
+  const _cdClass = _isHalt ? ' cooldown-blink' : '';
+  const _cdTitle = _isHalt ? (b.cooldown_desc || '쿨다운 정지 중') : (_isSwitchLock ? (b.switch_lock_desc || '방향성 스위칭 대기 중') : '');
   const _cdBadge = _isSwitchLock 
-    ? `<span style="background:#ff2d75;color:#fff;font-size:11.5px;font-weight:bold;padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:middle;box-shadow:0 0 6px rgba(255,45,117,0.8);" title="${_cdTitle}">스위칭락</span>` 
+    ? `<span style="background:#ff2d75;color:#fff;font-size:11.5px;font-weight:bold;padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:middle;box-shadow:0 0 6px rgba(255,45,117,0.8);" title="${_cdTitle}">스위칭락 대기</span>` 
     : (_isHalt 
       ? `<span style="background:#ffd700;color:#111;font-size:11.5px;font-weight:bold;padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:middle;box-shadow:0 0 6px rgba(255,215,0,0.8);" title="${_cdTitle}">쿨다운</span>` 
       : '');
@@ -436,7 +436,7 @@ function render(d,anim){
      <th style="padding:8px;text-align:center">초기화 잔고</th><th style="padding:8px;text-align:center">거래소</th><th style="padding:8px;text-align:center">레버리지</th>
     <th style="padding:8px;text-align:center">마진$</th><th style="padding:8px;text-align:center">최대포지션</th>
     <th style="padding:8px;text-align:center">손절률</th><th style="padding:8px;text-align:center">수익목표</th>
-    <th style="padding:8px;text-align:center">타임프레임</th><th style="padding:8px;text-align:center">지표 설정</th>
+    <th style="padding:8px;text-align:center">타임프레임</th><th style="padding:8px;text-align:center">1패 즉시전환</th>
     <th style="padding:8px;text-align:center">전략 (스캐너)</th><th style="padding:8px;text-align:center">스캔 대상</th><th style="padding:8px;text-align:center">최대보유시간</th>
     <th style="padding:8px;text-align:center">자동반전</th></tr></thead>
    <tbody>${d.bots.map((b,i)=>{
@@ -447,7 +447,7 @@ function render(d,anim){
      <td style="padding:8px;text-align:center">${(b.seed===null||b.seed===undefined)?"—":"$"+(+b.seed).toFixed(2)}</td><td style="padding:8px;text-align:center">${b.ex||"OKX"}</td><td style="padding:8px;text-align:center">${cfg.leverage!=null?cfg.leverage:"10x"}</td>
     <td style="padding:8px;text-align:center">${cfg.margin_usdt!=null?cfg.margin_usdt:"$10"}</td><td style="padding:8px;text-align:center">${cfg.max_positions!=null?cfg.max_positions:"3"}</td>
     <td style="padding:8px;text-align:center">${cfg.stop_loss_pct!=null?cfg.stop_loss_pct:"-2.0%"}</td><td style="padding:8px;text-align:center">${cfg.take_profit_pct!=null?cfg.take_profit_pct:"+3.0%"}</td>
-    <td style="padding:8px;text-align:center;font-weight:700;color:#38bdf8">${cfg.timeframe||"1h"}</td><td style="padding:8px;text-align:center;color:#cbd5e1">${cfg.indicators||"RSI/BB"}</td>
+    <td style="padding:8px;text-align:center;font-weight:700;color:#38bdf8">${cfg.timeframe||"1h"}</td><td style="padding:8px;text-align:center;font-weight:600">${['8403','8404','8407','8409'].includes(b.name.trim()) ? '<span style="color:var(--green)">O</span>' : '<span style="color:#e24b4a">X</span>'}</td>
     <td style="padding:8px;text-align:center;font-weight:700;color:#f8fafc">${cfg.strategy||"스캐너"}</td><td style="padding:8px;text-align:center">${cfg.scan_targets||"TOP20"}</td><td style="padding:8px;text-align:center">${cfg.max_holding_hours||"24h"}</td>
     <td style="padding:8px;text-align:center;color:${cfg.use_auto_mode_switch ? 'var(--green)' : '#e24b4a'};font-weight:600">${cfg.use_auto_mode_switch ? 'O' : 'X'}</td></tr>`;
    }).join("")}</tbody></table>`;
@@ -540,28 +540,7 @@ function render(d,anim){
 
   document.getElementById('comparisonTable').innerHTML=compTable;
 
-  // Watchdog Table
-  const wlogs = d.watchdog || [];
-  let wdTable = '<h3 style="margin-bottom:8px;color:var(--text);font-size:16px">워치독 활동 내역 (스캐너 정체 복구)</h3>';
-  if (wlogs.length === 0) {
-    wdTable += '<div style="color:var(--muted);font-size:13px;margin-bottom:16px">발견된 워치독 활동 내역이 없습니다.</div>';
-  } else {
-    wdTable += `<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:14px;font-weight:600">
-      <tr style="border-bottom:1px solid var(--border)">
-       <td style="padding:12px 16px;color:var(--muted);text-align:center;width:180px">발생 시각</td>
-       <td style="padding:12px 16px;color:var(--muted);text-align:center;width:100px">해당 봇</td>
-       <td style="padding:12px 16px;color:var(--muted)">조치 내용</td>
-      </tr>
-      ${wlogs.map((log, i) => {
-        return `<tr style="background:${i%2?'var(--card)':'var(--card2)'};border-top:1px solid var(--border)">
-         <td style="padding:12px 16px;color:var(--text);text-align:center;white-space:nowrap">${log.ts}</td>
-         <td style="padding:12px 16px;color:var(--accent);text-align:center">${log.bot}</td>
-         <td style="padding:12px 16px;color:var(--yellow)">${log.msg}</td>
-        </tr>`;
-      }).join('')}
-    </table>`;
-  }
-  document.getElementById('watchdogTable').innerHTML=wdTable;
+
 
  applyView();  // 시간별 모드면 표 갱신, 기본화면이면 카드 표시 유지
  // (v0.8.0에서 손익차트 섹션 제거됨 — 관련 차트 JS도 삭제. 잔존 시 new Chart(null) 예외로 render 크래시→오'끊김')
