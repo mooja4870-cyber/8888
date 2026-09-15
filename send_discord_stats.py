@@ -161,7 +161,7 @@ def build_discord_messages(now_str, overall, by_bot, bot_modes, bot_seq):
         lines.append(f"⏱️ **{label:>4}** | 거래 {w+l+d:2d}건 ({w:2d}승 {l:2d}패, {rate:5.1f}%) | PnL: `{pnl_str}`")
 
     lines.append(f"--------------------------------------------------")
-    lines.append(f"🤖 **[그룹1 (8407, 8409) 봇별 4개 구간 승패 상세]**")
+    lines.append(f"🤖 **[그룹3 (8407, 8409) 봇별 4개 구간 승패 상세]**")
     for bot_id, name in GROUP_1_BOTS:
         is_bf = bot_modes.get(bot_id, False)
         mode_tag = "**[역]** 🐸 역방향(청개구리)" if is_bf else "**[순]** 🎯 순방향(정방향)"
@@ -179,7 +179,7 @@ def build_discord_messages(now_str, overall, by_bot, bot_modes, bot_seq):
             lines.append(f"   • 승패흐름: {seq_grouped}")
 
     lines.append(f"--------------------------------------------------")
-    lines.append(f"🤖 **[그룹2 (8401, 8402, 8410) 봇별 4개 구간 승패 상세]**")
+    lines.append(f"🤖 **[그룹1 (8401, 8402, 8410) 봇별 4개 구간 승패 상세]**")
     for bot_id, name in GROUP_2_BOTS:
         is_bf = bot_modes.get(bot_id, False)
         mode_tag = "**[역]** 🐸 역방향(청개구리)" if is_bf else "**[순]** 🎯 순방향(정방향)"
@@ -197,7 +197,7 @@ def build_discord_messages(now_str, overall, by_bot, bot_modes, bot_seq):
             lines.append(f"   • 승패흐름: {seq_grouped}")
 
     lines.append(f"--------------------------------------------------")
-    lines.append(f"🤖 **[그룹3 (8403, 8404, 8405, 8406) 봇별 4개 구간 승패 상세]**")
+    lines.append(f"🤖 **[그룹2 (8403, 8404, 8405, 8406) 봇별 4개 구간 승패 상세]**")
     for bot_id, name in GROUP_3_BOTS:
         is_bf = bot_modes.get(bot_id, False)
         mode_tag = "**[역]** 🐸 역방향(청개구리)" if is_bf else "**[순]** 🎯 순방향(정방향)"

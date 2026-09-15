@@ -388,11 +388,11 @@ def _process_subset(data, target_names, state_suffix, title_prefix, include_bot_
 
 def tick(data, tick_count=0, include_bot_charts=False):
     """집계 1건을 받아 매 1분마다 디스코드 알림 발송 및 상태 갱신 (3개 그룹 분할 발송)."""
-    # 그룹 1: 봇 8407, 8409
+    # 그룹 3 (과거 그룹1): 봇 8407, 8409
     group_1_names = {"8407", "8409"}
-    # 그룹 2: 봇 8401, 8402, 8410
+    # 그룹 1 (과거 그룹2): 봇 8401, 8402, 8410
     group_2_names = {"8401", "8402", "8410"}
-    # 그룹 3: 봇 8403, 8404, 8405, 8406
+    # 그룹 2 (과거 그룹3): 봇 8403, 8404, 8405, 8406
     group_3_names = {"8403", "8404", "8405", "8406"}
     
     # 실제 data.get("bots")에 존재하는 봇만 필터링
@@ -402,20 +402,20 @@ def tick(data, tick_count=0, include_bot_charts=False):
 
     results = []
     if actual_1:
-        ok1, info1 = _process_subset(data, actual_1, "_group_1.json", "그룹1", include_bot_charts=include_bot_charts)
-        results.append(f"Group 1({len(actual_1)}): {info1}")
+        ok1, info1 = _process_subset(data, actual_1, "_group_1.json", "그룹3", include_bot_charts=include_bot_charts)
+        results.append(f"Group 3({len(actual_1)}): {info1}")
         if actual_2 or actual_3:
             time.sleep(1.0)  # 웹훅 연속 발송 레이트리밋 방지 딜레이
 
     if actual_2:
-        ok2, info2 = _process_subset(data, actual_2, "_group_2.json", "그룹2", include_bot_charts=include_bot_charts)
-        results.append(f"Group 2({len(actual_2)}): {info2}")
+        ok2, info2 = _process_subset(data, actual_2, "_group_2.json", "그룹1", include_bot_charts=include_bot_charts)
+        results.append(f"Group 1({len(actual_2)}): {info2}")
         if actual_3:
             time.sleep(1.0)  # 웹훅 연속 발송 레이트리밋 방지 딜레이
 
     if actual_3:
-        ok3, info3 = _process_subset(data, actual_3, "_group_3.json", "그룹3", include_bot_charts=include_bot_charts)
-        results.append(f"Group 3({len(actual_3)}): {info3}")
+        ok3, info3 = _process_subset(data, actual_3, "_group_3.json", "그룹2", include_bot_charts=include_bot_charts)
+        results.append(f"Group 2({len(actual_3)}): {info3}")
 
     return (len(results) > 0), " | ".join(results) if results else "No bots in any group"
 
