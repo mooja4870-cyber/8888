@@ -186,7 +186,7 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
 
     lines = [ts]
     if title_prefix == "그룹1":
-        lines.append("========================")
+        lines.append("======================================")
     lines.extend([
              f"📊 {title_prefix} 일평균수익률 ({head_days}) : {asset_str}{delta_str}{ret_str} [1m]{delta:.2f}%{arrow} [1]{h1} [24]{h24} [48]{h48} [72]{h72}",
              "─" * 38])
