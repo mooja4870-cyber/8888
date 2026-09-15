@@ -1224,7 +1224,8 @@ def bot_status(folder, port, ex):
         bal = float(r.get("ex_balance") or (float(r.get("seed", 0)) + float(r.get("since_pnl", 0))))
         if bal > 0 and pct > 0:
             dyn_margin = round(bal * (pct / 100.0), 2)
-            r["config"]["margin_usdt"] = f"{dyn_margin:.2f} (복리)"
+            pct_fmt = f"{pct:g}"
+            r["config"]["margin_usdt"] = f"{dyn_margin:.2f} (복리 {pct_fmt}%)"
     # 보유 여부 = 거래소 실제 증거금 사용(ex_used>0) 기준. 조회 실패 시에만 active_positions 파일 폴백.
     # (봇이 청산 후 active_positions.json을 안 지워 생기는 '유령 포지션' 오집계 방지 — 예: 8501)
     # 보유 판정: 거래소 증거금(ex_used) 기준이 가장 정확.
