@@ -1029,7 +1029,8 @@ def check_cooldown_status(folder):
                                     after_cnt += 1
                     if after_cnt < 3:
                         # DO NOT set is_cooldown = True here, it's NOT a halt!
-                        is_switch_lock = True
+                        # 보스 요청: 단순 스위칭 상태(진입 중지 아님)에서는 '스위칭락' 표기 자체를 하지 않음.
+                        is_switch_lock = False
                         switch_lock_desc = f"방향성 스위칭 대기 중 (새 방향 {after_cnt}/3건)"
         except Exception:
             pass
