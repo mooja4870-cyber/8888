@@ -226,12 +226,17 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
         sun20 = b.get("sun20", 0)
         yeok20 = b.get("yeok20", 0)
         
+        sun20_w = b.get("sun20_w", 0)
+        sun20_l = b.get("sun20_l", 0)
+        yeok20_w = b.get("yeok20_w", 0)
+        yeok20_l = b.get("yeok20_l", 0)
+        
         is_bf = bool(b.get("config", {}).get("USE_BLUEFROG", False)) if isinstance(b.get("config"), dict) else False
         mode_prefix = "역 " if is_bf else "순 "
         b_asset = b.get("ex_balance") if b.get("ex_balance") is not None else (b.get("balance") if b.get("balance") is not None else b.get("seed", 0.0))
         asset_val_str = f"${b_asset:.2f}" if b_asset is not None else "$0.00"
         lines.append(f"{mode_prefix}{pos_str} {b_name_short}  {b_days:.1f}  {asset_val_str}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}")
-        lines.append(f"  ({ent1:02d}/{ent4:02d}|{ent12:02d}/{ent24:02d} {sw:02d}W/{sl:02d}L : 순{sun20}+역{yeok20})")
+        lines.append(f"  ({ent1:02d}/{ent4:02d}|{ent12:02d}/{ent24:02d} {sw:02d}W/{sl:02d}L : ({sun20_w}-{sun20_l})+({yeok20_w}-{yeok20_l}))")
         if seq_str:
             lines.append(f"  {seq_str}")
             
