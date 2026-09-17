@@ -406,25 +406,67 @@ function render(d,anim){
  if(anim){void _cw.offsetWidth;_cw.classList.add('anim');}  // 드롭다운 조작 시에만: 리플로우 강제 후 휘리릭 재생
  const compTable=`<table style="width:100%;border-collapse:collapse;font-size:12px">
    <thead><tr style="background:var(--card2);border-bottom:1px solid var(--border)">
-    <th style="padding:8px;text-align:center;font-weight:600">봇</th>
-     <th style="padding:8px;text-align:center">초기화 잔고</th><th style="padding:8px;text-align:center">거래소</th><th style="padding:8px;text-align:center">레버리지</th>
-    <th style="padding:8px;text-align:center">마진$</th><th style="padding:8px;text-align:center">최대포지션</th>
-    <th style="padding:8px;text-align:center">손절률</th><th style="padding:8px;text-align:center">수익목표</th>
-    <th style="padding:8px;text-align:center">타임프레임</th><th style="padding:8px;text-align:center">지표 설정</th>
-    <th style="padding:8px;text-align:center">전략 (스캐너)</th><th style="padding:8px;text-align:center">스캔 대상</th><th style="padding:8px;text-align:center">최대보유시간</th>
-    <th style="padding:8px;text-align:center">자동반전</th></tr></thead>
-   <tbody>${d.bots.map((b,i)=>{
-     const cfg=b.config||{};
-     const isbf=(cfg.USE_BLUEFROG)||(b.is_bluefrog);
-     return `<tr style="background:${Math.floor(i/2)%2?"var(--card)":"var(--card2)"};border-top:1px solid var(--border)">
-    <td style="padding:8px;font-weight:600;text-align:center">${isbf?"<span style=\"color:#ff5a5a;font-weight:bold;margin-right:3px;\">[역]</span>":"<span style=\"color:#4d9fff;font-weight:bold;margin-right:3px;\">[순]</span>"}${b.name}</td>
-     <td style="padding:8px;text-align:center">${(b.seed===null||b.seed===undefined)?"—":"$"+(+b.seed).toFixed(2)}</td><td style="padding:8px;text-align:center">${b.ex||"OKX"}</td><td style="padding:8px;text-align:center">${cfg.leverage!=null?cfg.leverage:"10x"}</td>
-    <td style="padding:8px;text-align:center">${cfg.margin_usdt!=null?cfg.margin_usdt:"$10"}</td><td style="padding:8px;text-align:center">${cfg.max_positions!=null?cfg.max_positions:"3"}</td>
-    <td style="padding:8px;text-align:center">${cfg.stop_loss_pct!=null?cfg.stop_loss_pct:"-2.0%"}</td><td style="padding:8px;text-align:center">${cfg.take_profit_pct!=null?cfg.take_profit_pct:"+3.0%"}</td>
-    <td style="padding:8px;text-align:center">${cfg.timeframe||"1h"}</td><td style="padding:8px;text-align:center">${cfg.indicators||"RSI/BB"}</td>
-    <td style="padding:8px;text-align:center">${cfg.strategy||"스캐너"}</td><td style="padding:8px;text-align:center">${cfg.scan_targets||"TOP20"}</td><td style="padding:8px;text-align:center">${cfg.max_holding_hours||"24h"}</td>
-    <td style="padding:8px;text-align:center;color:${cfg.use_auto_mode_switch ? 'var(--green)' : '#e24b4a'};font-weight:600">${cfg.use_auto_mode_switch ? 'O' : 'X'}</td></tr>`;
-   }).join("")}</tbody></table>`;
+    <th style="padding:8px;text-align:center;font-weight:600;min-width:90px">구분</th>
+    ${d.bots.map(b=>{
+      const isbf=(b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog);
+      return '<th style="padding:8px;text-align:center;font-weight:700">'+(isbf?'<span style="color:#ff5a5a;font-weight:bold;margin-right:3px;">[역]</span>':'<span style="color:#4d9fff;font-weight:bold;margin-right:3px;">[순]</span>')+b.name+'</th>';
+    }).join("")}
+   </tr></thead>
+   <tbody>
+    <tr style="border-top:1px solid var(--border);background:var(--card)">
+     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">초기화 잔고</td>
+     ${d.bots.map(b=>'<td style="padding:8px;text-align:center">'+((b.seed===null||b.seed===undefined)?"—":"$"+(+b.seed).toFixed(2))+'</td>').join("")}
+    </tr>
+    <tr style="border-top:1px solid var(--border);background:var(--card2)">
+     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">거래소</td>
+     ${d.bots.map(b=>'<td style="padding:8px;text-align:center">'+(b.ex||"OKX")+'</td>').join("")}
+    </tr>
+    <tr style="border-top:1px solid var(--border);background:var(--card)">
+     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">레버리지</td>
+     ${d.bots.map(b=>'<td style="padding:8px;text-align:center">'+((b.config&&b.config.leverage!=null)?b.config.leverage:"10x")+'</td>').join("")}
+    </tr>
+    <tr style="border-top:1px solid var(--border);background:var(--card2)">
+     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">마진$</td>
+     ${d.bots.map(b=>'<td style="padding:8px;text-align:center">'+((b.config&&b.config.margin_usdt!=null)?b.config.margin_usdt:"$10")+'</td>').join("")}
+    </tr>
+    <tr style="border-top:1px solid var(--border);background:var(--card)">
+     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">최대포지션</td>
+     ${d.bots.map(b=>'<td style="padding:8px;text-align:center">'+((b.config&&b.config.max_positions!=null)?b.config.max_positions:"3")+'</td>').join("")}
+    </tr>
+    <tr style="border-top:1px solid var(--border);background:var(--card2)">
+     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">손절률</td>
+     ${d.bots.map(b=>'<td style="padding:8px;text-align:center">'+((b.config&&b.config.stop_loss_pct!=null)?b.config.stop_loss_pct:"-2.0%")+'</td>').join("")}
+    </tr>
+    <tr style="border-top:1px solid var(--border);background:var(--card)">
+     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">수익목표</td>
+     ${d.bots.map(b=>'<td style="padding:8px;text-align:center">'+((b.config&&b.config.take_profit_pct!=null)?b.config.take_profit_pct:"+3.0%")+'</td>').join("")}
+    </tr>
+    <tr style="border-top:1px solid var(--border);background:var(--card2)">
+     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">타임프레임</td>
+     ${d.bots.map(b=>'<td style="padding:8px;text-align:center;font-weight:700;color:#38bdf8">'+((b.config&&b.config.timeframe)||'1h')+'</td>').join("")}
+    </tr>
+    <tr style="border-top:1px solid var(--border);background:var(--card)">
+     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">1패 즉시전환</td>
+     ${d.bots.map(b=>'<td style="padding:8px;text-align:center;font-weight:600">'+(['8403','8404','8407','8409'].includes((b.name||'').trim())?'<span style="color:var(--green)">O</span>':'<span style="color:#e24b4a">X</span>')+'</td>').join("")}
+    </tr>
+    <tr style="border-top:1px solid var(--border);background:var(--card2)">
+     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">전략 (스캐너)</td>
+     ${d.bots.map(b=>'<td style="padding:8px;text-align:center;font-weight:700;color:#f8fafc">'+((b.config&&b.config.strategy)||'스캐너')+'</td>').join("")}
+    </tr>
+    <tr style="border-top:1px solid var(--border);background:var(--card)">
+     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">스캔 대상</td>
+     ${d.bots.map(b=>'<td style="padding:8px;text-align:center">'+((b.config&&b.config.scan_targets)||'TOP20')+'</td>').join("")}
+    </tr>
+    <tr style="border-top:1px solid var(--border);background:var(--card2)">
+     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">최대보유시간</td>
+     ${d.bots.map(b=>'<td style="padding:8px;text-align:center">'+((b.config&&b.config.max_holding_hours)||'24h')+'</td>').join("")}
+    </tr>
+    <tr style="border-top:1px solid var(--border);background:var(--card)">
+     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">자동반전</td>
+     ${d.bots.map(b=>'<td style="padding:8px;text-align:center;font-weight:600;color:'+((b.config&&b.config.use_auto_mode_switch)?'var(--green)':'#e24b4a')+'">'+((b.config&&b.config.use_auto_mode_switch)?'O':'X')+'</td>').join("")}
+    </tr>
+   </tbody>
+  </table>`;
   const _periods=[['1h','1시간 내'],['6h','6시간 내'],['12h','12시간 내'],['24h','24시간 내'],['48h','48시간 내'],['72h','72시간 내'],['1w','1주일간']];
  const entryTable=`<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:14px;font-weight:600">
   <tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);text-align:center">봇</td>${d.bots.map(b=>'<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border)">'+(((b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog))?'<span style="color:#ff5a5a;font-weight:bold;margin-right:3px;">[역]</span> ':'<span style="color:#4d9fff;font-weight:bold;margin-right:3px;">[순]</span> ')+b.name+'</td>').join('')}</tr>
