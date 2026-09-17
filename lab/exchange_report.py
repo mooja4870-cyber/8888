@@ -46,6 +46,22 @@ FLEET = sys.argv[1:] or ["8401", "8402", "8407", "8409", "8410"]
 KEY_RE = re.compile(r'^"?([A-Za-z0-9_]+)"?\s*[:=]\s*"?(.*?)"?\s*$')
 
 
+# api.md는 소문자 이름(apikey/secretkey/passphrase)을 쓰고 .env는 대문자
+# (OKX_API_KEY 등)를 쓴다. 봇의 core/api_keys.py는 `_KEY_MAP`으로 소문자를
+# 대문자에 **주입**해 .env를 덮어쓴다. 여기서도 같게 정규화해야 한다.
+#
+# [2026-09-17 실측] 이 정규화가 없어서 8406 리포트가 **8401 계좌**를 찍었다.
+#   8406/.env  OKX_API_KEY = …b0cd13bd   ← 8401의 키가 남아 있었다
+#   8406/api.md    apikey  = …29843dd0   ← 실제 8406 키
+#   이름이 다르니 덮어쓰기가 일어나지 않고, make_client는 .env 쪽을 집었다.
+#   그 결과 잔고가 $62.72 대신 $10.23(8401)으로 나오고 검산이 −50.06으로 깨졌다.
+_ALIAS = {
+    "apikey":     ("OKX_API_KEY", "BINANCE_API_KEY"),
+    "secretkey":  ("OKX_SECRET_KEY", "BINANCE_SECRET_KEY"),
+    "passphrase": ("OKX_PASSPHRASE", "BINANCE_PASSPHRASE"),
+}
+
+
 def read_keys(bot):
     """키를 **파싱만** 한다. 봇 모듈은 import하지 않는다(모듈 캐시 오염 방지).
 
@@ -65,7 +81,11 @@ def read_keys(bot):
                 continue
             m = KEY_RE.match(ln)
             if m and m.group(2):
-                out[m.group(1)] = m.group(2)
+                name, val = m.group(1), m.group(2)
+                out[name] = val
+                # 소문자 별칭은 대문자 이름에도 넣어 .env의 낡은 값을 덮는다
+                for up in _ALIAS.get(name.lower(), ()):
+                    out[up] = val
     return out
 
 
