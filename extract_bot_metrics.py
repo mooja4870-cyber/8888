@@ -111,10 +111,20 @@ try:
     for exit_time, pnl, trade_mode in reversed(recent_30_trades):
         seq += "O" if pnl > 0 else "x"
 
-    # 최근 20개 거래 중 순/역 비중
+    # 최근 20개 거래 중 순/역 비중 및 승패
     last_20_trades = grouped_trades[-20:]
-    sun20_cnt = sum(1 for _, _, mode in last_20_trades if mode != '역방향')
-    yeok20_cnt = sum(1 for _, _, mode in last_20_trades if mode == '역방향')
+    sun20_cnt, sun20_w, sun20_l = 0, 0, 0
+    yeok20_cnt, yeok20_w, yeok20_l = 0, 0, 0
+    for _, pnl, mode in last_20_trades:
+        if mode == '역방향':
+            yeok20_cnt += 1
+            if pnl > 0: yeok20_w += 1
+            elif pnl < 0: yeok20_l += 1
+        else:
+            sun20_cnt += 1
+            if pnl > 0: sun20_w += 1
+            elif pnl < 0: sun20_l += 1
+
     
     # 순방향/역방향 분류 (order_id별 그룹의 trade_mode는 첫 진입 기준)
     sun_grouped = {}  # order_id → 총손익 (순방향만)
@@ -147,7 +157,11 @@ try:
         "since_l_yeok": since_l_yeok,
         "seq": seq,
         "sun20": sun20_cnt,
-        "yeok20": yeok20_cnt
+        "yeok20": yeok20_cnt,
+        "sun20_w": sun20_w,
+        "sun20_l": sun20_l,
+        "yeok20_w": yeok20_w,
+        "yeok20_l": yeok20_l
     }
     
     # Restore stdout and print json

@@ -32,7 +32,7 @@ import regime_map_backtest as B
 CACHE = "/Users/l/project/8888/lab/_universe_cache.json"
 BOT = sys.argv[1] if len(sys.argv) > 1 else "8401"
 DAYS = 730
-SEEDS = 8
+SEEDS = int(sys.argv[2]) if len(sys.argv) > 2 else 8
 
 
 def load():
@@ -150,15 +150,19 @@ def main():
         ("③ 설계 ATR 2:4 (캡 없음)",    "design"),
     ]
     res = {}
-    print(f"  {'보유 모형':30}{'보유율':>9}{'무포지션 일수':>14}{'최장 공백':>12}")
-    print("  " + "─" * 68)
+    print(f"  {'보유 모형':30}{'보유율':>9}{'무포지션 일수':>14}{'최장 공백':>12}"
+          f"{'무포지션 시드범위':>20}")
+    print("  " + "─" * 88)
     for name, m in MODES:
         rs = [run(m, data, reg, days, smap, cfg, sd, maxpos) for sd in range(SEEDS)]
         z = stx.median(r["zero"] for r in rs)
         p = stx.median(r["pct"] for r in rs)
         g = stx.median(r["maxgap"] for r in rs)
+        zs = sorted(r["zero"] for r in rs)
         res[m] = (z, p, g)
-        print(f"  {name:30}{p:>8.0f}%{z:>12.0f}일{g:>10.0f}일")
+        # 중앙값만 보면 재현성을 알 수 없다. 시드별 최소~최대를 함께 적는다.
+        print(f"  {name:30}{p:>8.0f}%{z:>12.0f}일{g:>10.0f}일"
+              f"{zs[0]:>14}~{zs[-1]}일")
 
     z1, _, g1 = res["sameday"]
     z2, _, g2 = res["cap"]

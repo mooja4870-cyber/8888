@@ -347,6 +347,7 @@ def hist_metrics(path, perf_start, pos_count=0):
     sl = sum(1 for v in since_grp.values() if v < 0)
     sw_sun, sl_sun, sw_yeok, sl_yeok = 0, 0, 0, 0
     seq_str, sun20, yeok20 = "", 0, 0
+    sun20_w, sun20_l, yeok20_w, yeok20_l = 0, 0, 0, 0
     
     # 헬퍼 스크립트를 통해 개별 봇의 실제 통합(grouped by entry) 내역을 가져온다
     bot_folder = os.path.dirname(os.path.dirname(path))
@@ -367,6 +368,10 @@ def hist_metrics(path, perf_start, pos_count=0):
             seq_str = res.get("seq", "")
             sun20 = res.get("sun20", 0)
             yeok20 = res.get("yeok20", 0)
+            sun20_w = res.get("sun20_w", 0)
+            sun20_l = res.get("sun20_l", 0)
+            yeok20_w = res.get("yeok20_w", 0)
+            yeok20_l = res.get("yeok20_l", 0)
     except Exception:
         pass
 
@@ -434,6 +439,8 @@ def hist_metrics(path, perf_start, pos_count=0):
             "since_w_sun": sw_sun, "since_l_sun": sl_sun,
             "since_w_yeok": sw_yeok, "since_l_yeok": sl_yeok,
             "seq": seq_str, "sun20": sun20, "yeok20": yeok20,
+            "sun20_w": sun20_w, "sun20_l": sun20_l,
+            "yeok20_w": yeok20_w, "yeok20_l": yeok20_l,
             "since_pnl": round(sum(since_grp.values()), 4),   # 초기화 이후 실현손익 = 봇 앱 누적손익
             "profit_factor": profit_factor, "avg_wl": avg_wl, "expectancy": expectancy, "sqn": sqn, "sortino": sortino,
             "avg_holding_hours": avg_holding_hours, "profit_per_hour": profit_per_hour,
@@ -1134,6 +1141,10 @@ def bot_status(folder, port, ex):
     r["seq"] = m.get("seq", "")
     r["sun20"] = m.get("sun20", 0)
     r["yeok20"] = m.get("yeok20", 0)
+    r["sun20_w"] = m.get("sun20_w", 0)
+    r["sun20_l"] = m.get("sun20_l", 0)
+    r["yeok20_w"] = m.get("yeok20_w", 0)
+    r["yeok20_l"] = m.get("yeok20_l", 0)
     if r.get("ex_balance") is not None and r.get("seed") and float(r.get("seed", 0)) > 0 and float(r.get("ex_balance", 0)) > 0:
         r["since_pnl"] = round(float(r["ex_balance"]) - float(r["seed"]), 4)  # 개별 봇 UI 공통 공식과 100% 일치
     elif r.get("total") is not None:
