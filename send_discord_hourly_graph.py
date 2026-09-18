@@ -19,7 +19,7 @@ WEBHOOK_URL = ""  # 알림 중단
 ROOT_DIR = "/Users/l/project"
 SNAP_FILE = os.path.join(ROOT_DIR, "8888", "snapshots.json")
 
-GROUP_3_IDS = ["8407", "8409"]
+GROUP_3_IDS = ["8407", "8408", "8409"]
 GROUP_1_IDS = ["8401", "8402", "8410"]
 GROUP_2_IDS = ["8403", "8404", "8405", "8406"]
 GROUP_A_IDS = GROUP_3_IDS
@@ -107,7 +107,7 @@ def collect_hourly_data(num_hours=40):
             bot_seeds[bid] = seed
             bot_series[bid].append(d_ret)
             
-        # 그룹 3 (8407, 8409) 계산
+        # 그룹 3 (8407, 8408, 8409) 계산
         tot_seed_3 = sum(bot_seeds[bid] for bid in GROUP_3_IDS)
         avg_ret_3 = sum(bot_rets[bid] * bot_seeds[bid] for bid in GROUP_3_IDS) / tot_seed_3 if tot_seed_3 else 0.0
         group_3_series.append(round(avg_ret_3, 2))
@@ -215,7 +215,7 @@ def send_report():
     now_str = datetime.now().strftime("%Y-%m-%d %H:00:00")
     timestamps, series_3, series_1, series_2, bot_series = collect_hourly_data(num_hours=40)
     
-    # 1) 그룹별 추이 리포트 (그룹 3: 8407, 8409 / 그룹 1: 8401, 8402, 8410 / 그룹 2: 8403, 8404)
+    # 1) 그룹별 추이 리포트 (그룹 3: 8407, 8408, 8409 / 그룹 1: 8401, 8402, 8410 / 그룹 2: 8403, 8404)
     graph_3 = generate_ascii_graph("그룹3(" + ", ".join(GROUP_3_IDS) + ") 봇 집계", series_3, is_group=True)
     graph_1 = generate_ascii_graph("그룹1(" + ", ".join(GROUP_1_IDS) + ") 봇 집계", series_1, is_group=True)
     graph_2 = generate_ascii_graph("그룹2(" + ", ".join(GROUP_2_IDS) + ") 봇 집계", series_2, is_group=True)

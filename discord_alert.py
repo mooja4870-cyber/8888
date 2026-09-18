@@ -401,7 +401,7 @@ def tick(data, tick_count=0, include_bot_charts=False):
     # 그룹 2 (과거 그룹3): 봇 8403, 8404, 8405, 8406
     group_2_names = {"8403", "8404", "8405", "8406"}
     # 그룹 3 (과거 그룹1): 봇 8407, 8409
-    group_3_names = {"8407", "8409"}
+    group_3_names = {"8407", "8408", "8409"}
     
     # 실제 data.get("bots")에 존재하는 봇만 필터링
     actual_1 = {str(b.get("name")) for b in data.get("bots", []) if str(b.get("name")) in group_1_names}

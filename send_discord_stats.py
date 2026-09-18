@@ -15,6 +15,7 @@ WEBHOOK_URL = ""  # 알림 중단
 ROOT_DIR = "/Users/l/project"
 GROUP_3_BOTS = [
     ("8407", "8407_BNC"),
+    ("8408", "8408_BNC"),
     ("8409", "8409_BNC"),
 ]
 GROUP_1_BOTS = [
@@ -199,7 +200,7 @@ def build_discord_messages(now_str, overall, by_bot, bot_modes, bot_seq):
     lines.append("--------------------------------------------------")
     lines.append("🔗 *8888 관제 시스템 정시(00분00초) 자동 리포트*\n=================================\n=================================")
 
-    lines.append(f"🤖 **[그룹3 (8407, 8409) 봇별 4개 구간 승패 상세]**")
+    lines.append(f"🤖 **[그룹3 (8407, 8408, 8409) 봇별 4개 구간 승패 상세]**")
     for bot_id, name in GROUP_3_BOTS:
         is_bf = bot_modes.get(bot_id, False)
         mode_tag = "**[역]** 🐸 역방향(청개구리)" if is_bf else "**[순]** 🎯 순방향(정방향)"
