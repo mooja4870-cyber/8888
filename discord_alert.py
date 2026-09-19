@@ -185,8 +185,7 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
     h72 = _ago_str(total, series or [], now_ts, *LOOKBACK[3])
 
     lines = [ts]
-    if title_prefix == "그룹1":
-        lines.append("======================================")
+    lines.append("======================================")
     lines.extend([
              f"📊 {title_prefix} 일평균수익률 ({head_days}) : {asset_str}{delta_str}{ret_str} [1m]{delta:.2f}%{arrow} [1]{h1} [24]{h24} [48]{h48} [72]{h72}",
              "─" * 38])
@@ -240,8 +239,7 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
         if seq_str:
             lines.append(f"  {seq_str}")
             
-        if title_prefix == "전체" and str(b_name_short).startswith("8404"):
-            lines.append("──────────────────────────────────────")
+
         
         # 차트 출력 기능 비활성화 (보스 요청)
     return "```\n" + "\n".join(lines) + "\n```"
@@ -383,37 +381,13 @@ def _process_subset(data, target_names, state_suffix, title_prefix, include_bot_
 
 
 def tick(data, tick_count=0, include_bot_charts=False):
-    """집계 1건을 받아 매 1분마다 디스코드 알림 발송 및 상태 갱신 (3개 그룹 분할 발송)."""
-    # 그룹 1 (과거 그룹2): 봇 8401, 8402, 8410
-    group_1_names = {"8401", "8402", "8410"}
-    # 그룹 2 (과거 그룹3): 봇 8403, 8404, 8405, 8406
-    group_2_names = {"8403", "8404", "8405", "8406"}
-    # 그룹 3 (과거 그룹1): 봇 8407, 8409
-    group_3_names = {"8407", "8408", "8409"}
+    """집계 1건을 받아 매 1분마다 디스코드 알림 발송 및 상태 갱신 (전체 봇 일괄 발송)."""
+    all_bots = {str(b.get("name")) for b in data.get("bots", [])}
+    if not all_bots:
+        return False, "No bots in data"
     
-    # 실제 data.get("bots")에 존재하는 봇만 필터링
-    actual_1 = {str(b.get("name")) for b in data.get("bots", []) if str(b.get("name")) in group_1_names}
-    actual_2 = {str(b.get("name")) for b in data.get("bots", []) if str(b.get("name")) in group_2_names}
-    actual_3 = {str(b.get("name")) for b in data.get("bots", []) if str(b.get("name")) in group_3_names}
-
-    results = []
-    if actual_1:
-        ok1, info1 = _process_subset(data, actual_1, "_group_1.json", "그룹1", include_bot_charts=include_bot_charts)
-        results.append(f"Group 1({len(actual_1)}): {info1}")
-        if actual_2 or actual_3:
-            time.sleep(1.0)  # 웹훅 연속 발송 레이트리밋 방지 딜레이
-
-    if actual_2:
-        ok2, info2 = _process_subset(data, actual_2, "_group_2.json", "그룹2", include_bot_charts=include_bot_charts)
-        results.append(f"Group 2({len(actual_2)}): {info2}")
-        if actual_3:
-            time.sleep(1.0)  # 웹훅 연속 발송 레이트리밋 방지 딜레이
-
-    if actual_3:
-        ok3, info3 = _process_subset(data, actual_3, "_group_3.json", "그룹3", include_bot_charts=include_bot_charts)
-        results.append(f"Group 3({len(actual_3)}): {info3}")
-
-    return (len(results) > 0), " | ".join(results) if results else "No bots in any group"
+    ok, info = _process_subset(data, all_bots, "_all.json", "전체", include_bot_charts=include_bot_charts)
+    return ok, info
 
 
 if __name__ == "__main__":
