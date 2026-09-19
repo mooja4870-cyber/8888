@@ -243,19 +243,7 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
         if title_prefix == "전체" and str(b_name_short).startswith("8404"):
             lines.append("──────────────────────────────────────")
         
-        # 🤖 5분 정각 알림(include_bot_charts=True)일 때 개별 봇 200분(5분봉) 파동 차트 렌더링
-        if include_bot_charts:
-            bot_chart_hist = get_bot_200min_history(b)
-            lines.append("─" * 38)
-            lines.append("최근 200분(5분 간격) 전체 일평균 추이(%)")
-            lines.append(ascii_chart(bot_chart_hist))
-            lines.append("")
-        
-    if not include_bot_charts:
-        sampled_history = history[::-5][::-1] if len(history) > 0 else history
-        lines.append("─" * 38)
-        lines.append("최근 200분(5분 간격) 전체 일평균 추이(%)")
-        lines.append(ascii_chart(sampled_history))
+        # 차트 출력 기능 비활성화 (보스 요청)
     return "```\n" + "\n".join(lines) + "\n```"
 
 
