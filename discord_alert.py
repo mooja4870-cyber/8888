@@ -244,9 +244,15 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
         # 차트 출력 기능 비활성화 (보스 요청)
     
     if asset_history and len(asset_history) > 0:
-        sampled_assets = asset_history[::-5][::-1]
+        current_minute = time.localtime().tm_min
+        offset = current_minute % 5
+        start_idx = len(asset_history) - 1 - offset
+        if start_idx < 0:
+            start_idx = len(asset_history) - 1
+            
+        sampled_assets = asset_history[start_idx::-5][::-1]
         lines.append("─" * 38)
-        lines.append("최근 200분(5분 간격) 전체 총자산 추이($)")
+        lines.append("최근 200분(5분봉) 전체 총자산 추이($)")
         lines.append(ascii_chart(sampled_assets))
         lines.append("")
 
