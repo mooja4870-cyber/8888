@@ -1296,7 +1296,8 @@ function renderBotAssetSection(d) {
     } else {
         const b = allBots.find(x => x.name === _selectedBotForAsset);
         if (b && b.metrics) {
-            chartTitle = `📊 [${b.name} 봇] 실자산 잔고($) 추이`;
+            const elStr = b.perf_start ? ` (${elapsed(b.perf_start)})` : '';
+            chartTitle = `📊 [${b.name} 봇] 실자산 잔고($) 추이<span style="font-size:0.8em;color:var(--muted);margin-left:8px;font-weight:normal">${elStr}</span>`;
             chartData.labels = b.metrics.history_ts || [];
             chartData.data = b.metrics.asset_history || [];
             chartData.data_ret = b.metrics.rolling_history || [];
