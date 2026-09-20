@@ -1332,9 +1332,12 @@ def calc_bot_metrics(folder, bot_dict):
         _sampled = records[::step]
         history = [rec[1] for rec in _sampled]
         history_ts = [rec[0] for rec in _sampled]
+        asset_history = [rec[2] for rec in _sampled]
+        
         if not history or history[-1] != curr_dr:
             history.append(curr_dr)
             history_ts.append(time.strftime("%Y-%m-%d %H:%M:%S"))
+            asset_history.append(float(curr_ex_bal))
 
         return {
             "seed": seed,
@@ -1350,7 +1353,8 @@ def calc_bot_metrics(folder, bot_dict):
             "min_dr_bal": round(min_recs[0][2], 2),
             "curr_dr": curr_dr,
             "history": history,
-            "history_ts": history_ts        # 차트 x축용 (값과 1:1 대응)
+            "history_ts": history_ts,       # 차트 x축용 (값과 1:1 대응)
+            "asset_history": asset_history
         }
     except Exception as e:
         print(f"[METRICS ERR] {folder}: {e}")
@@ -1431,7 +1435,12 @@ def collect_bots(bot_tuples):
 
 
 def collect():
-    return collect_bots(BOTS)
+    data = collect_bots(BOTS)
+    
+    # 8406, 8408 등 대시보드 탭 차트를 위해 추가적인 봇 데이터 조회 (메인 요약 및 알림에는 미포함)
+    extra_tuples = [("8406", 8406, "OKX"), ("8408", 8408, "BNC")]
+    data["extra_bots"] = collect_bots(extra_tuples)["bots"]
+    return data
 
 
 def collect_excluded():
