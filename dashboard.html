@@ -1235,7 +1235,7 @@ function renderBotAssetSection(d) {
     }).join('');
     document.getElementById('botAssetTabs').innerHTML = tabsHtml;
 
-    let chartData = { labels: [], data: [] };
+    let chartData = { labels: [], data: [], data_ret: [] };
     let chartTitle = '';
 
     if (_selectedBotForAsset === '전체') {
@@ -1245,44 +1245,61 @@ function renderBotAssetSection(d) {
         allBots.forEach(b => { if(b.metrics && b.metrics.history_ts) b.metrics.history_ts.forEach(ts => all_ts.add(ts)); });
         let sorted_ts = Array.from(all_ts).sort();
         let total_assets = [];
+        let total_returns = [];
         let last_known = {};
-        allBots.forEach(b => last_known[b.name] = b.seed || 10);
+        let last_known_ret = {};
+        allBots.forEach(b => {
+            last_known[b.name] = b.seed || 10;
+            last_known_ret[b.name] = 0;
+        });
         
         sorted_ts.forEach(ts => {
             let sum = 0;
+            let sum_ret = 0;
+            let tot_seed = 0;
             allBots.forEach(b => {
                 if (b.metrics && b.metrics.history_ts && b.metrics.history_ts.includes(ts)) {
                     let idx = b.metrics.history_ts.indexOf(ts);
                     if (b.metrics.asset_history && b.metrics.asset_history[idx] != null) {
                         last_known[b.name] = b.metrics.asset_history[idx];
                     }
+                    if (b.metrics.history && b.metrics.history[idx] != null) {
+                        last_known_ret[b.name] = b.metrics.history[idx];
+                    }
                 }
+                let s = b.seed || 10;
                 sum += last_known[b.name];
+                sum_ret += (last_known_ret[b.name] || 0) * s;
+                tot_seed += s;
             });
             total_assets.push(sum);
+            total_returns.push(tot_seed ? sum_ret / tot_seed : 0);
         });
 
         // 렌더링 부하 방지 다운샘플링 (최대 100개)
         if (sorted_ts.length > 100) {
             let step = Math.max(1, Math.floor(sorted_ts.length / 80));
-            let _s = [], _t = [];
+            let _s = [], _t = [], _r = [];
             for (let i = 0; i < sorted_ts.length; i += step) {
-                _s.push(sorted_ts[i]); _t.push(total_assets[i]);
+                _s.push(sorted_ts[i]); _t.push(total_assets[i]); _r.push(total_returns[i]);
             }
             if (_s[_s.length - 1] !== sorted_ts[sorted_ts.length - 1]) {
                 _s.push(sorted_ts[sorted_ts.length - 1]);
                 _t.push(total_assets[total_assets.length - 1]);
+                _r.push(total_returns[total_returns.length - 1]);
             }
-            sorted_ts = _s; total_assets = _t;
+            sorted_ts = _s; total_assets = _t; total_returns = _r;
         }
         chartData.labels = sorted_ts;
         chartData.data = total_assets;
+        chartData.data_ret = total_returns;
     } else {
         const b = allBots.find(x => x.name === _selectedBotForAsset);
         if (b && b.metrics) {
             chartTitle = `📊 [${b.name} 봇] 실자산 잔고($) 추이`;
             chartData.labels = b.metrics.history_ts || [];
             chartData.data = b.metrics.asset_history || [];
+            chartData.data_ret = b.metrics.history || [];
         } else {
             chartTitle = `📊 [${_selectedBotForAsset} 봇] 데이터 없음`;
         }
@@ -1305,34 +1322,71 @@ function renderBotAssetSection(d) {
         type: 'line',
         data: {
             labels: fmtLabels,
-            datasets: [{
-                label: '총자산 잔고($)',
-                data: chartData.data,
-                borderColor: '#2dbd85',
-                backgroundColor: 'rgba(45, 189, 133, 0.1)',
-                borderWidth: 2,
-                pointRadius: 0,
-                pointHoverRadius: 4,
-                fill: true,
-                tension: 0.4
-            }]
+            datasets: [
+                {
+                    label: '총자산 잔고($)',
+                    data: chartData.data,
+                    yAxisID: 'y',
+                    borderColor: '#2dbd85',
+                    backgroundColor: 'rgba(45, 189, 133, 0.1)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: '일평균수익률(%)',
+                    data: chartData.data_ret,
+                    yAxisID: 'y1',
+                    borderColor: '#e24b4a',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    fill: false,
+                    tension: 0.4
+                }
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: { 
-                legend: { display: false },
+                legend: { display: true, labels: { color: '#8b93a5', boxWidth: 12, usePointStyle: true, padding: 20 } },
                 tooltip: {
-                    backgroundColor: 'rgba(0,0,0,0.85)', titleColor: '#2dbd85', bodyColor: '#fff',
-                    borderColor: '#2dbd85', borderWidth: 1, padding: 10,
+                    backgroundColor: 'rgba(0,0,0,0.85)', titleColor: '#fff', bodyColor: '#fff',
+                    borderColor: '#3a445d', borderWidth: 1, padding: 10,
                     callbacks: {
-                        label: c => '잔고: $' + c.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) label += ': ';
+                            if (context.datasetIndex === 0) {
+                                label += '$' + context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                            } else {
+                                label += context.parsed.y.toFixed(2) + '%';
+                            }
+                            return label;
+                        }
                     }
                 }
             },
             scales: {
                 x: { grid: { display: false }, ticks: { color: '#8b93a5', maxTicksLimit: 14, autoSkip: true } },
-                y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#9fb0d8' } }
+                y: { 
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' }, 
+                    ticks: { color: '#9fb0d8' } 
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    grid: { display: false },
+                    ticks: { color: '#e24b4a' }
+                }
             },
             interaction: { mode: 'index', intersect: false }
         }
