@@ -62,17 +62,17 @@ def _load_state(path):
         with open(path, encoding="utf-8") as f:
             s = json.load(f)
         return (s.get("prev_total"), s.get("prev_bots", {}), s.get("history", []),
-                s.get("prev_sub_total"), s.get("series", []))
+                s.get("prev_sub_total"), s.get("series", []), s.get("asset_history", []))
     except (OSError, ValueError):
-        return None, {}, [], None, []
+        return None, {}, [], None, [], []
 
 
-def _save_state(path, prev_total, prev_bots, history, prev_sub_total=None, series=None):
+def _save_state(path, prev_total, prev_bots, history, prev_sub_total=None, series=None, asset_history=None):
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump({"prev_total": prev_total, "prev_bots": prev_bots,
                    "history": history[-HISTORY_MAX:], "prev_sub_total": prev_sub_total,
-                   "series": series or []}, f, ensure_ascii=False)
+                   "series": series or [], "asset_history": (asset_history or [])[-HISTORY_MAX:]}, f, ensure_ascii=False)
     os.replace(tmp, path)
 
 
@@ -161,7 +161,7 @@ def get_bot_200min_history(b_obj):
     return history
 
 
-def build_message(data, prev_total, prev_bots, history, title_prefix="전체", sub_assets=None, sub_total=None, prev_sub_total=None, include_bot_charts=False, series=None):
+def build_message(data, prev_total, prev_bots, history, title_prefix="전체", sub_assets=None, sub_total=None, prev_sub_total=None, include_bot_charts=False, series=None, asset_history=None):
     s = data["summary"]
     total = s.get("daily_ret")
     days = s.get("days")
@@ -242,6 +242,14 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
 
         
         # 차트 출력 기능 비활성화 (보스 요청)
+    
+    if asset_history and len(asset_history) > 0:
+        sampled_assets = asset_history[::-5][::-1]
+        lines.append("─" * 38)
+        lines.append("최근 200분(5분 간격) 전체 총자산 추이($)")
+        lines.append(ascii_chart(sampled_assets))
+        lines.append("")
+
     return "```\n" + "\n".join(lines) + "\n```"
 
 
@@ -302,10 +310,14 @@ def recalc_data(data, exclude_names):
 
 
 def _process_single(data, path, title_prefix, include_bot_charts=False):
-    prev_total, prev_bots, history, prev_sub_total, series = _load_state(path)
+    prev_total, prev_bots, history, prev_sub_total, series, asset_history = _load_state(path)
     total = data["summary"].get("daily_ret")
     history.append(total)
     history = history[-HISTORY_MAX:]
+    
+    assets = data["summary"].get("assets", 0.0)
+    asset_history.append(assets)
+    asset_history = asset_history[-HISTORY_MAX:]
 
     # 60분/24시간 대비용 시계열. 발송 성공 여부와 무관하게 시각을 남긴다.
     now_ts = time.time()
@@ -314,12 +326,12 @@ def _process_single(data, path, title_prefix, include_bot_charts=False):
     series.append([now_ts, total])
 
     msg = build_message(data, prev_total, prev_bots, history, title_prefix,
-                        include_bot_charts=include_bot_charts, series=series)
+                        include_bot_charts=include_bot_charts, series=series, asset_history=asset_history)
     ok, info = _post(msg)
     if ok:
         new_prev_bots = {b["name"]: (b.get("daily_ret") if b.get("daily_ret") is not None else 0.0)
                          for b in data["bots"]}
-        _save_state(path, total, new_prev_bots, history, series=series)
+        _save_state(path, total, new_prev_bots, history, series=series, asset_history=asset_history)
     return ok, info
 
 
