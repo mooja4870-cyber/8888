@@ -1239,7 +1239,19 @@ function renderBotAssetSection(d) {
     let chartTitle = '';
 
     if (_selectedBotForAsset === '전체') {
-        chartTitle = '📊 [전체] 총자산 잔고($) 추이';
+        let min_perf_start = null;
+        let min_ts = Infinity;
+        allBots.forEach(b => {
+            if (b.perf_start) {
+                const t = new Date(b.perf_start.replace(' ', 'T')).getTime();
+                if (!isNaN(t) && t < min_ts) {
+                    min_ts = t;
+                    min_perf_start = b.perf_start;
+                }
+            }
+        });
+        const elStr = min_perf_start ? ` (${elapsed(min_perf_start)})` : '';
+        chartTitle = `📊 [전체] 총자산 잔고($) 추이<span style="font-size:0.8em;color:var(--muted);margin-left:8px;font-weight:normal">${elStr}</span>`;
         // 전체 합산 로직
         let all_ts = new Set();
         allBots.forEach(b => { if(b.metrics && b.metrics.history_ts) b.metrics.history_ts.forEach(ts => all_ts.add(ts)); });
