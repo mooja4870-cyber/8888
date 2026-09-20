@@ -1263,8 +1263,8 @@ function renderBotAssetSection(d) {
                     if (b.metrics.asset_history && b.metrics.asset_history[idx] != null) {
                         last_known[b.name] = b.metrics.asset_history[idx];
                     }
-                    if (b.metrics.history && b.metrics.history[idx] != null) {
-                        last_known_ret[b.name] = b.metrics.history[idx];
+                    if (b.metrics.rolling_history && b.metrics.rolling_history[idx] != null) {
+                        last_known_ret[b.name] = b.metrics.rolling_history[idx];
                     }
                 }
                 let s = b.seed || 10;
@@ -1299,7 +1299,7 @@ function renderBotAssetSection(d) {
             chartTitle = `📊 [${b.name} 봇] 실자산 잔고($) 추이`;
             chartData.labels = b.metrics.history_ts || [];
             chartData.data = b.metrics.asset_history || [];
-            chartData.data_ret = b.metrics.history || [];
+            chartData.data_ret = b.metrics.rolling_history || [];
         } else {
             chartTitle = `📊 [${_selectedBotForAsset} 봇] 데이터 없음`;
         }
@@ -1336,7 +1336,7 @@ function renderBotAssetSection(d) {
                     tension: 0.4
                 },
                 {
-                    label: '일평균수익률(%)',
+                    label: '최근 24h 수익률(%)',
                     data: chartData.data_ret,
                     yAxisID: 'y1',
                     borderColor: '#e24b4a',

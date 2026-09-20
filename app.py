@@ -1329,15 +1329,29 @@ def calc_bot_metrics(folder, bot_dict):
         step = max(1, len(records) // 60)
         # [2026-08-22] 값만 보내면 차트 x축이 비어 "언제인지" 알 수 없었다.
         # records[0]이 시각 문자열이므로 값과 짝으로 함께 보낸다.
+        
+        rolling_24h_all = []
+        for i, rec in enumerate(records):
+            idx_24h = max(0, i - 288) # 24h = 288 * 300s
+            base_asset = records[idx_24h][2]
+            cur_asset = rec[2]
+            ret_24h = round((cur_asset - base_asset) / base_asset * 100, 2) if base_asset > 0 else 0.0
+            rolling_24h_all.append(ret_24h)
+
         _sampled = records[::step]
         history = [rec[1] for rec in _sampled]
         history_ts = [rec[0] for rec in _sampled]
         asset_history = [rec[2] for rec in _sampled]
+        rolling_history = rolling_24h_all[::step]
         
         if not history or history[-1] != curr_dr:
             history.append(curr_dr)
             history_ts.append(time.strftime("%Y-%m-%d %H:%M:%S"))
             asset_history.append(float(curr_ex_bal))
+            
+            base_asset = records[-288][2] if len(records) >= 288 else (records[0][2] if records else seed)
+            curr_rolling = round((float(curr_ex_bal) - base_asset) / base_asset * 100, 2) if base_asset > 0 else 0.0
+            rolling_history.append(curr_rolling)
 
         return {
             "seed": seed,
@@ -1354,7 +1368,8 @@ def calc_bot_metrics(folder, bot_dict):
             "curr_dr": curr_dr,
             "history": history,
             "history_ts": history_ts,       # 차트 x축용 (값과 1:1 대응)
-            "asset_history": asset_history
+            "asset_history": asset_history,
+            "rolling_history": rolling_history
         }
     except Exception as e:
         print(f"[METRICS ERR] {folder}: {e}")
