@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import time
+import socket
 import subprocess
 import logging
 
@@ -353,7 +354,6 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                     json.dump(cfg, f, indent=4)
                 
                 alert_msg = f"🚨 **[Foolproof 발동: {b}]**\\n봇이 비정상적으로 '자동매매 OFF(노란색)' 상태에 빠져 신규 진입이 차단되어 있었습니다.\\n-> 🟢 강제로 **자동매매 ON** 상태로 즉시 복구했습니다."
-                import subprocess
                 py_cmd = f"import sys; sys.path.insert(0, '{cwd}'); import core.alert as alert; alert.send_telegram_alert('{alert_msg}')"
                 subprocess.run(["python3", "-c", py_cmd], cwd=cwd)
         except Exception as e:
@@ -391,7 +391,6 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
     if bot_alive and not needs_restart:
         log_file = os.path.join(cwd, "bot_engine.log")
         if os.path.exists(log_file):
-            import time
             mtime = os.path.getmtime(log_file)
             age = time.time() - mtime
             if age > 300:  # 5분 이상 갱신 없음 (좀비 상태)
@@ -401,7 +400,7 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
 
     # 1-2. UI 프로세스 생존 검사 (포트 감시)
     if not needs_restart:
-        import socket
+        
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(1)
             result = s.connect_ex(('127.0.0.1', b))
@@ -452,72 +451,10 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
             logger.error(f"[{b}] 진입 건전성 감사 중 예외: {e}")
 
     # 2. 방향성(순/역매매) 오염 및 Phantom Overwrite 검사 -> 워치독 자율 스위칭
-    if do_config_check:
-        import importlib
-        try:
-            sys.path.insert(0, cwd)
-            import core.history_helper as hh
-            importlib.reload(hh)
-            
-            # Load local trades
-            orig_cwd = os.getcwd()
-            os.chdir(cwd)
-            raw_trades = hh.load_local_trade_history()
-            os.chdir(orig_cwd)
-            
-            paired = hh.aggregate_and_pair_trades(raw_trades)
-            closed_trades = [p for p in paired if p.get("status") == "청산 완료"]
-            closed_trades.sort(key=lambda x: x.get("exit_time", ""))
-
-            N = len(closed_trades)
-            
-            cfg_file = os.path.join(cwd, "config.json")
-            state_file = os.path.join(cwd, "data", "switch_state.json")
-            
-            with open(cfg_file, "r") as f:
-                cfg = json.load(f)
-
-            actual_mode = cfg.get("USE_BLUEFROG", False)
-            
-            # 1) 기존 스위칭 정보 로드
-            last_switched_on_count = 0
-            if os.path.exists(state_file):
-                try:
-                    with open(state_file, "r") as sf:
-                        sdata = json.load(sf)
-                    last_switched_on_count = sdata.get("last_switched_on_count", 0)
-                except:
-                    pass
-
-            expected_mode = actual_mode
-            # [2026-09-02] 워치독의 독자 스위칭을 중단하고 **관측만** 한다.
-            #
-            # 스위칭 주체는 각 봇 engine.check_auto_mode_switch() 하나로 일원화한다.
-            # 두 구현이 같은 파일을 서로 다른 규칙·스키마로 쓰면서 문제가 있었다:
-            #   · 판정 창이 다르다 — 엔진은 '최근 5건 고정', 워치독은 '마지막 스위칭
-            #     이후 전체 슬라이스'. 같은 이력에서 결론이 갈린다.
-            #   · 워치독은 쿨다운(스위칭 후 최소 3거래)이 없어 휩쏘 구간에서
-            #     매 청산마다 방향이 뒤집힐 수 있다. 수수료만 나간다.
-            #   · 워치독이 상태를 {"last_switched_on_count": N} 한 키로 덮어써
-            #     last_switched_key가 사라지면 엔진의 중복 스위칭 방지가 풀린다.
-            # 판정은 엔진이 30초마다 수행하므로 기능 공백은 없다.
-            # 여기서는 불일치가 보이면 로그로만 남긴다(자동 조치·파일 쓰기 없음).
-            try:
-                if N >= 5:
-                    _r5 = closed_trades[-5:]
-                    _L = sum(1 for t in _r5 if float(t.get("pnl_usdt") or 0.0) < 0.0)
-                    if _L >= 3:
-                        _seq = "".join("x" if float(t.get("pnl_usdt") or 0.0) < 0.0 else "O"
-                                       for t in _r5)
-                        logger.info(f"[{b}] 스위칭 조건 관측: 5전 {_L}패({_seq})"
-                                    f" — 판정·실행은 엔진이 담당")
-            except Exception:
-                pass
-
-        except Exception as e:
-            logger.error(f"[{b}] ⚠️ 내역 검증 중 오류: {e}")
-        finally:
-            sys.path.pop(0)
+    # [2026-09-02] 워치독의 독자 스위칭은 엔진으로 일원화되어 관측만 하던 기능이었으나,
+    # 각 봇의 core 패키지를 sys.path에 동적으로 로드하는 과정에서 sys.modules['core'] 전역 오염이 발생하여
+    # watchdog의 핵심 모듈인 core.audit_33 로드를 방해하므로 완전히 제거합니다.
+    pass
 
     # 2.5. 포지션 보유 확인 (사살 유예 로직)
     if needs_restart and bot_alive:
