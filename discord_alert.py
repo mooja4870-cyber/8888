@@ -62,17 +62,18 @@ def _load_state(path):
         with open(path, encoding="utf-8") as f:
             s = json.load(f)
         return (s.get("prev_total"), s.get("prev_bots", {}), s.get("history", []),
-                s.get("prev_sub_total"), s.get("series", []), s.get("asset_history", []))
+                s.get("prev_sub_total"), s.get("series", []), s.get("asset_history", []), s.get("asset_series", []))
     except (OSError, ValueError):
-        return None, {}, [], None, [], []
+        return None, {}, [], None, [], [], []
 
 
-def _save_state(path, prev_total, prev_bots, history, prev_sub_total=None, series=None, asset_history=None):
+def _save_state(path, prev_total, prev_bots, history, prev_sub_total=None, series=None, asset_history=None, asset_series=None):
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump({"prev_total": prev_total, "prev_bots": prev_bots,
                    "history": history[-HISTORY_MAX:], "prev_sub_total": prev_sub_total,
-                   "series": series or [], "asset_history": (asset_history or [])[-HISTORY_MAX:]}, f, ensure_ascii=False)
+                   "series": series or [], "asset_history": (asset_history or [])[-HISTORY_MAX:],
+                   "asset_series": asset_series or []}, f, ensure_ascii=False)
     os.replace(tmp, path)
 
 
@@ -101,6 +102,16 @@ def _ago_str(cur, series, now, ago_sec, tol_sec):
     d = cur - prev
     arrow = "-" if abs(d) < EPS else ("↑" if d > 0 else "↓")
     return f"{abs(d):.2f}%{arrow}"
+
+
+def _ago_str_asset(cur, series, now, ago_sec, tol_sec):
+    """'${변동치}{화살표}' — 총자산 금액 과거 시점 대비. 자료가 없으면 '—'."""
+    prev = _value_at(series, now, ago_sec, tol_sec)
+    if prev is None or cur is None:
+        return "—"
+    d = cur - prev
+    arrow = "-" if abs(d) < EPS else ("↑" if d > 0 else "↓")
+    return f"${abs(d):.2f}{arrow}"
 
 
 def _trend(cur, prev):
@@ -161,11 +172,10 @@ def get_bot_200min_history(b_obj):
     return history
 
 
-def build_message(data, prev_total, prev_bots, history, title_prefix="전체", sub_assets=None, sub_total=None, prev_sub_total=None, include_bot_charts=False, series=None, asset_history=None):
+def build_message(data, prev_total, prev_bots, history, title_prefix="전체", sub_assets=None, sub_total=None, prev_sub_total=None, include_bot_charts=False, series=None, asset_history=None, asset_series=None):
     s = data["summary"]
     total = s.get("daily_ret")
     days = s.get("days")
-    icon, arrow, delta = _trend(total, prev_total)
     head_days = f"{days}일" if days is not None else "—"
     tot_str = f"{total:+.2f}" if total is not None else "—"
     ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())   # 매 알림 첫 라인 = 시스템 시각
@@ -177,17 +187,18 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
     
     bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
     
-    # 직전 틱(1분) 대비에 더해 60분 전·24시간 전 대비 변동치를 붙인다.
+    # 직전 틱(1분) 대비에 더해 60분 전·24시간 전 대비 변동치를 붙인다. (보스 특별 지시: 총자산 기준 달러 변동치로 표시)
     now_ts = time.time()
-    h1 = _ago_str(total, series or [], now_ts, *LOOKBACK[0])
-    h24 = _ago_str(total, series or [], now_ts, *LOOKBACK[1])
-    h48 = _ago_str(total, series or [], now_ts, *LOOKBACK[2])
-    h72 = _ago_str(total, series or [], now_ts, *LOOKBACK[3])
+    h1m = _ago_str_asset(assets, asset_series or [], now_ts, 60, 60)
+    h1 = _ago_str_asset(assets, asset_series or [], now_ts, *LOOKBACK[0])
+    h24 = _ago_str_asset(assets, asset_series or [], now_ts, *LOOKBACK[1])
+    h48 = _ago_str_asset(assets, asset_series or [], now_ts, *LOOKBACK[2])
+    h72 = _ago_str_asset(assets, asset_series or [], now_ts, *LOOKBACK[3])
 
     lines = [ts]
     lines.append("======================================")
     lines.extend([
-             f"📊 {title_prefix} 일평균수익률 ({head_days}) : {asset_str}{delta_str}{ret_str} [1m]{delta:.2f}%{arrow} [1]{h1} [24]{h24} [48]{h48} [72]{h72}",
+             f"📊 {title_prefix} 일평균수익률 ({head_days}) : {asset_str}{delta_str}{ret_str} [1m]{h1m} [1]{h1} [24]{h24} [48]{h48} [72]{h72}",
              "─" * 38])
     bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
     for b in bots:
@@ -316,7 +327,7 @@ def recalc_data(data, exclude_names):
 
 
 def _process_single(data, path, title_prefix, include_bot_charts=False):
-    prev_total, prev_bots, history, prev_sub_total, series, asset_history = _load_state(path)
+    prev_total, prev_bots, history, prev_sub_total, series, asset_history, asset_series = _load_state(path)
     total = data["summary"].get("daily_ret")
     history.append(total)
     history = history[-HISTORY_MAX:]
@@ -330,14 +341,18 @@ def _process_single(data, path, title_prefix, include_bot_charts=False):
     series = [x for x in series if isinstance(x, (list, tuple)) and len(x) == 2
               and now_ts - x[0] <= SERIES_KEEP_SEC]
     series.append([now_ts, total])
+    
+    asset_series = [x for x in asset_series if isinstance(x, (list, tuple)) and len(x) == 2
+                    and now_ts - x[0] <= SERIES_KEEP_SEC]
+    asset_series.append([now_ts, assets])
 
     msg = build_message(data, prev_total, prev_bots, history, title_prefix,
-                        include_bot_charts=include_bot_charts, series=series, asset_history=asset_history)
+                        include_bot_charts=include_bot_charts, series=series, asset_history=asset_history, asset_series=asset_series)
     ok, info = _post(msg)
     if ok:
         new_prev_bots = {b["name"]: (b.get("daily_ret") if b.get("daily_ret") is not None else 0.0)
                          for b in data["bots"]}
-        _save_state(path, total, new_prev_bots, history, series=series, asset_history=asset_history)
+        _save_state(path, total, new_prev_bots, history, series=series, asset_history=asset_history, asset_series=asset_series)
     return ok, info
 
 
