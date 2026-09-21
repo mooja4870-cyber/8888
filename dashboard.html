@@ -1241,7 +1241,7 @@ async function loadRetChart(tf){
 function renderBotAssetSection(d) {
     const allBots = [...(d.bots||[]), ...(d.extra_bots||[])];
     // 고정 탭 순서
-    const tabs = ['전체', '8401', '8402', '8403', '8404', '8405', '8406', '8407', '8408', '8409', '8410'];
+    const tabs = ['전체', '8401', '8402', '8403', '8405', '8407', '8409', '8410'];
     
     let tabsHtml = tabs.map(t => {
         const isSel = (t === _selectedBotForAsset);
@@ -1257,7 +1257,8 @@ function renderBotAssetSection(d) {
     if (_selectedBotForAsset === '전체') {
         let min_perf_start = null;
         let min_ts = Infinity;
-        allBots.forEach(b => {
+        const calcBots = allBots.filter(b => !['8404', '8406', '8408'].includes(b.name));
+        calcBots.forEach(b => {
             if (b.perf_start) {
                 const t = new Date(b.perf_start.replace(' ', 'T')).getTime();
                 if (!isNaN(t) && t < min_ts) {
@@ -1270,13 +1271,13 @@ function renderBotAssetSection(d) {
         chartTitle = `📊 [전체] 총자산 잔고($) 추이<span style="font-size:0.8em;color:var(--muted);margin-left:8px;font-weight:normal">${elStr}</span>`;
         // 전체 합산 로직
         let all_ts = new Set();
-        allBots.forEach(b => { if(b.metrics && b.metrics.history_ts) b.metrics.history_ts.forEach(ts => all_ts.add(ts)); });
+        calcBots.forEach(b => { if(b.metrics && b.metrics.history_ts) b.metrics.history_ts.forEach(ts => all_ts.add(ts)); });
         let sorted_ts = Array.from(all_ts).sort();
         let total_assets = [];
         let total_returns = [];
         let last_known = {};
         let last_known_ret = {};
-        allBots.forEach(b => {
+        calcBots.forEach(b => {
             last_known[b.name] = b.seed || 10;
             last_known_ret[b.name] = 0;
         });
@@ -1285,7 +1286,7 @@ function renderBotAssetSection(d) {
             let sum = 0;
             let sum_ret = 0;
             let tot_seed = 0;
-            allBots.forEach(b => {
+            calcBots.forEach(b => {
                 if (b.metrics && b.metrics.history_ts && b.metrics.history_ts.includes(ts)) {
                     let idx = b.metrics.history_ts.indexOf(ts);
                     if (b.metrics.asset_history && b.metrics.asset_history[idx] != null) {
