@@ -88,9 +88,9 @@ def simulate(mode, data, maxpos, seed):
     idx = {s: {int(t): i for i, t in enumerate(P[s]["ts"])} for s in P}
     days = sorted({int(t) for s in P for t in P[s]["ts"]})[-DAYS:]
 
-    use_cap = (mode == "cur")
+    use_cap = mode in ("cur", "cur_ma")
     use_turtle = mode in ("turtle", "turtle_ma")
-    use_ma = (mode == "turtle_ma")
+    use_ma = mode in ("turtle_ma", "cur_ma", "nocap_ma")
     tp_mult = 6.0 if mode == "rr3" else 4.0
 
     open_pos, trades = [], []
@@ -192,11 +192,15 @@ def main():
     print("  " + "─" * 88)
 
     MODES = [
-        ("① 현행 ATR2/4 · 캡 8%", "cur"),
-        ("② 캡 해제",            "nocap"),
-        ("③ 터틀 20일채널 청산",  "turtle"),
-        ("④ 터틀 + 200일선 필터", "turtle_ma"),
-        ("⑤ 손익비 1:3 (TP×6)",  "rr3"),
+        ("① 현행 ATR2/4 · 캡 8%",      "cur"),
+        ("② 캡 해제",                  "nocap"),
+        ("③ 터틀 20일채널 청산",        "turtle"),
+        ("④ 터틀 + 200일선 필터",       "turtle_ma"),
+        ("⑤ 손익비 1:3 (TP×6)",        "rr3"),
+        # [2026-09-19 추가] ④는 '터틀 청산'과 '200일선 필터'의 묶음이라
+        # 각각의 기여를 알 수 없었다. 필터만 따로 떼어 잰다.
+        ("⑥ 현행 + 200일선 필터만",     "cur_ma"),
+        ("⑦ 캡해제 + 200일선 필터",     "nocap_ma"),
     ]
     out = []
     for name, mode in MODES:
