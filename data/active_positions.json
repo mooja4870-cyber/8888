@@ -1,1 +1,20 @@
-{}
+{
+  "BNB/USDT:USDT": {
+    "strategy_type": "DualBB",
+    "atr_activation": 0.015,
+    "atr_callback": 0.006,
+    "exit_profile": "SL/TP",
+    "partial_done": false,
+    "open_time": "2026-09-21T23:36:27.677413",
+    "trade_mode": ""
+  },
+  "SOL/USDT:USDT": {
+    "strategy_type": "DualBB",
+    "atr_activation": 0.015,
+    "atr_callback": 0.006,
+    "exit_profile": "SL/TP",
+    "partial_done": false,
+    "open_time": "2026-09-21T23:36:27.677474",
+    "trade_mode": ""
+  }
+}

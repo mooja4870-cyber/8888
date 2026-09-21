@@ -1,6 +1,9 @@
 {
   "trailing_highs": {},
   "trailing_lows": {},
-  "prev_position_symbols": [],
+  "prev_position_symbols": [
+    "BNB/USDT:USDT",
+    "SOL/USDT:USDT"
+  ],
   "recently_entered": {}
 }
