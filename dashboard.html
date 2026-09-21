@@ -837,8 +837,8 @@ function renderModernCanvasChart(folder, m) {
     const allVals = [...sample, m.max_dr, m.min_dr, m.curr_dr].filter(v => v !== undefined && !isNaN(v));
     const maxVal = Math.max(...allVals);
     const lo = Math.min(...allVals);
-    // [2026-09-07] Y축 7% 이하인 것은 수정하지 않고, 7% 이상인 것만 최대 7.0%로 잘라서 표기 (보스 특별 지시)
-    const hi = maxVal > 7.0 ? 7.0 : maxVal;
+    // Y축 7% 최대치 제한 취소 (보스 지시)
+    const hi = maxVal;
     const rng = (hi - lo) > 0 ? (hi - lo) : 1.0;
 
     // 글자를 133%로 키웠으므로 여백도 함께 넓힌다(안 그러면 '−0.72%'가 잘린다)
@@ -892,7 +892,7 @@ function renderModernCanvasChart(folder, m) {
         ctx.restore();
     }
 
-    // 7% 초과 영역 클리핑 (상단 컷오프)
+    // 차트 영역 초과 시 클리핑 (상단 컷오프)
     ctx.save();
     ctx.beginPath();
     ctx.rect(padLeft, padTop, plotW, plotH + 5);
