@@ -1,3 +1,22 @@
+## v13.1.0
+Date: 2026-09-21
+
+### 변경 내용
+* [8407 봇 수익 개선방안 4종 결합 적용]
+* 1. 역방향 휩쏘 스위칭 (Reverse Switching): 손절(-0.5% 이하) 시, 4시간 이내의 빠른 손절일 경우 즉시 역방향 시그널을 주입하여 손실 만회 (engine.py 수정).
+* 2. 타임아웃 강제 청산 (Max Holding Hours): 진입 후 최대 12시간 경과 시 무조건 청산하여 자본 잠김 방지 (trailing_stop_manager.py 수정).
+* 3. 변동성 기반 시드 조절 (Volatility Sizing): 진입 시점의 ADX 40 이상 초고변동성 장세일 때 시드 50% 축소 진입 (trader.py 수정).
+* 4. 부분 익절 및 본절 가드 (Partial TP / Break Even Guard): 설정 활성화 적용 (`USE_PARTIAL_TP`, `USE_BE_GUARD` true 전환).
+
+### 수정 파일
+* /Users/l/project/8407/core/engine.py
+* /Users/l/project/8407/core/trader.py
+* /Users/l/project/8407/core/trailing_stop_manager.py
+* /Users/l/project/8407/config.json
+
+### 비고
+* 8407 봇 엔진 백그라운드 재시작 및 문법 3중 자체 검증, 로그 모니터링 완료.
+
 ## v13.0.7
 Date: 2026-09-20
 
