@@ -46,7 +46,7 @@ EPS = 0.005             # 이 값 미만 변화는 '변화없음(⚪)'으로 간
 # 그래서 (시각, 값) 쌍을 따로 26시간 보관한다(1분 주기 → 약 1560개).
 # 틱이 밀리거나 앱이 잠깐 죽어도 시각으로 찾으므로 어긋나지 않는다.
 SERIES_KEEP_SEC = 100 * 3600
-LOOKBACK = ((3600, 600), (86400, 3600), (172800, 3600), (259200, 3600))   # 1h, 24h, 48h, 72h
+LOOKBACK = ((3600, 600), (21600, 1800), (43200, 1800), (86400, 3600), (172800, 3600), (259200, 3600))   # 1h, 6h, 12h, 24h, 48h, 72h
 
 
 def _load_webhook():
@@ -191,14 +191,16 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
     now_ts = time.time()
     h1m = _ago_str_asset(assets, asset_series or [], now_ts, 60, 60)
     h1 = _ago_str_asset(assets, asset_series or [], now_ts, *LOOKBACK[0])
-    h24 = _ago_str_asset(assets, asset_series or [], now_ts, *LOOKBACK[1])
-    h48 = _ago_str_asset(assets, asset_series or [], now_ts, *LOOKBACK[2])
-    h72 = _ago_str_asset(assets, asset_series or [], now_ts, *LOOKBACK[3])
+    h6 = _ago_str_asset(assets, asset_series or [], now_ts, *LOOKBACK[1])
+    h12 = _ago_str_asset(assets, asset_series or [], now_ts, *LOOKBACK[2])
+    h24 = _ago_str_asset(assets, asset_series or [], now_ts, *LOOKBACK[3])
+    h48 = _ago_str_asset(assets, asset_series or [], now_ts, *LOOKBACK[4])
+    h72 = _ago_str_asset(assets, asset_series or [], now_ts, *LOOKBACK[5])
 
     lines = [ts]
     lines.append("======================================")
     lines.extend([
-             f"📊 {title_prefix} 일평균수익률 ({head_days}) : {asset_str}{delta_str}{ret_str} [1m]{h1m} [1]{h1} [24]{h24} [48]{h48} [72]{h72}",
+             f"📊 {title_prefix} 일평균수익률 ({head_days}) : {asset_str}{delta_str}{ret_str} [1m]{h1m} [1]{h1} [6]{h6} [12]{h12} [24]{h24} [48]{h48} [72]{h72}",
              "─" * 38])
     bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
     for b in bots:
