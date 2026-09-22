@@ -1251,6 +1251,11 @@ def bot_status(folder, port, ex):
             r["holding"] = (r.get("ex_used") or 0) > 0.02 or (r.get("ex_poscount") or 0) > 0
         else:
             r["holding"] = len(r["positions"]) > 0 if r.get("positions") is not None else None
+            
+    if r.get("ex_ok") and r.get("ex_balance") is not None:
+        r["current_asset"] = float(r["ex_balance"])
+    else:
+        r["current_asset"] = float(r.get("seed") or 0) + float(r.get("total") if r.get("total") is not None else r.get("since_pnl", 0))
     
     r["metrics"] = calc_bot_metrics(folder, r)
     return r
@@ -1319,7 +1324,7 @@ def calc_bot_metrics(folder, bot_dict):
         max_recs = [rec for rec in records if rec[1] == max_val]
         min_recs = [rec for rec in records if rec[1] == min_val]
         
-        curr_ex_bal = bot_dict.get("ex_balance")
+        curr_ex_bal = bot_dict.get("current_asset")
         if curr_ex_bal is None or float(curr_ex_bal) <= 0:
             curr_ex_bal = records[-1][2]
         curr_dr = bot_dict.get("daily_ret") if bot_dict.get("daily_ret") is not None else records[-1][1]
@@ -1344,7 +1349,7 @@ def calc_bot_metrics(folder, bot_dict):
         asset_history = [rec[2] for rec in _sampled]
         rolling_history = rolling_24h_all[::step]
         
-        if not history or history[-1] != curr_dr:
+        if True: # [Fix] 항상 현재 잔고를 마지막에 강제 추가하여 차트와 요약 일치 보장
             history.append(curr_dr)
             history_ts.append(time.strftime("%Y-%m-%d %H:%M:%S"))
             asset_history.append(float(curr_ex_bal))
@@ -1396,8 +1401,7 @@ def collect_bots(bot_tuples):
     assets = 0.0
     seed = 0.0
     for b in bots:
-        bal = b["ex_balance"] if (b.get("ex_ok") and b.get("ex_balance") is not None) \
-              else ((b["seed"] or 0) + (b["total"] or 0))
+        bal = b.get("current_asset", 0.0)
         bseed = b["seed"] if b["seed"] else bal
         assets += bal
         seed += bseed
