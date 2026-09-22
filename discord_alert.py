@@ -252,6 +252,8 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
         if seq_str:
             lines.append(f"  {seq_str}")
             
+        if b_name_short == "8406":
+            lines.append("──────────────────────────────────────")
 
         
         # 차트 출력 기능 비활성화 (보스 요청)
