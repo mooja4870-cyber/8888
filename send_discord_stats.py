@@ -21,11 +21,10 @@ GROUP_1_BOTS = [
 GROUP_2_BOTS = [
     ("8403", "8403_OKX"),
     ("8405", "8405_OKX"),
-    ("8406", "8406_OKX"),
     ("8407", "8407_BNC"),
     ("8409", "8409_BNC"),
 ]
-BOTS = GROUP_3_BOTS + GROUP_1_BOTS + GROUP_2_BOTS
+BOTS = GROUP_1_BOTS + GROUP_2_BOTS
 
 INTERVALS = [
     ("1h", 3600, "1시간"),

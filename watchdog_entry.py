@@ -21,7 +21,7 @@ from datetime import datetime, timedelta, timezone
 
 # 상시 기본 관리 대상 5개 핵심 봇 최우선 순찰
 CORE_BOTS = [8401, 8402, 8407, 8409, 8410]
-BOT_LIST = [8401, 8402, 8403, 8404, 8405, 8407, 8408, 8409, 8410]
+BOT_LIST = [8401, 8402, 8403, 8405, 8407, 8409, 8410]
 HEALTH_CHECK_SEC = 60  # 1 minute for process health
 CONFIG_CHECK_CYCLES = 5  # Check config drift every 5 cycles (5 minutes)
 FLAT_BOT_CHECK_CYCLES = 5  # [보스 지침] 5분 주기 무포지션 봇 정밀 건전성 감사 및 적의조치
