@@ -518,7 +518,14 @@ function render(d,anim){
      <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">데드캣 락온 (쿨다운)</td>
      ${d.bots.map(b=>'<td style="padding:8px;text-align:center;font-weight:600">'+((b.config&&b.config.ui_deadcat_lock)?'<span style="color:var(--green)">O</span>':'<span style="color:#e24b4a">X</span>')+'</td>').join("")}
     </tr>
-   </tbody>
+    <tr style="border-top:1px solid var(--border);background:var(--card2)">
+      <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">구분</td>
+      ${d.bots.map(b=>{
+       const isbf=(b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog);
+       return '<td style="padding:8px;text-align:center;font-weight:700">'+(isbf?'<span style="color:#ff5a5a;font-weight:bold;margin-right:3px;">[역]</span>':'<span style="color:#4d9fff;font-weight:bold;margin-right:3px;">[순]</span>')+b.name+'</td>';
+      }).join("")}
+     </tr>
+    </tbody>
   </table>`;
   const _periods=[['1h','1시간 내'],['6h','6시간 내'],['12h','12시간 내'],['24h','24시간 내'],['48h','48시간 내'],['72h','72시간 내'],['1w','1주일간']];
  const entryTable=`<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:14px;font-weight:600">
