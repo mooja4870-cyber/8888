@@ -1994,6 +1994,26 @@ Date: 2026-08-26
 
 # Version History
 
+## v13.0.16
+
+Date: 2026-09-22
+
+### 변경 내용
+* 대시보드 UI '전체' 탭 통계 산출 로직에 8406 봇 포함(집계 대상 복구)
+* 대시보드 UI 상단 개별 봇 탭 목록에 8406 버튼 추가
+* 통합 관제 메인 모듈(app.py)의 BOTS 리스트에 8406 정식 추가
+* 디스코드 실시간 알림(discord_alert.py) 및 통계 리포트 발송 로직(send_discord_stats.py, send_discord_hourly_graph.py)의 그룹2 대상에 8406 봇 편입
+
+### 수정 파일
+* app.py
+* dashboard.html
+* discord_alert.py
+* send_discord_stats.py
+* send_discord_hourly_graph.py
+
+### 비고
+* 사용자 요청 사항(8406 전체 시스템 편입) 반영 완료
+
 ## v13.0.15
 
 Date: 2026-09-22
@@ -6566,6 +6586,26 @@ Date: 2026-08-29
 * dashboard.html
 
 # Version History
+
+## v13.0.16
+
+Date: 2026-09-22
+
+### 변경 내용
+* 대시보드 UI '전체' 탭 통계 산출 로직에 8406 봇 포함(집계 대상 복구)
+* 대시보드 UI 상단 개별 봇 탭 목록에 8406 버튼 추가
+* 통합 관제 메인 모듈(app.py)의 BOTS 리스트에 8406 정식 추가
+* 디스코드 실시간 알림(discord_alert.py) 및 통계 리포트 발송 로직(send_discord_stats.py, send_discord_hourly_graph.py)의 그룹2 대상에 8406 봇 편입
+
+### 수정 파일
+* app.py
+* dashboard.html
+* discord_alert.py
+* send_discord_stats.py
+* send_discord_hourly_graph.py
+
+### 비고
+* 사용자 요청 사항(8406 전체 시스템 편입) 반영 완료
 
 ## v13.0.15
 

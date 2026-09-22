@@ -78,7 +78,7 @@ SEED_OVERRIDE = None     # 전체 기준금(초기자본금 합). None=각 봇 s
 BOTS = [
     ("8401", 8401, "OKX"),    ("8402", 8402, "OKX"),
     ("8403", 8403, "OKX"),    ("8404", 8404, "OKX"),
-    ("8405", 8405, "OKX"),    
+    ("8405", 8405, "OKX"),    ("8406", 8406, "OKX"),
     ("8407", 8407, "BNC"),    ("8408", 8408, "BNC"),    ("8409", 8409, "BNC"),    ("8410", 8410, "BNC"),
 ]
 
@@ -1453,7 +1453,7 @@ def collect():
     data = collect_bots(BOTS)
     
     # 8406, 8408 등 대시보드 탭 차트를 위해 추가적인 봇 데이터 조회 (메인 요약 및 알림에는 미포함)
-    extra_tuples = [("8406", 8406, "OKX"), ("8408", 8408, "BNC")]
+    extra_tuples = [("8408", 8408, "BNC")]
     data["extra_bots"] = collect_bots(extra_tuples)["bots"]
     return data
 

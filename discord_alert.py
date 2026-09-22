@@ -418,7 +418,7 @@ def _process_subset(data, target_names, state_suffix, title_prefix, include_bot_
 def tick(data, tick_count=0, include_bot_charts=False):
     """집계 1건을 받아 매 1분마다 디스코드 알림 발송 및 상태 갱신 (그룹 1, 그룹 2 분할 발송)."""
     group1 = {"8401", "8402", "8410"}
-    group2 = {"8403", "8404", "8405", "8407", "8408", "8409"}
+    group2 = {"8403", "8404", "8405", "8406", "8407", "8408", "8409"}
     
     ok1, info1 = _process_subset(data, group1, "_g1.json", "그룹 1", include_bot_charts=include_bot_charts)
     import time

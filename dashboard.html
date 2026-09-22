@@ -1241,7 +1241,7 @@ async function loadRetChart(tf){
 function renderBotAssetSection(d) {
     const allBots = [...(d.bots||[]), ...(d.extra_bots||[])];
     // 고정 탭 순서
-    const tabs = ['전체', '8401', '8402', '8403', '8404', '8405', '8407', '8408', '8409', '8410'];
+    const tabs = ['전체', '8401', '8402', '8403', '8404', '8405', '8406', '8407', '8408', '8409', '8410'];
     
     let tabsHtml = tabs.map(t => {
         const isSel = (t === _selectedBotForAsset);
@@ -1257,7 +1257,7 @@ function renderBotAssetSection(d) {
     if (_selectedBotForAsset === '전체') {
         let min_perf_start = null;
         let min_ts = Infinity;
-        const calcBots = allBots.filter(b => !['8406'].includes(b.name));
+        const calcBots = allBots.filter(b => ![''].includes(b.name));
         calcBots.forEach(b => {
             if (b.perf_start) {
                 const t = new Date(b.perf_start.replace(' ', 'T')).getTime();
