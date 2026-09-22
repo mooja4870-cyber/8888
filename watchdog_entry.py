@@ -189,7 +189,8 @@ def check_entry_failure_readiness(b: int, cwd: str) -> tuple:
     """
     order_err_keywords = [
         "주문 거절", "주문 실패", "order's notional must be no smaller than",
-        "-4164", "order timeout/error", "최소 주문 단위", "무방비 진입"
+        "-4164", "order timeout/error", "최소 주문 단위", "무방비 진입",
+        "증거금 설정 오류", "가용 증거금 부족"
     ]
     now_kst = datetime.utcnow() + timedelta(hours=9)
     recent_fails = []
@@ -235,6 +236,12 @@ def check_entry_failure_readiness(b: int, cwd: str) -> tuple:
         if "notional" in last_fail.lower() or "-4164" in last_fail:
             err_type = "NOTIONAL_MIN_ERROR"
             reason_summary = "최소 주문 명목가치(Notional < 5 USDT) 미달 거절"
+        elif "증거금 설정 오류" in last_fail:
+            err_type = "MARGIN_SETTING_ERROR"
+            reason_summary = "증거금 하한선($1) 미달에 의한 진입 차단"
+        elif "가용 증거금 부족" in last_fail:
+            err_type = "AVAILABLE_MARGIN_ERROR"
+            reason_summary = "요구 증거금이 가용 잔고를 초과하여 진입 차단"
         elif "insufficient" in last_fail.lower() or "잔고" in last_fail:
             err_type = "INSUFFICIENT_FUNDS"
             reason_summary = "증거금 잔고 부족 주문 거절"
@@ -332,6 +339,11 @@ def check_flat_bot_readiness(b: int, cwd: str) -> tuple:
 
     return False, "무포지션 대기 중 정상 (정상 스캔 지속)"
 
+def run_entry_recovery_global():
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "entry_recovery.py")
+    if os.path.exists(script):
+        subprocess.run(["python3", script], capture_output=True)
+
 def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool = False, do_audit_33: bool = False):
     cwd = f"/Users/l/project/{b}"
     if not os.path.exists(cwd):
@@ -418,7 +430,7 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                 logger.warning(f"[{b}] 🚨 진입 주문 거절/실패 이상 감지: {entry_reason}")
                 action_taken.append(entry_reason)
                 
-                # [적의조처: Notional 미달 자동 치유]
+                # [적의조처: 에러 유형별 자동 치유]
                 if err_type == "NOTIONAL_MIN_ERROR":
                     cfg_file = os.path.join(cwd, "config.json")
                     if os.path.exists(cfg_file):
@@ -437,6 +449,40 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                                 action_taken.append(msg_fix)
                         except Exception as ce:
                             logger.error(f"[{b}] config.json Notional 치유 실패: {ce}")
+                elif err_type == "MARGIN_SETTING_ERROR":
+                    cfg_file = os.path.join(cwd, "config.json")
+                    if os.path.exists(cfg_file):
+                        try:
+                            with open(cfg_file, "r", encoding="utf-8") as cf:
+                                b_cfg = json.load(cf)
+                            cur_factor = float(b_cfg.get("EQUITY_SCALE_FACTOR", 1.0) or 1.0)
+                            if cur_factor < 1.0:
+                                b_cfg["EQUITY_SCALE_FACTOR"] = 1.0
+                                with open(cfg_file, "w", encoding="utf-8") as cf:
+                                    json.dump(b_cfg, cf, indent=4, ensure_ascii=False)
+                                msg_fix = f"EQUITY_SCALE_FACTOR 자가 상향 치유({cur_factor}→1.0)"
+                                logger.info(f"[{b}] 🛠 {msg_fix}")
+                                action_taken.append(msg_fix)
+                        except Exception as ce:
+                            logger.error(f"[{b}] config.json MARGIN_SETTING_ERROR 치유 실패: {ce}")
+                elif err_type == "AVAILABLE_MARGIN_ERROR":
+                    state_file = os.path.join(cwd, "data", "dynamic_compound_state.json")
+                    if os.path.exists(state_file):
+                        try:
+                            with open(state_file, "r", encoding="utf-8") as sf:
+                                state_data = json.load(sf)
+                            cur_pct = state_data.get("target_pct", 0.0)
+                            if cur_pct > 3.0:
+                                new_pct = round(cur_pct - 3.0, 1)
+                                state_data["target_pct"] = new_pct
+                                with open(state_file, "w", encoding="utf-8") as sf:
+                                    json.dump(state_data, sf, indent=4, ensure_ascii=False)
+                                msg_fix = f"복리 목표율(target_pct) 하향 튜닝({cur_pct}%→{new_pct}%)"
+                                logger.info(f"[{b}] 🛠 {msg_fix}")
+                                action_taken.append(msg_fix)
+                        except Exception as ce:
+                            logger.error(f"[{b}] dynamic_compound_state 치유 실패: {ce}")
+                
                 needs_restart = True
             else:
                 # 2) 무포지션 봇 정밀 건전성 감사
@@ -530,6 +576,8 @@ def main():
         do_flat_check = (cycle % FLAT_BOT_CHECK_CYCLES == 0) or (cycle == 1)
         do_audit_33 = (cycle % AUDIT_33_CYCLES == 0)
         
+        run_entry_recovery_global()
+
         logger.info(f"--- 순찰 사이클 {cycle} 시작 (Config 검증: {do_config_check}, 무포지션 감사: {do_flat_check}, 33대 감사: {do_audit_33}) ---")
         for bot in BOT_LIST:
             try:

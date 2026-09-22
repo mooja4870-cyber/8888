@@ -289,6 +289,21 @@ def run_config_sentinel():
         log(f"⚠️ 조건 감시 실행 실패: {str(e)[:150]}")
 
 
+def run_entry_recovery():
+    """진입유실(Orphaned Exit) 자가 치유. 청산 기록만 있는 경우 수익금을 기반으로 진입 기록을 역산하여 삽입한다."""
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "entry_recovery.py")
+    if not os.path.exists(script):
+        return
+    try:
+        r = subprocess.run([sys.executable, script], capture_output=True, text=True, timeout=300)
+        out = (r.stdout or r.stderr or "").strip().splitlines()
+        if out and "이상 없음" not in out[-1]:
+            log("🚑 진입유실 복구 — " + " | ".join(out[-2:]))
+    except Exception as e:
+        log(f"⚠️ 진입유실 복구 실행 실패: {str(e)[:150]}")
+
+        run_entry_recovery()
+
 def run_ledger_sync():
     """봇이 놓친 청산을 거래소 원장에서 찾아 매매이력에 채운다(ledger_sync.py).
 
@@ -315,6 +330,8 @@ def main():
         f" · 수익성 점검 {PGUARD_INTERVAL//60}분 주기 · 조건 감시 매 주기")
     while True:
         # run_config_sentinel()  # [2026-08-26] 봇 설정 자동복원 기능 삭제
+        run_entry_recovery()
+
         run_ledger_sync()
         run_profit_guard()
         launched_any = False
