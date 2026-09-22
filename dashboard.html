@@ -1239,7 +1239,8 @@ async function loadRetChart(tf){
 
 // ===== 봇별 총자산 추이 (인라인) =====
 function renderBotAssetSection(d) {
-    const allBots = [...(d.bots||[]), ...(d.extra_bots||[])];
+    const _rawBots = [...(d.bots||[]), ...(d.extra_bots||[])];
+    const allBots = Array.from(new Map(_rawBots.map(b => [b.name, b])).values());
     // 고정 탭 순서
     const tabs = ['전체', '8401', '8402', '8403', '8404', '8405', '8406', '8407', '8408', '8409', '8410'];
     
