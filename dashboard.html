@@ -192,6 +192,7 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
+Chart.Tooltip.positioners.cursor = function(elements, eventPosition) { return { x: eventPosition.x, y: eventPosition.y }; };
 let chart=null;
 let _lastData=null;
 var _botAssetChart=null;
@@ -699,7 +700,7 @@ function showBotModal(botName,port){
                   options: {
                       responsive: true,
                       maintainAspectRatio: false,
-                      plugins: { legend: { display: false } },
+                      plugins: { legend: { display: false } , tooltip: { position: 'cursor' } },
                       scales: {
                           x: { display: false },
                           y: { display: true, grid: { color: 'rgba(255, 255, 255, 0.05)' } }
@@ -1160,7 +1161,7 @@ async function loadAssetChart(tf){
      x:{grid:{display:false},ticks:{color:'#8b93a5',maxTicksLimit:14,autoSkip:true}}
     },
     plugins:{legend:{labels:{color:'#e8eaf0',font:{size:13}}},
-     tooltip:{backgroundColor:'rgba(0,0,0,0.85)',titleColor:'#2dbd85',bodyColor:'#fff',borderColor:'#2dbd85',borderWidth:1,padding:10,
+     tooltip:{position:"cursor",backgroundColor:'rgba(0,0,0,0.85)',titleColor:'#2dbd85',bodyColor:'#fff',borderColor:'#2dbd85',borderWidth:1,padding:10,
       callbacks:{label:c=>{const v=c.parsed.y;if(v==null)return c.dataset.label+': —';return c.dataset.label+': '+(c.dataset.yAxisID==='yB'?'$'+v.toLocaleString():v.toFixed(2)+' U')}}}}
    }}
   );
@@ -1234,7 +1235,7 @@ async function loadRetChart(tf){
      x:{grid:{display:false},ticks:{color:'#8b93a5',maxTicksLimit:14,autoSkip:true}}
     },
     plugins:{legend:{labels:{color:'#e8eaf0',font:{size:13}}},
-     tooltip:{backgroundColor:'rgba(0,0,0,0.85)',titleColor:'#2dbd85',bodyColor:'#fff',borderColor:'#2dbd85',borderWidth:1,padding:10,
+     tooltip:{position:"cursor",backgroundColor:'rgba(0,0,0,0.85)',titleColor:'#2dbd85',bodyColor:'#fff',borderColor:'#2dbd85',borderWidth:1,padding:10,
       callbacks:{label:c=>{const v=c.parsed.y;if(v==null)return c.dataset.label+': —';return c.dataset.label+': '+(c.dataset.yAxisID==='yB'?'$'+v.toLocaleString():(v>0?'+':'')+v.toFixed(2)+'%');}}}}
    }}
   );
@@ -1390,9 +1391,11 @@ function renderBotAssetSection(d) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
             plugins: { 
                 legend: { display: true, labels: { color: '#8b93a5', boxWidth: 12, usePointStyle: true, padding: 20 } },
                 tooltip: {
+                    position: 'cursor',
                     backgroundColor: 'rgba(0,0,0,0.85)', titleColor: '#fff', bodyColor: '#fff',
                     borderColor: '#3a445d', borderWidth: 1, padding: 10,
                     callbacks: {
