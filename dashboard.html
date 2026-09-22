@@ -192,7 +192,23 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
-Chart.Tooltip.positioners.cursor = function(elements, eventPosition) { return { x: eventPosition.x, y: eventPosition.y }; };
+Chart.Tooltip.positioners.cursor = function(elements, eventPosition) { if(!eventPosition) return false; return { x: eventPosition.x, y: eventPosition.y }; };
+Chart.register({
+  id: "cursorTracker",
+  afterEvent: function(chart, args) {
+    const e = args.event;
+    if (e.type === "mousemove") {
+      const tooltip = chart.tooltip;
+      if (tooltip) {
+        const active = tooltip.getActiveElements();
+        if (active.length > 0) {
+           tooltip.setActiveElements(active, e);
+           args.changed = true;
+        }
+      }
+    }
+  }
+});
 let chart=null;
 let _lastData=null;
 var _botAssetChart=null;
