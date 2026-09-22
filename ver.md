@@ -1,3 +1,19 @@
+## v13.1.11
+Date: 2026-09-22
+
+### 변경 내용
+* 대시보드 UI 하드코딩 탈피 및 동적 바인딩(Dynamic Binding) 구현
+* `app.py` `read_bot_config`에 4대 매크로 기능(다이렉트 즉각 익절, 즉각 조기 손절, 양방향 시황 감지, 데드캣 락온) UI 플래그(`ui_direct_tp`, `ui_early_sl`, `ui_macro_detect`, `ui_deadcat_lock`) 동적 추출 로직 추가
+* `index.html`, `dashboard.html`에서 특정 봇 번호 하드코딩 제거 및 `b.config.ui_*` 연동 반영
+
+### 수정 파일
+* app.py
+* index.html
+* dashboard.html
+
+### 비고
+* UI 렌더링 3중 검증 (API JSON 확인) 및 8888 앱 재기동 완료
+
 ## v13.1.10
 Date: 2026-09-22
 

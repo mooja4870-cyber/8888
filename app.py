@@ -632,6 +632,10 @@ def read_bot_config(folder):
             "USE_AUTO_COMPOUND": cfg.get("USE_AUTO_COMPOUND", False),
             "AUTO_COMPOUND_PCT": cfg.get("AUTO_COMPOUND_PCT", 0.0),
             "use_auto_mode_switch": auto_switch,
+            "ui_direct_tp": bool(cfg.get("USE_BE_GUARD", False) or cfg.get("USE_PARTIAL_TP", False)),
+            "ui_early_sl": bool(cfg.get("USE_TIME_STOP", False) or cfg.get("USE_TIMEOUT_EXIT", False) or cfg.get("USE_DYNAMIC_SLTP", False)),
+            "ui_macro_detect": bool(cfg.get("USE_REGIME_FILTER", False) or cfg.get("USE_DYNAMIC_REGIME", False)),
+            "ui_deadcat_lock": bool(cfg.get("COOLDOWN_LOSS_COUNT", 0) > 0 or cfg.get("REENTRY_BLOCK_MIN", 0) > 0),
         }
     except (OSError, json.JSONDecodeError, ValueError):
         return {k: "—" for k in ["leverage", "margin_usdt", "max_positions", "stop_loss_pct",
