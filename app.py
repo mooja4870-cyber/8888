@@ -77,9 +77,10 @@ SEED_OVERRIDE = None     # 전체 기준금(초기자본금 합). None=각 봇 s
 # [2026-09-15] 집계 및 관제 대상 11개 봇 (8401, 8402, 8403, 8404, 8405, 8406, 8407, 8408, 8409, 8410)
 BOTS = [
     ("8401", 8401, "OKX"),    ("8402", 8402, "OKX"),
-    ("8403", 8403, "OKX"),    
-    ("8405", 8405, "OKX"),    
-    ("8407", 8407, "BNC"),    ("8409", 8409, "BNC"),    ("8410", 8410, "BNC"),
+    ("8403", 8403, "OKX"),    ("8404", 8404, "OKX"),
+    ("8405", 8405, "OKX"),    ("8406", 8406, "OKX"),
+    ("8407", 8407, "BNC"),    ("8408", 8408, "BNC"),
+    ("8409", 8409, "BNC"),    ("8410", 8410, "BNC"),
 ]
 
 
@@ -422,9 +423,26 @@ def hist_metrics(path, perf_start, pos_count=0):
     now = time.time()
     periods = {"1h": 3600, "4h": 14400, "6h": 21600, "12h": 43200, "24h": 86400,
                "48h": 172800, "72h": 259200, "1w": 604800}
+    # [v8.21.0] 활성화된 현재 포지션 진입 시각도 윈도우에 포함하여 진입 횟수 계산 (역사 초기화 후 누락 방지)
+    active_entry_times = []
+    try:
+        apos_path = os.path.join(os.path.dirname(path), "active_positions.json")
+        if os.path.exists(apos_path):
+            import json
+            with open(apos_path, "r", encoding="utf-8") as f:
+                apos = json.load(f)
+            for _, v in apos.items():
+                ot = v.get("open_time")
+                if ot:
+                    # '2026-09-23T08:37:00.017619' 형식 지원
+                    active_entry_times.append(ot.replace("T", " ")[:19])
+    except Exception:
+        pass
+
     entries_by_period = {}
     for key, secs in periods.items():
-        cutoff = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now - secs))
+        pure_cutoff = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now - secs))
+        cutoff = pure_cutoff
         if ps and cutoff < ps:
             cutoff = ps
         # 1. 해당 윈도우 내에 진입한 거래 건수 산출
@@ -432,6 +450,24 @@ def hist_metrics(path, perf_start, pos_count=0):
         for ts, oid in entries:
             if ts >= cutoff:
                 entered_oids.add(oid)
+        
+        # 현재 활성 포지션들의 진입 시각도 합산
+        for i, ot in enumerate(active_entry_times):
+            if ot >= pure_cutoff:
+                # 중복 방지: CSV에 이미 60초 내외로 기록된 진입건이 있는지 확인
+                try:
+                    ot_sec = time.mktime(time.strptime(ot[:19], "%Y-%m-%d %H:%M:%S"))
+                    already_counted = False
+                    for ts, oid in entries:
+                        ts_sec = time.mktime(time.strptime(ts[:19], "%Y-%m-%d %H:%M:%S"))
+                        if abs(ts_sec - ot_sec) < 60:
+                            already_counted = True
+                            break
+                    if not already_counted:
+                        entered_oids.add(f"active_{i}")
+                except Exception:
+                    entered_oids.add(f"active_{i}")
+                
         entries_by_period[key] = len(entered_oids)
 
     return {"today_pnl": round(today_pnl, 4), "today_w": tw, "today_l": tl,
@@ -1395,11 +1431,7 @@ def bot_days(perf_start):
 
 # [2026-09-14] 집계 및 디스코드 알림 제외 대상 봇 (8403, 8405)
 EXCLUDED_BOTS = [
-    ("8403", 8403, "OKX"),
-    ("8404", 8404, "OKX"),
-    ("8405", 8405, "OKX"),
-    ("8406", 8406, "OKX"),
-    ("8408", 8408, "BNC"),
+    # No excluded bots
 ]
 
 
@@ -1982,7 +2014,7 @@ def discord_listener_loop():
 def run_check_auto_mode_switch_all():
     """전체 8개 봇 실시간 매매방향 자동 스위칭(최근 5전 중 2패 이상 시 대칭 반전) 격리 프로세스 실행 함수"""
     import subprocess
-    target_bots = ["8401", "8402", "8403", "8405", "8407", "8409", "8410"]
+    target_bots = ["8401", "8402", "8403", "8404", "8405", "8406", "8407", "8408", "8409", "8410"]
     for b in target_bots:
         bot_path = os.path.join(os.path.dirname(BASE), str(b))
         if os.path.exists(f"{bot_path}/core/engine.py"):
@@ -2019,7 +2051,7 @@ def get_file_hash(path):
 def checksum_guard_loop():
     """8개 봇의 핵심 로직 파일 변조 감시 및 자동 롤백 스레드"""
     time.sleep(10)
-    target_bots = ["8401", "8402", "8403", "8405", "8407", "8409", "8410"]
+    target_bots = ["8401", "8402", "8403", "8404", "8405", "8406", "8407", "8408", "8409", "8410"]
     target_files = ["bot.py", "core/strategy.py", "core/trader.py", "core/engine.py", "config.json"]
     
     while True:
