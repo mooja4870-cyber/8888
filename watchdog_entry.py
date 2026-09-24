@@ -21,7 +21,7 @@ from datetime import datetime, timedelta, timezone
 
 # 상시 기본 관리 대상 5개 핵심 봇 최우선 순찰
 CORE_BOTS = [8401, 8402, 8407, 8409, 8410]
-BOT_LIST = [8401, 8402, 8403, 8405, 8407, 8409, 8410]
+BOT_LIST = [8401, 8402, 8403, 8404, 8405, 8406, 8407, 8408, 8409, 8410]
 HEALTH_CHECK_SEC = 60  # 1 minute for process health
 CONFIG_CHECK_CYCLES = 5  # Check config drift every 5 cycles (5 minutes)
 FLAT_BOT_CHECK_CYCLES = 5  # [보스 지침] 5분 주기 무포지션 봇 정밀 건전성 감사 및 적의조치
@@ -190,7 +190,9 @@ def check_entry_failure_readiness(b: int, cwd: str) -> tuple:
     order_err_keywords = [
         "주문 거절", "주문 실패", "order's notional must be no smaller than",
         "-4164", "order timeout/error", "최소 주문 단위", "무방비 진입",
-        "증거금 설정 오류", "가용 증거금 부족"
+        "증거금 설정 오류", "가용 증거금 부족",
+        "name 'cfg' is not defined", "ohlcv 조회 실패",
+        "minimum amount precision", "partial tp 실패", "시황 조회 실패"
     ]
     now_kst = datetime.utcnow() + timedelta(hours=9)
     recent_fails = []
@@ -236,6 +238,15 @@ def check_entry_failure_readiness(b: int, cwd: str) -> tuple:
         if "notional" in last_fail.lower() or "-4164" in last_fail:
             err_type = "NOTIONAL_MIN_ERROR"
             reason_summary = "최소 주문 명목가치(Notional < 5 USDT) 미달 거절"
+        elif "cfg' is not defined" in last_fail.lower():
+            err_type = "CFG_REFERENCE_ERROR"
+            reason_summary = "BTC CONTEXT 등 CFG 객체 참조 실패 (변수 미정의 오류)"
+        elif "ohlcv 조회 실패" in last_fail.lower() or "시황 조회 실패" in last_fail.lower():
+            err_type = "TICKER_FETCH_ERROR"
+            reason_summary = "거래소 티커 심볼 불일치 등으로 시황 조회 실패"
+        elif "minimum amount precision" in last_fail.lower() or "partial tp 실패" in last_fail.lower():
+            err_type = "PARTIAL_TP_PRECISION_ERROR"
+            reason_summary = "최소 주문수량(precision) 미달로 인한 주문/부분청산 실패"
         elif "증거금 설정 오류" in last_fail:
             err_type = "MARGIN_SETTING_ERROR"
             reason_summary = "증거금 하한선($1) 미달에 의한 진입 차단"
