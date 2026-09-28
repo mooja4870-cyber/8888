@@ -646,6 +646,18 @@ def read_bot_config(folder):
 
         # 5. 순/역 모드
         use_bf = cfg.get("USE_BLUEFROG", False)
+        # [FACT CHECK] 실제 파이썬 엔진 설정(core/config.py)을 읽어 100% 동기화 강제
+        actual_py_path = os.path.join(BASE, folder, "core", "config.py")
+        if os.path.exists(actual_py_path):
+            try:
+                with open(actual_py_path, "r", encoding="utf-8", errors="ignore") as pf:
+                    py_code = pf.read()
+                    if "USE_BLUEFROG: bool = True" in py_code or "USE_BLUEFROG = True" in py_code:
+                        use_bf = True
+                    elif "USE_BLUEFROG: bool = False" in py_code or "USE_BLUEFROG = False" in py_code:
+                        use_bf = False
+            except Exception:
+                pass
 
         # 6. 자동반전 플래그 (메타 우선)
         if meta and "auto_switch" in meta:
