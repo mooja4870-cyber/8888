@@ -1389,18 +1389,6 @@ function renderBotAssetSection(d) {
                     pointHoverRadius: 4,
                     fill: true,
                     tension: 0.4
-                },
-                {
-                    label: '최근 24h 수익률(%)',
-                    data: chartData.data_ret,
-                    yAxisID: 'y1',
-                    borderColor: '#e24b4a',
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    pointHoverRadius: 4,
-                    fill: false,
-                    tension: 0.4
                 }
             ]
         },
@@ -1409,7 +1397,7 @@ function renderBotAssetSection(d) {
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             plugins: { 
-                legend: { display: true, labels: { color: '#8b93a5', boxWidth: 0, padding: 20 } },
+                legend: { display: true, labels: { color: '#8b93a5', boxWidth: 12, usePointStyle: true, padding: 20 } },
                 tooltip: {
                     position: 'cursor',
                     backgroundColor: 'rgba(0,0,0,0.85)', titleColor: '#fff', bodyColor: '#fff',
@@ -1418,11 +1406,7 @@ function renderBotAssetSection(d) {
                         label: function(context) {
                             let label = context.dataset.label || '';
                             if (label) label += ': ';
-                            if (context.datasetIndex === 0) {
-                                label += '$' + context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                            } else {
-                                label += context.parsed.y.toFixed(2) + '%';
-                            }
+                            label += '$' + context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                             return label;
                         }
                     }
@@ -1436,13 +1420,6 @@ function renderBotAssetSection(d) {
                     position: 'left',
                     grid: { color: 'rgba(255, 255, 255, 0.05)' }, 
                     ticks: { color: '#9fb0d8' } 
-                },
-                y1: {
-                    type: 'linear',
-                    display: true,
-                    position: 'right',
-                    grid: { display: false },
-                    ticks: { color: '#e24b4a' }
                 }
             },
             interaction: { mode: 'index', intersect: false }
