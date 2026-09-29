@@ -124,15 +124,20 @@ def _trend(cur, prev):
 
 def ascii_chart(vals, width=CHART_WIDTH, height=CHART_HEIGHT):
     """1분 단위 값 리스트 → ASCII 라인차트."""
-    vals = [v for v in vals if v is not None][-width:]
+    vals = [v for v in vals if v is not None and isinstance(v, (int, float))]
+    vals = vals[-width:]
     if not vals:
         return ""
     lo, hi = min(vals), max(vals)
-    rng = (hi - lo) or 1.0
+    rng = (hi - lo) if abs(hi - lo) > 1e-9 else 1.0
     rows = [[" "] * len(vals) for _ in range(height)]
     for col, v in enumerate(vals):
-        r = round((hi - v) / rng * (height - 1))   # hi→0행(상단), lo→마지막행(하단)
-        rows[r][col] = "•"
+        try:
+            r = round((hi - v) / rng * (height - 1))   # hi→0행(상단), lo→마지막행(하단)
+            r = max(0, min(height - 1, r))
+            rows[r][col] = "•"
+        except (ValueError, TypeError, ZeroDivisionError):
+            pass
     out = ["".join(row) for row in rows]
     return "\n".join(out)
 
@@ -205,16 +210,25 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
     bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
     for b in bots:
         dr = b.get("daily_ret")
-        dr = dr if dr is not None else 0.0
+        dr = float(dr) if dr is not None else 0.0
         pic, parrow, pdelta = _trend(dr, prev_bots.get(b["name"]))
         eb = b.get("entries_by_period") or {}
-        ent1 = eb.get("1h", 0)   # 최근 1시간 진입 횟수
-        ent4 = eb.get("4h", 0)   # 최근 4시간 진입 횟수
-        ent12 = eb.get("12h", 0) # 최근 12시간 진입 횟수
-        ent24 = eb.get("24h", 0) # 최근 24시간 진입 횟수
-        orders = b.get("since_orders") or 0   # 누적 주문수(=청산 횟수)
-        sw = b.get("since_w") or 0
-        sl = b.get("since_l") or 0
+        
+        # 100항목 체크리스트: 변수가 None이거나 잘못된 타입일 때 포맷팅(02d) 예외 차단
+        def _safe_int(v):
+            try:
+                return max(0, int(v))
+            except (ValueError, TypeError):
+                return 0
+
+        ent1 = _safe_int(eb.get("1h"))
+        ent4 = _safe_int(eb.get("4h"))
+        ent12 = _safe_int(eb.get("12h"))
+        ent24 = _safe_int(eb.get("24h"))
+        orders = _safe_int(b.get("since_orders"))
+        sw = _safe_int(b.get("since_w"))
+        sl = _safe_int(b.get("since_l"))
+        
         # 형식: {롱포지션수}/{숏포지션수} {봇이름}  {일평균}%  {추이}  ({1h진입}, {4h진입}, {승/패})
         pos_long = b.get("ex_poslong")
         pos_short = b.get("ex_posshort")
@@ -235,18 +249,22 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
         raw_seq = (b.get("seq", "") or "")[:30]
         seq_grouped = " ".join([raw_seq[i:i+5] for i in range(0, len(raw_seq), 5)])
         seq_str = f" {seq_grouped}" if seq_grouped else ""
-        sun20 = b.get("sun20", 0)
-        yeok20 = b.get("yeok20", 0)
+        sun20 = _safe_int(b.get("sun20"))
+        yeok20 = _safe_int(b.get("yeok20"))
         
-        sun20_w = b.get("sun20_w", 0)
-        sun20_l = b.get("sun20_l", 0)
-        yeok20_w = b.get("yeok20_w", 0)
-        yeok20_l = b.get("yeok20_l", 0)
+        sun20_w = _safe_int(b.get("sun20_w"))
+        sun20_l = _safe_int(b.get("sun20_l"))
+        yeok20_w = _safe_int(b.get("yeok20_w"))
+        yeok20_l = _safe_int(b.get("yeok20_l"))
         
         is_bf = bool(b.get("config", {}).get("USE_BLUEFROG", False)) if isinstance(b.get("config"), dict) else False
         mode_prefix = "역 " if is_bf else "순 "
         b_asset = b.get("ex_balance") if b.get("ex_balance") is not None else (b.get("balance") if b.get("balance") is not None else b.get("seed", 0.0))
-        asset_val_str = f"${b_asset:.2f}" if b_asset is not None else "$0.00"
+        try:
+            b_asset = float(b_asset)
+        except (ValueError, TypeError):
+            b_asset = 0.0
+        asset_val_str = f"${b_asset:.2f}"
         lines.append(f"{mode_prefix}{pos_str} {b_name_short}  {b_days:.1f}  {asset_val_str}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}")
         lines.append(f"  ({ent1:02d}/{ent4:02d}|{ent12:02d}/{ent24:02d} {sw:02d}W/{sl:02d}L : ({sun20_w}-{sun20_l})+({yeok20_w}-{yeok20_l}))")
         if seq_str:
