@@ -169,6 +169,8 @@ def _load_entries(path):
             for i, r in enumerate(csv.reader(f)):
                 if len(r) < 3:
                     continue
+                if r[2].strip() != "진입":
+                    continue
                 ts = r[0].strip()[:19]
                 if not ts[:4].isdigit():
                     continue
