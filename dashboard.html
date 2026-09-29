@@ -1347,6 +1347,8 @@ function renderBotAssetSection(d) {
         chartData.labels = sorted_ts;
         chartData.data = total_assets;
         chartData.data_ret = total_returns;
+        chartData.seed = 0;
+        calcBots.forEach(b => { chartData.seed += (b.seed || 10); });
     } else {
         const b = allBots.find(x => x.name === _selectedBotForAsset);
         if (b && b.metrics) {
@@ -1355,6 +1357,7 @@ function renderBotAssetSection(d) {
             chartData.labels = b.metrics.history_ts || [];
             chartData.data = b.metrics.asset_history || [];
             chartData.data_ret = b.metrics.rolling_history || [];
+            chartData.seed = b.seed || 10;
         } else {
             chartTitle = `📊 [${_selectedBotForAsset} 봇] 데이터 없음`;
         }
@@ -1382,13 +1385,25 @@ function renderBotAssetSection(d) {
                     label: '총자산 잔고($)',
                     data: chartData.data,
                     yAxisID: 'y',
-                    borderColor: '#2dbd85',
-                    backgroundColor: 'rgba(45, 189, 133, 0.1)',
+                    borderColor: '#FFD700',
+                    backgroundColor: 'rgba(255, 215, 0, 0.1)',
                     borderWidth: 2,
                     pointRadius: 0,
                     pointHoverRadius: 4,
                     fill: true,
                     tension: 0.4
+                },
+                {
+                    label: '초기자본금',
+                    data: chartData.labels.map(() => chartData.seed || chartData.data[0]),
+                    yAxisID: 'y',
+                    borderColor: '#ff4c4c',
+                    borderDash: [5, 5],
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    fill: false,
+                    tension: 0
                 }
             ]
         },
