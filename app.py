@@ -445,30 +445,36 @@ def hist_metrics(path, perf_start, pos_count=0):
         cutoff = pure_cutoff
         if ps and cutoff < ps:
             cutoff = ps
-        # 1. 해당 윈도우 내에 진입한 거래 건수 산출
-        entered_oids = set()
+        # 1. 해당 윈도우 내에 진입한 거래 건수 산출 (분할 체결/주문 60초 이내 병합)
+        valid_entry_secs = []
         for ts, oid in entries:
             if ts >= cutoff:
-                entered_oids.add(oid)
+                try:
+                    ts_sec = time.mktime(time.strptime(ts[:19], "%Y-%m-%d %H:%M:%S"))
+                    # 이전 카운트된 진입과 60초 이내면 같은 진입으로 간주하여 병합
+                    if valid_entry_secs and (ts_sec - valid_entry_secs[-1]) < 60:
+                        continue
+                    valid_entry_secs.append(ts_sec)
+                except Exception:
+                    pass
         
         # 현재 활성 포지션들의 진입 시각도 합산
         for i, ot in enumerate(active_entry_times):
             if ot >= pure_cutoff:
-                # 중복 방지: CSV에 이미 60초 내외로 기록된 진입건이 있는지 확인
+                # 중복 방지: 이미 카운트된 진입건(CSV) 중 60초 내외가 있는지 확인
                 try:
                     ot_sec = time.mktime(time.strptime(ot[:19], "%Y-%m-%d %H:%M:%S"))
                     already_counted = False
-                    for ts, oid in entries:
-                        ts_sec = time.mktime(time.strptime(ts[:19], "%Y-%m-%d %H:%M:%S"))
-                        if abs(ts_sec - ot_sec) < 60:
+                    for vts in valid_entry_secs:
+                        if abs(vts - ot_sec) < 60:
                             already_counted = True
                             break
                     if not already_counted:
-                        entered_oids.add(f"active_{i}")
+                        valid_entry_secs.append(ot_sec)
                 except Exception:
-                    entered_oids.add(f"active_{i}")
+                    valid_entry_secs.append(0)
                 
-        entries_by_period[key] = len(entered_oids)
+        entries_by_period[key] = len(valid_entry_secs)
 
     return {"today_pnl": round(today_pnl, 4), "today_w": tw, "today_l": tl,
             "since_w": sw, "since_l": sl, "since_orders": sw + sl,
