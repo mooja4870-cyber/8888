@@ -1,3 +1,19 @@
+# Version History
+
+## v1.7.5
+Date: 2026-09-30
+
+### 변경 내용
+* [8408] 최소 진입 주문 금액 미달(Notional < 5) 및 레버리지 제한 문제 해결을 위해 설정값(Config) 강제 보정 적용
+* [Watchdog] 거래소 API 주문 거절(-4164, -4421) 발생 시 워치독이 실시간 탐지하고 설정값을 스스로 상향(Auto-Healing)하여 재기동하는 자율 치유 로직 추가
+
+### 수정 파일
+* /Users/l/project/8408/config.json
+* /Users/l/project/8888/watchdog_entry.py
+
+### 비고
+* 진입 실패로 인한 매매기회 손실 방어 및 시스템 자율화율 향상
+
 ## v13.2.4
 Date: 2026-09-29
 

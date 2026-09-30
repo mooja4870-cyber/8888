@@ -189,7 +189,7 @@ def check_entry_failure_readiness(b: int, cwd: str) -> tuple:
     """
     order_err_keywords = [
         "주문 거절", "주문 실패", "order's notional must be no smaller than",
-        "-4164", "order timeout/error", "최소 주문 단위", "무방비 진입",
+        "-4164", "-4421", "order timeout/error", "최소 주문 단위", "무방비 진입",
         "증거금 설정 오류", "가용 증거금 부족",
         "name 'cfg' is not defined", "ohlcv 조회 실패",
         "minimum amount precision", "partial tp 실패", "시황 조회 실패"
@@ -238,6 +238,9 @@ def check_entry_failure_readiness(b: int, cwd: str) -> tuple:
         if "notional" in last_fail.lower() or "-4164" in last_fail:
             err_type = "NOTIONAL_MIN_ERROR"
             reason_summary = "최소 주문 명목가치(Notional < 5 USDT) 미달 거절"
+        elif "-4421" in last_fail or "leverage" in last_fail.lower():
+            err_type = "LEVERAGE_RESTRICTION_ERROR"
+            reason_summary = "서브계정 레버리지 제한(5x 초과 불가) 위반"
         elif "cfg' is not defined" in last_fail.lower():
             err_type = "CFG_REFERENCE_ERROR"
             reason_summary = "BTC CONTEXT 등 CFG 객체 참조 실패 (변수 미정의 오류)"
@@ -442,24 +445,46 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                 action_taken.append(entry_reason)
                 
                 # [적의조처: 에러 유형별 자동 치유]
-                if err_type == "NOTIONAL_MIN_ERROR":
+                if err_type == "NOTIONAL_MIN_ERROR" or err_type == "LEVERAGE_RESTRICTION_ERROR":
                     cfg_file = os.path.join(cwd, "config.json")
                     if os.path.exists(cfg_file):
                         try:
                             with open(cfg_file, "r", encoding="utf-8") as cf:
                                 b_cfg = json.load(cf)
-                            b_lev = float(b_cfg.get("LEVERAGE", 3.0) or 3.0)
+                            
+                            cur_lev = float(b_cfg.get("LEVERAGE", 3.0) or 3.0)
                             cur_margin = float(b_cfg.get("MARGIN_USDT", 1.5) or 1.5)
-                            req_margin = round(5.5 / b_lev, 1)
+                            
+                            fix_msg_list = []
+                            # 1) 레버리지 강제 하향 (서브계정 5배 제한 대응)
+                            if cur_lev > 5.0 and (err_type == "LEVERAGE_RESTRICTION_ERROR" or cur_lev > 5):
+                                b_cfg["LEVERAGE"] = 5.0
+                                fix_msg_list.append(f"LEVERAGE 하향({cur_lev}→5.0)")
+                                cur_lev = 5.0
+                            
+                            # 2) 안전 마진(최소 6 Notional 확보) 상향 조정
+                            # 보수적으로 실제 레버리지가 3일 수도 있으므로, 계산은 최소 레버리지(min(cur_lev, 3.0))를 기반으로 안전하게 2.0 이상을 확보하도록 함.
+                            safe_lev = min(cur_lev, 3.0)
+                            req_margin = max(round(6.0 / safe_lev, 1), 2.0)
+                            
                             if cur_margin < req_margin:
                                 b_cfg["MARGIN_USDT"] = req_margin
+                                fix_msg_list.append(f"MARGIN_USDT 상향({cur_margin}→{req_margin})")
+                                
+                                # 마진을 높였는데 RISK_PER_TRADE_PCT가 낮으면 진입을 못하므로 리스크 허용치도 보정
+                                cur_risk = float(b_cfg.get("RISK_PER_TRADE_PCT", 0.01) or 0.01)
+                                if cur_risk < 0.05:
+                                    b_cfg["RISK_PER_TRADE_PCT"] = 0.05
+                                    fix_msg_list.append(f"RISK_PCT 상향({cur_risk}→0.05)")
+
+                            if fix_msg_list:
                                 with open(cfg_file, "w", encoding="utf-8") as cf:
                                     json.dump(b_cfg, cf, indent=4, ensure_ascii=False)
-                                msg_fix = f"MARGIN_USDT 자가 상향 치유({cur_margin}→{req_margin})"
+                                msg_fix = " | ".join(fix_msg_list) + " 자가 치유"
                                 logger.info(f"[{b}] 🛠 {msg_fix}")
                                 action_taken.append(msg_fix)
                         except Exception as ce:
-                            logger.error(f"[{b}] config.json Notional 치유 실패: {ce}")
+                            logger.error(f"[{b}] config.json Notional/Leverage 치유 실패: {ce}")
                 elif err_type == "MARGIN_SETTING_ERROR":
                     cfg_file = os.path.join(cwd, "config.json")
                     if os.path.exists(cfg_file):
