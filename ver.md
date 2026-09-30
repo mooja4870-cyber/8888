@@ -1,5 +1,21 @@
 # Version History
 
+## v1.7.7
+Date: 2026-10-01
+
+### 변경 내용
+* [Watchdog] 진입 실패 감시망 대폭 강화 (포지션 진입 장애 관련 모든 키워드 및 미등록 에러(Unknown Error) 추적 로직 추가)
+  * 추가 키워드: 네트워크/API 제한(NetworkError, RateLimit, Timeout, Connection reset), 데이터 조회 실패(fetch_tickers, fetch_ohlcv, NoneType, Empty DataFrame), 수량/마진 거절(-2019, Insufficient balance, ReduceOnly 등)
+  * 미등록 에러 2중 그물망(Fallback): 최근 15분 내 ERROR 또는 Exception이 5회 이상 누적 시 강제 재기동하는 치명적 에러 감지 로직 이식
+
+### 수정 파일
+* /Users/l/project/8888/watchdog_entry.py
+
+### 비고
+* 스캐너 정체 및 알려지지 않은 예외에 의한 매매 멈춤 완벽 방어
+
+# Version History
+
 ## v1.7.5
 Date: 2026-09-30
 

@@ -191,8 +191,11 @@ def check_entry_failure_readiness(b: int, cwd: str) -> tuple:
         "주문 거절", "주문 실패", "order's notional must be no smaller than",
         "-4164", "-4421", "order timeout/error", "최소 주문 단위", "무방비 진입",
         "증거금 설정 오류", "가용 증거금 부족",
-        "name 'cfg' is not defined", "ohlcv 조회 실패",
-        "minimum amount precision", "partial tp 실패", "시황 조회 실패"
+        "name 'cfg' is not defined", "ohlcv 조회 실패", "시황 조회 실패",
+        "minimum amount precision", "partial tp 실패",
+        "fetch_tickers", "tickers 일괄 조회 실패", "fetch_ohlcv 실패", "nonetype",
+        "networkerror", "ratelimitexceeded", "timestamp for this request", "empty dataframe",
+        "zerodivisionerror", "nan", "-2019", "insufficient balance", "reduceonly", "order failed", "connection reset"
     ]
     now_kst = datetime.utcnow() + timedelta(hours=9)
     recent_fails = []
@@ -202,6 +205,7 @@ def check_entry_failure_readiness(b: int, cwd: str) -> tuple:
     if not os.path.exists(target_logs[0]):
         target_logs = [os.path.join(cwd, "bot_stdout.log")]
         
+    unknown_err_cnt = 0
     for log_path in target_logs:
         if not os.path.exists(log_path):
             continue
@@ -218,16 +222,29 @@ def check_entry_failure_readiness(b: int, cwd: str) -> tuple:
                 line_str = line.strip()
                 if not line_str or line_str in seen_lines:
                     continue
-                if any(kw in line_str.lower() for kw in order_err_keywords):
-                    try:
-                        ts_str = line_str[:19]
-                        log_dt = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S")
-                        diff_sec = abs((now_kst - log_dt).total_seconds())
-                        if diff_sec < 900:  # 최근 15분 이내 발생
-                            recent_fails.append(line_str)
-                            seen_lines.add(line_str)
-                    except Exception:
-                        pass
+                
+                # Timestamp check
+                log_dt = None
+                try:
+                    ts_str = line_str[:19]
+                    log_dt = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S")
+                    diff_sec = abs((now_kst - log_dt).total_seconds())
+                    if diff_sec >= 900:
+                        continue  # 15분 초과 로그는 무시
+                except Exception:
+                    pass
+
+                lower_line = line_str.lower()
+                is_known_err = False
+                if any(kw in lower_line for kw in order_err_keywords):
+                    recent_fails.append(line_str)
+                    seen_lines.add(line_str)
+                    is_known_err = True
+                
+                # 미등록 에러(Unknown Exception) 2중 그물망
+                if not is_known_err and ("[error]" in lower_line or "[exception]" in lower_line or "traceback" in lower_line):
+                    unknown_err_cnt += 1
+                    seen_lines.add(line_str)
         except Exception:
             pass
 
@@ -235,35 +252,45 @@ def check_entry_failure_readiness(b: int, cwd: str) -> tuple:
         last_fail = recent_fails[-1]
         err_type = "ORDER_REJECTED"
         reason_summary = "주문 반복 거절/실패"
-        if "notional" in last_fail.lower() or "-4164" in last_fail:
+        lower_last = last_fail.lower()
+        if "notional" in lower_last or "-4164" in last_fail:
             err_type = "NOTIONAL_MIN_ERROR"
             reason_summary = "최소 주문 명목가치(Notional < 5 USDT) 미달 거절"
-        elif "-4421" in last_fail or "leverage" in last_fail.lower():
+        elif "-4421" in last_fail or "leverage" in lower_last:
             err_type = "LEVERAGE_RESTRICTION_ERROR"
             reason_summary = "서브계정 레버리지 제한(5x 초과 불가) 위반"
-        elif "cfg' is not defined" in last_fail.lower():
+        elif "cfg' is not defined" in lower_last:
             err_type = "CFG_REFERENCE_ERROR"
             reason_summary = "BTC CONTEXT 등 CFG 객체 참조 실패 (변수 미정의 오류)"
-        elif "ohlcv 조회 실패" in last_fail.lower() or "시황 조회 실패" in last_fail.lower():
+        elif "ohlcv 조회 실패" in lower_last or "시황 조회 실패" in lower_last or "fetch_ohlcv" in lower_last:
             err_type = "TICKER_FETCH_ERROR"
-            reason_summary = "거래소 티커 심볼 불일치 등으로 시황 조회 실패"
-        elif "minimum amount precision" in last_fail.lower() or "partial tp 실패" in last_fail.lower():
+            reason_summary = "시황(OHLCV) 조회 실패"
+        elif "fetch_tickers" in lower_last or "tickers 일괄 조회" in lower_last or "nonetype" in lower_last:
+            err_type = "TICKER_FETCH_ERROR"
+            reason_summary = "스캐너 Tickers API 조회 실패/NoneType 에러"
+        elif "minimum amount precision" in lower_last or "partial tp 실패" in lower_last:
             err_type = "PARTIAL_TP_PRECISION_ERROR"
             reason_summary = "최소 주문수량(precision) 미달로 인한 주문/부분청산 실패"
         elif "증거금 설정 오류" in last_fail:
             err_type = "MARGIN_SETTING_ERROR"
-            reason_summary = "증거금 하한선($1) 미달에 의한 진입 차단"
+            reason_summary = "증거금 하한선 미달에 의한 진입 차단"
         elif "가용 증거금 부족" in last_fail:
             err_type = "AVAILABLE_MARGIN_ERROR"
             reason_summary = "요구 증거금이 가용 잔고를 초과하여 진입 차단"
-        elif "insufficient" in last_fail.lower() or "잔고" in last_fail:
+        elif "insufficient" in lower_last or "-2019" in last_fail or "잔고" in last_fail:
             err_type = "INSUFFICIENT_FUNDS"
-            reason_summary = "증거금 잔고 부족 주문 거절"
-        elif "timeout" in last_fail.lower():
+            reason_summary = "증거금/잔고 부족 거절"
+        elif "timeout" in lower_last or "networkerror" in lower_last or "connection reset" in lower_last:
             err_type = "API_TIMEOUT_ERROR"
-            reason_summary = "거래소 주문 API 타임아웃"
+            reason_summary = "거래소 네트워크/API 타임아웃 장애"
+        elif "ratelimit" in lower_last:
+            err_type = "API_RATELIMIT_ERROR"
+            reason_summary = "거래소 API RateLimit 초과 (밴 위험)"
             
-        return True, f"진입 주문 반복 거절/실패 감지 ({len(recent_fails)}회 발생: {reason_summary})", err_type
+        return True, f"진입 주문 장애 감지 ({len(recent_fails)}회 발생: {reason_summary})", err_type
+        
+    if unknown_err_cnt >= 5:
+        return True, f"미등록 치명적 예외(Unknown Error) 다수 감지 ({unknown_err_cnt}회)", "UNKNOWN_FATAL_ERROR"
         
     return False, "진입 주문 정상", ""
 
