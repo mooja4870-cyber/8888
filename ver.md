@@ -1,5 +1,19 @@
 # Version History
 
+## v1.7.9
+Date: 2026-10-04
+
+### 변경 내용
+* 디스코드 알림 발송 시 8403 봇을 그룹2에서 그룹1로 이동 처리
+
+### 수정 파일
+* discord_alert.py
+* send_discord_stats.py
+
+### 비고
+* 그룹 재배정
+
+
 ## v1.7.8
 Date: 2026-10-04
 
