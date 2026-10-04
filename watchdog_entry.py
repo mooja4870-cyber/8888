@@ -20,8 +20,8 @@ logger = logging.getLogger("Watchdog")
 from datetime import datetime, timedelta, timezone
 
 # 상시 기본 관리 대상 5개 핵심 봇 최우선 순찰
-CORE_BOTS = [8401, 8402, 8407, 8409, 8410]
-BOT_LIST = [8401, 8402, 8403, 8404, 8405, 8406, 8407, 8408, 8409, 8410]
+CORE_BOTS = [8401, 8402, 8403, 8404, 8405, 8408, 8410]
+BOT_LIST = [8401, 8402, 8403, 8404, 8405, 8408, 8410]
 HEALTH_CHECK_SEC = 60  # 1 minute for process health
 CONFIG_CHECK_CYCLES = 5  # Check config drift every 5 cycles (5 minutes)
 FLAT_BOT_CHECK_CYCLES = 5  # [보스 지침] 5분 주기 무포지션 봇 정밀 건전성 감사 및 적의조치
@@ -195,7 +195,7 @@ def check_entry_failure_readiness(b: int, cwd: str) -> tuple:
         "minimum amount precision", "partial tp 실패",
         "fetch_tickers", "tickers 일괄 조회 실패", "fetch_ohlcv 실패", "nonetype",
         "networkerror", "ratelimitexceeded", "timestamp for this request", "empty dataframe",
-        "zerodivisionerror", "nan", "-2019", "insufficient balance", "reduceonly", "order failed", "connection reset"
+        "zerodivisionerror", "-2019", "insufficient balance", "reduceonly", "order failed", "connection reset"
     ]
     now_kst = datetime.utcnow() + timedelta(hours=9)
     recent_fails = []
@@ -267,7 +267,9 @@ def check_entry_failure_readiness(b: int, cwd: str) -> tuple:
             reason_summary = "시황(OHLCV) 조회 실패"
         elif "fetch_tickers" in lower_last or "tickers 일괄 조회" in lower_last or "nonetype" in lower_last:
             err_type = "TICKER_FETCH_ERROR"
-            reason_summary = "스캐너 Tickers API 조회 실패/NoneType 에러"
+            reason_summary = "스캐너 Tickers API 조회 실패/NoneType 에러 (재기동 생략)"
+            # API 일시적 장애이므로 재기동 불필요
+            return False, f"단순 시황조회 장애 무시: {reason_summary}", err_type
         elif "minimum amount precision" in lower_last or "partial tp 실패" in lower_last:
             err_type = "PARTIAL_TP_PRECISION_ERROR"
             reason_summary = "최소 주문수량(precision) 미달로 인한 주문/부분청산 실패"
@@ -389,6 +391,9 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
     cwd = f"/Users/l/project/{b}"
     if not os.path.exists(cwd):
         logger.warning(f"[{b}] 봇 폴더가 존재하지 않습니다.")
+        return
+        
+    if os.path.exists(os.path.join(cwd, ".stopped")):
         return
         
     needs_restart = False

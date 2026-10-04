@@ -1,0 +1,10 @@
+{
+  "enforce-verify-all": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "./verify_hook.sh"
+      }
+    ]
+  }
+}

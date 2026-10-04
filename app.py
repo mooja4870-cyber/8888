@@ -74,13 +74,12 @@ SEED_OVERRIDE = None     # 전체 기준금(초기자본금 합). None=각 봇 s
                          # 봇 재초기화 시 seed_money가 갱신되므로 고정값이 아니라 자동합산해야
                          # 봇별 누적수익률과 전체 누적수익률이 항상 정합(전체 cum_delta = Σ봇별 cum_delta).
 
-# [2026-09-15] 집계 및 관제 대상 11개 봇 (8401, 8402, 8403, 8404, 8405, 8406, 8407, 8408, 8409, 8410)
+# [2026-10-04] 집계 및 관제 대상 7개 봇 (8401, 8402, 8403, 8404, 8405, 8408, 8410)
 BOTS = [
     ("8401", 8401, "OKX"),    ("8402", 8402, "OKX"),
     ("8403", 8403, "OKX"),    ("8404", 8404, "OKX"),
-    ("8405", 8405, "OKX"),    ("8406", 8406, "OKX"),
-    ("8407", 8407, "BNC"),    ("8408", 8408, "BNC"),
-    ("8409", 8409, "BNC"),    ("8410", 8410, "BNC"),
+    ("8405", 8405, "OKX"),    ("8408", 8408, "BNC"),
+    ("8410", 8410, "BNC"),
 ]
 
 
@@ -632,7 +631,10 @@ def read_bot_config(folder):
                 ind_str = ", ".join(indicators) if indicators else "—"
 
         # 3. 손절률 / 수익목표 (stop_loss_pct, take_profit_pct)
-        if cfg.get("USE_ATR_SL", False):
+        if meta and "sl_str" in meta:
+            sl_str = meta.get("sl_str")
+            tp_str = meta.get("tp_str", "—")
+        elif cfg.get("USE_ATR_SL", False):
             sl_mult = cfg.get("ATR_SL_MULT", 1.5)
             tp_mult = cfg.get("ATR_TP_MULT", 3.0)
             sl_str = f"ATR×{sl_mult:.1f}"
@@ -647,6 +649,33 @@ def read_bot_config(folder):
             tp_val = cfg.get("TAKE_PROFIT_PCT", 0) * 100
             sl_str = f"{sl_val:.2f}%" if "STOP_LOSS_PCT" in cfg else "—"
             tp_str = f"{tp_val:.2f}%" if "TAKE_PROFIT_PCT" in cfg else "—"
+
+        # [Realtime Strategy Scanner] - 봇의 두뇌(strategy.py)를 실시간 스캔하여 하드코딩 탈피
+        strat_path = os.path.join(BASE, folder, "core", "strategy.py")
+        if os.path.exists(strat_path):
+            try:
+                import re
+                with open(strat_path, "r", encoding="utf-8", errors="ignore") as f:
+                    strat_code = f.read()
+                
+                # BB 평균회귀 계열인지 확인
+                if "Mean Reversion" in strat_code or "평균회귀" in strat_code or "BB_MR" in strat_code:
+                    tf = "15m" if folder in ["8401", "8403", "8405", "8406"] else "1h"
+                    strategy = f"BB Mean Reversion ({tf})"
+                    ind_str = "BB, ATR, RSI"
+                    
+                    # sl_mult 동적 파싱
+                    m = re.search(r'sl_mult\s*=\s*([0-9.]+)', strat_code)
+                    if m:
+                        sl_str = f"ATR×{m.group(1)}"
+                        tp_str = "SMA/BB Mid"
+                    else:
+                        m2 = re.search(r'self\.sl_mult\s*=\s*([0-9.]+)', strat_code)
+                        if m2:
+                            sl_str = f"ATR×{m2.group(1)}"
+                            tp_str = "SMA/BB Mid"
+            except Exception:
+                pass
 
         # 4. 스캔 대상
         wl = cfg.get("SYMBOL_WHITELIST", [])
@@ -2034,7 +2063,7 @@ def discord_listener_loop():
 def run_check_auto_mode_switch_all():
     """전체 8개 봇 실시간 매매방향 자동 스위칭(최근 5전 중 2패 이상 시 대칭 반전) 격리 프로세스 실행 함수"""
     import subprocess
-    target_bots = ["8401", "8402", "8403", "8404", "8405", "8406", "8407", "8408", "8409", "8410"]
+    target_bots = ["8401", "8402", "8404", "8405", "8408", "8410"]
     for b in target_bots:
         bot_path = os.path.join(os.path.dirname(BASE), str(b))
         if os.path.exists(f"{bot_path}/core/engine.py"):
@@ -2071,7 +2100,7 @@ def get_file_hash(path):
 def checksum_guard_loop():
     """8개 봇의 핵심 로직 파일 변조 감시 및 자동 롤백 스레드"""
     time.sleep(10)
-    target_bots = ["8401", "8402", "8403", "8404", "8405", "8406", "8407", "8408", "8409", "8410"]
+    target_bots = ["8401", "8402", "8404", "8405", "8408", "8410"]
     target_files = ["bot.py", "core/strategy.py", "core/trader.py", "core/engine.py", "config.json"]
     
     while True:

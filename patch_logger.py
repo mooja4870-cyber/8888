@@ -1,32 +1,21 @@
 import os
 
-target = "/Users/l/project/8403/core/logger.py"
-with open(target, "r", encoding="utf-8") as f:
-    content = f.read()
+BOT_PORTS = ["8401", "8402", "8403", "8404", "8405", "8408", "8410"]
+BASE_DIR = "/Users/l/project"
 
-old_str = """        mode_val = data.get("trade_mode", data.get("mode", ""))
-        if not mode_val:
-            from core.config import CFG
-            mode_val = "역방향" if getattr(CFG, "USE_BLUEFROG", True) else "순방향\"\"\""""
-old_str = old_str[:-3]
+TARGET = """                    if pnl_pct >= tp_pct:
+                        from core.logger import logger
+                        logger.warning"""
+                        
+REPLACE = """                    if pnl_pct >= tp_pct:
+                        logger.warning"""
 
-new_str = """        mode_val = data.get("trade_mode", data.get("mode", ""))
-        if not mode_val:
-            import json, os
-            try:
-                cpath = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.json")
-                with open(cpath, "r", encoding="utf-8") as cf:
-                    mode_val = "역방향" if json.load(cf).get("USE_BLUEFROG", True) else "순방향"
-            except Exception:
-                from core.config import CFG
-                mode_val = "역방향" if getattr(CFG, "USE_BLUEFROG", True) else "순방향\"\"\""""
-new_str = new_str[:-3]
-
-if old_str in content:
-    content = content.replace(old_str, new_str)
-    with open(target, "w", encoding="utf-8") as f:
-        f.write(content)
-    print("Patch applied to 8403!")
-else:
-    print("old_str not found in 8403 logger.py")
-
+for port in BOT_PORTS:
+    engine_path = os.path.join(BASE_DIR, port, "core", "engine.py")
+    if os.path.exists(engine_path):
+        with open(engine_path, "r") as f:
+            content = f.read()
+        if TARGET in content:
+            with open(engine_path, "w") as f:
+                f.write(content.replace(TARGET, REPLACE))
+            print(f"Fixed logger in {port} engine.py")
