@@ -1275,7 +1275,7 @@ function renderBotAssetSection(d) {
     const _rawBots = [...(d.bots||[]), ...(d.extra_bots||[])];
     const allBots = Array.from(new Map(_rawBots.map(b => [b.name, b])).values());
     // 고정 탭 순서
-    const tabs = ['전체', '8401', '8402', '8404', '8405', '8408', '8410'];
+    const tabs = ['전체', '8401', '8402', '8403', '8404', '8405', '8408', '8410'];
     
     let tabsHtml = tabs.map(t => {
         const isSel = (t === _selectedBotForAsset);
