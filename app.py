@@ -1365,7 +1365,7 @@ def calc_bot_metrics(folder, bot_dict):
             p_clean = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t0))
 
         now_epoch = int(time.time())
-        start_epoch = max(now_epoch - 86400 * 7, int(t0))
+        start_epoch = int(t0)
         
         d = os.path.join(BASE, folder, "data")
         csv_path = os.path.join(d, "trade_history.csv")
