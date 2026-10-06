@@ -535,8 +535,14 @@ def _get_recent_bot_changes(days=14):
                 in_changes = False
             elif in_changes and line:
                 t = line.lstrip('*').strip()
-                if t: change_text.append(t)
-                
+                if t:
+                    skip = False
+                    for kw in ["디스코드", "집계 대상", "그룹", "할당"]:
+                        if kw in t:
+                            skip = True
+                            break
+                    if not skip:
+                        change_text.append(t)                
         if date_str:
             try:
                 dt = datetime.datetime.strptime(date_str, "%Y-%m-%d")
