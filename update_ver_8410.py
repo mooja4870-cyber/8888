@@ -13,24 +13,25 @@ new_entry = f"""
 Date: {datetime.datetime.now().strftime('%Y-%m-%d')}
 
 ### 변경 내용
-* 8410 봇의 상승장(BULL) 돌파매매 시 1시간봉 기준 휩쏘(고변동성)장세 방어를 위한 동적 손절/익절 버퍼 대폭 확장
+* 8410 봇(비트코인/이더리움 등 메이저 코인 1시간봉 전략)의 상승장 휩쏘 방어력 대폭 상향
+* 1시간봉 기준 깊은 조정을 견디기 위한 동적 손절/익절(ATR) 버퍼 확장
   - ATR_SL_MULT: 1.5 -> 2.5
   - ATR_TP_MULT: 3.0 -> 5.0
   - DON_SL_ATR_MULT: 2.0 -> 3.0
-* 통계적 휩쏘 구간에서 잦은 기계적 손절로 인한 연패(3승 8패) 현상 원천 차단
+* 8401, 8402 등 타 봇의 좀비 프로세스/락 충돌 일괄 정리 및 복구
 
 ### 수정 파일
 * /Users/l/project/8410/config.json
 
 ### 비고
-* 8410 재기동 및 전체 봇 100% 정상 가동 확인 (verify_all PASS)
+* 8410 및 전체 봇 재기동, 100% 정상 가동 확인 (verify_all PASS)
 """
 
 with open(ver_path, 'w') as f:
     f.write(content + "\n" + new_entry)
 
 subprocess.run(['git', 'add', '.'], cwd='/Users/l/project/8888')
-subprocess.run(['git', 'commit', '-m', 'fix: 8410 휩쏘장 방어를 위한 ATR 기반 동적 손익절 버퍼 확장'], cwd='/Users/l/project/8888')
+subprocess.run(['git', 'commit', '-m', 'feat: 8410 상승장 휩쏘 방어용 ATR 동적 손익절 버퍼 대폭 확장'], cwd='/Users/l/project/8888')
 subprocess.run(['git', 'tag', 'v1.2.13'], cwd='/Users/l/project/8888')
 subprocess.run(['git', 'push', 'origin', 'main'], cwd='/Users/l/project/8888')
 subprocess.run(['git', 'push', 'origin', 'v1.2.13'], cwd='/Users/l/project/8888')
