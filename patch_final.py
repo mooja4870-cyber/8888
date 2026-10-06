@@ -1,13 +1,12 @@
-import os
 import re
 
-file_path = "/Users/l/project/8888/discord_alert.py"
-with open(file_path, "r") as f:
+with open("/Users/l/project/8888/discord_alert.py", "r") as f:
     content = f.read()
 
-# Injection string
-injection = """
+func_code = """
 import re
+import datetime
+import requests
 
 def _get_recent_bot_changes(days=14):
     try:
@@ -18,7 +17,6 @@ def _get_recent_bot_changes(days=14):
         
     blocks = re.split(r'\\n## v', v_content)
     now = datetime.datetime.now()
-    
     bot_changes = {str(b): [] for b in [8401, 8402, 8403, 8404, 8405, 8408, 8410]}
     
     for block in blocks[1:]:
@@ -26,7 +24,6 @@ def _get_recent_bot_changes(days=14):
         date_str = None
         change_text = []
         in_changes = False
-        
         for line in lines:
             line = line.strip()
             if line.startswith("Date:"):
@@ -36,7 +33,6 @@ def _get_recent_bot_changes(days=14):
             elif in_changes and line.startswith("###"):
                 in_changes = False
             elif in_changes and line:
-                # Remove asterisk
                 t = line.lstrip('*').strip()
                 if t: change_text.append(t)
                 
@@ -47,20 +43,16 @@ def _get_recent_bot_changes(days=14):
                     full_text = "\\n".join(change_text)
                     mentioned_bots = []
                     for b in bot_changes.keys():
-                        if b in full_text:
-                            mentioned_bots.append(b)
+                        if b in full_text: mentioned_bots.append(b)
                     
                     if not mentioned_bots and "전체 봇" in full_text:
                         mentioned_bots = list(bot_changes.keys())
                         
                     for b in mentioned_bots:
-                        # Find the first relevant sentence for this bot
                         rel_lines = [l for l in change_text if b in l or "전체 봇" in l]
-                        if rel_lines:
-                            t = rel_lines[0]
-                        else:
-                            t = change_text[0]
-                        bot_changes[b].append(f"({dt.strftime('%m/%d')}) {t[:40] + '...' if len(t) > 40 else t}")
+                        t = rel_lines[0] if rel_lines else change_text[0]
+                        if len(t) > 40: t = t[:40] + "..."
+                        bot_changes[b].append(f"({dt.strftime('%m/%d')}) {t}")
             except Exception:
                 pass
                 
@@ -68,51 +60,48 @@ def _get_recent_bot_changes(days=14):
 
 """
 
-if "def _get_recent_bot_changes" not in content:
-    # Insert it right before tick()
-    content = content.replace("def tick(data, tick_count=0, include_bot_charts=False):", injection + "\ndef tick(data, tick_count=0, include_bot_charts=False):")
-
-# Modify tick to send the 3rd message
-tick_replacement = """
-    ok1, info1 = _process_subset(data, group1, "_g1.json", "그룹 1", include_bot_charts=include_bot_charts)
-    import time
-    time.sleep(1) # 웹훅 레이트리밋 방지
-    ok2, info2 = _process_subset(data, group2, "_g2.json", "그룹 2", include_bot_charts=include_bot_charts)
-    
-    # 최근 14일 설정 변경 요약 추가 발송
+tick_code = """
+    info_changes = "None"
     try:
+        import time
         changes = _get_recent_bot_changes(days=14)
         if changes:
             embeds = []
             desc = ""
             for b in sorted(changes.keys()):
-                lines = "\\n".join([f"- {c}" for c in changes[b][:2]])
+                lines = "\\n".join([f"- {c}" for c in changes[b][:3]])
                 desc += f"**[{b}]**\\n{lines}\\n\\n"
             if desc:
                 embeds.append({
-                    "title": "🛠️ 최근 14일 봇별 설정 변경 요약",
+                    "title": "🛠️ 최근 14일 봇별 매매전략 및 설정 변경 요약",
                     "description": desc.strip(),
-                    "color": 3447003
+                    "color": 15158332
                 })
-                time.sleep(1)
                 webhook_url = open(WEBHOOK_FILE, "r").read().strip()
                 requests.post(webhook_url, json={"embeds": embeds}, timeout=10)
+                info_changes = "OK"
+                time.sleep(1)
     except Exception as e:
         print(f"변경 요약 전송 실패: {e}")
-        
-    return ok1 or ok2, f"G1:{info1} / G2:{info2}"
+        info_changes = f"Fail({e})"
+
+    # 2. 그룹 2 발송
+    ok2, info2 = _process_subset(data, group2, "_g2.json", "그룹 2", include_bot_charts=include_bot_charts)
+    import time
+    time.sleep(1)
+    
+    # 3. 그룹 1 발송
+    ok1, info1 = _process_subset(data, group1, "_g1.json", "그룹 1", include_bot_charts=include_bot_charts)
+    
+    return ok1 or ok2, f"Changes:{info_changes} / G2:{info2} / G1:{info1}"
 """
 
-# replace tick logic
-import re
-new_content = re.sub(
-    r'ok1, info1 = _process_subset\(data, group1, "_g1\.json", "그룹 1", include_bot_charts=include_bot_charts\).*?return ok1 or ok2, f"G1:\{info1\} / G2:\{info2\}"',
-    tick_replacement.strip(),
-    content,
-    flags=re.DOTALL
-)
+# Inject before tick
+content = content.replace("def tick(data, tick_count=0, include_bot_charts=False):", func_code + "\ndef tick(data, tick_count=0, include_bot_charts=False):")
 
-with open(file_path, "w") as f:
-    f.write(new_content)
+# Regex replace tick body
+old_tick = r'ok1, info1 = _process_subset\(data, group1, "_g1\.json", "그룹 1", include_bot_charts=include_bot_charts\).*?return ok1 or ok2, f"G1:\{info1\} / G2:\{info2\}"'
+content = re.sub(old_tick, tick_code.strip(), content, flags=re.DOTALL)
 
-print("Patch applied.")
+with open("/Users/l/project/8888/discord_alert.py", "w") as f:
+    f.write(content)
