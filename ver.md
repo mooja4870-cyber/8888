@@ -245,3 +245,20 @@ Date: 2026-10-07
 
 ### 비고
 * Whipsaw 방어 명목의 과도한 리스크 노출 차단 및 확정 수익 위주의 로직으로 롤백 완료
+
+## v1.2.20
+Date: 2026-10-07
+
+### 변경 내용
+* [8402, 8403, 8405] 최근 수익률 저하 및 승률 악화 개선을 위한 수익 수호 장치(방어막) 전면 재가동
+* ATR 기반 손절/익절 버퍼 원상 복구 및 하향 조정 (DON_SL_ATR_MULT 3.0 -> 2.0 등)
+* 트레일링 스탑(Trailing Stop) 개입 활성화 (USE_TRAILING_STOP: true)
+* 분할 익절 활성화 (USE_PARTIAL_TP: true)
+
+### 수정 파일
+* /Users/l/project/8402/config.json
+* /Users/l/project/8403/config.json
+* /Users/l/project/8405/config.json
+
+### 비고
+* Whipsaw 방어 명목의 과도한 리스크 노출 차단 및 확정 수익 위주의 로직으로 롤백 완료
