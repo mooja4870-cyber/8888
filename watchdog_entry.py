@@ -162,17 +162,12 @@ def is_process_running(cwd: str, script_name: str) -> bool:
     try:
         # pgrep -f matches full command line
         output = subprocess.check_output(f"pgrep -f '{script_name}'", shell=True, text=True)
-        # We need to make sure it's running IN the specific bot directory
         pids = output.strip().split('\n')
         for pid in pids:
             if not pid: continue
             try:
-                # Use lsof to check the CWD of the process, or just check ps output
-                ps_out = subprocess.check_output(f"ps -p {pid} -o command=", shell=True, text=True)
-                # This is a bit tricky on macOS. A simpler way is to check if there's ANY bot.py running 
-                # from that specific path.
-                lsof_out = subprocess.check_output(f"lsof -p {pid} | grep cwd", shell=True, text=True)
-                if cwd in lsof_out:
+                ps_out = subprocess.check_output(f"ps -p {pid} -o args=", shell=True, text=True)
+                if cwd in ps_out:
                     return True
             except:
                 pass
