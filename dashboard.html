@@ -212,7 +212,7 @@ Chart.register({
 let chart=null;
 let _lastData=null;
 var _botAssetChart=null;
-var _selectedBotForAsset='전체';
+var _selectedBotForAsset='8401';
 // 좌측 아코디언: 기본화면 ↔ 시간별(수익율순/봇이름순). 시간별은 /api/snapshots(매시 :00·:30 누적) 표.
 function applyView(){
  const mode=(document.getElementById('viewmode')||{}).value||'base';
@@ -1275,7 +1275,7 @@ function renderBotAssetSection(d) {
     const _rawBots = [...(d.bots||[]), ...(d.extra_bots||[])];
     const allBots = Array.from(new Map(_rawBots.map(b => [b.name, b])).values());
     // 고정 탭 순서
-    const tabs = ['전체', '8401', '8402', '8403', '8404', '8405', '8408', '8410'];
+    const tabs = ['8401', '8402', '8403', '8404', '8405', '8408', '8410'];
     
     let tabsHtml = tabs.map(t => {
         const isSel = (t === _selectedBotForAsset);
