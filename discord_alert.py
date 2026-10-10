@@ -177,7 +177,7 @@ def get_bot_200min_history(b_obj):
     return history
 
 
-def build_message(data, prev_total, prev_bots, history, title_prefix="전체", sub_assets=None, sub_total=None, prev_sub_total=None, include_bot_charts=False, series=None, asset_history=None, asset_series=None, tick_count=0):
+def build_message(data, prev_total, prev_bots, history, title_prefix="전체", sub_assets=None, sub_total=None, prev_sub_total=None, include_bot_charts=False, series=None, asset_history=None, asset_series=None):
     s = data["summary"]
     total = s.get("daily_ret")
     days = s.get("days")
@@ -265,10 +265,13 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
         except (ValueError, TypeError):
             b_asset = 0.0
         asset_val_str = f"${b_asset:.2f}"
-        if tick_count % 5 == 0:
+        
+        current_minute = time.localtime().tm_min
+        if current_minute % 5 == 0:
             lines.append(f"{mode_prefix}{pos_str} {b_name_short}  {b_days:.1f}  {asset_val_str}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}")
         else:
             lines.append(f"{mode_prefix}{pos_str} {b_name_short}  {asset_val_str}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}")
+            
         lines.append(f"  ({ent1:02d}/{ent4:02d}|{ent12:02d}/{ent24:02d} {sw:02d}W/{sl:02d}L : ({sun20_w}-{sun20_l})+({yeok20_w}-{yeok20_l}))")
         if seq_str:
             lines.append(f"  {seq_str}")
@@ -340,7 +343,7 @@ def recalc_data(data, exclude_names):
     return d
 
 
-def _process_single(data, path, title_prefix, include_bot_charts=False, tick_count=0):
+def _process_single(data, path, title_prefix, include_bot_charts=False):
     prev_total, prev_bots, history, prev_sub_total, series, asset_history, asset_series = _load_state(path)
     total = data["summary"].get("daily_ret")
     history.append(total)
@@ -361,7 +364,7 @@ def _process_single(data, path, title_prefix, include_bot_charts=False, tick_cou
     asset_series.append([now_ts, assets])
 
     msg = build_message(data, prev_total, prev_bots, history, title_prefix,
-                        include_bot_charts=include_bot_charts, series=series, asset_history=asset_history, asset_series=asset_series, tick_count=tick_count)
+                        include_bot_charts=include_bot_charts, series=series, asset_history=asset_history, asset_series=asset_series)
     ok, info = _post(msg)
     if ok:
         new_prev_bots = {b["name"]: (b.get("daily_ret") if b.get("daily_ret") is not None else 0.0)
@@ -370,7 +373,7 @@ def _process_single(data, path, title_prefix, include_bot_charts=False, tick_cou
     return ok, info
 
 
-def _process_subset(data, target_names, state_suffix, title_prefix, include_bot_charts=False, tick_count=0):
+def _process_subset(data, target_names, state_suffix, title_prefix, include_bot_charts=False):
     import copy
     import app
     d_sub = copy.deepcopy(data)
@@ -393,7 +396,7 @@ def _process_subset(data, target_names, state_suffix, title_prefix, include_bot_
             
             b_name = b_item.get("name")
             state_file = STATE_FILE.replace(".json", f"_{b_name}.json")
-            ok, info = _process_single(d_single, state_file, f" [{b_name} 봇]", include_bot_charts=True, tick_count=tick_count)
+            ok, info = _process_single(d_single, state_file, f" [{b_name} 봇]", include_bot_charts=True)
             results.append(ok)
             time.sleep(0.5)   # 웹훅 레이트리밋 방지
         return any(results), f"5Min Per-Bot Split Sent ({len(results)} bots)"
@@ -424,7 +427,7 @@ def _process_subset(data, target_names, state_suffix, title_prefix, include_bot_
         d_sub["summary"]["days"] = round(days, 1)
         
         state_file = STATE_FILE.replace(".json", state_suffix)
-        return _process_single(d_sub, state_file, title_prefix, include_bot_charts=False, tick_count=tick_count)
+        return _process_single(d_sub, state_file, title_prefix, include_bot_charts=False)
 
 
 
@@ -549,20 +552,19 @@ def _get_recent_bot_changes(days=14):
         if date_str:
             try:
                 dt = datetime.datetime.strptime(date_str, "%Y-%m-%d")
-                if (now - dt).days <= days:
-                    full_text = "\n".join(change_text)
-                    mentioned_bots = []
-                    for b in bot_changes.keys():
-                        if b in full_text: mentioned_bots.append(b)
+                full_text = "\n".join(change_text)
+                mentioned_bots = []
+                for b in bot_changes.keys():
+                    if str(b) in full_text: mentioned_bots.append(str(b))
+                
+                if not mentioned_bots and "전체 봇" in full_text:
+                    mentioned_bots = list(bot_changes.keys())
                     
-                    if not mentioned_bots and "전체 봇" in full_text:
-                        mentioned_bots = list(bot_changes.keys())
-                        
-                    for b in mentioned_bots:
-                        rel_lines = [l for l in change_text if b in l or "전체 봇" in l]
-                        t = rel_lines[0] if rel_lines else change_text[0]
-                        if len(t) > 40: t = t[:40] + "..."
-                        bot_changes[b].append(f"({dt.strftime('%m/%d')}) {t}")
+                for b in mentioned_bots:
+                    rel_lines = [l for l in change_text if str(b) in l or "전체 봇" in l]
+                    t = rel_lines[0] if rel_lines else change_text[0]
+                    if len(t) > 40: t = t[:40] + "..."
+                    bot_changes[str(b)].append(f"({dt.strftime('%m/%d')}) {t}")
             except Exception:
                 pass
                 
@@ -582,11 +584,11 @@ def tick(data, tick_count=0, include_bot_charts=False):
             embeds = []
             desc = ""
             for b in sorted(changes.keys()):
-                lines = "\n".join([f"- {c}" for c in changes[b][:3]])
+                lines = "\n".join([f"- {c}" for c in changes[b][-5:][::-1]])
                 desc += f"**[{b}]**\n{lines}\n\n"
             if desc:
                 embeds.append({
-                    "title": "🛠️ 최근 14일 봇별 매매전략 및 설정 변경 요약",
+                    "title": "🛠️ 봇별 매매전략 및 설정 변경 요약",
                     "description": desc.strip(),
                     "color": 15158332
                 })
@@ -599,12 +601,12 @@ def tick(data, tick_count=0, include_bot_charts=False):
         info_changes = f"Fail({e})"
 
     # 2. 그룹 2 발송
-    ok2, info2 = _process_subset(data, group2, "_g2.json", "그룹 2", include_bot_charts=include_bot_charts, tick_count=tick_count)
+    ok2, info2 = _process_subset(data, group2, "_g2.json", "그룹 2", include_bot_charts=include_bot_charts)
     import time
     time.sleep(1)
     
     # 3. 그룹 1 발송
-    ok1, info1 = _process_subset(data, group1, "_g1.json", "그룹 1", include_bot_charts=include_bot_charts, tick_count=tick_count)
+    ok1, info1 = _process_subset(data, group1, "_g1.json", "그룹 1", include_bot_charts=include_bot_charts)
     
     return ok1 or ok2, f"Changes:{info_changes} / G2:{info2} / G1:{info1}"
 
