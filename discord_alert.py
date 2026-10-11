@@ -571,11 +571,41 @@ def _get_recent_bot_changes(days=14):
     return {k: v for k, v in bot_changes.items() if v}
 
 
+def _classify_groups(bots):
+    """
+    초기화 시점(perf_start) 기준 경과 일수에 따른 4개 그룹 동적 분류:
+    - 그룹1 : 초기화 이후 7일 이내 경과 봇 (days <= 7.0)
+    - 그룹2 : 초기화 이후 14일 이내 경과 봇 (7.0 < days <= 14.0)
+    - 그룹3 : 초기화 이후 21일 이내 경과 봇 (14.0 < days <= 21.0)
+    - 그룹4 : 초기화 이후 21일 초과 경과 봇 (days > 21.0)
+    """
+    import time
+    g1, g2, g3, g4 = set(), set(), set(), set()
+    now_ts = time.time()
+    for b in bots:
+        name = str(b.get("name") or b.get("id"))
+        perf_start = b.get("perf_start")
+        days = 0.0
+        if perf_start:
+            try:
+                t0 = time.mktime(time.strptime(str(perf_start)[:19], "%Y-%m-%d %H:%M:%S"))
+                days = max(0.0, (now_ts - t0) / 86400.0)
+            except Exception:
+                days = 0.0
+        
+        if days <= 7.0:
+            g1.add(name)
+        elif days <= 14.0:
+            g2.add(name)
+        elif days <= 21.0:
+            g3.add(name)
+        else:
+            g4.add(name)
+    return g1, g2, g3, g4
+
+
 def tick(data, tick_count=0, include_bot_charts=False):
-    """집계 1건을 받아 매 1분마다 디스코드 알림 발송 및 상태 갱신 (그룹 1, 그룹 2 분할 발송)."""
-    group1 = {"8402", "8405", "8410"}
-    group2 = {"8401", "8403", "8404", "8408"}
-    
+    """집계 1건을 받아 매 1분마다 디스코드 알림 발송 및 상태 갱신 (경과일수 기준 그룹 1~4 동적 분할 발송)."""
     info_changes = "None"
     try:
         import time
@@ -600,15 +630,22 @@ def tick(data, tick_count=0, include_bot_charts=False):
         print(f"변경 요약 전송 실패: {e}")
         info_changes = f"Fail({e})"
 
-    # 2. 그룹 2 발송
-    ok2, info2 = _process_subset(data, group2, "_g2.json", "그룹 2", include_bot_charts=include_bot_charts)
+    # 동적 4개 그룹 분류
+    g1, g2, g3, g4 = _classify_groups(data.get("bots", []))
+    groups = [(1, g1), (2, g2), (3, g3), (4, g4)]
+    
+    group_results = []
     import time
-    time.sleep(1)
-    
-    # 3. 그룹 1 발송
-    ok1, info1 = _process_subset(data, group1, "_g1.json", "그룹 1", include_bot_charts=include_bot_charts)
-    
-    return ok1 or ok2, f"Changes:{info_changes} / G2:{info2} / G1:{info1}"
+    for g_num, g_bots in groups:
+        if not g_bots:
+            continue
+        ok_g, info_g = _process_subset(data, g_bots, f"_g{g_num}.json", f"그룹 {g_num}", include_bot_charts=include_bot_charts)
+        group_results.append((g_num, ok_g, info_g))
+        time.sleep(1)
+
+    any_ok = any(ok for _, ok, _ in group_results)
+    info_groups = " / ".join([f"G{g_num}:{inf}" for g_num, _, inf in group_results]) if group_results else "NoGroups"
+    return any_ok, f"Changes:{info_changes} / {info_groups}"
 
 
 if __name__ == "__main__":
