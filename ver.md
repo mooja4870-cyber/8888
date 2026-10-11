@@ -1,5 +1,23 @@
 # Version History
 
+## v1.2.27
+Date: 2026-10-11
+
+### 변경 내용
+* [8407, 8409] 바이낸스 선물 API 연동 정합 및 백그라운드 엔진(bot.py + app.py) 동시 기동 완료
+* [8407, 8409] 8408 바이낸스 거래소 어댑터(BinanceClient) 및 api.md 연동 모듈 적용으로 잔고/포지션/스캔 정상 작동 확인
+* [디스코드] '🛠️ 봇별 매매전략 및 설정 변경 요약' 파싱 대상에 8407, 8409 추가하여 이식 내역 실시간 알림 반영
+* [검증] 전체 봇 verify_all.py 100% PASS 확인 완료
+
+### 수정 파일
+* /Users/l/project/8888/discord_alert.py
+* /Users/l/project/8888/ver.md
+* /Users/l/project/8407/ (core/exchange.py, core/api_keys.py, bot.py, app.py, ver.md)
+* /Users/l/project/8409/ (core/exchange.py, core/api_keys.py, bot.py, app.py, ver.md)
+
+### 비고
+* 8407, 8409 백그라운드 동시 기동 및 디스코드 요약 알림 정합 완료
+
 ## v1.2.26
 Date: 2026-10-11
 

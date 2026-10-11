@@ -524,7 +524,7 @@ def _get_recent_bot_changes(days=14):
         
     blocks = re.split(r'\n## v', v_content)
     now = datetime.datetime.now()
-    bot_changes = {str(b): [] for b in [8401, 8402, 8403, 8404, 8405, 8408, 8410]}
+    bot_changes = {str(b): [] for b in [8401, 8402, 8403, 8404, 8405, 8407, 8408, 8409, 8410]}
     
     for block in blocks[1:]:
         lines = block.strip().split('\n')
