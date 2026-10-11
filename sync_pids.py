@@ -1,27 +1,17 @@
 import os
-import subprocess
+import glob
 
-def list_bot_pids(bot_dir):
-    try:
-        output = subprocess.check_output(['pgrep', '-f', 'bot.py']).decode().strip().split('\n')
-        for pid in output:
-            if not pid: continue
-            try:
-                cmd = subprocess.check_output(['ps', '-p', pid, '-o', 'args=']).decode().strip()
-                if bot_dir in cmd and "python" in cmd.lower():
-                    return pid
-            except:
-                pass
-    except:
-        pass
-    return None
+bots = glob.glob('/Users/l/project/840*') + glob.glob('/Users/l/project/8410')
+for b in bots:
+    bot_id = os.path.basename(b)
+    lock_path = f"/tmp/quantum_{bot_id}_trader.lock"
+    pid_path = os.path.join(b, "bot.pid")
+    
+    if os.path.exists(lock_path):
+        with open(lock_path, 'r') as f:
+            lock_pid = f.read().strip()
+        if lock_pid:
+            with open(pid_path, 'w') as f:
+                f.write(lock_pid)
+            print(f"[{bot_id}] Synced bot.pid to {lock_pid}")
 
-for b in [8401, 8402, 8403, 8404, 8405, 8408, 8410]:
-    bot_dir = f"/Users/l/project/{b}"
-    pid = list_bot_pids(str(b))
-    if pid:
-        with open(f"{bot_dir}/bot.pid", "w") as f:
-            f.write(pid)
-        print(f"[{b}] Synced PID: {pid}")
-    else:
-        print(f"[{b}] Bot not running!")

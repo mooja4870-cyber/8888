@@ -29,3 +29,11 @@ if ! pgrep -f "watchdog_exit.py" > /dev/null 2>&1; then
     cd "$BASE_DIR" || exit
     nohup python3 "$BASE_DIR/watchdog_exit.py" >> "$BASE_DIR/watchdog_exit.log" 2>&1 &
 fi
+
+# 4. 8888 통합 관제 대시보드 (app.py) 확인
+if ! pgrep -f "python3.*/8888/app.py" > /dev/null 2>&1 && ! pgrep -f "python3 app.py" | grep -q "$(cat $BASE_DIR/app.pid 2>/dev/null)"; then
+    echo "$(date '+%F %T') [KEEPER] 🚨 8888 app.py 다운 감지! 재기동합니다..." >> "$BASE_DIR/watchdog_keeper.log"
+    cd "$BASE_DIR" || exit
+    nohup python3 "$BASE_DIR/app.py" >> "$BASE_DIR/app.log" 2>&1 &
+    echo $! > "$BASE_DIR/app.pid"
+fi

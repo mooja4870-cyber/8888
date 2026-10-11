@@ -1,5 +1,25 @@
 # Version History
 
+## v1.2.25
+Date: 2026-10-11
+
+### 변경 내용
+* [8402] QVT 눌림목 스나이퍼 전략(v2.0.0)으로 전면 리빌딩 (월 4~7% 안정 수익 타깃)
+* [8402] 4h EMA50/200 추세 게이트 및 Kaufman KER 횡보장 휩소 차단 필터 적용
+* [8402] 1h RSI 눌림목 및 볼린저 지지 반등 트리거 + 손익비 1:3.0 (SL 1.5% / TP 4.5% / BE 2.0%)
+* [8402] 최대 포지션 2개 슬롯 압축 (.5 마진 집중) 및 36.9일 통계 아카이브 분리
+
+### 수정 파일
+* /Users/l/project/8402/config.json
+* /Users/l/project/8402/core/strategy.py
+* /Users/l/project/8402/core/trader.py
+* /Users/l/project/8402/data/stats.json
+* /Users/l/project/8402/ver.md
+
+### 비고
+* 8402 봇 재기동 및 3중 검증(파일/UI/백엔드), verify_all 100% PASS 확인 완료
+
+
 ## v1.2.17
 Date: 2026-10-07
 
