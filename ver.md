@@ -1,5 +1,24 @@
 # Version History
 
+## v1.2.26
+Date: 2026-10-11
+
+### 변경 내용
+* [Transplant] 8402 [QVT 눌림목 스나이퍼 (1h)]를 8401(OKX), 8407(Binance), 8409(Binance)로 완전 이식
+* [자아 보존] 타겟 봇들의 API 인증키(.env, api.md), 포트 번호(8401, 8407, 8409), 거래소 식별자(OKX/Binance) 100% 보존
+* [뇌/껍데기 이식] 타겟 봇 기존 core, config.json, app.py, bot.py 완전 삭제 후 8402 QVT 스나이퍼 엔진 복사
+* [8401 기동] 8401 봇 엔진 즉시 재기동 및 QVT 눌림목 신호 실시간 스캔 확인 (FIL 롱 주문 정상 접수)
+* [8407, 8409] 바이낸스 선물 환경 정합 완료 및 구문 컴파일(py_compile) 100% 검증 완료
+
+### 수정 파일
+* /Users/l/project/8401/ (core/, config.json, app.py, bot.py, ver.md)
+* /Users/l/project/8407/ (core/, config.json, app.py, bot.py, ver.md)
+* /Users/l/project/8409/ (core/, config.json, app.py, bot.py, ver.md)
+* /Users/l/project/8888/ver.md
+
+### 비고
+* 보스 이중 승인 획득 후 안전 이식 및 verify_all 100% PASS 확인 완료
+
 ## v1.2.25
 Date: 2026-10-11
 
