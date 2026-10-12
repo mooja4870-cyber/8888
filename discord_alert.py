@@ -204,8 +204,12 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
 
     lines = [ts]
     lines.append("======================================")
+    if "일평균수익률" in title_prefix or "유형" in title_prefix:
+        head_title = title_prefix
+    else:
+        head_title = f"{title_prefix} 일평균수익률"
     lines.extend([
-             f"📊 {title_prefix} 일평균수익률 ({head_days}) : {asset_str}{delta_str}{ret_str} [1m]{h1m} [1]{h1} [6]{h6} [12]{h12} [24]{h24} [48]{h48} [72]{h72}",
+             f"📊 {head_title} ({head_days}) : {asset_str}{delta_str}{ret_str} [1m]{h1m} [1]{h1} [6]{h6} [12]{h12} [24]{h24} [48]{h48} [72]{h72}",
              "─" * 38])
     bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
     for b in bots:
@@ -648,9 +652,9 @@ def tick(data, tick_count=0, include_bot_charts=False):
     # 유형2: 8403, 8405 (BB MR 평균회귀 전략)
     # 유형3: 8404, 8408, 8410 (BBTS 추세돌파 전략)
     types = [
-        (1, "유형1", ["8401", "8402", "8407", "8409"]),
-        (2, "유형2", ["8403", "8405"]),
-        (3, "유형3", ["8404", "8408", "8410"]),
+        (1, "유형1 QVT 눌림목 스나이퍼", ["8401", "8402", "8407", "8409"]),
+        (2, "유형2 BB MR 평균회귀", ["8403", "8405"]),
+        (3, "유형3 BBTS 추세돌파", ["8404", "8408", "8410"]),
     ]
     type_results = []
     for t_num, t_title, t_bots in types:
