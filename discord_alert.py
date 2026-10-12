@@ -266,11 +266,7 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
             b_asset = 0.0
         asset_val_str = f"${b_asset:.2f}"
         
-        current_minute = time.localtime().tm_min
-        if current_minute % 5 == 0:
-            lines.append(f"{mode_prefix}{pos_str} {b_name_short}  {b_days:.1f}  {asset_val_str}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}")
-        else:
-            lines.append(f"{mode_prefix}{pos_str} {b_name_short}  {asset_val_str}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}")
+        lines.append(f"{mode_prefix}{pos_str} {b_name_short}  {b_days:.1f}  {asset_val_str}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}")
             
         lines.append(f"  ({ent1:02d}/{ent4:02d}|{ent12:02d}/{ent24:02d} {sw:02d}W/{sl:02d}L : ({sun20_w}-{sun20_l})+({yeok20_w}-{yeok20_l}))")
         if seq_str:
@@ -630,7 +626,7 @@ def tick(data, tick_count=0, include_bot_charts=False):
         print(f"변경 요약 전송 실패: {e}")
         info_changes = f"Fail({e})"
 
-    # 동적 4개 그룹 분류
+    # 1단계: 동적 4개 그룹 분류 (경과일수 기준: 그룹1 ~ 그룹4)
     g1, g2, g3, g4 = _classify_groups(data.get("bots", []))
     groups = [(1, g1), (2, g2), (3, g3), (4, g4)]
     
@@ -639,13 +635,33 @@ def tick(data, tick_count=0, include_bot_charts=False):
     for g_num, g_bots in groups:
         if not g_bots:
             continue
-        ok_g, info_g = _process_subset(data, g_bots, f"_g{g_num}.json", f"그룹 {g_num}", include_bot_charts=include_bot_charts)
-        group_results.append((g_num, ok_g, info_g))
+        ok_g, info_g = _process_subset(data, g_bots, f"_g{g_num}.json", f"그룹{g_num}", include_bot_charts=include_bot_charts)
+        group_results.append((f"G{g_num}", ok_g, info_g))
         time.sleep(1)
 
-    any_ok = any(ok for _, ok, _ in group_results)
-    info_groups = " / ".join([f"G{g_num}:{inf}" for g_num, _, inf in group_results]) if group_results else "NoGroups"
-    return any_ok, f"Changes:{info_changes} / {info_groups}"
+    # 2단계: 반드시 구분선 전송 ('******* ******* *******')
+    _post("******* ******* *******")
+    time.sleep(1)
+
+    # 3단계: 전략 유형별 봇 그룹 분류 (유형1 ~ 유형3)
+    # 유형1: 8401, 8402, 8407, 8409 (QVT 눌림목 스나이퍼 전략)
+    # 유형2: 8403, 8405 (BB MR 평균회귀 전략)
+    # 유형3: 8404, 8408, 8410 (BBTS 추세돌파 전략)
+    types = [
+        (1, "유형1", ["8401", "8402", "8407", "8409"]),
+        (2, "유형2", ["8403", "8405"]),
+        (3, "유형3", ["8404", "8408", "8410"]),
+    ]
+    type_results = []
+    for t_num, t_title, t_bots in types:
+        ok_t, info_t = _process_subset(data, t_bots, f"_type{t_num}.json", t_title, include_bot_charts=include_bot_charts)
+        type_results.append((f"T{t_num}", ok_t, info_t))
+        time.sleep(1)
+
+    all_results = group_results + type_results
+    any_ok = any(ok for _, ok, _ in all_results)
+    info_all = " / ".join([f"{name}:{inf}" for name, _, inf in all_results]) if all_results else "None"
+    return any_ok, f"Changes:{info_changes} / {info_all}"
 
 
 if __name__ == "__main__":
