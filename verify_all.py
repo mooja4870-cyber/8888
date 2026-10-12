@@ -24,14 +24,31 @@ def verify_all():
         
         # 1. Process checks
         bot_pid_file = os.path.join(bot_path, 'bot.pid')
-        if os.path.exists(bot_pid_file):
+        lock_file = f"/tmp/quantum_{bot_id}_trader.lock"
+        pid_alive = False
+        
+        # lock 파일 우선 확인 (실제 Python 프로세스의 true PID)
+        if os.path.exists(lock_file):
+            try:
+                with open(lock_file, 'r') as f:
+                    lpid = f.read().strip()
+                if lpid.isdigit() and os.system(f"kill -0 {lpid} 2>/dev/null") == 0:
+                    pid_alive = True
+                    # bot.pid 파일도 실제 PID로 자동 동기화
+                    with open(bot_pid_file, 'w') as f:
+                        f.write(lpid)
+            except:
+                pass
+                
+        # bot.pid 파일 확인
+        if not pid_alive and os.path.exists(bot_pid_file):
             with open(bot_pid_file, 'r') as f:
                 pid = f.read().strip()
-            if pid.isdigit():
-                if os.system(f"kill -0 {pid} 2>/dev/null") != 0:
-                    errors.append("❌ 봇 프로세스가 죽어 있습니다 (kill -0 실패)")
-        else:
-            errors.append("❌ bot.pid 파일이 없습니다")
+            if pid.isdigit() and os.system(f"kill -0 {pid} 2>/dev/null") == 0:
+                pid_alive = True
+                
+        if not pid_alive:
+            errors.append("❌ 봇 프로세스가 죽어 있습니다 (kill -0 실패)")
 
         # Streamlit check
         try:
