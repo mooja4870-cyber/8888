@@ -651,9 +651,9 @@ def read_bot_config(folder):
             sl_str = f"{sl_val:.2f}%" if "STOP_LOSS_PCT" in cfg else "—"
             tp_str = f"{tp_val:.2f}%" if "TAKE_PROFIT_PCT" in cfg else "—"
 
-        # [Realtime Strategy Scanner] - 봇의 두뇌(strategy.py)를 실시간 스캔하여 하드코딩 탈피
+        # [Realtime Strategy Scanner] - 봇의 두뇌(strategy.py)를 실시간 스캔하여 하드코딩 탈피 (meta 없을 때만)
         strat_path = os.path.join(BASE, folder, "core", "strategy.py")
-        if os.path.exists(strat_path):
+        if not (meta and meta.get("strategy")) and os.path.exists(strat_path):
             try:
                 import re
                 with open(strat_path, "r", encoding="utf-8", errors="ignore") as f:

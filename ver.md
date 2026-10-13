@@ -1,5 +1,26 @@
 # Version History
 
+## v1.2.37
+Date: 2026-10-14
+
+### 변경 내용
+* [8404 전략 전면 개조] 8404 봇에 TTM 스퀴즈 + 허스트 지수(Hurst) 하이브리드 퓨전(전략 15) 탑재
+  - R/S 프랙탈 허스트 지수(H)와 볼린저-켈트너 TTM 스퀴즈를 융합하여 횡보장 MR 단타와 추세장 BBTS 돌파를 동적 실행
+  - 8404 타임프레임 1h 최적화 및 8888 통합 관제 대시보드 메타(DASHBOARD_META) 동기화
+  - 8888 관제소 대시보드 메타 우선 적용 로직 보강
+
+### 수정 파일
+* /Users/l/project/8404/core/strategy.py
+* /Users/l/project/8404/core/config.py
+* /Users/l/project/8404/config.json
+* /Users/l/project/8404/app.py
+* /Users/l/project/8404/ver.md
+* /Users/l/project/8888/app.py
+* /Users/l/project/8888/ver.md
+
+### 비고
+* 8404 매매 엔진 및 UI 정상 기동 확인, verify_all 100% PASS
+
 ## v1.2.36
 Date: 2026-10-13
 
