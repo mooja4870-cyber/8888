@@ -630,24 +630,9 @@ def tick(data, tick_count=0, include_bot_charts=False):
         print(f"변경 요약 전송 실패: {e}")
         info_changes = f"Fail({e})"
 
-    # 1단계: 동적 4개 그룹 분류 (경과일수 기준: 그룹1 ~ 그룹4)
-    g1, g2, g3, g4 = _classify_groups(data.get("bots", []))
-    groups = [(1, g1), (2, g2), (3, g3), (4, g4)]
-    
-    group_results = []
     import time
-    for g_num, g_bots in groups:
-        if not g_bots:
-            continue
-        ok_g, info_g = _process_subset(data, g_bots, f"_g{g_num}.json", f"그룹{g_num}", include_bot_charts=include_bot_charts)
-        group_results.append((f"G{g_num}", ok_g, info_g))
-        time.sleep(1)
 
-    # 2단계: 반드시 구분선 전송 ('******* ******* *******')
-    _post("******* ******* *******")
-    time.sleep(1)
-
-    # 3단계: 전략 유형별 봇 그룹 분류 (유형1 ~ 유형3)
+    # 전략 유형별 봇 그룹 분류 (유형1 ~ 유형3)
     # 유형1: 8401, 8402, 8407, 8409 (QVT 눌림목 스나이퍼 전략)
     # 유형2: 8403, 8405 (BB MR 평균회귀 전략)
     # 유형3: 8404, 8408, 8410 (BBTS 추세돌파 전략)
@@ -662,7 +647,7 @@ def tick(data, tick_count=0, include_bot_charts=False):
         type_results.append((f"T{t_num}", ok_t, info_t))
         time.sleep(1)
 
-    all_results = group_results + type_results
+    all_results = type_results
     any_ok = any(ok for _, ok, _ in all_results)
     info_all = " / ".join([f"{name}:{inf}" for name, _, inf in all_results]) if all_results else "None"
     return any_ok, f"Changes:{info_changes} / {info_all}"
