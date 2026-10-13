@@ -631,15 +631,15 @@ def read_bot_config(folder):
                 if "DON_LEN" in cfg: indicators.append(f"Donchian{cfg['DON_LEN']}")
                 ind_str = ", ".join(indicators) if indicators else "—"
 
-        # 3. 손절률 / 수익목표 (stop_loss_pct, take_profit_pct)
+        # 3. 손절률 / 수익목표 (stop_loss_pct, take_profit_pct) - 7대 영역 전수 일체형 정합화
         if meta and "sl_str" in meta:
             sl_str = meta.get("sl_str")
             tp_str = meta.get("tp_str", "—")
-        elif cfg.get("USE_ATR_SL", False):
-            sl_mult = cfg.get("ATR_SL_MULT", 1.5)
-            tp_mult = cfg.get("ATR_TP_MULT", 3.0)
-            sl_str = f"ATR×{sl_mult:.1f}"
-            tp_str = f"ATR×{tp_mult:.1f} (1:2)"
+        elif cfg.get("SL_ATR_MULT") or cfg.get("ATR_SL_MULT") or cfg.get("BBTS_SL_ATR_MULT") or cfg.get("USE_ATR_SL"):
+            sl_mult = cfg.get("SL_ATR_MULT") or cfg.get("ATR_SL_MULT") or cfg.get("BBTS_SL_ATR_MULT") or 1.5
+            tp_mult = cfg.get("TP_ATR_MULT") or cfg.get("ATR_TP_MULT") or cfg.get("BBTS_TP_ATR_MULT") or (float(sl_mult) * 2.0)
+            sl_str = f"ATR×{float(sl_mult):.1f}"
+            tp_str = f"ATR×{float(tp_mult):.1f} (1:2)"
         elif folder == "8409":
             sl_mult = cfg.get("TSMOM_SL_ATR_MULT") or cfg.get("DL_SL_ATR_MULT") or 2.0
             tp_mult = cfg.get("TSMOM_TP_ATR_MULT") or cfg.get("DL_TP_ATR_MULT") or (sl_mult * 2.0)

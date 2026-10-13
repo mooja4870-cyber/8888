@@ -1,5 +1,30 @@
 # Version History
 
+## v1.2.41
+Date: 2026-10-14
+
+### 변경 내용
+* [관제소 손익절 파싱 및 메타 전수 정합화] 보스 정밀 감사 지침에 따른 7대 영역 불일치 원천 제거
+  - 8888/app.py: read_bot_config 손익절 파싱 로직에서 SL_ATR_MULT, ATR_SL_MULT, BBTS_SL_ATR_MULT 지원 (8404 등 고정 % 오표기 제거 및 ATR×1.5 / ATR×3.0 100% 반영)
+  - 8404: config.json DASHBOARD_META에 sl_str/tp_str 명시 주입
+  - 8410: core/config.py TradingConfig에 DASHBOARD_META 선언 (UI 설정 저장 시 키 증발 위험 원천 차단)
+  - 8408: DASHBOARD_META 전략명을 1시간봉 가동 사실에 맞게 "BBTS 변동성 확장 돌파 (1h)"로 정합화
+  - verify_all.py: 8404, 8408, 8410에 대한 7대 영역 정합성 및 DASHBOARD_META 선언 교차 감사 확장
+
+### 수정 파일
+* /Users/l/project/8888/app.py
+* /Users/l/project/8888/verify_all.py
+* /Users/l/project/8888/ver.md
+* /Users/l/project/8404/config.json
+* /Users/l/project/8404/ver.md
+* /Users/l/project/8408/config.json
+* /Users/l/project/8408/ver.md
+* /Users/l/project/8410/core/config.py
+* /Users/l/project/8410/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.40
 Date: 2026-10-14
 
