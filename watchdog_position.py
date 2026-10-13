@@ -124,7 +124,7 @@ def check_log_for_errors(bot_name, last_offsets):
                 last_offsets[log_path] = f.tell()
                 
                 for line in content.split('\n'):
-                    if "[LOCK]" in line or "다른 트레이더 프로세스" in line: continue
+                    if "[LOCK]" in line or "다른 트레이더 프로세스" in line or "[REGIME]" in line: continue
                     if any(kw.lower() in line.lower() for kw in FATAL_KEYWORDS):
                         return True, True, False, line.strip()
                     if any(kw.lower() in line.lower() for kw in ERROR_KEYWORDS) or any(fuzzy_match(kw, line) for kw in ERROR_DICT_KEYWORDS):

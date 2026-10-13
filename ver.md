@@ -1,5 +1,28 @@
 # Version History
 
+## v1.2.35
+Date: 2026-10-13
+
+### 변경 내용
+* [8410 퓨전 매매전략] 8410 봇에 유형2 (BB MR 평균회귀) + 유형3 (BBTS 추세돌파) 탄력적 퓨전(FUSION) 전략 탑재
+  - 추세 강도 지표(ADX 14) 기반 실시간 국면 판별 (ADX < 25: 횡보 MR 회귀 매매 / ADX >= 25: 추세 BBTS 돌파 매매)
+* [트랙 레코드 리셋] 지난 42일간 서로 다른 8차례 수정 이력을 별도 분리 백업(`trade_history_legacy_42d.csv`)하고, 순수 단일 퓨전 전략 1일차 트랙 레코드 클린 스타트 (`stats.json` 시작시점 리셋)
+* [워치독 오탐 안정화] `watchdog_exit.py`, `watchdog_position.py`, `error_dict.txt`에서 정상 국면 전환 로그(`[REGIME]`) 오탐 필터링 및 안정화 완료
+
+### 수정 파일
+* /Users/l/project/8410/core/strategy.py
+* /Users/l/project/8410/config.json
+* /Users/l/project/8410/data/stats.json
+* /Users/l/project/8410/data/trade_history.csv
+* /Users/l/project/8410/ver.md
+* /Users/l/project/8888/watchdog_exit.py
+* /Users/l/project/8888/watchdog_position.py
+* /Users/l/project/8888/error_dict.txt
+* /Users/l/project/8888/ver.md
+
+### 비고
+* 8410 봇 퓨전 전략 실시간 정상 가동 및 verify_all 100% PASS 검증 완료
+
 ## v1.2.34
 Date: 2026-10-13
 

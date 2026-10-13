@@ -938,7 +938,6 @@ Expected a 1D array, got an array with shape
 valid_principals already set
 expected B to be a rectangular matrix
 Inconsistency matrix %smust have 4 columns.
-[REGIME] 국면 전환  →  () |
 Channel can only be 1, 3, or 4 got . Shape is
 Coefficient array is not 1-d
 minor version must be 0 <= minor < 256
