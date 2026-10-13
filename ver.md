@@ -1,5 +1,26 @@
 # Version History
 
+## v1.2.39
+Date: 2026-10-14
+
+### 변경 내용
+* [8404 / 8410 UI 및 설정 전수 정합화] 8404(SQUEEZE-HURST)와 8410(FUSION)의 사이드바 표기 및 config.json 설정값 100% 동기화
+  - 8404: TIMEFRAME 1h 확정, 사이드바 하단 매매설정 박스 TTM 스퀴즈+허스트 퓨전 표기, 손익절 1.5/3.0 동기화
+  - 8410: DASHBOARD_META 퓨전 정합화 및 청산 위젯 캡션 퓨전 다이내믹 표기 갱신
+  - 백엔드 봇 엔진 및 Streamlit UI 재기동 및 3중 자체 검증 완료
+
+### 수정 파일
+* /Users/l/project/8404/config.json
+* /Users/l/project/8404/app.py
+* /Users/l/project/8404/ver.md
+* /Users/l/project/8410/config.json
+* /Users/l/project/8410/app.py
+* /Users/l/project/8410/ver.md
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.38
 Date: 2026-10-14
 
