@@ -1,5 +1,20 @@
 # Version History
 
+## v1.2.33
+Date: 2026-10-13
+
+### 변경 내용
+* [시드 머니 동기화] 8404 봇의 초기화 기준 잔고를 9.68 USDT에서 10.0 USDT로 수정
+  - 8404 `data/stats.json`: seed_money 10.0 적용
+  - 8888 `seeds.json`: 8404 seed 10.0 동기화
+
+### 수정 파일
+* seeds.json
+* ver.md
+
+### 비고
+* 8404 봇 대시보드 누적 수익률 산출 기준금 10.0 USDT 정상 반영 완료
+
 ## v1.2.32
 Date: 2026-10-13
 
