@@ -1,5 +1,27 @@
 # Version History
 
+## v1.2.40
+Date: 2026-10-14
+
+### 변경 내용
+* [내부 강제 기준 확립] 보스 지침에 따라 전략 변경 및 기능 수정 시 '7대 영역 전수 일체형 동기화 규칙 (Full-Stack + 8888 중앙 관제소 Sync)' 수립 및 시스템 영구 장착
+  - 1) 개별 봇 매매 엔진 (strategy.py)
+  - 2) 개별 봇 설정 파일 (config.json)
+  - 3) 개별 봇 데이터클래스 (core/config.py)
+  - 4) 개별 봇 사이드바 UI (app.py)
+  - 5) 개별 봇 관제 메타 (DASHBOARD_META)
+  - 6) 중앙 관제소 8888 앱 동시 수정 (8888/app.py 파싱 및 화면 표시 동기화)
+  - 7) 버전 이력 및 Git 동시 배포 (ver.md & commit/tag/push)
+* [자가 검증 고도화] verify_all.py에 8888 중앙 관제소 ↔ 개별 봇 7대 영역 정합성 교차 감사 로직 장착 (타임프레임 불일치 및 메타 유실 원천 차단)
+
+### 수정 파일
+* /Users/l/project/8888/.agents/AGENTS.md
+* /Users/l/project/8888/verify_all.py
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.39
 Date: 2026-10-14
 

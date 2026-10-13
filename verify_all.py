@@ -78,6 +78,61 @@ def verify_all():
             except:
                 pass
 
+        # 3. [전략 변경 시 7대 영역 전수 일체형 동기화 감사] Full-Stack + 8888 관제소 Sync 검증
+        cfg_file = os.path.join(bot_path, 'config.json')
+        if os.path.exists(cfg_file):
+            try:
+                import json
+                with open(cfg_file, 'r', encoding='utf-8') as f:
+                    cfg_data = json.load(f)
+                
+                tf_cfg = str(cfg_data.get('TIMEFRAME', '')).strip().lower()
+                dash_meta = cfg_data.get('DASHBOARD_META', {})
+                
+                # (1) 퓨전 및 전략 개조 봇(8404, 8410 등) 타임프레임 & 관제소 메타 일치 감사
+                if dash_meta and isinstance(dash_meta, dict):
+                    meta_strat = dash_meta.get('strategy', '')
+                    if '(1d)' in meta_strat.lower() and tf_cfg and tf_cfg != '1d':
+                        if bot_id in ['8404', '8410']:
+                            errors.append(f"❌ 타임프레임 불일치: config은 '{tf_cfg}'이나 DASHBOARD_META는 '{meta_strat}' (1d 잔존)")
+                    elif '(1h)' in meta_strat.lower() and tf_cfg and tf_cfg != '1h':
+                        if bot_id in ['8404', '8410']:
+                            errors.append(f"❌ 타임프레임 불일치: config은 '{tf_cfg}'이나 DASHBOARD_META는 '{meta_strat}' (1h 불일치)")
+
+                # (2) 8888 중앙 관제소 read_bot_config 파싱 결과와 실제 config/메타 일치 여부
+                try:
+                    import sys
+                    if '/Users/l/project/8888' not in sys.path:
+                        sys.path.append('/Users/l/project/8888')
+                    from app import read_bot_config
+                    parsed_8888 = read_bot_config(bot_id)
+                    if bot_id in ['8404', '8410']:
+                        parsed_tf = str(parsed_8888.get('timeframe', '')).strip().lower()
+                        if tf_cfg and parsed_tf and tf_cfg != parsed_tf:
+                            errors.append(f"❌ 8888 관제소 파싱 불일치: 봇 config='{tf_cfg}', 8888 읽기='{parsed_tf}'")
+                        if dash_meta and isinstance(dash_meta, dict) and dash_meta.get('strategy'):
+                            if parsed_8888.get('strategy') != dash_meta.get('strategy'):
+                                errors.append(f"❌ 8888 관제소 전략명 불일치: 메타='{dash_meta.get('strategy')}', 8888='{parsed_8888.get('strategy')}'")
+                except Exception as e:
+                    pass
+
+                # (3) 8404 등 고도화 퓨전 봇의 core/config.py 필수 필드 선언 검사 (키 유실 방지)
+                if bot_id == '8404':
+                    core_cfg_file = os.path.join(bot_path, 'core', 'config.py')
+                    if os.path.exists(core_cfg_file):
+                        try:
+                            with open(core_cfg_file, 'r', encoding='utf-8') as f:
+                                core_cfg_text = f.read()
+                            special_keys = ['KC_PERIOD', 'KC_MULT', 'HURST_MR_THRESH', 'HURST_TREND_THRESH', 'DASHBOARD_META']
+                            for sk in special_keys:
+                                if sk in cfg_data and sk not in core_cfg_text:
+                                    errors.append(f"❌ core/config.py 데이터클래스 선언 누락: '{sk}' 필드가 없어 저장 시 유실 위험!")
+                        except:
+                            pass
+            except Exception as e:
+                errors.append(f"❌ config.json 파싱 오류: {e}")
+
+
         # 3. Print Results
         if errors:
             print(f"[{bot_id}] FAIL 💥")
