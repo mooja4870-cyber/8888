@@ -1,5 +1,21 @@
 # Version History
 
+## v1.2.38
+Date: 2026-10-14
+
+### 변경 내용
+* [유형 3 명칭 변경] 보스 지침에 따라 유형 3의 분류 명칭을 'BBTS 추세돌파'에서 'Various Fusion (다양한 퓨전)'으로 전면 개편
+  - 사유: 8404(TTM 스퀴즈+허스트 퓨전) 및 8410(ADX 국면적응 퓨전) 등 복합 퓨전 모델들을 아우르는 최적 명칭 정합화
+  - 반영: discord_alert.py (디스코드 3유형 브리핑 타이틀), dashboard.html (관제 대시보드 폰트 색상 및 범례)
+
+### 수정 파일
+* discord_alert.py
+* dashboard.html
+* ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.37
 Date: 2026-10-14
 
