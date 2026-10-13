@@ -1277,11 +1277,26 @@ function renderBotAssetSection(d) {
     // 고정 탭 순서
     const tabs = ['8401', '8402', '8403', '8404', '8405', '8407', '8408', '8409', '8410'];
     
+    // 매매전략 유형별 폰트 색상 (유형1-노랑, 유형2-빨강, 유형3-파랑)
+    const typeColors = {
+        '8401': '#ffd21e', // 유형1 QVT 눌림목 스나이퍼 (노랑)
+        '8402': '#ffd21e',
+        '8407': '#ffd21e',
+        '8409': '#ffd21e',
+        '8403': '#ff5252', // 유형2 BB MR 평균회귀 (빨강)
+        '8405': '#ff5252',
+        '8404': '#4da6ff', // 유형3 BBTS 추세돌파 (파랑)
+        '8408': '#4da6ff',
+        '8410': '#4da6ff'
+    };
+
     let tabsHtml = tabs.map(t => {
         const isSel = (t === _selectedBotForAsset);
-        const bg = isSel ? 'var(--green)' : 'var(--card2)';
-        const col = isSel ? '#04342c' : 'var(--text)';
-        return `<button onclick="selectBotAsset('${t}')" style="background:${bg};color:${col};border:1px solid var(--border);border-radius:7px;font-size:14px;font-weight:600;padding:8px 16px;cursor:pointer">${t}</button>`;
+        const col = typeColors[t] || 'var(--text)';
+        const bg = isSel ? 'rgba(255,255,255,0.14)' : 'var(--card2)';
+        const border = isSel ? `2px solid ${col}` : '1px solid var(--border)';
+        const shadow = isSel ? `box-shadow:0 0 10px ${col}55;` : '';
+        return `<button onclick="selectBotAsset('${t}')" style="background:${bg};color:${col};border:${border};${shadow}border-radius:7px;font-size:14px;font-weight:700;padding:8px 16px;cursor:pointer;transition:all 0.15s">${t}</button>`;
     }).join('');
     document.getElementById('botAssetTabs').innerHTML = tabsHtml;
 
