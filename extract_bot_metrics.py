@@ -105,10 +105,56 @@ try:
 
     grouped_trades.sort(key=lambda x: x[0])  # 시간순 정렬 (과거→최신)
 
-    # 최근 30개 거래의 승패 시퀀스 (최신이 꼬리)
-    recent_30_trades = grouped_trades[-30:]
+    # ── [핵심 2] 최근 30개 거래의 승패 시퀀스 (전략 리셋/perf_start 무관 직전 30건 온전 추출) ──
+    closed_all = closed_trades_since(trades, None) if trades else []
+    if not closed_all:
+        # trade_history.csv가 초기화된 봇(8404 등)은 trade_history.csv.bak 파일에서 복원
+        bak_csv = os.path.join(bot_folder, "data", "trade_history.csv.bak")
+        if os.path.exists(bak_csv):
+            try:
+                import csv as _csv
+                with open(bak_csv, 'r', encoding='utf-8', errors='ignore') as bf:
+                    rdr = _csv.reader(bf)
+                    headers = next(rdr, None)
+                    for brow in rdr:
+                        if len(brow) >= 7 and brow[2] == '청산':
+                            try:
+                                ext_dt = datetime.datetime.strptime(brow[0][:19], '%Y-%m-%d %H:%M:%S')
+                                pnl_flt = float(brow[6])
+                                oid_str = brow[10] if len(brow) > 10 and brow[10] else f"_bak_{brow[0]}"
+                                closed_all.append({
+                                    'exit_time': ext_dt,
+                                    'pnl_usdt': pnl_flt,
+                                    'order_id': oid_str,
+                                    'status': '청산 완료'
+                                })
+                            except Exception:
+                                pass
+            except Exception:
+                pass
+
+    closed_all.sort(key=_exit_dt)
+
+    order_id_to_all = {}
+    for r in closed_all:
+        oid = _order_id(r)
+        if not oid:
+            oid = f"_uniq_{len(order_id_to_all)}"
+        if oid not in order_id_to_all:
+            order_id_to_all[oid] = []
+        order_id_to_all[oid].append(r)
+
+    all_grouped_trades = []
+    for oid, rows in order_id_to_all.items():
+        pnl_val = sum(float(r.get('pnl_usdt') or 0.0) for r in rows)
+        ext_val = max(_exit_dt(r) for r in rows)
+        all_grouped_trades.append((ext_val, pnl_val))
+
+    all_grouped_trades.sort(key=lambda x: x[0])
+    recent_30_all = all_grouped_trades[-30:]
+
     seq = ""
-    for exit_time, pnl, trade_mode in reversed(recent_30_trades):
+    for exit_time, pnl in reversed(recent_30_all):
         seq += "O" if pnl > 0 else "x"
 
     # 최근 20개 거래 중 순/역 비중 및 승패

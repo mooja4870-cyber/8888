@@ -1,5 +1,22 @@
 # Version History
 
+## v1.2.42
+Date: 2026-10-14
+
+### 변경 내용
+* [승패 시퀀스 복원 및 누락 버그 영구 픽스] 알림 문구의 최근 30개 청산 실적 승패 흐름(seq) perf_start 종속 분리
+  - extract_bot_metrics.py: 승패 시퀀스(seq) 추출 시 튜닝 시작일자(perf_start) 종속을 분리하여, 전략 리셋/개조 여부와 무관하게 전체 이력 중 가장 최근 30건을 언제나 온전하게 추출하도록 개편
+  - extract_bot_metrics.py: trade_history.csv가 초기화된 봇(8404 등)의 경우 trade_history.csv.bak 파일에서 이전 청산 이력을 자동 복원하여 알림 문구에서 승패 흐름 줄이 생략되던 침묵 버그 원천 차단
+  - app.py: extract_bot_metrics 서브프로세스 타임아웃을 2초에서 5초로 안전하게 확대하여 타임아웃 시 seq 빈값 초기화 위험 차단
+
+### 수정 파일
+* /Users/l/project/8888/extract_bot_metrics.py
+* /Users/l/project/8888/app.py
+* /Users/l/project/8888/ver.md
+
+### 비고
+* 디스코드 알림 메시지 8404 복원 실측 및 verify_all 100% PASS 검증 완료
+
 ## v1.2.41
 Date: 2026-10-14
 

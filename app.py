@@ -357,7 +357,7 @@ def hist_metrics(path, perf_start, pos_count=0):
     import subprocess, json
     try:
         helper_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "extract_bot_metrics.py")
-        out = subprocess.check_output(["python3", helper_path, bot_folder, ps], stderr=subprocess.DEVNULL, timeout=2)
+        out = subprocess.check_output(["python3", helper_path, bot_folder, ps], stderr=subprocess.DEVNULL, timeout=5)
         res = json.loads(out.decode('utf-8').strip().split('\n')[-1])
         if "error" not in res:
             tw = res.get("today_w", tw)
