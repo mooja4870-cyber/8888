@@ -1,5 +1,22 @@
 # Version History
 
+## v1.2.49
+Date: 2026-10-16
+
+### 변경 내용
+* [8888 관제 알림 구형 백업 폴백 제거 및 유령 승패 시퀀스 완전 박멸]
+  - `8888/extract_bot_metrics.py`: `trade_history.csv`가 비어있을 때 구형 `trade_history.csv.bak`을 읽어 유령 시퀀스를 만들어내던 결함 코드 완전 제거
+  - 8407 및 8409: 삭제된 구형 QVT 전략의 잔재 백업 파일들(`trade_history.csv.bak*`)을 `_old_qvt_archive/` 디렉토리로 안전 격리
+  - 8407, 8409의 승패 시퀀스를 공백(`""`)으로 정상화하고, 향후 신규 전략으로 실매매 체결 시에만 순수 1건씩 누적되도록 정합화 완료
+  - 전체 10개 봇 장부 및 승패 시퀀스 전수 대조 점검 완료 (정상 7개 봇 실거래 100% 무결성 확인)
+
+### 수정 파일
+* /Users/l/project/8888/extract_bot_metrics.py
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.48
 Date: 2026-10-16
 
