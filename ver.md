@@ -1,5 +1,25 @@
 # Version History
 
+## v1.2.46
+Date: 2026-10-16
+
+### 변경 내용
+* [타임프레임 최적화 동기화] 8407(15m) 및 8409(1h) 타임프레임 차별화 반영
+  - 8407: 8405와 동일한 15m 타임프레임 유지 (BB MR 15m)
+  - 8409: 1h 타임프레임으로 전환 (BB MR 1h), config.json, core/config.py 동기화
+  - 8888/app.py: read_bot_config()에서 8409를 1h 타임프레임으로 자동 인식하도록 동기화
+  - 8409 봇 프로세스(`bot.py` + `app.py`) 재기동 및 1h 캔들 스캔 정상 확인
+
+### 수정 파일
+* /Users/l/project/8409/config.json
+* /Users/l/project/8409/core/config.py
+* /Users/l/project/8409/ver.md
+* /Users/l/project/8888/app.py
+* /Users/l/project/8888/ver.md
+
+### 비고
+* 보스 명시적 승인(OK) 후 반영 및 verify_all 100% PASS 검증 완료
+
 ## v1.2.45
 Date: 2026-10-16
 

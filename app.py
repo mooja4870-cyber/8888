@@ -661,7 +661,7 @@ def read_bot_config(folder):
                 
                 # BB 평균회귀 계열인지 확인
                 if "Mean Reversion" in strat_code or "평균회귀" in strat_code or "BB_MR" in strat_code:
-                    tf = "15m" if folder in ["8401", "8403", "8405", "8406", "8407", "8409"] else "1h"
+                    tf = str(cfg.get("TIMEFRAME") or ("15m" if folder in ["8401", "8403", "8405", "8406", "8407"] else "1h"))
                     strategy = f"BB Mean Reversion ({tf})"
                     ind_str = "BB, ATR, RSI"
                     
