@@ -1,5 +1,30 @@
 # Version History
 
+## v1.2.47
+Date: 2026-10-16
+
+### 변경 내용
+* [8409 타임프레임 1h 영구 고정 및 Streamlit 세션 충돌 버그 원천 해결]
+  - `8409/app.py`: `st.selectbox`가 기존 브라우저 세션 캐시(15m)를 읽어 서버 `config.json`을 덮어쓰던 버그 원천 수정
+  - `init_session`에서 `sidebar_tf_select`를 `CFG.TIMEFRAME`("1h")으로 초기화하고, `on_change` 이벤트 기반 콜백으로 전환하여 passive overwrite 차단
+  - `8409/core/config.py`: `EXCHANGE_ID`를 바이낸스 자아에 맞게 `"binance"`로 일치
+  - `8409/config.json`: `"TIMEFRAME": "1h"`, `"DASHBOARD_META": "BB MR (1h)"` 영구 고정
+  - `8407/app.py` 및 `8407/core/config.py`: 동일한 세션 안정화 패치 동시 적용
+  - 8409 봇 프로세스(`bot.py` + `app.py`) 재기동 및 1h 캔들 25개 종목 정상 스캔 검증 완료
+
+### 수정 파일
+* /Users/l/project/8409/app.py
+* /Users/l/project/8409/core/config.py
+* /Users/l/project/8409/config.json
+* /Users/l/project/8409/ver.md
+* /Users/l/project/8407/app.py
+* /Users/l/project/8407/core/config.py
+* /Users/l/project/8407/ver.md
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.46
 Date: 2026-10-16
 
