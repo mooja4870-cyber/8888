@@ -1,5 +1,27 @@
 # Version History
 
+## v1.2.48
+Date: 2026-10-16
+
+### 변경 내용
+* [단 한 번에 끝내는 3중 풀프루프(Foolproof) 시스템 공식 구축 및 verify_all 전면 고도화]
+  - `verify_all.py` 풀프루프 검증 게이트 확장:
+    1) 전체 활성 봇 포트(8401~8410) 실제 HTTP 200 OK 실측 검증
+    2) `bot.log` 및 `bot_engine.log` 다중 엔진 로그 무결성(Traceback/AttributeError) 전수 감사
+    3) 전체 활성 봇 대상 `config.json` ↔ `DASHBOARD_META` ↔ `8888/app.py` 파싱 타임프레임/전략명 100% 일치 강제 단언
+  - `.agents/AGENTS.md`에 '3중 풀프루프 실행 규칙' 영구 표준 명시:
+    1) 지시 매트릭스(Instruction Matrix) 단언 의무화
+    2) UI 위젯의 Passive Overwrite 금지 및 on_change 콜백 표준화
+    3) verify_all 100% PASS 증빙 없는 완료 보고 전면 금지
+
+### 수정 파일
+* /Users/l/project/8888/verify_all.py
+* /Users/l/project/8888/.agents/AGENTS.md
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.47
 Date: 2026-10-16
 

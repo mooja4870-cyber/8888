@@ -50,7 +50,7 @@ def verify_all():
         if not pid_alive:
             errors.append("❌ 봇 프로세스가 죽어 있습니다 (kill -0 실패)")
 
-        # Streamlit check
+        # Streamlit check & Web UI HTTP 200 OK 실측 검증 (풀프루프 1단계)
         try:
             out = subprocess.check_output(["ps", "aux"]).decode('utf-8')
             st_running = any("streamlit" in line.lower() and bot_id in line for line in out.splitlines())
@@ -59,26 +59,37 @@ def verify_all():
         except:
             pass
 
-        # 2. Log Integrity (Traceback, AttributeError)
-        bot_log = os.path.join(bot_path, 'bot.log')
-        if os.path.exists(bot_log):
+        if bot_id.isdigit():
+            port = int(bot_id)
             try:
-                tail = subprocess.check_output(["tail", "-n", "200", bot_log]).decode('utf-8').lower()
-                if "attributeerror" in tail or "traceback (most recent" in tail:
-                    errors.append("❌ 봇 로그에 파이썬 런타임 에러(AttributeError/Traceback)가 존재합니다!")
-            except:
-                pass
+                res = subprocess.run(['curl', '-s', '-o', '/dev/null', '-w', '%{http_code}', f'http://localhost:{port}'], capture_output=True, text=True, timeout=3)
+                code = res.stdout.strip()
+                if code != "200":
+                    errors.append(f"❌ Web UI HTTP 응답 오류 (포트 {port}, 응답코드: {code})")
+            except Exception as e:
+                errors.append(f"❌ Web UI HTTP 접근 실패 (포트 {port}): {e}")
+
+        # 2. Log Integrity (Traceback, AttributeError)
+        for log_name in ['bot.log', 'bot_engine.log']:
+            b_log = os.path.join(bot_path, log_name)
+            if os.path.exists(b_log):
+                try:
+                    tail = subprocess.check_output(["tail", "-n", "200", b_log]).decode('utf-8', errors='ignore').lower()
+                    if "attributeerror" in tail or "traceback (most recent" in tail:
+                        errors.append(f"❌ 봇 로그({log_name})에 파이썬 런타임 에러(AttributeError/Traceback)가 존재합니다!")
+                except:
+                    pass
                 
         st_log = os.path.join(bot_path, 'streamlit_server.log')
         if os.path.exists(st_log):
             try:
-                tail = subprocess.check_output(["tail", "-n", "100", st_log]).decode('utf-8').lower()
+                tail = subprocess.check_output(["tail", "-n", "100", st_log]).decode('utf-8', errors='ignore').lower()
                 if "indentationerror" in tail or "syntaxerror" in tail or "traceback (most recent" in tail:
                     errors.append("❌ UI 로그에 코드 레벨 에러가 존재합니다!")
             except:
                 pass
 
-        # 3. [전략 변경 시 7대 영역 전수 일체형 동기화 감사] Full-Stack + 8888 관제소 Sync 검증
+        # 3. [전략 변경 시 7대 영역 전수 일체형 동기화 감사] Full-Stack + 8888 관제소 Sync 검증 (풀프루프 2단계)
         cfg_file = os.path.join(bot_path, 'config.json')
         if os.path.exists(cfg_file):
             try:
@@ -89,41 +100,39 @@ def verify_all():
                 tf_cfg = str(cfg_data.get('TIMEFRAME', '')).strip().lower()
                 dash_meta = cfg_data.get('DASHBOARD_META', {})
                 
-                # (1) 퓨전 및 전략 개조 봇(8404, 8408, 8410) 타임프레임 & 관제소 메타 일치 감사
+                # (1) 타임프레임 & 관제소 메타 일치 감사 (전체 활성 봇 전수)
                 if dash_meta and isinstance(dash_meta, dict):
                     meta_strat = dash_meta.get('strategy', '')
-                    if '(1d)' in meta_strat.lower() and tf_cfg and tf_cfg != '1d':
-                        if bot_id in ['8404', '8408', '8410']:
-                            errors.append(f"❌ 타임프레임 불일치: config은 '{tf_cfg}'이나 DASHBOARD_META는 '{meta_strat}' (1d 잔존)")
-                    elif '(1h)' in meta_strat.lower() and tf_cfg and tf_cfg != '1h':
-                        if bot_id in ['8404', '8408', '8410']:
-                            errors.append(f"❌ 타임프레임 불일치: config은 '{tf_cfg}'이나 DASHBOARD_META는 '{meta_strat}' (1h 불일치)")
+                    meta_tf = str(dash_meta.get('timeframe', '')).strip().lower()
+                    if meta_tf and tf_cfg and meta_tf != tf_cfg:
+                        errors.append(f"❌ 타임프레임 불일치: config은 '{tf_cfg}'이나 DASHBOARD_META timeframe은 '{meta_tf}'")
+                    for tf_tag in ['15m', '1h', '4h', '1d']:
+                        if f'({tf_tag})' in meta_strat.lower() and tf_cfg and tf_cfg != tf_tag:
+                            errors.append(f"❌ 전략명 타임프레임 태그 불일치: config은 '{tf_cfg}'이나 DASHBOARD_META 전략명은 '{meta_strat}' ({tf_tag} 불일치)")
 
-                # (2) 8888 중앙 관제소 read_bot_config 파싱 결과와 실제 config/메타 일치 여부
+                # (2) 8888 중앙 관제소 read_bot_config 파싱 결과와 실제 config/메타 일치 여부 (전체 봇 전수)
                 try:
                     import sys
                     if '/Users/l/project/8888' not in sys.path:
                         sys.path.append('/Users/l/project/8888')
                     from app import read_bot_config
                     parsed_8888 = read_bot_config(bot_id)
-                    if bot_id in ['8404', '8408', '8410']:
-                        parsed_tf = str(parsed_8888.get('timeframe', '')).strip().lower()
-                        if tf_cfg and parsed_tf and tf_cfg != parsed_tf:
-                            errors.append(f"❌ 8888 관제소 파싱 불일치: 봇 config='{tf_cfg}', 8888 읽기='{parsed_tf}'")
-                        if dash_meta and isinstance(dash_meta, dict) and dash_meta.get('strategy'):
-                            if parsed_8888.get('strategy') != dash_meta.get('strategy'):
-                                errors.append(f"❌ 8888 관제소 전략명 불일치: 메타='{dash_meta.get('strategy')}', 8888='{parsed_8888.get('strategy')}'")
+                    parsed_tf = str(parsed_8888.get('timeframe', '')).strip().lower()
+                    if tf_cfg and parsed_tf and tf_cfg != parsed_tf:
+                        errors.append(f"❌ 8888 관제소 파싱 불일치: 봇 config='{tf_cfg}', 8888 읽기='{parsed_tf}'")
+                    if dash_meta and isinstance(dash_meta, dict) and dash_meta.get('strategy'):
+                        if parsed_8888.get('strategy') != dash_meta.get('strategy'):
+                            errors.append(f"❌ 8888 관제소 전략명 불일치: 메타='{dash_meta.get('strategy')}', 8888='{parsed_8888.get('strategy')}'")
                 except Exception as e:
                     pass
 
                 # (3) core/config.py 필수 필드 선언 검사 (키 유실 방지)
-                if bot_id in ['8404', '8410']:
+                if bot_id in ['8404', '8407', '8409', '8410']:
                     core_cfg_file = os.path.join(bot_path, 'core', 'config.py')
                     if os.path.exists(core_cfg_file):
                         try:
                             with open(core_cfg_file, 'r', encoding='utf-8') as f:
                                 core_cfg_text = f.read()
-                            # 8404 전용 키 및 8410 DASHBOARD_META 선언 여부
                             check_keys = ['DASHBOARD_META']
                             if bot_id == '8404':
                                 check_keys += ['KC_PERIOD', 'KC_MULT', 'HURST_MR_THRESH', 'HURST_TREND_THRESH']
