@@ -1,5 +1,26 @@
 # Version History
 
+## v1.2.45
+Date: 2026-10-16
+
+### 변경 내용
+* [봇 이식 및 7대 영역 전수 동기화] 8405(OKX)의 BB MR(볼린저 밴드 평균회귀, 15m, 1개 보유, 66% 동적 복리 사이징) 전략을 8407(Binance) 및 8409(Binance) 두 봇에 완전 이식
+  - 8407, 8409의 바이낸스 고유 자아(Identity: API 키, 계정 정보, 대시보드 포트 8407, 8409) 100% 보존
+  - 기존 QVT 1h 매매 엔진, 설정값, 데이터클래스, UI 완전 삭제 후 8405 BB MR(15m, 66-33-11 동적 복리 사이징) 두뇌 및 UI 이식
+  - 8888 중앙 관제소(app.py) 동시 수정: 8407, 8409 타임프레임(15m) 및 전략명(BB MR 15m) 실시간 파싱 동기화
+  - 디스코드 알림(discord_alert.py) 동시 수정: 8407, 8409를 유형1(QVT)에서 유형2(BB MR 평균회귀) 그룹으로 재분류
+  - 8407/ver.md, 8409/ver.md 각각 v2.1.0 갱신 및 백그라운드 봇(`bot.py` + `app.py`) 재기동 완료
+
+### 수정 파일
+* /Users/l/project/8407/* (core, config.json, bot.py, app.py, ver.md)
+* /Users/l/project/8409/* (core, config.json, bot.py, app.py, ver.md)
+* /Users/l/project/8888/app.py
+* /Users/l/project/8888/discord_alert.py
+* /Users/l/project/8888/ver.md
+
+### 비고
+* 보스 명시적 승인(OK) 후 반영 및 verify_all 100% PASS 검증 완료
+
 ## v1.2.44
 Date: 2026-10-16
 
