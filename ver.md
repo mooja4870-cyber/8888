@@ -1,5 +1,23 @@
 # Version History
 
+## v1.2.51
+Date: 2026-10-17
+
+### 변경 내용
+* [보스 특별 지침 반영: 관제 대시보드 총자산 추이 차트 툴팁 위치 개선]
+  - `dashboard.html`: [봇별 총자산 추이] 차트(`_botAssetChart`)에서 마우스 호버 시 툴팁이 노란색 원형 동그라미(데이터 포인트)의 왼쪽을 가려 직전 구간 곡선 확인이 어렵던 현상 해결
+  - `Chart.Tooltip.positioners.topPoint` 포지셔너 신규 등록: 활성 데이터셋 0번(노란색 자산 곡선)의 정확한 `(x, y)` 좌표에 툴팁 앵커 고정
+  - `yAlign: 'bottom'`, `xAlign: 'center'`, `caretPadding: 8` 적용: 툴팁 꼬리표가 하단을 향하고 툴팁 본체는 노란색 원형 동그라미 바로 윗쪽에 깔끔하게 중앙 정렬되도록 개선
+  - 차트 상단 패딩(`layout.padding.top: 35`) 추가: 최고점 부근에서도 툴팁이 상단 경계선에 잘리지 않도록 안전 여백 확보
+  - 대시보드 내 모달 차트(`_assetChart`, `_retChart`, 개별 봇 모달) 툴팁에도 상단 정렬(`topPoint`) 일괄 적용하여 시각적 일관성 완성
+
+### 수정 파일
+* /Users/l/project/8888/dashboard.html
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.50
 Date: 2026-10-17
 
