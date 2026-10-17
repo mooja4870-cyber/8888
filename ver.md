@@ -1,5 +1,24 @@
 # Version History
 
+## v1.2.50
+Date: 2026-10-17
+
+### 변경 내용
+* [8409, 8407 텔레그램 진입 알림 스코프 충돌(UnboundLocalError) 버그 해결]
+  - `8409/core/trader.py`, `8407/core/trader.py`: `execute_entry` 내부 워치독 블록에 남아있던 중복 로컬 임포트(`from core.alert import send_telegram_alert`) 제거
+  - 모듈 상단 글로벌 임포트가 함수 스코프 전역에 정상 적용되도록 하여 진입 완료 텔레그램 알림 누락 방지
+  - 8409 TRX/USDT 실매매 체결 및 SL/TP 거래소 Algo 주문 활성화 상태 정상 확인
+
+### 수정 파일
+* /Users/l/project/8409/core/trader.py
+* /Users/l/project/8407/core/trader.py
+* /Users/l/project/8409/ver.md
+* /Users/l/project/8407/ver.md
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.49
 Date: 2026-10-16
 
