@@ -1,5 +1,36 @@
 # Version History
 
+## v1.2.53
+Date: 2026-10-19
+
+### 변경 내용
+* [보스 특별 지침 반영: 8404, 8408, 8410 봇 손익비 1:3.0 (손절 1.5 ATR / 익절 4.5 ATR / 본절 2.0%) 개편 완결 (2단계 승인)]
+  - `8404` (TTM+Hurst 1h): TP ATR 3.0 -> 4.5, 본절 2.0%(`TRAILING_ACTIVATE_PCT=0.02`), `DASHBOARD_META` 손익비 1:3.0 동기화 (`8404/ver.md` v1.9.0)
+  - `8408` (BBTS 1h): SL ATR 2.0 -> 1.5, TP ATR 4.0/3.0 -> 4.5, 본절 2.0%(`TRAILING_ACTIVATE_PCT=0.02`), `DASHBOARD_META` sl_str/tp_str 손익비 1:3.0 동기화 (`8408/ver.md` v11.6.0)
+  - `8410` (MR+BBTS 1h): TP ATR 3.0 -> 4.5, 본절 2.0%(`TRAILING_ACTIVATE_PCT=0.02`), `DASHBOARD_META` sl_str/tp_str 손익비 1:3.0 동기화 (`8410/ver.md` v2.0.0)
+  - 7대 영역(설정/데이터클래스/전략엔진/UI/DASHBOARD_META/8888관제소/버전이력) 100% 전수 일체형 동기화
+
+### 수정 파일
+* /Users/l/project/8404/config.json
+* /Users/l/project/8404/core/config.py
+* /Users/l/project/8404/core/strategy.py
+* /Users/l/project/8404/app.py
+* /Users/l/project/8404/ver.md
+* /Users/l/project/8408/config.json
+* /Users/l/project/8408/core/config.py
+* /Users/l/project/8408/core/strategy.py
+* /Users/l/project/8408/app.py
+* /Users/l/project/8408/ver.md
+* /Users/l/project/8410/config.json
+* /Users/l/project/8410/core/config.py
+* /Users/l/project/8410/core/strategy.py
+* /Users/l/project/8410/app.py
+* /Users/l/project/8410/ver.md
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.52
 Date: 2026-10-19
 
