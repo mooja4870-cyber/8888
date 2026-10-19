@@ -1783,13 +1783,17 @@ class Handler(BaseHTTPRequestHandler):
 
 
 _WATCH_FILES = ["app.py", "discord_alert.py"]
-_FILE_MTIMES = {}
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_FILE_MTIMES = {
+    fname: os.path.getmtime(os.path.join(_BASE_DIR, fname))
+    for fname in _WATCH_FILES
+    if os.path.exists(os.path.join(_BASE_DIR, fname))
+}
 
 def _check_and_reload_if_modified():
     """소스 파일(app.py, discord_alert.py 등) 변경 시 프로세스를 자동 자가 재기동(os.execv)하여 메모리 구버전 잔존을 원천 차단"""
-    base_dir = os.path.dirname(os.path.abspath(__file__))
     for fname in _WATCH_FILES:
-        fpath = os.path.join(base_dir, fname)
+        fpath = os.path.join(_BASE_DIR, fname)
         if os.path.exists(fpath):
             try:
                 mt = os.path.getmtime(fpath)
@@ -1801,6 +1805,7 @@ def _check_and_reload_if_modified():
                     _FILE_MTIMES[fname] = mt
             except Exception as e:
                 pass
+
 
 
 def discord_1min_loop():
