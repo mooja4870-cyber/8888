@@ -1,5 +1,23 @@
 # Version History
 
+## v1.2.59
+Date: 2026-10-20
+
+### 변경 내용
+* [보스 특별 지침 반영: 디스코드 관제 알림 둘째 줄 승패 포맷 개편 (`{24시간승}/{24시간패} & {최근20전승}/{최근20전패}`)]
+  - `extract_bot_metrics.py`: 직전 24시간 롤링 윈도우 승/패(`w24`, `l24`) 및 봇 초기화(`perf_start`) 이후 최근 20개 청산 거래의 승/패(`w20`, `l20`) 산출 로직 탑재
+  - `app.py`: `hist_metrics` 및 `bot_status`에서 `w24`, `l24`, `w20`, `l20` 데이터 매핑 동기화
+  - `discord_alert.py`: 기존 `({sun20_w}-{sun20_l})+({yeok20_w}-{yeok20_l})` 구문을 삭제하고 `{w24}/{l24} & {w20}/{l20}` 포맷으로 전면 개편
+
+### 수정 파일
+* /Users/l/project/8888/extract_bot_metrics.py
+* /Users/l/project/8888/app.py
+* /Users/l/project/8888/discord_alert.py
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.58
 Date: 2026-10-20
 

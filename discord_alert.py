@@ -255,6 +255,10 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
         sun20_l = _safe_int(b.get("sun20_l"))
         yeok20_w = _safe_int(b.get("yeok20_w"))
         yeok20_l = _safe_int(b.get("yeok20_l"))
+        w24 = _safe_int(b.get("w24"))
+        l24 = _safe_int(b.get("l24"))
+        w20 = _safe_int(b.get("w20", sun20_w + yeok20_w))
+        l20 = _safe_int(b.get("l20", sun20_l + yeok20_l))
         
         is_bf = bool(b.get("config", {}).get("USE_BLUEFROG", False)) if isinstance(b.get("config"), dict) else False
         mode_prefix = "역 " if is_bf else "순 "
@@ -267,7 +271,7 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
         
         lines.append(f"{mode_prefix}{pos_str} {b_name_short}  {b_days:.1f}  {asset_val_str}  {dr:+.2f}%  {pic}{pdelta:.2f}%{parrow}")
             
-        lines.append(f"  ({ent1:02d}/{ent4:02d}|{ent12:02d}/{ent24:02d} {sw:02d}W/{sl:02d}L : ({sun20_w}-{sun20_l})+({yeok20_w}-{yeok20_l}))")
+        lines.append(f"  ({ent1:02d}/{ent4:02d}|{ent12:02d}/{ent24:02d} {sw:02d}W/{sl:02d}L : {w24}/{l24} & {w20}/{l20})")
         if seq_str:
             lines.append(f"  {seq_str}")
             

@@ -113,6 +113,8 @@ try:
 
     # 최근 20개 거래 중 순/역 비중 및 승패
     last_20_trades = grouped_trades[-20:]
+    w20 = sum(1 for _, pnl, _ in last_20_trades if pnl > 0)
+    l20 = sum(1 for _, pnl, _ in last_20_trades if pnl < 0)
     sun20_cnt, sun20_w, sun20_l = 0, 0, 0
     yeok20_cnt, yeok20_w, yeok20_l = 0, 0, 0
     for _, pnl, mode in last_20_trades:
@@ -125,7 +127,12 @@ try:
             if pnl > 0: sun20_w += 1
             elif pnl < 0: sun20_l += 1
 
-    
+    # 직전 24시간 내 청산된 거래의 승패 실적 (24h 롤링 윈도우)
+    h24_start = datetime.datetime.now() - datetime.timedelta(hours=24)
+    h24_trades = [t for t in grouped_trades if t[0] >= h24_start]
+    w24 = sum(1 for _, pnl, _ in h24_trades if pnl > 0)
+    l24 = sum(1 for _, pnl, _ in h24_trades if pnl < 0)
+
     # 순방향/역방향 분류 (order_id별 그룹의 trade_mode는 첫 진입 기준)
     sun_grouped = {}  # order_id → 총손익 (순방향만)
     yeok_grouped = {} # order_id → 총손익 (역방향만)
@@ -161,7 +168,11 @@ try:
         "sun20_w": sun20_w,
         "sun20_l": sun20_l,
         "yeok20_w": yeok20_w,
-        "yeok20_l": yeok20_l
+        "yeok20_l": yeok20_l,
+        "w24": w24,
+        "l24": l24,
+        "w20": w20,
+        "l20": l20
     }
     
     # Restore stdout and print json
