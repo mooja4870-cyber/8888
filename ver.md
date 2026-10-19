@@ -1,5 +1,30 @@
 # Version History
 
+## v1.2.54
+Date: 2026-10-19
+
+### 변경 내용
+* [보스 특별 지침 반영: 8407, 8409 봇 손익비 1:3.0 (손절 1.5 ATR / 익절 4.5 ATR / 본절 2.0%) 개편 완결]
+  - `8407` (Binance 15m BB MR): 손절 2.5->1.5 ATR, 익절 SMA중심선->4.5 ATR (RR 1:3.0), 본절 2.0%(`TRAILING_ACTIVATE_PCT=0.02`), `DASHBOARD_META` 손익비 1:3.0 동기화 (`8407/ver.md` v2.2.0)
+  - `8409` (Binance 1h BB MR): 손절 2.5->1.5 ATR, 익절 SMA중심선->4.5 ATR (RR 1:3.0), 본절 2.0%(`TRAILING_ACTIVATE_PCT=0.02`), `DASHBOARD_META` 손익비 1:3.0 동기화 (`8409/ver.md` v2.2.0)
+  - 7대 영역(설정/데이터클래스/전략엔진/UI/DASHBOARD_META/8888관제소/버전이력) 100% 전수 일체형 동기화
+
+### 수정 파일
+* /Users/l/project/8407/config.json
+* /Users/l/project/8407/core/config.py
+* /Users/l/project/8407/core/strategy.py
+* /Users/l/project/8407/app.py
+* /Users/l/project/8407/ver.md
+* /Users/l/project/8409/config.json
+* /Users/l/project/8409/core/config.py
+* /Users/l/project/8409/core/strategy.py
+* /Users/l/project/8409/app.py
+* /Users/l/project/8409/ver.md
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.53
 Date: 2026-10-19
 
