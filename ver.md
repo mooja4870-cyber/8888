@@ -1,5 +1,22 @@
 # Version History
 
+## v1.2.55
+Date: 2026-10-19
+
+### 변경 내용
+* [보스 특별 지침 반영: 전략 수정 후 청산 0건 봇의 유령 승리('O') 마크 노출 버그 완벽 수정]
+  - `extract_bot_metrics.py`: 승패 시퀀스(`seq`) 생성 로직을 전체 거래(`closed_all`)가 아닌, 전략 수정/리셋 기준 시점(`perf_start`) 이후의 청산 거래(`grouped_trades`) 기준으로 100% 동기화
+  - 8407 등 전략 수정 후 실매매 청산이 0건(`00W/00L`)일 때 과거 수정 전 거래를 끌고 와서 'O'로 표시하던 치명적 모순 원천 차단
+  - `8407`: `trade_history.csv` 내 수정 전 과거 1건(17:06:30)을 `trade_history.csv.bak_pre_rr3`로 백업 격리하고 신규 1:3.0 전용 장부로 정합화
+
+### 수정 파일
+* /Users/l/project/8888/extract_bot_metrics.py
+* /Users/l/project/8407/data/trade_history.csv
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.54
 Date: 2026-10-19
 

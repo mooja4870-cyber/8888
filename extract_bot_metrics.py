@@ -105,31 +105,10 @@ try:
 
     grouped_trades.sort(key=lambda x: x[0])  # 시간순 정렬 (과거→최신)
 
-    # ── [핵심 2] 최근 30개 거래의 승패 시퀀스 ──
-    # 실제 장부(trade_history.csv)에 청산 거래가 없으면 백업 파일을 뒤져 유령 거래를 만들지 않고 빈값("") 유지
-    closed_all = closed_trades_since(trades, None) if trades else []
-    closed_all.sort(key=_exit_dt)
-
-    order_id_to_all = {}
-    for r in closed_all:
-        oid = _order_id(r)
-        if not oid:
-            oid = f"_uniq_{len(order_id_to_all)}"
-        if oid not in order_id_to_all:
-            order_id_to_all[oid] = []
-        order_id_to_all[oid].append(r)
-
-    all_grouped_trades = []
-    for oid, rows in order_id_to_all.items():
-        pnl_val = sum(float(r.get('pnl_usdt') or 0.0) for r in rows)
-        ext_val = max(_exit_dt(r) for r in rows)
-        all_grouped_trades.append((ext_val, pnl_val))
-
-    all_grouped_trades.sort(key=lambda x: x[0])
-    recent_30_all = all_grouped_trades[-30:]
-
+    # ── [핵심 2] 최근 30개 거래의 승패 시퀀스 (전략 수정/perf_start 이후 청산 기준 100% 동기화) ──
+    recent_30 = grouped_trades[-30:]
     seq = ""
-    for exit_time, pnl in reversed(recent_30_all):
+    for exit_time, pnl, trade_mode in reversed(recent_30):
         seq += "O" if pnl > 0 else "x"
 
     # 최근 20개 거래 중 순/역 비중 및 승패
