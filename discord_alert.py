@@ -514,7 +514,22 @@ import re
 import requests
 import datetime
 
-def _get_recent_bot_changes(days=14):
+def _clean_change_text(t):
+    t = re.sub(r'^\[보스 특별 지침 반영:\s*', '', t)
+    t = re.sub(r'^\[봇 이식 및 7대 영역 전수 동기화\]\s*', '8405 BB MR 이식: ', t)
+    t = re.sub(r'^\[타임프레임 최적화 동기화\]\s*', '', t)
+    t = t.rstrip(']').strip()
+    t = re.sub(r'^`?84\d\d`?\s*(?:\([^)]*\))?\s*[:\-]?\s*', '', t)
+    t = re.sub(r'^(?:,?\s*84\d\d(?:\s*봇)?)+\s*[:\-]?\s*', '', t)
+    t = re.sub(r'^[,/:\-\s]+', '', t).strip()
+    t = re.sub(r'^config\.json`?:\s*', '설정: ', t)
+    if len(t) > 42:
+        t = t[:42] + '...'
+    return t
+
+
+def _get_recent_bot_changes(days=7):
+    """최근 7일간의 주요 매매전략 및 설정 변경 관련사항을 봇별로 최대 5개씩 최신순 추출"""
     try:
         with open(os.path.join(_DIR, "ver.md"), 'r') as f:
             v_content = f.read()
@@ -523,12 +538,30 @@ def _get_recent_bot_changes(days=14):
         
     blocks = re.split(r'\n## v', v_content)
     now = datetime.datetime.now()
-    bot_changes = {str(b): [] for b in [8401, 8402, 8403, 8404, 8405, 8407, 8408, 8409, 8410]}
+    cutoff = now - datetime.timedelta(days=days)
+    bots = ['8401', '8402', '8403', '8404', '8405', '8407', '8408', '8409', '8410']
+    bot_changes = {str(b): [] for b in bots}
     
+    STRAT_KEYWORDS = [
+        '전략', '매매', '손익비', '손절', '익절', '본절', 'ATR', 'TP', 'SL',
+        '타임프레임', 'TIMEFRAME', '15m', '1h', '4h', '1d', '이식', 'Transplant',
+        '볼린저', 'BB', 'MR', '평균회귀', 'BBTS', '추세', '눌림목', 'QVT',
+        '퓨전', '스퀴즈', '허스트', 'Hurst', '복리', '사이징', '마진', '증거금',
+        '레버리지', '청개구리', '역매매', '추세추종', '진입', '청산', '쿨다운'
+    ]
+
+    SKIP_KEYWORDS = [
+        '디스코드', '집계 대상', '그룹', '할당', 'AGENTS.md', '승인', 'Quintuple',
+        'Double Approval', 'verify_all', '풀프루프', '차트 툴팁', '좀비', 'HTTP 200',
+        '텔레그램', '스코프 충돌', '백업 폴백', '시퀀스', '세션 캐시', '세션 충돌',
+        '잔재 백업', 'trade_history', 'read_bot_config', '파싱', '실매매 청산이 0건',
+        '버그 수정', 'NameError', '재기동 및 전체', '자가 재기동', '알림 문구'
+    ]
+
     for block in blocks[1:]:
         lines = block.strip().split('\n')
         date_str = None
-        change_text = []
+        change_lines = []
         in_changes = False
         for line in lines:
             line = line.strip()
@@ -539,35 +572,53 @@ def _get_recent_bot_changes(days=14):
             elif in_changes and line.startswith("###"):
                 in_changes = False
             elif in_changes and line:
-                t = line.lstrip('*').strip()
+                t = line.lstrip('*').lstrip('-').strip()
                 if t:
-                    skip = False
-                    for kw in ["디스코드", "집계 대상", "그룹", "할당"]:
-                        if kw in t:
-                            skip = True
-                            break
-                    if not skip:
-                        change_text.append(t)                
-        if date_str:
-            try:
-                dt = datetime.datetime.strptime(date_str, "%Y-%m-%d")
-                full_text = "\n".join(change_text)
-                mentioned_bots = []
-                for b in bot_changes.keys():
-                    if str(b) in full_text: mentioned_bots.append(str(b))
+                    change_lines.append(t)
+        if not date_str:
+            continue
+        try:
+            dt = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+        except Exception:
+            continue
+        if dt < cutoff:
+            continue
+
+        for line in change_lines:
+            if any(sk in line for sk in SKIP_KEYWORDS):
+                continue
+            if not any(sk in line for sk in STRAT_KEYWORDS):
+                continue
+            
+            target_bots = [b for b in bots if b in line]
+            if not target_bots and "전체 봇" in line:
+                target_bots = list(bots)
                 
-                if not mentioned_bots and "전체 봇" in full_text:
-                    mentioned_bots = list(bot_changes.keys())
-                    
-                for b in mentioned_bots:
-                    rel_lines = [l for l in change_text if str(b) in l or "전체 봇" in l]
-                    t = rel_lines[0] if rel_lines else change_text[0]
-                    if len(t) > 40: t = t[:40] + "..."
-                    bot_changes[str(b)].append(f"({dt.strftime('%m/%d')}) {t}")
-            except Exception:
-                pass
-                
-    return {k: v for k, v in bot_changes.items() if v}
+            for b in target_bots:
+                clean_t = _clean_change_text(line)
+                if not clean_t:
+                    continue
+                entry = f"({dt.strftime('%m/%d')}) {clean_t}"
+                if entry not in bot_changes[b] and len(bot_changes[b]) < 5:
+                    bot_changes[b].append(entry)
+
+    BOT_DEFAULTS = {
+        '8401': 'QVT 눌림목 스나이퍼 (1h) 전략 정상 유지 중',
+        '8402': 'QVT 눌림목 스나이퍼 (1h) 전략 정상 유지 중',
+        '8403': 'BB MR 볼린저 평균회귀 (15m) 전략 정상 유지 중',
+        '8404': 'TTM 스퀴즈 + 허스트 퓨전 (1h) 전략 가동 중',
+        '8405': 'BB MR 볼린저 평균회귀 (15m) 전략 가동 중',
+        '8407': 'BB MR 볼린저 평균회귀 (15m) 전략 가동 중',
+        '8408': 'BBTS 변동성 돌파 (1h) 전략 가동 중',
+        '8409': 'BB MR 볼린저 평균회귀 (1h) 전략 가동 중',
+        '8410': 'ADX 국면적응 퓨전 (1h) 전략 가동 중',
+    }
+
+    for b in bots:
+        if not bot_changes[b]:
+            bot_changes[b].append(f"(최근 7일 변경 없음) {BOT_DEFAULTS.get(b, '전략 정상 유지 중')}")
+
+    return bot_changes
 
 
 def _classify_groups(bots):
@@ -608,16 +659,16 @@ def tick(data, tick_count=0, include_bot_charts=False):
     info_changes = "None"
     try:
         import time
-        changes = _get_recent_bot_changes(days=14)
+        changes = _get_recent_bot_changes(days=7)
         if changes:
             embeds = []
             desc = ""
             for b in sorted(changes.keys()):
-                lines = "\n".join([f"- {c}" for c in changes[b][-5:][::-1]])
+                lines = "\n".join([f"- {c}" if not c.startswith('- ') else c for c in changes[b][:5]])
                 desc += f"**[{b}]**\n{lines}\n\n"
             if desc:
                 embeds.append({
-                    "title": "🛠️ 봇별 매매전략 및 설정 변경 요약",
+                    "title": "🛠️ 봇별 매매전략 및 설정 변경 요약 (최근 7일)",
                     "description": desc.strip(),
                     "color": 15158332
                 })
