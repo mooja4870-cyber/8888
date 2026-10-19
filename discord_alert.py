@@ -199,8 +199,6 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
     h6 = _ago_str_asset(assets, asset_series or [], now_ts, *LOOKBACK[1])
     h12 = _ago_str_asset(assets, asset_series or [], now_ts, *LOOKBACK[2])
     h24 = _ago_str_asset(assets, asset_series or [], now_ts, *LOOKBACK[3])
-    h48 = _ago_str_asset(assets, asset_series or [], now_ts, *LOOKBACK[4])
-    h72 = _ago_str_asset(assets, asset_series or [], now_ts, *LOOKBACK[5])
 
     lines = [ts]
     lines.append("======================================")
@@ -209,7 +207,7 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
     else:
         head_title = f"{title_prefix} 일평균수익률"
     lines.extend([
-             f"📊 {head_title} ({head_days}) : {asset_str}{delta_str}{ret_str} [1m]{h1m} [1]{h1} [6]{h6} [12]{h12} [24]{h24} [48]{h48} [72]{h72}",
+             f"📊 {head_title} ({head_days}) : {asset_str}{delta_str}{ret_str} [1m]{h1m} [1]{h1} [6]{h6} [12]{h12} [24]{h24}",
              "─" * 38])
     bots = sorted(data["bots"], key=lambda b: b.get("name", ""))
     for b in bots:
