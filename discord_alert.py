@@ -516,6 +516,7 @@ import datetime
 
 def _clean_change_text(t):
     t = re.sub(r'^\[보스 특별 지침 반영:\s*', '', t)
+    t = re.sub(r'^\[보스 특별 지침:\s*', '', t)
     t = re.sub(r'^\[봇 이식 및 7대 영역 전수 동기화\]\s*', '8405 BB MR 이식: ', t)
     t = re.sub(r'^\[타임프레임 최적화 동기화\]\s*', '', t)
     t = t.rstrip(']').strip()
@@ -523,13 +524,18 @@ def _clean_change_text(t):
     t = re.sub(r'^(?:,?\s*84\d\d(?:\s*봇)?)+\s*[:\-]?\s*', '', t)
     t = re.sub(r'^[,/:\-\s]+', '', t).strip()
     t = re.sub(r'^config\.json`?:\s*', '설정: ', t)
+    t = re.sub(r',?\s*`?DASHBOARD_META`?[^,)]*', '', t).strip()
+    t = re.sub(r',?\s*\(`84\d\d/ver\.md`\s*v[\d.]+\)', '', t).strip()
     if len(t) > 42:
         t = t[:42] + '...'
     return t
 
 
 def _get_recent_bot_changes(days=7):
-    """최근 7일간의 주요 매매전략 및 설정 변경 관련사항을 봇별로 최대 5개씩 최신순 추출"""
+    """
+    최근 7일간의 주요 매매전략 및 설정 변경 관련사항을 봇별로 최대 5개씩 표기.
+    만약 특정 봇이 7일 이내의 내용이 없으면 최근 것을 최대 5개 표기 (보스 특별 지침).
+    """
     try:
         with open(os.path.join(_DIR, "ver.md"), 'r') as f:
             v_content = f.read()
@@ -540,14 +546,15 @@ def _get_recent_bot_changes(days=7):
     now = datetime.datetime.now()
     cutoff = now - datetime.timedelta(days=days)
     bots = ['8401', '8402', '8403', '8404', '8405', '8407', '8408', '8409', '8410']
-    bot_changes = {str(b): [] for b in bots}
+    all_bot_changes = {str(b): [] for b in bots}
     
     STRAT_KEYWORDS = [
         '전략', '매매', '손익비', '손절', '익절', '본절', 'ATR', 'TP', 'SL',
         '타임프레임', 'TIMEFRAME', '15m', '1h', '4h', '1d', '이식', 'Transplant',
         '볼린저', 'BB', 'MR', '평균회귀', 'BBTS', '추세', '눌림목', 'QVT',
         '퓨전', '스퀴즈', '허스트', 'Hurst', '복리', '사이징', '마진', '증거금',
-        '레버리지', '청개구리', '역매매', '추세추종', '진입', '청산', '쿨다운'
+        '레버리지', '청개구리', '역매매', '추세추종', '진입', '청산', '쿨다운',
+        '휩쏘 방어', '수익 수호'
     ]
 
     SKIP_KEYWORDS = [
@@ -555,7 +562,10 @@ def _get_recent_bot_changes(days=7):
         'Double Approval', 'verify_all', '풀프루프', '차트 툴팁', '좀비', 'HTTP 200',
         '텔레그램', '스코프 충돌', '백업 폴백', '시퀀스', '세션 캐시', '세션 충돌',
         '잔재 백업', 'trade_history', 'read_bot_config', '파싱', '실매매 청산이 0건',
-        '버그 수정', 'NameError', '재기동 및 전체', '자가 재기동', '알림 문구'
+        '버그 수정', 'NameError', '재기동 및 전체', '자가 재기동', '알림 문구',
+        '최근 7일간 변경 없는', '타이틀 변경', '발송 순서', 'TradingConfig',
+        'core/config.py', 'core/strategy.py & app.py', '유형1 (노랑)',
+        '유형2 (빨강)', '유형3 (파랑)', '유형1:', '유형2:', '유형3:'
     ]
 
     for block in blocks[1:]:
@@ -581,31 +591,80 @@ def _get_recent_bot_changes(days=7):
             dt = datetime.datetime.strptime(date_str, "%Y-%m-%d")
         except Exception:
             continue
-        if dt < cutoff:
-            continue
 
+        valid_lines = []
         for line in change_lines:
             if any(sk in line for sk in SKIP_KEYWORDS):
                 continue
             if not any(sk in line for sk in STRAT_KEYWORDS):
                 continue
-            
-            target_bots = [b for b in bots if b in line]
-            if not target_bots and "전체 봇" in line:
-                target_bots = list(bots)
-                
-            for b in target_bots:
-                clean_t = _clean_change_text(line)
-                if not clean_t:
-                    continue
-                entry = f"({dt.strftime('%m/%d')}) {clean_t}"
-                if entry not in bot_changes[b] and len(bot_changes[b]) < 5:
-                    bot_changes[b].append(entry)
+            valid_lines.append(line)
+
+        for b in bots:
+            specific_lines = [l for l in valid_lines if b in l]
+            general_lines = [l for l in valid_lines if '전체 봇' in l] if not specific_lines else []
+            candidates = specific_lines + general_lines
+            if candidates:
+                best_l = candidates[0]
+                for c in candidates:
+                    if re.search(rf'`?{b}`?', c) and not any(other in c for other in bots if other != b):
+                        best_l = c
+                        break
+                clean_t = _clean_change_text(best_l)
+                if clean_t:
+                    entry = f"({dt.strftime('%m/%d')}) {clean_t}"
+                    if not any(clean_t in e for _, e in all_bot_changes[b]):
+                        all_bot_changes[b].append((dt, entry))
+
+    # 개별 봇 로컬 ver.md도 보조 참조
+    for b in bots:
+        if len(all_bot_changes[b]) >= 3:
+            continue
+        b_ver_path = f"/Users/l/project/{b}/ver.md"
+        if os.path.exists(b_ver_path):
+            try:
+                with open(b_ver_path, 'r', encoding='utf-8') as bf:
+                    b_blocks = re.split(r'\n## v', bf.read())
+                for blk in b_blocks[1:]:
+                    b_lines = blk.strip().split('\n')
+                    b_date = None
+                    b_changes = []
+                    b_in = False
+                    for bl in b_lines:
+                        bl = bl.strip()
+                        if bl.startswith('Date:'):
+                            b_date = bl.split(':', 1)[1].strip()
+                        elif bl.startswith('### 변경 내용'):
+                            b_in = True
+                        elif b_in and bl.startswith('###'):
+                            b_in = False
+                        elif b_in and bl:
+                            t = bl.lstrip('*').lstrip('-').strip()
+                            if t: b_changes.append(t)
+                    if not b_date: continue
+                    try:
+                        b_dt = datetime.datetime.strptime(b_date, '%Y-%m-%d')
+                    except Exception:
+                        continue
+                    for bl in b_changes:
+                        if any(sk in bl for sk in SKIP_KEYWORDS): continue
+                        if not any(sk in bl for sk in STRAT_KEYWORDS): continue
+                        clean_t = _clean_change_text(bl)
+                        if not clean_t: continue
+                        entry = f"({b_dt.strftime('%m/%d')}) {clean_t}"
+                        if not any(clean_t in e for _, e in all_bot_changes[b]):
+                            all_bot_changes[b].append((b_dt, entry))
+                            if len(all_bot_changes[b]) >= 5: break
+            except Exception:
+                pass
+
+    for b in bots:
+        all_bot_changes[b].sort(key=lambda x: x[0], reverse=True)
 
     BOT_DEFAULTS = {
-        '8401': 'QVT 눌림목 스나이퍼 (1h) 전략 정상 유지 중',
-        '8402': 'QVT 눌림목 스나이퍼 (1h) 전략 정상 유지 중',
-        '8403': 'BB MR 볼린저 평균회귀 (15m) 전략 정상 유지 중',
+        '8401': 'QVT 눌림목 스나이퍼 (1h) 전략 정상 가동 중',
+        '8402': 'QVT 눌림목 스나이퍼 (1h) 전략 정상 가동 중',
+        '8403': 'BB MR 볼린저 평균회귀 (15m) 전략 정상 가동 중',
         '8404': 'TTM 스퀴즈 + 허스트 퓨전 (1h) 전략 가동 중',
         '8405': 'BB MR 볼린저 평균회귀 (15m) 전략 가동 중',
         '8407': 'BB MR 볼린저 평균회귀 (15m) 전략 가동 중',
@@ -614,9 +673,17 @@ def _get_recent_bot_changes(days=7):
         '8410': 'ADX 국면적응 퓨전 (1h) 전략 가동 중',
     }
 
+    bot_changes = {}
     for b in bots:
-        if not bot_changes[b]:
-            bot_changes[b].append(f"(최근 7일 변경 없음) {BOT_DEFAULTS.get(b, '전략 정상 유지 중')}")
+        within_7d = [entry for dt, entry in all_bot_changes[b] if dt >= cutoff]
+        if within_7d:
+            bot_changes[b] = within_7d[:5]
+        else:
+            # 7일 이내 내용이 없으면 최근 것을 최대 5개 표기 (보스 특별 지침)
+            fallback = [entry for _, entry in all_bot_changes[b][:5]]
+            if not fallback:
+                fallback = [f"(최근 변경 없음) {BOT_DEFAULTS.get(b, '전략 정상 가동 중')}"]
+            bot_changes[b] = fallback
 
     return bot_changes
 
