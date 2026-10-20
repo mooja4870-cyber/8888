@@ -515,19 +515,29 @@ import requests
 import datetime
 
 def _clean_change_text(t):
-    t = re.sub(r'^\[보스 특별 지침 반영:\s*', '', t)
-    t = re.sub(r'^\[보스 특별 지침:\s*', '', t)
-    t = re.sub(r'^\[봇 이식 및 7대 영역 전수 동기화\]\s*', '8405 BB MR 이식: ', t)
-    t = re.sub(r'^\[타임프레임 최적화 동기화\]\s*', '', t)
-    t = t.rstrip(']').strip()
-    t = re.sub(r'^`?84\d\d`?\s*(?:\([^)]*\))?\s*[:\-]?\s*', '', t)
-    t = re.sub(r'^(?:,?\s*84\d\d(?:\s*봇)?)+\s*[:\-]?\s*', '', t)
-    t = re.sub(r'^[,/:\-\s]+', '', t).strip()
-    t = re.sub(r'^config\.json`?:\s*', '설정: ', t)
-    t = re.sub(r',?\s*`?DASHBOARD_META`?[^,)]*', '', t).strip()
-    t = re.sub(r',?\s*\(`84\d\d/ver\.md`\s*v[\d.]+\)', '', t).strip()
+    t = t.strip()
+    t = re.sub(r"\(보스\s*\d+단계\s*승인[^\)]*\)", "", t)
+    t = re.sub(r"^\[보스 특별 지침(?:\s*반영)?:\s*", "", t)
+    t = re.sub(r"^\[봇 이식 및 7대 영역 전수 동기화\]\s*", "8405 BB MR 이식: ", t)
+    t = re.sub(r"^\[타임프레임 최적화(?:\s*동기화)?\]\s*", "", t)
+    t = re.sub(r"^\[Transplant\]\s*", "이식: ", t)
+    t = re.sub(r"^\[QVT_Pullback_Sniper\]\s*", "QVT 눌림목 스나이퍼: ", t)
+    t = re.sub(r"^\[전략 \d+ 탑재\]\s*", "", t)
+    t = re.sub(r"^\[84\d\d(?:\s*[^\]]*)?\]\s*", "", t)
+    m = re.match(r"^\[([^\]]+)\]\s*(.+)$", t)
+    if m:
+        tag, rest = m.group(1), m.group(2)
+        if any(k in tag for k in ["기동", "동기화", "탑재", "반영", "개편", "수정", "최적화", "전략"]):
+            t = rest
+        else:
+            t = f"{tag}: {rest}"
+    t = re.sub(r"^`?84\d\d`?\s*(?:봇)?\s*[:\-]\s*", "", t)
+    t = re.sub(r"^(?:,?\s*84\d\d(?:\s*봇)?)+\s*[:\-]\s*", "", t)
+    t = re.sub(r"^\s*[,/:;\-\)]+\s*", "", t).strip()
+    t = t.rstrip("]").strip()
+    t = t.strip("[]* -")
     if len(t) > 42:
-        t = t[:42] + '...'
+        t = t[:42] + "..."
     return t
 
 
@@ -535,19 +545,12 @@ def _get_recent_bot_changes(days=7):
     """
     최근 7일간의 주요 매매전략 및 설정 변경 관련사항을 봇별로 최대 5개씩 표기.
     만약 특정 봇이 7일 이내의 내용이 없으면 최근 것을 최대 5개 표기 (보스 특별 지침).
+    - 다중 봇 메타라인/안내문 필터링 강화
+    - 개별 봇 로컬 ver.md 우선 수집
     """
-    try:
-        with open(os.path.join(_DIR, "ver.md"), 'r') as f:
-            v_content = f.read()
-    except FileNotFoundError:
-        return {}
-        
-    blocks = re.split(r'\n## v', v_content)
-    now = datetime.datetime.now()
-    cutoff = now - datetime.timedelta(days=days)
     bots = ['8401', '8402', '8403', '8404', '8405', '8407', '8408', '8409', '8410']
     all_bot_changes = {str(b): [] for b in bots}
-    
+
     STRAT_KEYWORDS = [
         '전략', '매매', '손익비', '손절', '익절', '본절', 'ATR', 'TP', 'SL',
         '타임프레임', 'TIMEFRAME', '15m', '1h', '4h', '1d', '이식', 'Transplant',
@@ -558,68 +561,20 @@ def _get_recent_bot_changes(days=7):
     ]
 
     SKIP_KEYWORDS = [
-        '디스코드', '집계 대상', '그룹', '할당', 'AGENTS.md', '승인', 'Quintuple',
+        '디스코드', 'discord', '알림', '표기', '폴백', '집계 대상', '그룹', '할당', 'AGENTS.md', '사전 승인', 'Quintuple',
         'Double Approval', 'verify_all', '풀프루프', '차트 툴팁', '좀비', 'HTTP 200',
         '텔레그램', '스코프 충돌', '백업 폴백', '시퀀스', '세션 캐시', '세션 충돌',
         '잔재 백업', 'trade_history', 'read_bot_config', '파싱', '실매매 청산이 0건',
         '버그 수정', 'NameError', '재기동 및 전체', '자가 재기동', '알림 문구',
         '최근 7일간 변경 없는', '타이틀 변경', '발송 순서', 'TradingConfig',
         'core/config.py', 'core/strategy.py & app.py', '유형1 (노랑)',
-        '유형2 (빨강)', '유형3 (파랑)', '유형1:', '유형2:', '유형3:'
+        '유형2 (빨강)', '유형3 (파랑)', '유형1:', '유형2:', '유형3:',
+        '보스 특별 지침 반영', '최근 7일', '웹훅', '임베드', '요약', '존재하는 봇', '없는 봇',
+        'DASHBOARD_META', 'DASHBOARD', '관제 메타'
     ]
 
-    for block in blocks[1:]:
-        lines = block.strip().split('\n')
-        date_str = None
-        change_lines = []
-        in_changes = False
-        for line in lines:
-            line = line.strip()
-            if line.startswith("Date:"):
-                date_str = line.split(":", 1)[1].strip()
-            elif line.startswith("### 변경 내용"):
-                in_changes = True
-            elif in_changes and line.startswith("###"):
-                in_changes = False
-            elif in_changes and line:
-                t = line.lstrip('*').lstrip('-').strip()
-                if t:
-                    change_lines.append(t)
-        if not date_str:
-            continue
-        try:
-            dt = datetime.datetime.strptime(date_str, "%Y-%m-%d")
-        except Exception:
-            continue
-
-        valid_lines = []
-        for line in change_lines:
-            if any(sk in line for sk in SKIP_KEYWORDS):
-                continue
-            if not any(sk in line for sk in STRAT_KEYWORDS):
-                continue
-            valid_lines.append(line)
-
-        for b in bots:
-            specific_lines = [l for l in valid_lines if b in l]
-            general_lines = [l for l in valid_lines if '전체 봇' in l] if not specific_lines else []
-            candidates = specific_lines + general_lines
-            if candidates:
-                best_l = candidates[0]
-                for c in candidates:
-                    if re.search(rf'`?{b}`?', c) and not any(other in c for other in bots if other != b):
-                        best_l = c
-                        break
-                clean_t = _clean_change_text(best_l)
-                if clean_t:
-                    entry = f"({dt.strftime('%m/%d')}) {clean_t}"
-                    if not any(clean_t in e for _, e in all_bot_changes[b]):
-                        all_bot_changes[b].append((dt, entry))
-
-    # 개별 봇 로컬 ver.md도 보조 참조
+    # 1. 각 봇의 전용 로컬 ver.md 우선 수집
     for b in bots:
-        if len(all_bot_changes[b]) >= 3:
-            continue
         b_ver_path = f"/Users/l/project/{b}/ver.md"
         if os.path.exists(b_ver_path):
             try:
@@ -647,19 +602,67 @@ def _get_recent_bot_changes(days=7):
                     except Exception:
                         continue
                     for bl in b_changes:
-                        if any(sk in bl for sk in SKIP_KEYWORDS): continue
-                        if not any(sk in bl for sk in STRAT_KEYWORDS): continue
-                        clean_t = _clean_change_text(bl)
+                        test_bl = re.sub(r'\(보스\s*\d+단계\s*승인[^\)]*\)', '', bl)
+                        if any(sk in test_bl for sk in SKIP_KEYWORDS): continue
+                        if not any(sk in test_bl for sk in STRAT_KEYWORDS): continue
+                        bot_mentions = re.findall(r'84\d\d', test_bl)
+                        if len(set(bot_mentions)) > 1: continue
+                        clean_t = _clean_change_text(test_bl)
                         if not clean_t: continue
                         entry = f"({b_dt.strftime('%m/%d')}) {clean_t}"
                         if not any(clean_t in e for _, e in all_bot_changes[b]):
                             all_bot_changes[b].append((b_dt, entry))
-                            if len(all_bot_changes[b]) >= 5: break
             except Exception:
                 pass
 
-    for b in bots:
-        all_bot_changes[b].sort(key=lambda x: x[0], reverse=True)
+    # 2. 8888 중앙 관제 ver.md 보조 수집 (단일 봇만 명시된 전략 변경 한정)
+    ver_8888 = os.path.join(_DIR, 'ver.md')
+    if os.path.exists(ver_8888):
+        try:
+            with open(ver_8888, 'r', encoding='utf-8') as f:
+                blocks = re.split(r'\n## v', f.read())
+            for block in blocks[1:]:
+                lines = block.strip().split('\n')
+                date_str = None
+                change_lines = []
+                in_changes = False
+                for line in lines:
+                    line = line.strip()
+                    if line.startswith('Date:'):
+                        date_str = line.split(':', 1)[1].strip()
+                    elif line.startswith('### 변경 내용'):
+                        in_changes = True
+                    elif in_changes and line.startswith('###'):
+                        in_changes = False
+                    elif in_changes and line:
+                        t = line.lstrip('*').lstrip('-').strip()
+                        if t: change_lines.append(t)
+                if not date_str: continue
+                try:
+                    dt = datetime.datetime.strptime(date_str, '%Y-%m-%d')
+                except Exception:
+                    continue
+
+                for line in change_lines:
+                    test_l = re.sub(r'\(보스\s*\d+단계\s*승인[^\)]*\)', '', line)
+                    if any(sk in test_l for sk in SKIP_KEYWORDS): continue
+                    if not any(sk in test_l for sk in STRAT_KEYWORDS): continue
+                    bot_mentions = re.findall(r'84\d\d', test_l)
+                    if len(set(bot_mentions)) != 1: continue # 정확히 1개 봇만 언급된 경우만 수집 (다중 봇 메타라인 원천 배제)
+                    b = bot_mentions[0]
+                    # 이식의 공여자(Donor) 봇인 경우(예: '후 8405 두뇌 이식') 해당 봇의 변경이 아니므로 제외
+                    if f"후 {b}" in test_l or f"{b} 두뇌" in test_l: continue
+                    if b in all_bot_changes and len(all_bot_changes[b]) < 5:
+                        clean_t = _clean_change_text(test_l)
+                        if clean_t:
+                            entry = f"({dt.strftime('%m/%d')}) {clean_t}"
+                            if not any(clean_t in e for _, e in all_bot_changes[b]):
+                                all_bot_changes[b].append((dt, entry))
+        except Exception:
+            pass
+
+    now = datetime.datetime.now()
+    cutoff = now - datetime.timedelta(days=days)
 
     BOT_DEFAULTS = {
         '8401': 'QVT 눌림목 스나이퍼 (1h) 전략 정상 가동 중',
@@ -675,11 +678,11 @@ def _get_recent_bot_changes(days=7):
 
     bot_changes = {}
     for b in bots:
+        all_bot_changes[b].sort(key=lambda x: x[0], reverse=True)
         within_7d = [entry for dt, entry in all_bot_changes[b] if dt >= cutoff]
         if within_7d:
             bot_changes[b] = within_7d[:5]
         else:
-            # 7일 이내 내용이 없으면 최근 것을 최대 5개 표기 (보스 특별 지침)
             fallback = [entry for _, entry in all_bot_changes[b][:5]]
             if not fallback:
                 fallback = [f"(최근 변경 없음) {BOT_DEFAULTS.get(b, '전략 정상 가동 중')}"]
