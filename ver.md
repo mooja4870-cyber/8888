@@ -1,5 +1,31 @@
 # Version History
 
+## v1.2.64
+Date: 2026-10-21
+
+### 변경 내용
+* [보스 특별 지침 반영: 8401, 8402 보유 포지션 실시간 팝업 차트 15분봉/1시간봉 선택 라디오 버튼 탑재]
+  - `8401`, `8402` 대시보드 (`ui/dashboard_tab.py`):
+    - 보유 포지션 섹션에 15분봉(`15m (15분봉 · 30시간)`)과 1시간봉(`1h (1시간봉 · 5일)`)을 즉시 전환할 수 있는 가로형 라디오 버튼(`st.radio`) 추가
+    - 15분봉: 120개 캔들(30시간 시계열) + 30개 봉(7.5시간) 향후 모멘텀 및 볼린저 신뢰구간 예측
+    - 1시간봉: 120개 캔들(5일 시계열) + 30개 봉(30시간) 향후 모멘텀 및 볼린저 신뢰구간 예측
+    - 차트 캐시 메커니즘 최적화: `_get_cached_position_ohlcv()`에 초기 동기 호출(Synchronous fetch)을 추가하여 프레임 전환 시 "차트 준비 중" 깜빡임 제거 및 45초 비동기 백그라운드 자동 갱신 유지
+    - 차트 제목에 선택된 타임프레임 동적 반영 (`+X.XX% / 15m`, `+X.XX% / 1h`)
+  - 개별 봇 버전 동기화:
+    - `/Users/l/project/8401/ver.md` (v2.0.1 갱신)
+    - `/Users/l/project/8402/ver.md` (v2.0.1 갱신)
+
+### 수정 파일
+* /Users/l/project/8401/ui/dashboard_tab.py
+* /Users/l/project/8401/ver.md
+* /Users/l/project/8402/ui/dashboard_tab.py
+* /Users/l/project/8402/ver.md
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+* 8401, 8402 HTTP 200 정상 응답 및 봇 엔진/UI 크래시 0건 검증 완료
+
 ## v1.2.63
 Date: 2026-10-20
 
