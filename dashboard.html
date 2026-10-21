@@ -556,6 +556,19 @@ function render(d,anim){
      ${d.bots.map(b=>'<td style="padding:8px;text-align:center;font-weight:600">'+((b.config&&b.config.ui_deadcat_lock)?'<span style="color:var(--green)">O</span>':'<span style="color:#e24b4a">X</span>')+'</td>').join("")}
     </tr>
     <tr style="border-top:1px solid var(--border);background:var(--card2)">
+     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">설정변경 승인횟수</td>
+     ${d.bots.map(b=>{
+       const n=(b.name||'').trim();
+       if(['8401','8402','8403','8405'].includes(n)) {
+         return '<td style="padding:8px;text-align:center;font-weight:700"><span style="color:#ff5a5a;font-size:12.5px">5회</span> <span style="font-size:10px;color:#8b93a5;font-weight:400">(5단계)</span></td>';
+       } else if(['8404','8408','8410'].includes(n)) {
+         return '<td style="padding:8px;text-align:center;font-weight:700"><span style="color:#f59e0b;font-size:12.5px">2회</span> <span style="font-size:10px;color:#8b93a5;font-weight:400">(2단계)</span></td>';
+       } else {
+         return '<td style="padding:8px;text-align:center;font-weight:700"><span style="color:#2dbd85;font-size:12.5px">1회</span> <span style="font-size:10px;color:#8b93a5;font-weight:400">(기본)</span></td>';
+       }
+     }).join("")}
+    </tr>
+    <tr style="border-top:1px solid var(--border);background:var(--card)">
       <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">구분</td>
       ${d.bots.map(b=>{
        const isbf=(b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog);
