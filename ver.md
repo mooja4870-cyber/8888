@@ -1,5 +1,28 @@
 # Version History
 
+## v1.2.71
+Date: 2026-10-22
+
+### 변경 내용
+* [보스 2단계 승인 완료: 8408 봇 최종 매매전략(손익비 1:3.0) 변경 시점으로 실적 집계 기준점(perf_start) 동기화]
+  - `seeds.json`:
+    - 8408 및 /Users/l/project/8408의 `perf_start`를 '2026-10-19 00:40:09'로 갱신하고 seed를 10.0으로 정합화
+  - `8408/data/stats.json`:
+    - `perf_start_time`을 '2026-10-19 00:40:09'로 갱신하여 신규 전략 개편 이후 순수 실적(12전 5승 7패, 시퀀스 `xxOxOOxxxOxO`)만 정확히 산출되도록 동기화
+  - `8408/ver.md`:
+    - 로컬 버전 `v11.6.1` 기록 완료
+
+### 수정 파일
+* /Users/l/project/8888/seeds.json
+* /Users/l/project/8408/data/stats.json
+* /Users/l/project/8408/ver.md
+* /Users/l/project/8888/ver.md
+
+### 비고
+* extract_bot_metrics 12전 5승 7패 (xxOxOOxxxOxO) 실측 확인 완료
+* verify_all 100% PASS 검증 완료
+* 8888 대시보드 HTTP 200 정상 응답 확인
+
 ## v1.2.70
 Date: 2026-10-21
 
