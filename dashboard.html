@@ -1384,11 +1384,20 @@ function renderBotAssetSection(d) {
         chartData.data_ret = total_returns;
         chartData.seed = 0;
         calcBots.forEach(b => { chartData.seed += (b.seed || 10); });
+        let curTotBal = 0;
+        calcBots.forEach(b => {
+            const bal = (b.metrics && b.metrics.curr_bal != null) ? b.metrics.curr_bal : ((b.ex_balance != null) ? b.ex_balance : (b.balance || 0));
+            curTotBal += Number(bal) || 0;
+        });
+        const totBalStr = curTotBal > 0 ? ` : $ ${curTotBal.toFixed(2)}` : (total_assets.length ? ` : $ ${Number(total_assets[total_assets.length - 1]).toFixed(2)}` : '');
+        chartTitle = `📊 [전체] 총자산 잔고($) 추이<span style="font-size:1.06em;color:#ffffff;margin-left:8px;font-weight:bold">${elStr}${totBalStr}</span>`;
     } else {
         const b = allBots.find(x => x.name === _selectedBotForAsset);
         if (b && b.metrics) {
             const elStr = b.perf_start ? ` (${elapsed(b.perf_start)})` : '';
-            chartTitle = `📊 [${b.name} 봇] 실자산 잔고($) 추이<span style="font-size:1.06em;color:#ffffff;margin-left:8px;font-weight:bold">${elStr}</span>`;
+            const currBal = (b.metrics.curr_bal != null) ? b.metrics.curr_bal : ((b.ex_balance != null) ? b.ex_balance : (b.balance || 0));
+            const balStr = currBal != null ? ` : $ ${Number(currBal).toFixed(2)}` : '';
+            chartTitle = `📊 [${b.name} 봇] 실자산 잔고($) 추이<span style="font-size:1.06em;color:#ffffff;margin-left:8px;font-weight:bold">${elStr}${balStr}</span>`;
             chartData.labels = b.metrics.history_ts || [];
             chartData.data = b.metrics.asset_history || [];
             chartData.data_ret = b.metrics.rolling_history || [];
