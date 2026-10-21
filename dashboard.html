@@ -1314,6 +1314,15 @@ function renderBotAssetSection(d) {
     let chartData = { labels: [], data: [], data_ret: [] };
     let chartTitle = '';
 
+    const fmtDateTime = (ts) => {
+        if (!ts) return '';
+        const p = String(ts).split(/[- :]/);
+        if (p.length >= 5) {
+            return `${p[0]}.${p[1]}.${p[2]} ${p[3]}:${p[4]}`;
+        }
+        return ts;
+    };
+
     if (_selectedBotForAsset === '전체') {
         let min_perf_start = null;
         let min_ts = Infinity;
@@ -1390,14 +1399,61 @@ function renderBotAssetSection(d) {
             curTotBal += Number(bal) || 0;
         });
         const totBalStr = curTotBal > 0 ? ` : $ ${curTotBal.toFixed(2)}` : (total_assets.length ? ` : $ ${Number(total_assets[total_assets.length - 1]).toFixed(2)}` : '');
-        chartTitle = `📊 [전체] 총자산 잔고($) 추이<span style="font-size:1.06em;color:#ffffff;margin-left:8px;font-weight:bold">${elStr}${totBalStr}</span>`;
+
+        let maxTotAsset = -Infinity;
+        let maxTotTs = '';
+        if (total_assets && total_assets.length) {
+            for (let i = 0; i < total_assets.length; i++) {
+                let v = Number(total_assets[i]);
+                if (v > maxTotAsset) {
+                    maxTotAsset = v;
+                    maxTotTs = sorted_ts ? sorted_ts[i] : '';
+                }
+            }
+        }
+        if (curTotBal > maxTotAsset) {
+            maxTotAsset = curTotBal;
+            maxTotTs = '';
+        }
+        let maxTotStr = '';
+        if (maxTotAsset > -Infinity) {
+            const tsFormatted = maxTotTs ? ` ${fmtDateTime(maxTotTs)}` : '';
+            maxTotStr = ` (최고가 $ ${maxTotAsset.toFixed(2)}${tsFormatted})`;
+        }
+        chartTitle = `📊 [전체] 총자산 잔고($) 추이<span style="font-size:1.06em;color:#ffffff;margin-left:8px;font-weight:bold">${elStr}${totBalStr}${maxTotStr}</span>`;
     } else {
         const b = allBots.find(x => x.name === _selectedBotForAsset);
         if (b && b.metrics) {
             const elStr = b.perf_start ? ` (${elapsed(b.perf_start)})` : '';
             const currBal = (b.metrics.curr_bal != null) ? b.metrics.curr_bal : ((b.ex_balance != null) ? b.ex_balance : (b.balance || 0));
             const balStr = currBal != null ? ` : $ ${Number(currBal).toFixed(2)}` : '';
-            chartTitle = `📊 [${b.name} 봇] 실자산 잔고($) 추이<span style="font-size:1.06em;color:#ffffff;margin-left:8px;font-weight:bold">${elStr}${balStr}</span>`;
+
+            // 최고 실자산 잔고 및 달성 시점
+            let maxAsset = -Infinity;
+            let maxAssetTs = '';
+            if (b.metrics.max_asset != null && b.metrics.max_asset_ts) {
+                maxAsset = Number(b.metrics.max_asset);
+                maxAssetTs = b.metrics.max_asset_ts;
+            } else if (b.metrics.asset_history && b.metrics.asset_history.length) {
+                for (let i = 0; i < b.metrics.asset_history.length; i++) {
+                    let v = Number(b.metrics.asset_history[i]);
+                    if (v > maxAsset) {
+                        maxAsset = v;
+                        maxAssetTs = b.metrics.history_ts ? b.metrics.history_ts[i] : '';
+                    }
+                }
+            }
+            if (currBal != null && Number(currBal) > maxAsset) {
+                maxAsset = Number(currBal);
+                maxAssetTs = '';
+            }
+            let maxStr = '';
+            if (maxAsset > -Infinity) {
+                const tsFormatted = maxAssetTs ? ` ${fmtDateTime(maxAssetTs)}` : '';
+                maxStr = ` (최고가 $ ${maxAsset.toFixed(2)}${tsFormatted})`;
+            }
+
+            chartTitle = `📊 [${b.name} 봇] 실자산 잔고($) 추이<span style="font-size:1.06em;color:#ffffff;margin-left:8px;font-weight:bold">${elStr}${balStr}${maxStr}</span>`;
             chartData.labels = b.metrics.history_ts || [];
             chartData.data = b.metrics.asset_history || [];
             chartData.data_ret = b.metrics.rolling_history || [];

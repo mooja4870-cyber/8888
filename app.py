@@ -1458,11 +1458,20 @@ def calc_bot_metrics(folder, bot_dict):
             curr_rolling = round((float(curr_ex_bal) - base_asset) / base_asset * 100, 2) if base_asset > 0 else 0.0
             rolling_history.append(curr_rolling)
 
+        max_asset_rec = max(records, key=lambda r: r[2]) if records else None
+        max_asset_val = round(max_asset_rec[2], 2) if max_asset_rec else seed
+        max_asset_ts = max_asset_rec[0] if max_asset_rec else ""
+        if curr_ex_bal and float(curr_ex_bal) >= max_asset_val:
+            max_asset_val = round(float(curr_ex_bal), 2)
+            max_asset_ts = time.strftime("%Y-%m-%d %H:%M:%S")
+
         return {
             "seed": seed,
             "perf_start": p_clean,
             "days": round(days, 2),
             "curr_bal": round(float(curr_ex_bal), 2),
+            "max_asset": max_asset_val,
+            "max_asset_ts": max_asset_ts,
             "max_dr": max_val,
             "max_dr_ts": max_recs[-1][0],
             "max_dr_bal": round(max_recs[-1][2], 2),
