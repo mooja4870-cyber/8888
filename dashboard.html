@@ -478,103 +478,141 @@ function render(d,anim){
  _cw.classList.remove('anim');  // 자동 새로고침은 조용히(모션 없음) — 먼저 제거 후 재구성
  _cw.innerHTML=_rows.filter(([s,e])=>s<_cards.length).map(([s,e])=>'<div class="cardrow">'+_cards.slice(s,e).join('')+'</div>').join('');
  if(anim){void _cw.offsetWidth;_cw.classList.add('anim');}  // 드롭다운 조작 시에만: 리플로우 강제 후 휘리릭 재생
- const compTable=`<table style="width:100%;border-collapse:collapse;font-size:12px">
-   <thead><tr style="background:var(--card2);border-bottom:1px solid var(--border)">
-    <th style="padding:8px;text-align:center;font-weight:600;min-width:90px">구분</th>
-    ${d.bots.map(b=>{
-      const isbf=(b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog);
-      return '<th style="padding:8px;text-align:center;font-weight:700">'+(isbf?'<span style="color:#ff5a5a;font-weight:bold;margin-right:3px;">[역]</span>':'<span style="color:#4d9fff;font-weight:bold;margin-right:3px;">[순]</span>')+b.name+'</th>';
-    }).join("")}
-   </tr></thead>
-   <tbody>
-    <tr style="border-top:1px solid var(--border);background:var(--card)">
-     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">초기화 잔고</td>
-     ${d.bots.map(b=>'<td style="padding:8px;text-align:center">'+((b.seed===null||b.seed===undefined)?"—":"$"+(+b.seed).toFixed(2))+'</td>').join("")}
-    </tr>
-    <tr style="border-top:1px solid var(--border);background:var(--card2)">
-     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">거래소</td>
-     ${d.bots.map(b=>'<td style="padding:8px;text-align:center">'+(b.ex||"OKX")+'</td>').join("")}
-    </tr>
-    <tr style="border-top:1px solid var(--border);background:var(--card)">
-     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">레버리지</td>
-     ${d.bots.map(b=>'<td style="padding:8px;text-align:center">'+((b.config&&b.config.leverage!=null)?b.config.leverage:"10x")+'</td>').join("")}
-    </tr>
-    <tr style="border-top:1px solid var(--border);background:var(--card2)">
-     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">마진$</td>
-     ${d.bots.map(b=>'<td style="padding:8px;text-align:center">'+((b.config&&b.config.margin_usdt!=null)?b.config.margin_usdt:"$10")+'</td>').join("")}
-    </tr>
-    <tr style="border-top:1px solid var(--border);background:var(--card)">
-     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">최대포지션</td>
-     ${d.bots.map(b=>'<td style="padding:8px;text-align:center">'+((b.config&&b.config.max_positions!=null)?b.config.max_positions:"3")+'</td>').join("")}
-    </tr>
-    <tr style="border-top:1px solid var(--border);background:var(--card2)">
-     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">손절률</td>
-     ${d.bots.map(b=>'<td style="padding:8px;text-align:center">'+((b.config&&b.config.stop_loss_pct!=null)?b.config.stop_loss_pct:"-2.0%")+'</td>').join("")}
-    </tr>
-    <tr style="border-top:1px solid var(--border);background:var(--card)">
-     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">수익목표</td>
-     ${d.bots.map(b=>'<td style="padding:8px;text-align:center">'+((b.config&&b.config.take_profit_pct!=null)?b.config.take_profit_pct:"+3.0%")+'</td>').join("")}
-    </tr>
-    <tr style="border-top:1px solid var(--border);background:var(--card2)">
-     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">타임프레임</td>
-     ${d.bots.map(b=>'<td style="padding:8px;text-align:center;font-weight:700;color:#38bdf8">'+((b.config&&b.config.timeframe)||'1h')+'</td>').join("")}
-    </tr>
-    <tr style="border-top:1px solid var(--border);background:var(--card)">
-     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">1패 즉시전환</td>
-     ${d.bots.map(b=>'<td style="padding:8px;text-align:center;font-weight:600">'+(['8403','8404','8407','8409'].includes((b.name||'').trim())?'<span style="color:var(--green)">O</span>':'<span style="color:#e24b4a">X</span>')+'</td>').join("")}
-    </tr>
-    <tr style="border-top:1px solid var(--border);background:var(--card2)">
-     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">전략 (스캐너)</td>
-     ${d.bots.map(b=>'<td style="padding:8px;text-align:center;font-weight:700;color:#f8fafc">'+((b.config&&b.config.strategy)||'스캐너')+'</td>').join("")}
-    </tr>
-    <tr style="border-top:1px solid var(--border);background:var(--card)">
-     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">스캔 대상</td>
-     ${d.bots.map(b=>'<td style="padding:8px;text-align:center">'+((b.config&&b.config.scan_targets)||'TOP20')+'</td>').join("")}
-    </tr>
-    <tr style="border-top:1px solid var(--border);background:var(--card2)">
-     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">최대보유시간</td>
-     ${d.bots.map(b=>'<td style="padding:8px;text-align:center">'+((b.config&&b.config.max_holding_hours)||'24h')+'</td>').join("")}
-    </tr>
-    <tr style="border-top:1px solid var(--border);background:var(--card)">
-     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">자동반전</td>
-     ${d.bots.map(b=>'<td style="padding:8px;text-align:center;font-weight:600;color:'+((b.config&&b.config.use_auto_mode_switch)?'var(--green)':'#e24b4a')+'">'+((b.config&&b.config.use_auto_mode_switch)?'O':'X')+'</td>').join("")}
-    </tr>
-    <tr style="border-top:1px solid var(--border);background:var(--card2)">
-     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">다이렉트 즉각 익절</td>
-     ${d.bots.map(b=>'<td style="padding:8px;text-align:center;font-weight:600">'+((b.config&&b.config.ui_direct_tp)?'<span style="color:var(--green)">O</span>':'<span style="color:#e24b4a">X</span>')+'</td>').join("")}
-    </tr>
-    <tr style="border-top:1px solid var(--border);background:var(--card)">
-     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">즉각 조기 손절</td>
-     ${d.bots.map(b=>'<td style="padding:8px;text-align:center;font-weight:600">'+((b.config&&b.config.ui_early_sl)?'<span style="color:var(--green)">O</span>':'<span style="color:#e24b4a">X</span>')+'</td>').join("")}
-    </tr>
-    <tr style="border-top:1px solid var(--border);background:var(--card2)">
-     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">양방향 시황 감지</td>
-     ${d.bots.map(b=>'<td style="padding:8px;text-align:center;font-weight:600">'+((b.config&&b.config.ui_macro_detect)?'<span style="color:var(--green)">O</span>':'<span style="color:#e24b4a">X</span>')+'</td>').join("")}
-    </tr>
-    <tr style="border-top:1px solid var(--border);background:var(--card)">
-     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">데드캣 락온 (쿨다운)</td>
-     ${d.bots.map(b=>'<td style="padding:8px;text-align:center;font-weight:600">'+((b.config&&b.config.ui_deadcat_lock)?'<span style="color:var(--green)">O</span>':'<span style="color:#e24b4a">X</span>')+'</td>').join("")}
-    </tr>
-    <tr style="border-top:1px solid var(--border);background:var(--card2)">
-     <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">설정변경 승인횟수</td>
+  const _cPal = ['#38bdf8', '#fbbf24', '#c084fc', '#34d399', '#fb923c', '#f472b6', '#22d3ee', '#a3e635'];
+  const _cRow = (title, bg, valFn, opt={}) => {
+    const items = d.bots.map(b => {
+      const res = valFn(b);
+      if (typeof res === 'object' && res !== null && 'val' in res) {
+        return { val: res.val, key: (res.key != null ? res.key : res.val) };
+      }
+      return { val: (res == null ? '—' : String(res)), key: (res == null ? '—' : String(res)) };
+    });
+
+    const exp = opt.explicitMap || {};
+    const uniqueKeys = [];
+    items.forEach(it => {
+      const k = String(it.key).trim();
+      if (!uniqueKeys.includes(k)) uniqueKeys.push(k);
+    });
+
+    const colorMap = {};
+    if (opt.isOx) {
+      colorMap['O'] = 'var(--green)';
+      colorMap['X'] = '#e24b4a';
+    } else if (uniqueKeys.length === 1 && !opt.forceColor) {
+      colorMap[uniqueKeys[0]] = '#94a3b8';
+    } else {
+      let palIdx = 0;
+      uniqueKeys.forEach(k => {
+        if (exp[k]) {
+          colorMap[k] = exp[k];
+        } else {
+          colorMap[k] = _cPal[palIdx % _cPal.length];
+          palIdx++;
+        }
+      });
+    }
+
+    return `<tr style="border-top:1px solid var(--border);background:${bg}">
+      <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">${title}</td>
+      ${items.map(it => {
+        const k = String(it.key).trim();
+        const col = colorMap[k] || exp[k] || '#f8fafc';
+        const content = (typeof it.val === 'string' && it.val.includes('<span')) 
+          ? it.val 
+          : `<span style="color:${col}">${it.val}</span>`;
+        return `<td style="padding:8px;text-align:center;font-weight:700">${content}</td>`;
+      }).join('')}
+    </tr>`;
+  };
+
+  const compTable=`<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="background:var(--card2);border-bottom:1px solid var(--border)">
+     <th style="padding:8px;text-align:center;font-weight:600;min-width:90px">구분</th>
      ${d.bots.map(b=>{
-       const n=(b.name||'').trim();
-       if(['8401','8402','8403','8405'].includes(n)) {
-         return '<td style="padding:8px;text-align:center;font-weight:700"><span style="color:#ff5a5a;font-size:12.5px">5회</span> <span style="font-size:10px;color:#8b93a5;font-weight:400">(5단계)</span></td>';
-       } else if(['8404','8408','8410'].includes(n)) {
-         return '<td style="padding:8px;text-align:center;font-weight:700"><span style="color:#f59e0b;font-size:12.5px">2회</span> <span style="font-size:10px;color:#8b93a5;font-weight:400">(2단계)</span></td>';
-       } else {
-         return '<td style="padding:8px;text-align:center;font-weight:700"><span style="color:#2dbd85;font-size:12.5px">1회</span> <span style="font-size:10px;color:#8b93a5;font-weight:400">(기본)</span></td>';
-       }
-     }).join("")}
-    </tr>
-    <tr style="border-top:1px solid var(--border);background:var(--card)">
-      <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">구분</td>
-      ${d.bots.map(b=>{
        const isbf=(b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog);
-       return '<td style="padding:8px;text-align:center;font-weight:700">'+(isbf?'<span style="color:#ff5a5a;font-weight:bold;margin-right:3px;">[역]</span>':'<span style="color:#4d9fff;font-weight:bold;margin-right:3px;">[순]</span>')+b.name+'</td>';
-      }).join("")}
-     </tr>
+       return '<th style="padding:8px;text-align:center;font-weight:700">'+(isbf?'<span style="color:#ff5a5a;font-weight:bold;margin-right:3px;">[역]</span>':'<span style="color:#4d9fff;font-weight:bold;margin-right:3px;">[순]</span>')+b.name+'</th>';
+     }).join("")}
+    </tr></thead>
+    <tbody>
+     ${_cRow("초기화 잔고", "var(--card)", b => {
+       const v = (b.seed === null || b.seed === undefined) ? "—" : "$" + (+b.seed).toFixed(2);
+       return { val: v, key: v };
+     }, { explicitMap: { '$10.00': '#94a3b8', '$14.06': '#34d399' } })}
+     ${_cRow("거래소", "var(--card2)", b => (b.ex || "OKX"), {
+       explicitMap: { 'OKX': '#38bdf8', 'BNC': '#fbbf24' }
+     })}
+     ${_cRow("레버리지", "var(--card)", b => ((b.config && b.config.leverage != null) ? b.config.leverage : "10x"), {
+       explicitMap: { '3': '#38bdf8', '3x': '#38bdf8', '5': '#fb923c', '5x': '#fb923c' }
+     })}
+     ${_cRow("마진$", "var(--card2)", b => {
+       const v = (b.config && b.config.margin_usdt != null) ? String(b.config.margin_usdt) : "$10";
+       const m = v.match(/복리\s*\d+%/);
+       return { val: v, key: m ? m[0] : v };
+     }, {
+       explicitMap: { '복리 25%': '#38bdf8', '복리 66%': '#c084fc' }
+     })}
+     ${_cRow("최대포지션", "var(--card)", b => ((b.config && b.config.max_positions != null) ? String(b.config.max_positions) : "3"), {
+       explicitMap: { '1': '#34d399', '2': '#38bdf8', '3': '#fb923c' }
+     })}
+     ${_cRow("손절률", "var(--card2)", b => ((b.config && b.config.stop_loss_pct != null) ? b.config.stop_loss_pct : "-2.0%"), {
+       explicitMap: { 'ATR×1.5': '#38bdf8', 'ATR×2.5': '#fb923c' }
+     })}
+     ${_cRow("수익목표", "var(--card)", b => ((b.config && b.config.take_profit_pct != null) ? b.config.take_profit_pct : "+3.0%"), {
+       explicitMap: { 'ATR×3.0 (1:2)': '#38bdf8', 'SMA/BB Mid': '#c084fc', 'ATR×4.5 (1:3)': '#fbbf24' }
+     })}
+     ${_cRow("타임프레임", "var(--card2)", b => ((b.config && b.config.timeframe) || '1h'), {
+       explicitMap: { '1h': '#38bdf8', '15m': '#c084fc' }
+     })}
+     ${_cRow("1패 즉시전환", "var(--card)", b => (['8403', '8404', '8407', '8409'].includes((b.name || '').trim()) ? 'O' : 'X'), {
+       isOx: true
+     })}
+     ${_cRow("전략 (스캐너)", "var(--card2)", b => {
+       const s = ((b.config && b.config.strategy) || '스캐너');
+       let k = s;
+       if (/QVT/i.test(s)) k = 'QVT';
+       else if (/BB\s*MR.*15m|BB\s*Mean\s*Reversion.*15m/i.test(s)) k = 'BB_MR_15m';
+       else if (/BB\s*MR.*1h|BB\s*Mean\s*Reversion.*1h/i.test(s)) k = 'BB_MR_1h';
+       else if (/TTM/i.test(s)) k = 'TTM';
+       else if (/BBTS/i.test(s) && !/퓨전|Fusion/i.test(s)) k = 'BBTS';
+       else if (/퓨전|Fusion/i.test(s)) k = 'FUSION';
+       return { val: s, key: k };
+     }, {
+       explicitMap: {
+         'QVT': '#38bdf8',
+         'BB_MR_15m': '#34d399',
+         'TTM': '#c084fc',
+         'BBTS': '#fbbf24',
+         'BB_MR_1h': '#22d3ee',
+         'FUSION': '#fb923c'
+       }
+     })}
+     ${_cRow("스캔 대상", "var(--card)", b => ((b.config && b.config.scan_targets) || 'TOP20'), {
+       explicitMap: { '지정 33개': '#38bdf8', '지정 25개': '#34d399', '지정 26개': '#c084fc' }
+     })}
+     ${_cRow("최대보유시간", "var(--card2)", b => ((b.config && b.config.max_holding_hours) || '24h'))}
+     ${_cRow("자동반전", "var(--card)", b => ((b.config && b.config.use_auto_mode_switch) ? 'O' : 'X'), { isOx: true })}
+     ${_cRow("다이렉트 즉각 익절", "var(--card2)", b => ((b.config && b.config.ui_direct_tp) ? 'O' : 'X'), { isOx: true })}
+     ${_cRow("즉각 조기 손절", "var(--card)", b => ((b.config && b.config.ui_early_sl) ? 'O' : 'X'), { isOx: true })}
+     ${_cRow("양방향 시황 감지", "var(--card2)", b => ((b.config && b.config.ui_macro_detect) ? 'O' : 'X'), { isOx: true })}
+     ${_cRow("데드캣 락온 (쿨다운)", "var(--card)", b => ((b.config && b.config.ui_deadcat_lock) ? 'O' : 'X'), { isOx: true })}
+     ${_cRow("설정변경 승인횟수", "var(--card2)", b => {
+       const n = (b.name || '').trim();
+       if (['8401', '8402', '8403', '8405'].includes(n)) {
+         return { key: '5회', val: '<span style="color:#ff5a5a;font-size:12.5px">5회</span> <span style="font-size:10px;color:#8b93a5;font-weight:400">(5단계)</span>' };
+       } else if (['8404', '8408', '8410'].includes(n)) {
+         return { key: '2회', val: '<span style="color:#f59e0b;font-size:12.5px">2회</span> <span style="font-size:10px;color:#8b93a5;font-weight:400">(2단계)</span>' };
+       } else {
+         return { key: '1회', val: '<span style="color:#2dbd85;font-size:12.5px">1회</span> <span style="font-size:10px;color:#8b93a5;font-weight:400">(기본)</span>' };
+       }
+     })}
+     <tr style="border-top:1px solid var(--border);background:var(--card)">
+       <td style="padding:8px;font-weight:600;text-align:center;white-space:nowrap;">구분</td>
+       ${d.bots.map(b=>{
+        const isbf=(b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog);
+        return '<td style="padding:8px;text-align:center;font-weight:700">'+(isbf?'<span style="color:#ff5a5a;font-weight:bold;margin-right:3px;">[역]</span>':'<span style="color:#4d9fff;font-weight:bold;margin-right:3px;">[순]</span>')+b.name+'</td>';
+       }).join("")}
+      </tr>
     </tbody>
   </table>`;
   const _periods=[['1h','1시간 내'],['6h','6시간 내'],['12h','12시간 내'],['24h','24시간 내'],['48h','48시간 내'],['72h','72시간 내'],['1w','1주일간']];
