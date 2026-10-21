@@ -539,10 +539,10 @@ function render(d,anim){
        const v = (b.seed === null || b.seed === undefined) ? "—" : "$" + (+b.seed).toFixed(2);
        return { val: v, key: v };
      }, { explicitMap: { '$10.00': '#94a3b8', '$14.06': '#34d399' } })}
-     ${_cRow("거래소", "var(--card2)", b => (b.ex || "OKX"), {
+     ${_cRow("거래소", "var(--card)", b => (b.ex || "OKX"), {
        explicitMap: { 'OKX': '#38bdf8', 'BNC': '#fbbf24' }
      })}
-     ${_cRow("레버리지", "var(--card)", b => ((b.config && b.config.leverage != null) ? b.config.leverage : "10x"), {
+     ${_cRow("레버리지", "var(--card2)", b => ((b.config && b.config.leverage != null) ? b.config.leverage : "10x"), {
        explicitMap: { '3': '#38bdf8', '3x': '#38bdf8', '5': '#fb923c', '5x': '#fb923c' }
      })}
      ${_cRow("마진$", "var(--card2)", b => {
@@ -555,10 +555,10 @@ function render(d,anim){
      ${_cRow("최대포지션", "var(--card)", b => ((b.config && b.config.max_positions != null) ? String(b.config.max_positions) : "3"), {
        explicitMap: { '1': '#34d399', '2': '#38bdf8', '3': '#fb923c' }
      })}
-     ${_cRow("손절률", "var(--card2)", b => ((b.config && b.config.stop_loss_pct != null) ? b.config.stop_loss_pct : "-2.0%"), {
+     ${_cRow("손절률", "var(--card)", b => ((b.config && b.config.stop_loss_pct != null) ? b.config.stop_loss_pct : "-2.0%"), {
        explicitMap: { 'ATR×1.5': '#38bdf8', 'ATR×2.5': '#fb923c' }
      })}
-     ${_cRow("수익목표", "var(--card)", b => ((b.config && b.config.take_profit_pct != null) ? b.config.take_profit_pct : "+3.0%"), {
+     ${_cRow("수익목표", "var(--card2)", b => ((b.config && b.config.take_profit_pct != null) ? b.config.take_profit_pct : "+3.0%"), {
        explicitMap: { 'ATR×3.0 (1:2)': '#38bdf8', 'SMA/BB Mid': '#c084fc', 'ATR×4.5 (1:3)': '#fbbf24' }
      })}
      ${_cRow("손익비 및 본절", "var(--card2)", b => {
@@ -579,10 +579,10 @@ function render(d,anim){
      ${_cRow("타임프레임", "var(--card)", b => ((b.config && b.config.timeframe) || '1h'), {
        explicitMap: { '1h': '#38bdf8', '15m': '#c084fc' }
      })}
-     ${_cRow("1패 즉시전환", "var(--card2)", b => (['8403', '8404', '8407', '8409'].includes((b.name || '').trim()) ? 'O' : 'X'), {
+     ${_cRow("1패 즉시전환", "var(--card)", b => (['8403', '8404', '8407', '8409'].includes((b.name || '').trim()) ? 'O' : 'X'), {
        isOx: true
      })}
-     ${_cRow("전략 (스캐너)", "var(--card)", b => {
+     ${_cRow("전략 (스캐너)", "var(--card2)", b => {
        const s = ((b.config && b.config.strategy) || '스캐너');
        let k = s;
        if (/QVT/i.test(s)) k = 'QVT';
@@ -606,12 +606,12 @@ function render(d,anim){
        explicitMap: { '지정 33개': '#38bdf8', '지정 25개': '#34d399', '지정 26개': '#c084fc' }
      })}
      ${_cRow("최대보유시간", "var(--card)", b => ((b.config && b.config.max_holding_hours) || '24h'))}
-     ${_cRow("자동반전", "var(--card2)", b => ((b.config && b.config.use_auto_mode_switch) ? 'O' : 'X'), { isOx: true })}
-     ${_cRow("다이렉트 즉각 익절", "var(--card)", b => ((b.config && b.config.ui_direct_tp) ? 'O' : 'X'), { isOx: true })}
+     ${_cRow("자동반전", "var(--card)", b => ((b.config && b.config.use_auto_mode_switch) ? 'O' : 'X'), { isOx: true })}
+     ${_cRow("다이렉트 즉각 익절", "var(--card2)", b => ((b.config && b.config.ui_direct_tp) ? 'O' : 'X'), { isOx: true })}
      ${_cRow("즉각 조기 손절", "var(--card2)", b => ((b.config && b.config.ui_early_sl) ? 'O' : 'X'), { isOx: true })}
      ${_cRow("양방향 시황 감지", "var(--card)", b => ((b.config && b.config.ui_macro_detect) ? 'O' : 'X'), { isOx: true })}
-     ${_cRow("데드캣 락온 (쿨다운)", "var(--card2)", b => ((b.config && b.config.ui_deadcat_lock) ? 'O' : 'X'), { isOx: true })}
-     ${_cRow("설정변경 승인횟수", "var(--card)", b => {
+     ${_cRow("데드캣 락온 (쿨다운)", "var(--card)", b => ((b.config && b.config.ui_deadcat_lock) ? 'O' : 'X'), { isOx: true })}
+     ${_cRow("설정변경 승인횟수", "var(--card2)", b => {
        const n = (b.name || '').trim();
        if (['8401', '8402', '8403', '8405'].includes(n)) {
          return { key: '5회', val: '<span style="color:#ff5a5a;font-size:12.5px">5회</span> <span style="font-size:10px;color:#8b93a5;font-weight:400">(5단계)</span>' };
