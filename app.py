@@ -842,6 +842,40 @@ def sync_seed_info(folder, seed, perf_start):
         pass
 
 
+PEAK_ASSETS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "peak_assets.json")
+_PEAK_LOCK = threading.Lock()
+
+
+def load_peak_assets():
+    """역대 최고 실자산 및 달성 시점(peak_assets.json). 고점 갱신 후 시세 하락해도 영구 보존."""
+    return safe_load_json(PEAK_ASSETS_PATH, {})
+
+
+def record_peak_asset(bot_name, val, ts=None):
+    """실시간 잔고 또는 역사적 잔고가 기존 최고가를 엄격히 초과(>)할 때만 갱신 및 디스크 영구 저장"""
+    if val is None:
+        return None, None
+    try:
+        f_val = round(float(val), 2)
+        with _PEAK_LOCK:
+            peaks = load_peak_assets()
+            curr = peaks.get(bot_name, {})
+            curr_val = float(curr.get("peak_asset", 0.0))
+            curr_ts = curr.get("peak_ts", "")
+            if f_val > curr_val:
+                new_ts = ts or time.strftime("%Y-%m-%d %H:%M:%S")
+                peaks[bot_name] = {"peak_asset": f_val, "peak_ts": new_ts}
+                atomic_save_json(PEAK_ASSETS_PATH, peaks, indent=2)
+                return f_val, new_ts
+            elif curr_val > 0.0 and not curr_ts and ts:
+                peaks[bot_name]["peak_ts"] = ts
+                atomic_save_json(PEAK_ASSETS_PATH, peaks, indent=2)
+                return curr_val, ts
+            return curr_val, curr_ts
+    except Exception:
+        return None, None
+
+
 def bot_creds(folder, ex):
     if ex == "OKX":
         # mooja 지정 봇별 키 매핑(okx_keys.json) 최우선 → 각 봇 고유키로 잔고 분리 보장.
@@ -1481,11 +1515,22 @@ def calc_bot_metrics(folder, bot_dict):
             rolling_history.append(curr_rolling)
 
         max_asset_rec = max(records, key=lambda r: r[2]) if records else None
-        max_asset_val = round(max_asset_rec[2], 2) if max_asset_rec else seed
-        max_asset_ts = max_asset_rec[0] if max_asset_rec else ""
-        if curr_ex_bal and float(curr_ex_bal) >= max_asset_val:
-            max_asset_val = round(float(curr_ex_bal), 2)
-            max_asset_ts = time.strftime("%Y-%m-%d %H:%M:%S")
+        hist_val = round(max_asset_rec[2], 2) if max_asset_rec else seed
+        hist_ts = max_asset_rec[0] if max_asset_rec else ""
+
+        # 1. 과거 기록 최고치를 peak_assets.json에 안전하게 반영 (기존 저장값보다 클 때만)
+        record_peak_asset(folder, hist_val, hist_ts)
+
+        # 2. 실시간 잔고(curr_ex_bal)가 있다면 엄격히 초과(>)할 때만 갱신
+        if curr_ex_bal and float(curr_ex_bal) > 0:
+            c_val = round(float(curr_ex_bal), 2)
+            record_peak_asset(folder, c_val)
+
+        # 3. 영속 저장된 최고치와 달성 시점 로드 (시세 하락해도 절대 깎이지 않음)
+        peaks = load_peak_assets()
+        p_info = peaks.get(folder, {})
+        max_asset_val = p_info.get("peak_asset", hist_val)
+        max_asset_ts = p_info.get("peak_ts", hist_ts)
 
         return {
             "seed": seed,
@@ -1555,8 +1600,14 @@ def collect_bots(bot_tuples):
     dd_warn = [{"name": b["name"], "today_dd": b["today_dd"]}
                for b in bots if b.get("today_dd") is not None and -10 < b["today_dd"] <= -5]
 
+    tot_peak_val, tot_peak_ts = None, None
+    if assets > 0:
+        tot_peak_val, tot_peak_ts = record_peak_asset("ALL", assets)
+
     summary = {
         "assets": round(assets, 2),
+        "max_asset": tot_peak_val,
+        "max_asset_ts": tot_peak_ts,
         "cum_ret": cum_ret,
         "cum_delta": round(assets - seed, 2),
         "daily_ret": daily_ret,

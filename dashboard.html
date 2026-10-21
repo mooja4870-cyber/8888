@@ -1468,7 +1468,10 @@ function renderBotAssetSection(d) {
 
         let maxTotAsset = -Infinity;
         let maxTotTs = '';
-        if (total_assets && total_assets.length) {
+        if (data.summary && data.summary.max_asset != null && data.summary.max_asset_ts) {
+            maxTotAsset = Number(data.summary.max_asset);
+            maxTotTs = data.summary.max_asset_ts;
+        } else if (total_assets && total_assets.length) {
             for (let i = 0; i < total_assets.length; i++) {
                 let v = Number(total_assets[i]);
                 if (v > maxTotAsset) {
@@ -1479,7 +1482,9 @@ function renderBotAssetSection(d) {
         }
         if (curTotBal > maxTotAsset) {
             maxTotAsset = curTotBal;
-            maxTotTs = '';
+            const now = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            maxTotTs = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
         }
         let maxTotStr = '';
         if (maxTotAsset > -Infinity) {
@@ -1511,7 +1516,9 @@ function renderBotAssetSection(d) {
             }
             if (currBal != null && Number(currBal) > maxAsset) {
                 maxAsset = Number(currBal);
-                maxAssetTs = '';
+                const now = new Date();
+                const pad = n => String(n).padStart(2, '0');
+                maxAssetTs = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
             }
             let maxStr = '';
             if (maxAsset > -Infinity) {
