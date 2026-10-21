@@ -709,6 +709,22 @@ def read_bot_config(folder):
         else:
             auto_switch = False if folder == "8409" else bool(cfg.get("USE_AUTO_MODE_SWITCH", False))
 
+        # 7. 손익비 및 본절 산출
+        use_be = bool(cfg.get("USE_BE_GUARD", False))
+        be_trig = float(cfg.get("BE_GUARD_TRIGGER_PCT", 0.0) or 0.0)
+        be_str = f"{be_trig * 100:.1f}%" if use_be and be_trig > 0 else "미사용"
+        
+        if "SMA" in tp_str or "BB Mid" in tp_str or folder in ["8403", "8405"]:
+            rr_str = "SMA(동적)"
+        elif "(1:3)" in tp_str or "(1:3.0)" in tp_str or folder in ["8404", "8407", "8408", "8409", "8410"]:
+            rr_str = "1:3.0"
+        elif "(1:2)" in tp_str or "(1:2.0)" in tp_str or folder in ["8401", "8402"]:
+            rr_str = "1:2.0"
+        else:
+            rr_str = "1:2.0"
+
+        rr_be_str = f"손익비 {rr_str} 및 본절 {be_str}"
+
         return {
             "leverage": cfg.get("LEVERAGE", "—"),
             "margin_usdt": cfg.get("MARGIN_USDT", "—"),
@@ -728,11 +744,17 @@ def read_bot_config(folder):
             "ui_early_sl": bool(cfg.get("USE_TIME_STOP", False) or cfg.get("USE_TIMEOUT_EXIT", False) or cfg.get("USE_DYNAMIC_SLTP", False)),
             "ui_macro_detect": bool(cfg.get("USE_REGIME_FILTER", False) or cfg.get("USE_DYNAMIC_REGIME", False)),
             "ui_deadcat_lock": bool(cfg.get("COOLDOWN_LOSS_COUNT", 0) > 0 or cfg.get("REENTRY_BLOCK_MIN", 0) > 0),
+            "use_be_guard": use_be,
+            "be_guard_trigger_pct": be_trig,
+            "risk_reward": rr_str,
+            "be_guard": be_str,
+            "rr_and_be": rr_be_str,
         }
     except (OSError, json.JSONDecodeError, ValueError):
         return {k: "—" for k in ["leverage", "margin_usdt", "max_positions", "stop_loss_pct",
                                   "take_profit_pct", "timeframe", "indicators", "strategy", "scan_targets",
-                                  "max_holding_hours", "USE_AUTO_COMPOUND", "AUTO_COMPOUND_PCT", "use_auto_mode_switch"]}
+                                  "max_holding_hours", "USE_AUTO_COMPOUND", "AUTO_COMPOUND_PCT", "use_auto_mode_switch",
+                                  "use_be_guard", "be_guard_trigger_pct", "risk_reward", "be_guard", "rr_and_be"]}
 
 
 def parse_api_md_okx(folder):
