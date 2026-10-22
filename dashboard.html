@@ -224,6 +224,7 @@ let chart=null;
 let _lastData=null;
 var _botAssetChart=null;
 var _selectedBotForAsset='8401';
+var _lastBotAssetRenderTime=0;
 // 좌측 아코디언: 기본화면 ↔ 시간별(수익율순/봇이름순). 시간별은 /api/snapshots(매시 :00·:30 누적) 표.
 function applyView(){
  const mode=(document.getElementById('viewmode')||{}).value||'base';
@@ -1348,7 +1349,15 @@ async function loadRetChart(tf){
 }
 
 // ===== 봇별 총자산 추이 (인라인) =====
-function renderBotAssetSection(d) {
+function renderBotAssetSection(d, force = false) {
+    if (!d) return;
+    const now = Date.now();
+    // [보스 특별 지침] 깜빡임 방지: 탭 클릭(force)이 아니면 최소 30초 주기로만 업데이트
+    if (!force && (now - _lastBotAssetRenderTime < 30000)) {
+        return;
+    }
+    _lastBotAssetRenderTime = now;
+
     const _rawBots = [...(d.bots||[]), ...(d.extra_bots||[])];
     const allBots = Array.from(new Map(_rawBots.map(b => [b.name, b])).values());
     // 고정 탭 순서
@@ -1539,7 +1548,6 @@ function renderBotAssetSection(d) {
     document.getElementById('botAssetTitle').innerHTML = chartTitle;
 
     const ctx = document.getElementById('botAssetChartCanvas').getContext('2d');
-    if (_botAssetChart) _botAssetChart.destroy();
     
     // 날짜 포맷팅 (MM/DD HH:mm)
     const fmtLabels = chartData.labels.map(ts => {
@@ -1549,78 +1557,88 @@ function renderBotAssetSection(d) {
         return ts;
     });
 
-    _botAssetChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: fmtLabels,
-            datasets: [
-                {
-                    label: '총자산 잔고($)',
-                    data: chartData.data,
-                    yAxisID: 'y',
-                    borderColor: '#FFD700',
-                    backgroundColor: 'rgba(255, 215, 0, 0.1)',
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    pointHoverRadius: 4,
-                    fill: true,
-                    tension: 0.4
-                },
-                {
-                    label: '초기자본금',
-                    data: chartData.labels.map(() => chartData.seed || chartData.data[0]),
-                    yAxisID: 'y',
-                    borderColor: '#ff4c4c',
-                    borderDash: [5, 5],
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    pointHoverRadius: 0,
-                    fill: false,
-                    tension: 0
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            layout: { padding: { top: 35 } },
-            interaction: { mode: 'index', intersect: false },
-            plugins: { 
-                legend: { display: true, labels: { color: '#8b93a5', boxWidth: 12, usePointStyle: true, padding: 20 } },
-                tooltip: {
-                    position: 'topPoint',
-                    yAlign: 'bottom',
-                    xAlign: 'center',
-                    caretPadding: 8,
-                    backgroundColor: 'rgba(0,0,0,0.88)', titleColor: '#fff', bodyColor: '#fff',
-                    borderColor: '#3a445d', borderWidth: 1, padding: 10,
-                    callbacks: {
-                        label: function(context) {
-                            let label = context.dataset.label || '';
-                            if (label) label += ': ';
-                            label += '$' + context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                            return label;
+    const seedLine = chartData.labels.map(() => chartData.seed || (chartData.data.length ? chartData.data[0] : 10));
+
+    if (_botAssetChart) {
+        _botAssetChart.data.labels = fmtLabels;
+        _botAssetChart.data.datasets[0].data = chartData.data;
+        _botAssetChart.data.datasets[1].data = seedLine;
+        _botAssetChart.update('none');
+    } else {
+        _botAssetChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: fmtLabels,
+                datasets: [
+                    {
+                        label: '총자산 잔고($)',
+                        data: chartData.data,
+                        yAxisID: 'y',
+                        borderColor: '#FFD700',
+                        backgroundColor: 'rgba(255, 215, 0, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        fill: true,
+                        tension: 0.4
+                    },
+                    {
+                        label: '초기자본금',
+                        data: seedLine,
+                        yAxisID: 'y',
+                        borderColor: '#ff4c4c',
+                        borderDash: [5, 5],
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        fill: false,
+                        tension: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: { top: 35 } },
+                interaction: { mode: 'index', intersect: false },
+                plugins: { 
+                    legend: { display: true, labels: { color: '#8b93a5', boxWidth: 12, usePointStyle: true, padding: 20 } },
+                    tooltip: {
+                        position: 'topPoint',
+                        yAlign: 'bottom',
+                        xAlign: 'center',
+                        caretPadding: 8,
+                        backgroundColor: 'rgba(0,0,0,0.88)', titleColor: '#fff', bodyColor: '#fff',
+                        borderColor: '#3a445d', borderWidth: 1, padding: 10,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) label += ': ';
+                                label += '$' + context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                return label;
+                            }
                         }
                     }
-                }
-            },
-            scales: {
-                x: { grid: { display: false }, ticks: { color: '#8b93a5', maxTicksLimit: 14, autoSkip: true } },
-                y: { 
-                    type: 'linear',
-                    display: true,
-                    position: 'left',
-                    grid: { color: 'rgba(255, 255, 255, 0.05)' }, 
-                    ticks: { color: '#9fb0d8' } 
-                }
-            },
-            interaction: { mode: 'index', intersect: false }
-        }
-    });
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#8b93a5', maxTicksLimit: 14, autoSkip: true } },
+                    y: { 
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' }, 
+                        ticks: { color: '#9fb0d8' } 
+                    }
+                },
+                interaction: { mode: 'index', intersect: false }
+            }
+        });
+    }
 }
 window.selectBotAsset = function(botName) {
     _selectedBotForAsset = botName;
-    if (_lastData) renderBotAssetSection(_lastData);
+    const dataToUse = _lastData || window._FB_DATA;
+    if (dataToUse) renderBotAssetSection(dataToUse, true);
 };
 
 window.addEventListener('keydown',e=>{if(e.key==='Escape')closeRetModal();});

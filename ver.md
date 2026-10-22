@@ -1,5 +1,25 @@
 # Version History
 
+## v1.2.73
+Date: 2026-10-22
+
+### 변경 내용
+* [보스 특별 지침 반영: '봇별 총자산 추이' 차트 깜빡임 방지 및 30초 갱신 주기 독립 격리]
+  - `dashboard.html`:
+    - `_lastBotAssetRenderTime` 타이머 변수 신설 및 `renderBotAssetSection(d, force = false)` 함수 스로틀링 적용:
+      - 5초 주기 백그라운드 폴링 시 '봇별 총자산 추이' 차트는 최소 30초(30,000ms) 경과 시에만 업데이트하도록 독립 격리하여 빈번한 재렌더링 차단.
+      - 상단 봇 탭 버튼(8401, 8402 등) 클릭 시에는 `force = true`로 즉시 지연 없이 반응형 렌더링 유지.
+    - 기존 `_botAssetChart.destroy()` 방식의 캔버스 파괴/재생성을 제거하고, 차트가 이미 존재할 경우 `_botAssetChart.update('none')`을 통한 인플레이스 데이터 갱신으로 전환하여 30초 경과 업데이트 시에도 캔버스 깜빡임(Flash/Flicker) 100% 원천 제거.
+
+### 수정 파일
+* /Users/l/project/8888/dashboard.html
+* /Users/l/project/8888/ver.md
+
+### 비고
+* Node.js JS 구문 유효성 검사 100% PASS
+* HTTP 200 정상 응답 및 30초 스로틀 로직 바인딩 확인
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.72
 Date: 2026-10-22
 
