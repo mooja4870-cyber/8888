@@ -90,6 +90,8 @@ h1{font-size:27px;font-weight:600}
 @keyframes pink-blink{0%,100%{border-color:#ff2d75;box-shadow:0 0 16px rgba(255,45,117,.95), inset 0 0 6px rgba(255,45,117,.3)}50%{border-color:transparent;box-shadow:none}}
 .card.switch-lock-blink{border:0.85mm solid #ff2d75 !important;animation:pink-blink 0.5s ease-in-out infinite !important}
 .card.holding{border:0.2mm solid #a3e635;animation:blinkgreen 1s ease-in-out infinite}
+@keyframes diamond-sparkle{0%,100%{opacity:1;transform:scale(1.15);filter:drop-shadow(0 0 6px rgba(0,210,211,0.9))}50%{opacity:.35;transform:scale(.85);filter:drop-shadow(0 0 2px rgba(0,210,211,0.3))}}
+.diamond-sparkle{display:inline-block;animation:diamond-sparkle 1s ease-in-out infinite;margin-left:5px;vertical-align:middle;font-size:1.05em}
 .card .head{display:flex;align-items:center;gap:7px;margin-bottom:8px}
 .card .name{font-weight:600;font-size:21.6px}
 .rainbow-text{background:linear-gradient(90deg,#ff5a5a,#fcd162,#4db168,#4d9fff,#8c6cf5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:900 !important;animation:rainbow_anim 4s linear infinite}
@@ -1499,18 +1501,22 @@ function renderBotAssetSection(d, force = false) {
             maxTotStr = ` (최고가 $ ${maxTotAsset.toFixed(2)}${tsFormatted})`;
         }
         let totBalColor = '#ffffff';
+        let totDiamond = '';
         const finalTotVal = curTotBal > 0 ? curTotBal : (total_assets.length ? Number(total_assets[total_assets.length - 1]) : 0);
         if (maxTotAsset > 0 && finalTotVal > 0) {
             const dropPct = ((maxTotAsset - finalTotVal) / maxTotAsset) * 100;
             if (dropPct <= 5.0) {
                 totBalColor = '#4d9fff'; // 5% 이내 파랑색
+                if (dropPct <= 3.0) {
+                    totDiamond = ' <span class="diamond-sparkle" title="최고가 대비 3% 이내 신고가 근접">💎</span>';
+                }
             } else if (dropPct <= 10.0) {
                 totBalColor = '#ffd633'; // 10% 이내 노랑색
             } else {
                 totBalColor = '#ff5a5a'; // 10% 초과 빨강색
             }
         }
-        const totBalStr = finalTotVal > 0 ? ` : <span style="color:${totBalColor};">$ ${finalTotVal.toFixed(2)}</span>` : '';
+        const totBalStr = finalTotVal > 0 ? ` : <span style="color:${totBalColor};">$ ${finalTotVal.toFixed(2)}</span>${totDiamond}` : '';
         chartTitle = `📊 [전체] 총자산 잔고($) 추이<span style="font-size:1.06em;color:#ffffff;margin-left:8px;font-weight:bold">${elStr}${totBalStr}${maxTotStr}</span>`;
     } else {
         const b = allBots.find(x => x.name === _selectedBotForAsset);
@@ -1546,18 +1552,22 @@ function renderBotAssetSection(d, force = false) {
             }
 
             let balColor = '#ffffff';
+            let diamond = '';
             const numCurrBal = currBal != null ? Number(currBal) : null;
             if (maxAsset > 0 && numCurrBal != null && numCurrBal > 0) {
                 const dropPct = ((maxAsset - numCurrBal) / maxAsset) * 100;
                 if (dropPct <= 5.0) {
                     balColor = '#4d9fff'; // 5% 이내 파랑색
+                    if (dropPct <= 3.0) {
+                        diamond = ' <span class="diamond-sparkle" title="최고가 대비 3% 이내 신고가 근접">💎</span>';
+                    }
                 } else if (dropPct <= 10.0) {
                     balColor = '#ffd633'; // 10% 이내 노랑색
                 } else {
                     balColor = '#ff5a5a'; // 10% 초과 빨강색
                 }
             }
-            const balStr = numCurrBal != null ? ` : <span style="color:${balColor};">$ ${numCurrBal.toFixed(2)}</span>` : '';
+            const balStr = numCurrBal != null ? ` : <span style="color:${balColor};">$ ${numCurrBal.toFixed(2)}</span>${diamond}` : '';
 
             chartTitle = `📊 [${b.name} 봇] 실자산 잔고($) 추이<span style="font-size:1.06em;color:#ffffff;margin-left:8px;font-weight:bold">${elStr}${balStr}${maxStr}</span>`;
             chartData.labels = b.metrics.history_ts || [];

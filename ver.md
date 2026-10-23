@@ -1,5 +1,25 @@
 # Version History
 
+## v1.2.78
+Date: 2026-10-23
+
+### 변경 내용
+* [보스 특별 지침 반영: 최고가 대비 3% 이내 신고가 초근접 시 반짝이는 다이아몬드(💎) 이모지 표출]
+  - `dashboard.html`:
+    - `@keyframes diamond-sparkle` 애니메이션 정의: 은은한 펄스 스케일(`0.85 ~ 1.15`) 및 시안 글로우 효과로 프리미엄 반짝임 연출.
+    - `renderBotAssetSection` 내 최고가 대비 하락폭이 **3.0% 이내**인 경우:
+      - 현재가 바로 옆에 `<span class="diamond-sparkle">💎</span>` 동적 삽입.
+      - 개별 봇 실자산 잔고($) 추이 및 [전체] 총자산 잔고($) 추이 타이틀 양측 동시 적용.
+      - 3.0% 초과 하락 시 다이아몬드 이모지 자동 숨김.
+
+### 수정 파일
+* /Users/l/project/8888/dashboard.html
+* /Users/l/project/8888/ver.md
+
+### 비고
+* Node.js JavaScript 구문 검사 100% PASS
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.77
 Date: 2026-10-23
 
