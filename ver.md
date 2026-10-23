@@ -1,5 +1,27 @@
 # Version History
 
+## v1.2.81
+Date: 2026-10-24
+
+### 변경 내용
+* [보스 특별 지침 반영: 차트 최고가(ATH) 누락 오차 수정 및 극점 보존(Peak-Preserving) 동기화]
+  - `app.py`:
+    - `hist_metrics`에서 영속 저장된 최고자산(`max_asset_val`, `max_asset_ts`)이 스냅샷 기반 `records` 최대값보다 클 경우, 정확한 타임스탬프 위치에 ATH 최고점 레코드를 강제 삽입하여 시계열 무결성 보장.
+    - 다운샘플링 시 최고점(ATH Peak) 인덱스를 반드시 포함하는 **극점 보존(Peak-Preserving) 샘플링** 알고리즘 구현으로 차트 전송 시 최고점 유실 원천 차단.
+  - `dashboard.html`:
+    - 프론트엔드 차트 렌더링 시 `maxAsset`이 데이터 배열 내 최대값보다 큰 경우, 올바른 시각 위치에 포인트를 동적 삽입하는 2중 안전 보정 로직 구현 (개별 봇 및 전체 자산 차트 동시 적용).
+
+### 수정 파일
+* /Users/l/project/8888/app.py
+* /Users/l/project/8888/dashboard.html
+* /Users/l/project/8888/ver.md
+
+### 비고
+* 8888 서버 재기동 및 HTTP 200 검증 완료
+* 전체 봇 ATH 극점 보존 테스트 전수 통과
+* Node.js JavaScript 구문 검사 100% PASS
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.80
 Date: 2026-10-23
 

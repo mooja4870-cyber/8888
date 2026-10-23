@@ -1526,8 +1526,19 @@ function renderBotAssetSection(d, force = false) {
                 totBalColor = '#ff5a5a'; // 10% 초과 빨강색
             }
         }
-        const totBalStr = finalTotVal > 0 ? ` : <span style="color:${totBalColor};">$ ${finalTotVal.toFixed(2)}</span>${totDiamond}` : '';
         chartTitle = `📊 [전체] 총자산 잔고($) 추이<span style="font-size:1.06em;color:#ffffff;margin-left:8px;font-weight:bold">${elStr}${totBalStr}${maxTotStr}</span>`;
+
+        // [보스 특별 지침: 전체 ATH 최고점 차트 무결성 보장] maxTotAsset이 데이터의 최대값보다 크면 정확한 시간 위치에 삽입
+        if (maxTotAsset > -Infinity && maxTotTs && chartData.data.length > 0) {
+            const maxInData = Math.max(...chartData.data.map(Number));
+            if (maxTotAsset > maxInData) {
+                let insIdx = chartData.labels.findIndex(ts => ts > maxTotTs);
+                if (insIdx === -1) insIdx = chartData.labels.length - 1;
+                chartData.labels.splice(insIdx, 0, maxTotTs);
+                chartData.data.splice(insIdx, 0, maxTotAsset);
+                chartData.data_ret.splice(insIdx, 0, chartData.data_ret[insIdx] || 0);
+            }
+        }
     } else {
         const b = allBots.find(x => x.name === _selectedBotForAsset);
         if (b && b.metrics) {
@@ -1581,10 +1592,22 @@ function renderBotAssetSection(d, force = false) {
             const balStr = numCurrBal != null ? ` : <span style="color:${balColor};">$ ${numCurrBal.toFixed(2)}</span>${diamond}` : '';
 
             chartTitle = `📊 [${b.name} 봇] 실자산 잔고($) 추이<span style="font-size:1.06em;color:#ffffff;margin-left:8px;font-weight:bold">${elStr}${balStr}${maxStr}</span>`;
-            chartData.labels = b.metrics.history_ts || [];
-            chartData.data = b.metrics.asset_history || [];
-            chartData.data_ret = b.metrics.rolling_history || [];
+            chartData.labels = b.metrics.history_ts ? [...b.metrics.history_ts] : [];
+            chartData.data = b.metrics.asset_history ? [...b.metrics.asset_history] : [];
+            chartData.data_ret = b.metrics.rolling_history ? [...b.metrics.rolling_history] : [];
             chartData.seed = b.seed || 10;
+
+            // [보스 특별 지침: ATH 최고점 차트 무결성 보장] maxAsset이 데이터의 최대값보다 크면 정확한 시간 위치에 삽입
+            if (maxAsset > -Infinity && maxAssetTs && chartData.data.length > 0) {
+                const maxInData = Math.max(...chartData.data.map(Number));
+                if (maxAsset > maxInData) {
+                    let insIdx = chartData.labels.findIndex(ts => ts > maxAssetTs);
+                    if (insIdx === -1) insIdx = chartData.labels.length - 1;
+                    chartData.labels.splice(insIdx, 0, maxAssetTs);
+                    chartData.data.splice(insIdx, 0, maxAsset);
+                    chartData.data_ret.splice(insIdx, 0, chartData.data_ret[insIdx] || 0);
+                }
+            }
         } else {
             chartTitle = `📊 [${_selectedBotForAsset} 봇] 데이터 없음`;
         }

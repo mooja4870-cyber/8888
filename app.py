@@ -1472,6 +1472,45 @@ def calc_bot_metrics(folder, bot_dict):
         if not records:
             return None
 
+        # 1. 실시간 잔고 확인
+        curr_ex_bal = bot_dict.get("current_asset")
+        if curr_ex_bal is None or float(curr_ex_bal) <= 0:
+            curr_ex_bal = records[-1][2]
+
+        # 2. 과거 기록 최고치와 실시간 잔고를 peak_assets.json에 안전하게 반영
+        max_asset_rec = max(records, key=lambda r: r[2]) if records else None
+        hist_val = round(max_asset_rec[2], 2) if max_asset_rec else seed
+        hist_ts = max_asset_rec[0] if max_asset_rec else ""
+
+        record_peak_asset(folder, hist_val, hist_ts)
+        if curr_ex_bal and float(curr_ex_bal) > 0:
+            c_val = round(float(curr_ex_bal), 2)
+            record_peak_asset(folder, c_val)
+
+        # 3. 영속 저장된 최고치와 달성 시점 로드
+        peaks = load_peak_assets()
+        p_info = peaks.get(folder, {})
+        max_asset_val = p_info.get("peak_asset", hist_val)
+        max_asset_ts = p_info.get("peak_ts", hist_ts)
+
+        # 4. [보스 특별 지침: ATH 최고점 차트 유실 방지] 영속 최고가가 records 최고값보다 높으면 records에 삽입
+        if max_asset_val and max_asset_ts:
+            cur_max_in_recs = max(r[2] for r in records)
+            if float(max_asset_val) > float(cur_max_in_recs):
+                try:
+                    t_ep = int(time.mktime(time.strptime(max_asset_ts, "%Y-%m-%d %H:%M:%S")))
+                except Exception:
+                    try:
+                        t_ep = int(time.mktime(time.strptime(max_asset_ts, "%Y-%m-%d %H:%M")))
+                    except Exception:
+                        t_ep = now_epoch
+                cur_d = max(1.0, (t_ep - t0) / 86400.0)
+                c_del = float(max_asset_val) - seed
+                c_ret = (c_del / seed) * 100.0 if seed else 0.0
+                d_ret = round(c_ret / cur_d, 2)
+                records.append((max_asset_ts, d_ret, float(max_asset_val), c_del, round(cur_d, 2)))
+                records.sort(key=lambda r: r[0])
+
         vals = [rec[1] for rec in records]
         max_val = max(vals)
         min_val = min(vals)
@@ -1480,16 +1519,11 @@ def calc_bot_metrics(folder, bot_dict):
         max_recs = [rec for rec in records if rec[1] == max_val]
         min_recs = [rec for rec in records if rec[1] == min_val]
         
-        curr_ex_bal = bot_dict.get("current_asset")
-        if curr_ex_bal is None or float(curr_ex_bal) <= 0:
-            curr_ex_bal = records[-1][2]
         curr_dr = bot_dict.get("daily_ret") if bot_dict.get("daily_ret") is not None else records[-1][1]
         if curr_dr <= -10.0:
             curr_dr = records[-1][1]
 
         step = max(1, len(records) // 60)
-        # [2026-08-22] 값만 보내면 차트 x축이 비어 "언제인지" 알 수 없었다.
-        # records[0]이 시각 문자열이므로 값과 짝으로 함께 보낸다.
         
         rolling_24h_all = []
         for i, rec in enumerate(records):
@@ -1499,11 +1533,18 @@ def calc_bot_metrics(folder, bot_dict):
             ret_24h = round((cur_asset - base_asset) / base_asset * 100, 2) if base_asset > 0 else 0.0
             rolling_24h_all.append(ret_24h)
 
-        _sampled = records[::step]
+        # [보스 특별 지침: 극점 보존(Peak-Preserving) 다운샘플링] 최고점(ATH) 인덱스는 절대 누락되지 않도록 보장
+        max_asset_idx = max(range(len(records)), key=lambda i: records[i][2])
+        sample_indices = set(range(0, len(records), step))
+        sample_indices.add(len(records) - 1)
+        sample_indices.add(max_asset_idx)
+        sorted_indices = sorted(list(sample_indices))
+
+        _sampled = [records[i] for i in sorted_indices]
         history = [rec[1] for rec in _sampled]
         history_ts = [rec[0] for rec in _sampled]
         asset_history = [rec[2] for rec in _sampled]
-        rolling_history = rolling_24h_all[::step]
+        rolling_history = [rolling_24h_all[i] for i in sorted_indices]
         
         if True: # [Fix] 항상 현재 잔고를 마지막에 강제 추가하여 차트와 요약 일치 보장
             history.append(curr_dr)
@@ -1513,24 +1554,6 @@ def calc_bot_metrics(folder, bot_dict):
             base_asset = records[-288][2] if len(records) >= 288 else (records[0][2] if records else seed)
             curr_rolling = round((float(curr_ex_bal) - base_asset) / base_asset * 100, 2) if base_asset > 0 else 0.0
             rolling_history.append(curr_rolling)
-
-        max_asset_rec = max(records, key=lambda r: r[2]) if records else None
-        hist_val = round(max_asset_rec[2], 2) if max_asset_rec else seed
-        hist_ts = max_asset_rec[0] if max_asset_rec else ""
-
-        # 1. 과거 기록 최고치를 peak_assets.json에 안전하게 반영 (기존 저장값보다 클 때만)
-        record_peak_asset(folder, hist_val, hist_ts)
-
-        # 2. 실시간 잔고(curr_ex_bal)가 있다면 엄격히 초과(>)할 때만 갱신
-        if curr_ex_bal and float(curr_ex_bal) > 0:
-            c_val = round(float(curr_ex_bal), 2)
-            record_peak_asset(folder, c_val)
-
-        # 3. 영속 저장된 최고치와 달성 시점 로드 (시세 하락해도 절대 깎이지 않음)
-        peaks = load_peak_assets()
-        p_info = peaks.get(folder, {})
-        max_asset_val = p_info.get("peak_asset", hist_val)
-        max_asset_ts = p_info.get("peak_ts", hist_ts)
 
         return {
             "seed": seed,
