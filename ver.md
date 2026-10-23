@@ -1,5 +1,26 @@
 # Version History
 
+## v1.2.79
+Date: 2026-10-23
+
+### 변경 내용
+* [보스 특별 지침 반영: 최고가 대비 3% 이내 신고가 초근접 시 차트 우상단 축포(🎉) 버스트 애니메이션 표출]
+  - `dashboard.html`:
+    - `@keyframes popper-burst` 키프레임 정의: 스케일 확대/축소 및 회전, 골드/레드 파티 글로우 효과를 결합하여 생동감 넘치는 축포 버스트 연출.
+    - 차트 박스 우상단에 절대좌표 컨테이너 `#botAssetPopper` 신설.
+    - `renderBotAssetSection` 내 최고가 대비 하락폭이 **3.0% 이내**인 경우:
+      - 우상단에 `<span class="popper-burst">🎉</span>` 활성화 표출.
+      - 3.0% 초과 하락 시 축포 이모지 자동 숨김.
+      - 개별 봇 실자산 잔고($) 추이 및 [전체] 총자산 잔고($) 추이 양측 동시 연동.
+
+### 수정 파일
+* /Users/l/project/8888/dashboard.html
+* /Users/l/project/8888/ver.md
+
+### 비고
+* Node.js JavaScript 구문 검사 100% PASS
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.78
 Date: 2026-10-23
 

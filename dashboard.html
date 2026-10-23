@@ -92,6 +92,8 @@ h1{font-size:27px;font-weight:600}
 .card.holding{border:0.2mm solid #a3e635;animation:blinkgreen 1s ease-in-out infinite}
 @keyframes diamond-sparkle{0%,100%{opacity:1;transform:scale(1.15);filter:drop-shadow(0 0 6px rgba(0,210,211,0.9))}50%{opacity:.35;transform:scale(.85);filter:drop-shadow(0 0 2px rgba(0,210,211,0.3))}}
 .diamond-sparkle{display:inline-block;animation:diamond-sparkle 1s ease-in-out infinite;margin-left:5px;vertical-align:middle;font-size:1.05em}
+@keyframes popper-burst{0%,100%{transform:scale(1) rotate(0deg);filter:drop-shadow(0 0 6px rgba(255,215,0,0.8))}25%{transform:scale(1.28) rotate(-14deg);filter:drop-shadow(0 0 14px rgba(255,87,87,0.9))}50%{transform:scale(1.38) rotate(14deg);filter:drop-shadow(0 0 18px rgba(255,215,0,1))}75%{transform:scale(1.15) rotate(-6deg);filter:drop-shadow(0 0 10px rgba(78,205,196,0.8))}}
+.popper-burst{display:inline-block;animation:popper-burst 1.2s cubic-bezier(0.25,1,0.5,1) infinite;font-size:26px;user-select:none;vertical-align:middle}
 .card .head{display:flex;align-items:center;gap:7px;margin-bottom:8px}
 .card .name{font-weight:600;font-size:21.6px}
 .rainbow-text{background:linear-gradient(90deg,#ff5a5a,#fcd162,#4db168,#4d9fff,#8c6cf5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:900 !important;animation:rainbow_anim 4s linear infinite}
@@ -187,8 +189,9 @@ h2{font-size:14px;font-weight:600;margin:0 0 8px}
 
 <h2>봇별 총자산 추이</h2>
 <div id="botAssetTabs" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap"></div>
-<div style="background:linear-gradient(135deg,#1e2638,#141923);border:1px solid #3b475d;border-radius:14px;padding:22px;box-shadow:0 8px 30px rgba(0,0,0,0.5);margin-bottom:22px;">
- <div style="font-weight:700;font-size:16px;color:#2dbd85;margin-bottom:12px;" id="botAssetTitle">📊 [전체] 총자산 잔고($) 추이</div>
+<div style="position:relative;background:linear-gradient(135deg,#1e2638,#141923);border:1px solid #3b475d;border-radius:14px;padding:22px;box-shadow:0 8px 30px rgba(0,0,0,0.5);margin-bottom:22px;">
+ <div style="font-weight:700;font-size:16px;color:#2dbd85;margin-bottom:12px;padding-right:48px;" id="botAssetTitle">📊 [전체] 총자산 잔고($) 추이</div>
+ <div id="botAssetPopper" style="position:absolute;top:18px;right:22px;display:none;pointer-events:none;z-index:5;"></div>
  <div style="position:relative;height:300px;width:100%"><canvas id="botAssetChartCanvas"></canvas></div>
 </div>
 
@@ -1390,6 +1393,7 @@ function renderBotAssetSection(d, force = false) {
 
     let chartData = { labels: [], data: [], data_ret: [] };
     let chartTitle = '';
+    let isNearATH = false;
 
     const fmtDateTime = (ts) => {
         if (!ts) return '';
@@ -1509,6 +1513,7 @@ function renderBotAssetSection(d, force = false) {
                 totBalColor = '#4d9fff'; // 5% 이내 파랑색
                 if (dropPct <= 3.0) {
                     totDiamond = ' <span class="diamond-sparkle" title="최고가 대비 3% 이내 신고가 근접">💎</span>';
+                    isNearATH = true;
                 }
             } else if (dropPct <= 10.0) {
                 totBalColor = '#ffd633'; // 10% 이내 노랑색
@@ -1560,6 +1565,7 @@ function renderBotAssetSection(d, force = false) {
                     balColor = '#4d9fff'; // 5% 이내 파랑색
                     if (dropPct <= 3.0) {
                         diamond = ' <span class="diamond-sparkle" title="최고가 대비 3% 이내 신고가 근접">💎</span>';
+                        isNearATH = true;
                     }
                 } else if (dropPct <= 10.0) {
                     balColor = '#ffd633'; // 10% 이내 노랑색
@@ -1580,6 +1586,15 @@ function renderBotAssetSection(d, force = false) {
     }
 
     document.getElementById('botAssetTitle').innerHTML = chartTitle;
+    const popperEl = document.getElementById('botAssetPopper');
+    if (popperEl) {
+        if (isNearATH) {
+            popperEl.innerHTML = '<span class="popper-burst" title="최고가 대비 3% 이내 신고가 축포!">🎉</span>';
+            popperEl.style.display = 'block';
+        } else {
+            popperEl.style.display = 'none';
+        }
+    }
 
     const ctx = document.getElementById('botAssetChartCanvas').getContext('2d');
     
