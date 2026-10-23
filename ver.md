@@ -1,5 +1,27 @@
 # Version History
 
+## v1.2.75
+Date: 2026-10-23
+
+### 변경 내용
+* [8401 QVT 눌림목 스나이퍼 전략 고도화 및 7대 영역 관제소 동시 동기화]
+  - `8888/app.py`:
+    - 8401 봇 손익비 파싱을 기존 하드코딩 1:2.0에서 실제 적용값인 **1:3.0**으로 정상 매핑.
+    - 타임프레임 폴백 정렬.
+  - 8401 봇 `DASHBOARD_META` 지표 정보(`BTC Macro Gate, 1:3.0 RR, 3SL 브레이크`) 관제 대시보드 테이블 동기화.
+
+### 수정 파일
+* /Users/l/project/8888/app.py
+* /Users/l/project/8888/ver.md
+* /Users/l/project/8401/core/strategy.py
+* /Users/l/project/8401/config.json
+* /Users/l/project/8401/core/config.py
+* /Users/l/project/8401/app.py
+* /Users/l/project/8401/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.74
 Date: 2026-10-23
 
