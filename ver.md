@@ -1,5 +1,25 @@
 # Version History
 
+## v1.2.76
+Date: 2026-10-23
+
+### 변경 내용
+* [보스 특별 지침 반영: 실자산 잔고 추이 차트 현재가 폰트 최고가 대비 3단계 동적 색상 표출]
+  - `dashboard.html`:
+    - `renderBotAssetSection` 함수 내 최고가(`maxAsset`/`maxTotAsset`) 대비 현재가(`currBal`/`curTotBal`) 하락률 판정 로직 탑재.
+    - **3% 이내** (하락률 $\le 3\%$): 현재가 폰트 색상을 **파랑색** (`#4d9fff`)으로 표출.
+    - **5% 이내** ($3\% <$ 하락률 $\le 5\%$): 현재가 폰트 색상을 **노랑색** (`#ffd633`)으로 표출.
+    - **5% 초과** (하락률 $> 5\%$): 현재가 폰트 색상을 **빨강색** (`#ff5a5a`)으로 표출.
+    - 개별 봇 실자산 잔고($) 추이 및 [전체] 총자산 잔고($) 추이 타이틀 양측 일관 적용.
+
+### 수정 파일
+* /Users/l/project/8888/dashboard.html
+* /Users/l/project/8888/ver.md
+
+### 비고
+* Node.js JavaScript 구문 검사 100% PASS
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.75
 Date: 2026-10-23
 
