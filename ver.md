@@ -1,5 +1,26 @@
 # Version History
 
+## v1.2.82
+Date: 2026-10-24
+
+### 변경 내용
+* [보스 특별 지침 반영: 봇별 실자산 차트 최고가 지점 빨강색 역삼각형(▼) 마커 렌더링]
+  - `dashboard.html`:
+    - Chart.js 커스텀 렌더링 플러그인 `_athMarkerPlugin` 신설:
+      - 실자산 차트 시계열 데이터의 최고가(ATH Peak) 좌표 `(x, y)`를 실시간 추적하여, 피크 바로 위에 선명한 빨강색 역삼각형(Pointing Down ▼, 밑변 14px, 높이 9.5px, `#ff2a44` + `#ffffff` 1.5px 스트로크 + 레드 글로우 섀도우) 핀포인트 마커를 캔버스 레벨에서 정확히 렌더링.
+      - canvas ID 격리 가드(`botAssetChartCanvas`) 및 안전 글로벌 등록으로 타 차트 간섭 없이 탭 전환/리사이즈/데이터 갱신 시에도 실시간 유지.
+    - 차트 툴팁 콜백 연동:
+      - 최고가 지점 호버 시 툴팁 라벨에 `🔻 최고가` 심볼 및 텍스트 자동 부착.
+
+### 수정 파일
+* /Users/l/project/8888/dashboard.html
+* /Users/l/project/8888/ver.md
+
+### 비고
+* Node.js JavaScript 구문 검사 100% PASS
+* HTTP 200 검증 완료
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.81
 Date: 2026-10-24
 

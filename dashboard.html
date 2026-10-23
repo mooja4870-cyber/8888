@@ -1636,6 +1636,64 @@ function renderBotAssetSection(d, force = false) {
 
     const seedLine = chartData.labels.map(() => chartData.seed || (chartData.data.length ? chartData.data[0] : 10));
 
+    // [보스 특별 지침: 차트 최고가 빨강색-역삼각형(▼) 플러그인]
+    const _athMarkerPlugin = {
+        id: 'athMarkerPlugin',
+        afterDatasetsDraw(chart) {
+            if (!chart.canvas || chart.canvas.id !== 'botAssetChartCanvas') return;
+            const meta = chart.getDatasetMeta(0);
+            if (!meta || !meta.data || !meta.data.length) return;
+            const d = chart.data.datasets[0].data;
+            if (!d || !d.length) return;
+
+            let maxVal = -Infinity;
+            let maxIdx = -1;
+            d.forEach((v, i) => {
+                const num = Number(v);
+                if (!isNaN(num) && num > maxVal) {
+                    maxVal = num;
+                    maxIdx = i;
+                }
+            });
+            if (maxIdx === -1 || !meta.data[maxIdx]) return;
+
+            const pt = meta.data[maxIdx];
+            if (!pt || pt.x == null || pt.y == null || isNaN(pt.x) || isNaN(pt.y)) return;
+            const x = pt.x;
+            const y = pt.y;
+
+            const ctx = chart.ctx;
+            ctx.save();
+            
+            // 빨강색 역삼각형 (Pointing Down ▼)
+            const halfW = 7; // 밑변 반폭 (총 밑변 14px)
+            const height = 9.5; // 높이 9.5px
+            
+            ctx.fillStyle = '#ff2a44';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.shadowColor = 'rgba(255, 42, 68, 0.85)';
+            ctx.shadowBlur = 7;
+
+            ctx.beginPath();
+            // 상단 가로선: y - height - 1.5
+            ctx.moveTo(x - halfW, y - height - 1.5);
+            ctx.lineTo(x + halfW, y - height - 1.5);
+            // 하단 꼭짓점: y - 0.5 (최고가 차트 피크 바로 위를 콕 찌름)
+            ctx.lineTo(x, y - 0.5);
+            ctx.closePath();
+
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.restore();
+        }
+    };
+    if (window.Chart && typeof Chart.register === 'function' && !window._athMarkerPluginRegistered) {
+        Chart.register(_athMarkerPlugin);
+        window._athMarkerPluginRegistered = true;
+    }
+
     if (_botAssetChart) {
         _botAssetChart.data.labels = fmtLabels;
         _botAssetChart.data.datasets[0].data = chartData.data;
@@ -1673,6 +1731,7 @@ function renderBotAssetSection(d, force = false) {
                     }
                 ]
             },
+            plugins: [_athMarkerPlugin],
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
@@ -1692,6 +1751,11 @@ function renderBotAssetSection(d, force = false) {
                                 let label = context.dataset.label || '';
                                 if (label) label += ': ';
                                 label += '$' + context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                const d = context.chart.data.datasets[0].data;
+                                const maxVal = Math.max(...d.map(Number));
+                                if (context.datasetIndex === 0 && Number(context.parsed.y) === maxVal) {
+                                    label += ' 🔻 최고가';
+                                }
                                 return label;
                             }
                         }
