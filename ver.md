@@ -1,5 +1,30 @@
 # Version History
 
+## v1.2.80
+Date: 2026-10-23
+
+### 변경 내용
+* [보스 특별 지침 반영: 초기자본 대비 현재 총자산(총잔고) 손실 봇 카드 핑크색 박스 바탕 스타일 적용]
+  - `dashboard.html`:
+    - `.card.loss-pink` 클래스 및 내부 테이블 스타일 신설:
+      - 카드 박스 바탕을 세련된 딥 로즈 핑크 그라데이션(`linear-gradient(145deg, #5c1836 0%, #3d1024 100%)`) 및 핑크 글로우 박스 섀도우 적용.
+      - 내부 테이블 행(`tr`)에 반투명 핑크 오버레이(`rgba(255,64,129,.12~.30)`)를 부여하여 다크 모드 텍스트 가독성을 100% 보존하면서 전체 박스가 통일된 핑크색으로 도드라지도록 설계.
+    - 봇 카드 렌더링 시 조건 검사 로직 적용:
+      - `const _isLoss = (b.seed != null && b.ex_balance != null && Number(b.ex_balance) < Number(b.seed));`
+      - `_isLoss`가 `true`인 경우 `.card`에 `loss-pink` 클래스 동적 부여.
+  - `verify_all.py`:
+    - 브라우저 탭 닫힘/새로고침 시 발생하는 정상 소켓 연결 종료(`WebSocketClosedError`, `StreamClosedError`)에 대한 예외 필터링 보강.
+
+### 수정 파일
+* /Users/l/project/8888/dashboard.html
+* /Users/l/project/8888/verify_all.py
+* /Users/l/project/8888/ver.md
+
+### 비고
+* Node.js JavaScript 구문 검사 100% PASS
+* HTTP 200 검증 완료
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.79
 Date: 2026-10-23
 

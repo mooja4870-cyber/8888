@@ -90,6 +90,10 @@ h1{font-size:27px;font-weight:600}
 @keyframes pink-blink{0%,100%{border-color:#ff2d75;box-shadow:0 0 16px rgba(255,45,117,.95), inset 0 0 6px rgba(255,45,117,.3)}50%{border-color:transparent;box-shadow:none}}
 .card.switch-lock-blink{border:0.85mm solid #ff2d75 !important;animation:pink-blink 0.5s ease-in-out infinite !important}
 .card.holding{border:0.2mm solid #a3e635;animation:blinkgreen 1s ease-in-out infinite}
+.card.loss-pink{background:linear-gradient(145deg, #5c1836 0%, #3d1024 100%) !important;box-shadow:0 4px 14px rgba(255,45,117,.28), inset 0 1px 0 rgba(255,182,193,.2), inset 0 -2px 4px rgba(0,0,0,.35) !important}
+.card.loss-pink table tr{background:rgba(255,64,129,.12) !important}
+.card.loss-pink table tr:nth-child(even){background:rgba(255,64,129,.20) !important}
+.card.loss-pink table tr:first-child{background:rgba(255,64,129,.30) !important;border-bottom:1px solid rgba(255,64,129,.45) !important}
 @keyframes diamond-sparkle{0%,100%{opacity:1;transform:scale(1.15);filter:drop-shadow(0 0 6px rgba(0,210,211,0.9))}50%{opacity:.35;transform:scale(.85);filter:drop-shadow(0 0 2px rgba(0,210,211,0.3))}}
 .diamond-sparkle{display:inline-block;animation:diamond-sparkle 1s ease-in-out infinite;margin-left:5px;vertical-align:middle;font-size:1.05em}
 @keyframes popper-burst{0%,100%{transform:scale(1) rotate(0deg);filter:drop-shadow(0 0 6px rgba(255,215,0,0.8))}25%{transform:scale(1.28) rotate(-14deg);filter:drop-shadow(0 0 14px rgba(255,87,87,0.9))}50%{transform:scale(1.38) rotate(14deg);filter:drop-shadow(0 0 18px rgba(255,215,0,1))}75%{transform:scale(1.15) rotate(-6deg);filter:drop-shadow(0 0 10px rgba(78,205,196,0.8))}}
@@ -444,6 +448,7 @@ function render(d,anim){
     : (_isHalt 
       ? `<span style="background:#ffd700;color:#111;font-size:11.5px;font-weight:bold;padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:middle;box-shadow:0 0 6px rgba(255,215,0,0.8);" title="${_cdTitle}">쿨다운</span>` 
       : '');
+  const _isLoss = (b.seed != null && b.ex_balance != null && Number(b.ex_balance) < Number(b.seed));
   let _balStyle = "font-size:177%;font-weight:bold";
   if (b.seed != null && b.ex_balance != null) {
       if (b.ex_balance > b.seed) {
@@ -453,7 +458,7 @@ function render(d,anim){
       }
   }
   
-  return `<div class="card${b.alive?'':' offline'}${_cdClass}" style="${hi}" title="${_cdTitle}" onclick="showBotModal('${b.name}', ${b.port})">
+  return `<div class="card${b.alive?'':' offline'}${_cdClass}${_isLoss ? ' loss-pink' : ''}" style="${hi}" title="${_cdTitle}" onclick="showBotModal('${b.name}', ${b.port})">
    <div class="head" style="align-items:flex-start;"><span class="dot" style="background:${dot};margin-top:6px;"></span>
     <div style="display:flex;flex-direction:column;line-height:1.2;">
      <div><span class="name" style="color:#ffffff; animation:cardblink 1s ease-in-out infinite">${((b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog)?"<span style=\"color:#ff5a5a;font-weight:bold;margin-right:4px;\">[역]</span>":"<span style=\"color:#4d9fff;font-weight:bold;margin-right:4px;\">[순]</span>")+b.name}</span>${_cdBadge}${b.config&&b.config.timeframe?' <span style="font-size:17px;font-weight:600;color:var(--muted);vertical-align:bottom;">['+b.config.timeframe+']</span>':''}</div>

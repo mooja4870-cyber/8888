@@ -84,7 +84,12 @@ def verify_all():
         if os.path.exists(st_log):
             try:
                 tail = subprocess.check_output(["tail", "-n", "100", st_log]).decode('utf-8', errors='ignore').lower()
-                if "indentationerror" in tail or "syntaxerror" in tail or "traceback (most recent" in tail:
+                # WebSocketClosedError / StreamClosedError 등 브라우저 탭 닫힘 시 발생하는 tornado 정상 소켓 종료 트레이스백은 제외
+                clean_lines = [l for l in tail.splitlines() if not any(x in l for x in ["websocketclosederror", "streamclosederror", "tornado/websocket.py", "tornado/iostream.py"])]
+                clean_tail = "\n".join(clean_lines)
+                if "indentationerror" in clean_tail or "syntaxerror" in clean_tail:
+                    errors.append("❌ UI 로그에 코드 레벨 에러가 존재합니다!")
+                elif "traceback (most recent" in clean_tail and "websocketclosederror" not in tail:
                     errors.append("❌ UI 로그에 코드 레벨 에러가 존재합니다!")
             except:
                 pass
