@@ -1502,12 +1502,12 @@ function renderBotAssetSection(d, force = false) {
         const finalTotVal = curTotBal > 0 ? curTotBal : (total_assets.length ? Number(total_assets[total_assets.length - 1]) : 0);
         if (maxTotAsset > 0 && finalTotVal > 0) {
             const dropPct = ((maxTotAsset - finalTotVal) / maxTotAsset) * 100;
-            if (dropPct <= 3.0) {
-                totBalColor = '#4d9fff'; // 3% 이내 파랑색
-            } else if (dropPct <= 5.0) {
-                totBalColor = '#ffd633'; // 5% 이내 노랑색
+            if (dropPct <= 5.0) {
+                totBalColor = '#4d9fff'; // 5% 이내 파랑색
+            } else if (dropPct <= 10.0) {
+                totBalColor = '#ffd633'; // 10% 이내 노랑색
             } else {
-                totBalColor = '#ff5a5a'; // 5% 초과 빨강색
+                totBalColor = '#ff5a5a'; // 10% 초과 빨강색
             }
         }
         const totBalStr = finalTotVal > 0 ? ` : <span style="color:${totBalColor};">$ ${finalTotVal.toFixed(2)}</span>` : '';
@@ -1549,12 +1549,12 @@ function renderBotAssetSection(d, force = false) {
             const numCurrBal = currBal != null ? Number(currBal) : null;
             if (maxAsset > 0 && numCurrBal != null && numCurrBal > 0) {
                 const dropPct = ((maxAsset - numCurrBal) / maxAsset) * 100;
-                if (dropPct <= 3.0) {
-                    balColor = '#4d9fff'; // 3% 이내 파랑색
-                } else if (dropPct <= 5.0) {
-                    balColor = '#ffd633'; // 5% 이내 노랑색
+                if (dropPct <= 5.0) {
+                    balColor = '#4d9fff'; // 5% 이내 파랑색
+                } else if (dropPct <= 10.0) {
+                    balColor = '#ffd633'; // 10% 이내 노랑색
                 } else {
-                    balColor = '#ff5a5a'; // 5% 초과 빨강색
+                    balColor = '#ff5a5a'; // 10% 초과 빨강색
                 }
             }
             const balStr = numCurrBal != null ? ` : <span style="color:${balColor};">$ ${numCurrBal.toFixed(2)}</span>` : '';
