@@ -33,6 +33,7 @@ import urllib.request
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
 WEBHOOK_FILE = os.path.join(_DIR, "discord_webhook.txt")
+CHANGES_WEBHOOK_FILE = os.path.join(_DIR, "discord_webhook_changes.txt")
 STATE_FILE = os.path.join(_DIR, "discord_state.json")
 
 CHART_WIDTH = 40        # 차트 가로폭(점 40개)
@@ -742,7 +743,10 @@ def tick(data, tick_count=0, include_bot_charts=False):
                     "description": desc.strip(),
                     "color": 15158332
                 })
-                webhook_url = open(WEBHOOK_FILE, "r").read().strip()
+                if os.path.exists(CHANGES_WEBHOOK_FILE) and open(CHANGES_WEBHOOK_FILE, "r").read().strip():
+                    webhook_url = open(CHANGES_WEBHOOK_FILE, "r").read().strip()
+                else:
+                    webhook_url = open(WEBHOOK_FILE, "r").read().strip()
                 requests.post(webhook_url, json={"embeds": embeds}, timeout=10)
                 info_changes = "OK"
                 time.sleep(1)

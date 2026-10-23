@@ -8,6 +8,7 @@ asset_history.json
 snapshots.json.bak.*
 
 discord_webhook.txt
+discord_webhook_changes.txt
 discord_state.json
 okx_keys.json
 seeds.json

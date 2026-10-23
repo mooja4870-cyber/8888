@@ -1,5 +1,26 @@
 # Version History
 
+## v1.2.74
+Date: 2026-10-23
+
+### 변경 내용
+* [보스 특별 지침 반영: '🛠️ 봇별 매매전략 및 설정 변경 요약 (최근 7일)' 알림 채널 전용 웹훅 분리]
+  - `discord_webhook_changes.txt`:
+    - 보스께서 지정해 주신 신규 전용 웹훅 URL(`https://discord.com/api/webhooks/1479512076585144372/...`)을 안전하게 저장.
+    - `.gitignore`에 등록하여 원격 저장소 시크릿 유출 원천 차단.
+  - `discord_alert.py`:
+    - `CHANGES_WEBHOOK_FILE` 경로 추가 및 `tick()` 함수 내 '🛠️ 봇별 매매전략 및 설정 변경 요약 (최근 7일)' 발송 시 전용 웹훅을 우선 읽어 전송하도록 라우팅 분리.
+    - 신규 웹훅 채널로 전송 테스트 및 HTTP 204 정상 수신 검증 완료.
+
+### 수정 파일
+* /Users/l/project/8888/.gitignore
+* /Users/l/project/8888/discord_alert.py
+* /Users/l/project/8888/ver.md
+
+### 비고
+* 신규 디스코드 웹훅 채널 실제 전송 HTTP 204 수신 검증 완료
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.73
 Date: 2026-10-22
 
