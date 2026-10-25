@@ -1,5 +1,36 @@
 # Version History
 
+## v1.2.83
+Date: 2026-10-26
+
+### 변경 내용
+* [보스 2단계 최종 승인 완결: 8410 봇(유형2+유형3 퓨전 MR+BBTS 1h)을 8404 및 8408 봇으로 동시 이식]
+  - **8404 봇 (OKX, 포트 8404)**:
+    - 8410의 핵심 국면 전환 퓨전 전략(`core/strategy.py`, `core/config.py`) 및 파라미터(`config.json`) 전면 이식 (`BB(40/2.5)`, `손익비 1:3.0`, `1h`)
+    - OKX 자아(계정, `.env` 키, 포트 8404, 심볼 화이트리스트) 100% 보존
+    - UI 브랜딩 `8404 [FUSION 퓨전 탄력매매]` 및 매매 설정/청산 로직 도움말 동기화
+  - **8408 봇 (Binance, 포트 8408)**:
+    - 8410의 핵심 국면 전환 퓨전 전략(`core/strategy.py`, `core/config.py`) 및 파라미터(`config.json`) 전면 이식 (`BB(40/2.5)`, `손익비 1:3.0`, `1h`)
+    - Binance 자아(계정, `.env` 키, 포트 8408, 심볼 화이트리스트) 100% 보존
+    - UI 브랜딩 `8408 [FUSION 퓨전 탄력매매]` 및 매매 설정/청산 로직 도움말 동기화
+  - 중앙 관제소 8888: 8404 및 8408의 전략명(`유형2+유형3 퓨전 (MR+BBTS) (1h)`) 및 `DASHBOARD_META` 실시간 동기화 확인
+
+### 수정 파일
+* /Users/l/project/8404/config.json
+* /Users/l/project/8404/core/config.py
+* /Users/l/project/8404/core/strategy.py
+* /Users/l/project/8404/app.py
+* /Users/l/project/8404/ver.md
+* /Users/l/project/8408/config.json
+* /Users/l/project/8408/core/config.py
+* /Users/l/project/8408/core/strategy.py
+* /Users/l/project/8408/app.py
+* /Users/l/project/8408/ver.md
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.82
 Date: 2026-10-24
 
