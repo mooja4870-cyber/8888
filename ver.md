@@ -1,5 +1,30 @@
 # Version History
 
+## v1.2.86
+Date: 2026-10-26
+
+### 변경 내용
+* [보스 특별 지침 반영: 8401 & 8402 봇 4대 퀀트 혁신 엔진 탑재 및 7대 영역 전수 동기화]
+  - 8401 & 8402:
+    - 1. Kaufman KER 임계값 상향 (0.20 -> 0.35)으로 휩쏘 노이즈 전이구간 원천 차단.
+    - 2. Pinbar 캔들 형태학 판정 로직 정상화 (하단 지지 35% 이상 + 양봉 마감)로 단순 양봉 매수 버그 픽스.
+    - 3. 동적 ATR 기반 손절(SL) 탄력화 (ATR×1.8, 1.5%~2.5% 클램프) 및 본절 가드(+2.0% 도달 시) 도입.
+    - 4. 8402 봇에 BTC Macro Gate 수평 이식 및 비대칭 시장 정렬 체계 구축.
+    - 5. 7대 영역(매매 엔진, config.json, core/config.py, app.py 로고/사이드바, DASHBOARD_META, 8888 관제소, ver.md) 100% 동시 동기화.
+
+### 수정 파일
+* /Users/l/project/8401/core/strategy.py
+* /Users/l/project/8401/core/config.py
+* /Users/l/project/8401/config.json
+* /Users/l/project/8401/app.py
+* /Users/l/project/8401/ver.md
+* /Users/l/project/8402/core/strategy.py
+* /Users/l/project/8402/core/config.py
+* /Users/l/project/8402/config.json
+* /Users/l/project/8402/app.py
+* /Users/l/project/8402/ver.md
+* /Users/l/project/8888/ver.md
+
 ## v1.2.85
 Date: 2026-10-26
 
