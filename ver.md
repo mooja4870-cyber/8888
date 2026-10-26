@@ -1,5 +1,19 @@
 # Version History
 
+## v1.2.87
+Date: 2026-10-26
+
+### 변경 내용
+* [버그 픽스: 8401 및 8402 app.py 상단 로고 HTML 따옴표 파싱 구문 오류(SyntaxError) 정상화]
+  -  & :
+    - 삼중 따옴표(Triple Quotes) 구조로 정합화하여 Streamlit 'Script execution error' 모달 완전 해결.
+    - 브라우저 실측 스크린샷 렌더링 및  100% PASS 최종 검증 완료.
+
+### 수정 파일
+* /Users/l/project/8401/app.py
+* /Users/l/project/8402/app.py
+* /Users/l/project/8888/ver.md
+
 ## v1.2.86
 Date: 2026-10-26
 
