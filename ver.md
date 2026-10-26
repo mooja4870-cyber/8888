@@ -1,5 +1,30 @@
 # Version History
 
+## v1.2.84
+Date: 2026-10-26
+
+### 변경 내용
+* [보스 2단계 최종 승인 완료: 8408 사이드바 레버리지(3x) 및 8404 OKX 연결 라벨 100% 완전 동기화]
+  - **8408 봇 (Binance, 포트 8408)**:
+    - `config.json`: LEVERAGE `5.0` -> `3`으로 8410 소스 봇과 100% 일치화
+    - 사이드바 [📐 매매 설정 (실제 적용값)] 박스에 `레버리지 3x` 정상 렌더링 확인
+    - `USE_PARTIAL_TP: true`, `USE_TRAILING_STOP: true` 일치화
+  - **8404 봇 (OKX, 포트 8404)**:
+    - `app.py`: 사이드바 API 연결 버튼 라벨 `Binance 연결` -> `OKX 연결`로 거래소 자아 정합화
+    - `config.json`: `USE_PARTIAL_TP: true`, `USE_TRAILING_STOP: true` 일치화 및 키 정리
+  - 중앙 관제소 8888: 8404 및 8408 봇과 8410 봇 간의 사이드바/설정 파라미터 무결점 일치 확인
+
+### 수정 파일
+* /Users/l/project/8408/config.json
+* /Users/l/project/8408/ver.md
+* /Users/l/project/8404/app.py
+* /Users/l/project/8404/config.json
+* /Users/l/project/8404/ver.md
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.83
 Date: 2026-10-26
 
