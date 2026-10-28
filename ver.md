@@ -1,5 +1,31 @@
 # Version History
 
+## v1.2.93
+Date: 2026-10-29
+
+### 변경 내용
+* [보스 5단계 최고 엄격 통제 완결: 8401 & 8402 횡보장 가짜돌파 차단 ADX/KER 필터 탑재]
+  - 8401/8402 (OKX 1h QVT Sniper Pro): ADX(14) 엔진 탑재 및 ADX >= 20.0 비추세 가짜돌파 차단
+  - 8401/8402: KER_THRESHOLD 0.35 -> 0.40 상향으로 휩소 노이즈 필터링 강화
+  - 8401/8402: 7대 영역(엔진/설정/데이터클래스/UI/메타/8888/버전) 동시 갱신
+  - 기존 실계좌 보유 포지션(8402 AAVE Short +7.59%) 100% 무간섭 안전 보존
+
+### 수정 파일
+* /Users/l/project/8401/config.json
+* /Users/l/project/8401/core/config.py
+* /Users/l/project/8401/core/strategy.py
+* /Users/l/project/8401/app.py
+* /Users/l/project/8401/ver.md
+* /Users/l/project/8402/config.json
+* /Users/l/project/8402/core/config.py
+* /Users/l/project/8402/core/strategy.py
+* /Users/l/project/8402/app.py
+* /Users/l/project/8402/ver.md
+* ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.92
 Date: 2026-10-28
 
