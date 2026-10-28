@@ -1,5 +1,33 @@
 # Version History
 
+## v1.2.91
+Date: 2026-10-28
+
+### 변경 내용
+* [보스 Step 1 완결: 8407 & 8409 손익비 1:1.5 복원 및 본절 가드(+1.5%) 전면 실장]
+  - 8407/8409 (바이낸스 BB MR): ATR 기반 동적 슬림 SL (1.2%) 및 최소 1:1.5 손익비 보장 TP 개편
+  - 8407/8409: +1.5% 수익 도달 시 본절가(+0.1% 수수료 버퍼)로 SL을 강제 락인하는 _check_breakeven_guard 실장
+  - 8407/8409: 7대 영역(엔진/설정/데이터클래스/UI/메타/8888/버전) 동시 갱신
+  - 기존 실계좌 보유 포지션 무간섭 안전 보존
+
+### 수정 파일
+* /Users/l/project/8407/config.json
+* /Users/l/project/8407/core/config.py
+* /Users/l/project/8407/core/trailing_stop_manager.py
+* /Users/l/project/8407/core/trader.py
+* /Users/l/project/8407/app.py
+* /Users/l/project/8407/ver.md
+* /Users/l/project/8409/config.json
+* /Users/l/project/8409/core/config.py
+* /Users/l/project/8409/core/trailing_stop_manager.py
+* /Users/l/project/8409/core/trader.py
+* /Users/l/project/8409/app.py
+* /Users/l/project/8409/ver.md
+* ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.90
 Date: 2026-10-28
 
