@@ -1,5 +1,33 @@
 # Version History
 
+## v1.2.89
+Date: 2026-10-28
+
+### 변경 내용
+* [보스 5단계 최고 엄격 통제 승인 완결: 8403, 8405 손익비 1:1.5 복원 및 본절 가드(+1.5%) 전면 실장]
+  - 8403/8405: ATR 기반 동적 슬림 SL (1.2%) 및 최소 1:1.5 손익비 보장 TP (1.8%) 개편
+  - 8403/8405: +1.5% 수익 도달 시 본절가(+0.1% 수수료 버퍼)로 SL을 강제 락인하는 _check_breakeven_guard 실장
+  - 8403/8405: 7대 영역(엔진/설정/데이터클래스/UI/메타/8888/버전) 동시 갱신
+  - 기존 실계좌 보유 포지션(XRP Long +2.48%) 100% 안전 보존
+
+### 수정 파일
+* /Users/l/project/8403/core/trader.py
+* /Users/l/project/8403/core/trailing_stop_manager.py
+* /Users/l/project/8403/core/config.py
+* /Users/l/project/8403/config.json
+* /Users/l/project/8403/app.py
+* /Users/l/project/8403/ver.md
+* /Users/l/project/8405/core/trader.py
+* /Users/l/project/8405/core/trailing_stop_manager.py
+* /Users/l/project/8405/core/config.py
+* /Users/l/project/8405/config.json
+* /Users/l/project/8405/app.py
+* /Users/l/project/8405/ver.md
+* ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.88
 Date: 2026-10-28
 
