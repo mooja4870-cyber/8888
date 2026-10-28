@@ -1,5 +1,28 @@
 # Version History
 
+## v1.2.92
+Date: 2026-10-28
+
+### 변경 내용
+* [보스 Step 2 완결: 8404 (OKX 1h Fusion) 수익 구조 15배 극대화 개편]
+  - 8404: 조기 헐값 부분익절 상향 (+1.2% -> +2.0%) 및 손절 상한 1.5% 캡 적용
+  - 8404: 부분익절 후 본절 스탑 시 +0.1% 수수료 버퍼(Fee Buffer) 도입으로 본절 청산 시 무손실 보장
+  - 8404: 1회 진입 증거금(.5) 정상화로 거래소 수수료 잠식율 반감
+  - 8404: 7대 영역(설정/데이터클래스/엔진/UI/메타/8888/버전) 동시 갱신
+  - 기존 OKX 실계좌 보유 포지션(ENA, BNB, ORDI) 100% 안전 보존
+
+### 수정 파일
+* /Users/l/project/8404/config.json
+* /Users/l/project/8404/core/config.py
+* /Users/l/project/8404/core/trailing_stop_manager.py
+* /Users/l/project/8404/core/trader.py
+* /Users/l/project/8404/app.py
+* /Users/l/project/8404/ver.md
+* ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.91
 Date: 2026-10-28
 
