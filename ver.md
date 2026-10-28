@@ -1,5 +1,25 @@
 # Version History
 
+## v1.2.88
+Date: 2026-10-28
+
+### 변경 내용
+* [보스 2단계 최종 승인 완료: 8408 청개구리 역매매(USE_BLUEFROG) 해제 및 순방향 정상화]
+  - 8408/config.json: USE_BLUEFROG true -> false 정상화
+  - 8408/core/config.py: USE_BLUEFROG 기본값 False 일치
+  - 8408/app.py: bluefrog_mode 기본값 정합화
+  - 8408 기존 보유 포지션(BNB short, ORDI long, PENGU short) 안전 보존
+
+### 수정 파일
+* /Users/l/project/8408/config.json
+* /Users/l/project/8408/core/config.py
+* /Users/l/project/8408/app.py
+* /Users/l/project/8408/ver.md
+* ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.87
 Date: 2026-10-26
 
