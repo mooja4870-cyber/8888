@@ -1,5 +1,36 @@
 # Version History
 
+## v1.2.94
+Date: 2026-10-30
+
+### 변경 내용
+* [보스 전 봇 수익성 방어 시스템 최종 완결: 8408 및 8403 & 8405 손익비/슬림손절/본절가드 전수 탑재]
+  - 8408 (바이낸스 1h Fusion, v12.1.0): 2.0% 분할익절, 1.5% 슬림 손절 캡, 수수료 버퍼(+0.1%) 본절 가드, 증거금 .5 정상화
+  - 8403 (OKX 15m BB MR, v2.2.0): 1.5% 슬림 손절 캡 강제 적용, 수수료 버퍼(+0.1%) 본절 가드 완벽 실장
+  - 8405 (OKX 15m BB MR, v1.9.0): 1.5% 슬림 손절 캡 강제 적용, 수수료 버퍼(+0.1%) 본절 가드 완벽 실장
+  - 7대 영역 전수 일체형 동기화 및 전 봇 100% PASS 자가 검증 완료
+
+### 수정 파일
+* /Users/l/project/8408/config.json
+* /Users/l/project/8408/core/config.py
+* /Users/l/project/8408/core/trailing_stop_manager.py
+* /Users/l/project/8408/app.py
+* /Users/l/project/8408/ver.md
+* /Users/l/project/8403/config.json
+* /Users/l/project/8403/core/config.py
+* /Users/l/project/8403/core/trailing_stop_manager.py
+* /Users/l/project/8403/app.py
+* /Users/l/project/8403/ver.md
+* /Users/l/project/8405/config.json
+* /Users/l/project/8405/core/config.py
+* /Users/l/project/8405/core/trailing_stop_manager.py
+* /Users/l/project/8405/app.py
+* /Users/l/project/8405/ver.md
+* ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.93
 Date: 2026-10-29
 
