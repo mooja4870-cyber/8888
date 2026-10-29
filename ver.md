@@ -1,5 +1,26 @@
 # Version History
 
+## v1.2.95
+Date: 2026-10-30
+
+### 변경 내용
+* [보스 특별 지침: 9개 봇 수익성 자율 자가치유 워치독(Zero-Touch) 신규 구축 및 24시간 무인 가동 체계 완결]
+  - watchdog_profitability.py 신규 개발 및 백그라운드 상시 데몬 가동 (PID 등록 완료)
+  - 48~72시간 롤링 윈도우 기반 실매매 장부(trade_history.csv) 자동 분석 (승률, 손익비, 연속손절, 수수료 잠식)
+  - 이상 징후 포착 시 인간 승인 없이 완전 자율로 5대 방어 설정(슬림손절 1.5% 캡, 본절가드 +0.1% 버퍼, ADX/KER 필터 등) 자가치유(Self-Healing)
+  - 자체 verify_all 100% PASS 검증 성공 시에만 봇 무인 재기동, 실패 시 즉각 롤백(Rollback) 안전장치 탑재
+  - watchdog_keeper.sh에 5번째 상시 감시 항목으로 등록되어 24시간 365일 무인 불사 구동
+  - 모든 자가치유 내역 data/auto_healing_history.json 및 디스코드 채널로 실시간 알림
+
+### 수정 파일
+* /Users/l/project/8888/watchdog_profitability.py
+* /Users/l/project/8888/watchdog_keeper.sh
+* /Users/l/project/8888/data/auto_healing_history.json
+* ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.94
 Date: 2026-10-30
 

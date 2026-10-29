@@ -37,3 +37,11 @@ if ! pgrep -f "python3.*/8888/app.py" > /dev/null 2>&1 && ! pgrep -f "python3 ap
     nohup python3 "$BASE_DIR/app.py" >> "$BASE_DIR/app.log" 2>&1 &
     echo $! > "$BASE_DIR/app.pid"
 fi
+
+# 5. watchdog_profitability.py (수익성 자율 치유 워치독) 확인
+if ! pgrep -f "watchdog_profitability.py" > /dev/null 2>&1; then
+    echo "$(date '+%F %T') [KEEPER] 🚨 watchdog_profitability.py 다운 감지! 재기동합니다..." >> "$BASE_DIR/watchdog_keeper.log"
+    cd "$BASE_DIR" || exit
+    nohup python3 "$BASE_DIR/watchdog_profitability.py" >> "$BASE_DIR/watchdog_profitability.log" 2>&1 &
+fi
+
