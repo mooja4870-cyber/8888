@@ -75,12 +75,13 @@ def load_healing_history() -> dict:
 def save_healing_history(bot_id: str, diagnosis: str, actions: list, metrics: dict):
     history = load_healing_history()
     now_iso = datetime.now().isoformat()
+    clean_metrics = {k: v for k, v in metrics.items() if k != "trades"}
     record = {
         "timestamp": now_iso,
         "bot_id": bot_id,
         "diagnosis": diagnosis,
         "actions": actions,
-        "metrics": metrics
+        "metrics": clean_metrics
     }
     bot_records = history.get(bot_id, [])
     bot_records.append(record)
@@ -93,6 +94,7 @@ def save_healing_history(bot_id: str, diagnosis: str, actions: list, metrics: di
     except Exception as e:
         log(f"⚠️ 이력 저장 실패: {e}")
 
+
 # ── 거래 장부 분석 ──────────────────────────────────────────
 def analyze_recent_trades(bot_id: str, hours: int = 72) -> dict:
     csv_path = os.path.join(BASE_DIR, bot_id, "data", "trade_history.csv")
@@ -103,11 +105,18 @@ def analyze_recent_trades(bot_id: str, hours: int = 72) -> dict:
     trades = []
     
     try:
-        with open(csv_path, "r", encoding="utf-8", errors="ignore") as f:
-            reader = csv.DictReader(f)
+        with open(csv_path, "r", encoding="utf-8-sig", errors="ignore") as f:
+            reader = csv.reader(f)
+            header = next(reader, None)
             for row in reader:
-                # 진입/청산 시간 파싱
-                dt_str = row.get("exit_time") or row.get("timestamp") or row.get("time") or row.get("entry_time") or ""
+                if len(row) < 8:
+                    continue
+                # 0: 시간, 1: 심볼, 2: 유형, 3: 방향, 4: 가격, 5: 수량, 6: 수익(USDT), 7: 수익률(%)
+                dt_str = row[0].strip()
+                trade_type = row[2].strip()
+                if trade_type != "청산":
+                    continue
+                
                 trade_dt = None
                 for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M"):
                     try:
@@ -116,19 +125,16 @@ def analyze_recent_trades(bot_id: str, hours: int = 72) -> dict:
                     except Exception:
                         continue
                 
-                # PnL 파싱
-                pnl_str = row.get("net_pnl") or row.get("pnl") or row.get("realized_pnl") or "0"
-                pnl_pct_str = row.get("pnl_pct") or row.get("return_pct") or "0"
                 try:
-                    pnl = float(pnl_str.replace("$", "").replace(",", "").replace("%", ""))
+                    pnl = float(row[6].replace("$", "").replace(",", ""))
                 except Exception:
                     pnl = 0.0
                 try:
-                    pnl_pct = float(pnl_pct_str.replace("%", "").replace(",", ""))
+                    pnl_pct = float(row[7].replace("%", "").replace(",", ""))
                 except Exception:
                     pnl_pct = 0.0
 
-                sym = row.get("symbol", "")
+                sym = row[1].strip()
                 
                 if trade_dt and trade_dt >= cutoff_time:
                     trades.append({"dt": trade_dt, "pnl": pnl, "pnl_pct": pnl_pct, "sym": sym})
@@ -173,6 +179,7 @@ def analyze_recent_trades(bot_id: str, hours: int = 72) -> dict:
         "net_pnl": gross_win - gross_loss,
         "trades": sorted_trades
     }
+
 
 # ── 봇 안전 재기동 ──────────────────────────────────────────
 def restart_bot(bot_id: str) -> bool:

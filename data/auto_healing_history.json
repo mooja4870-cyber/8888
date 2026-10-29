@@ -1,1 +1,24 @@
-{}
+{
+    "8407": [
+        {
+            "timestamp": "2026-10-30T01:02:20",
+            "bot_id": "8407",
+            "diagnosis": "3연속 손절 발생 — 리스크 자동 다이어트",
+            "actions": [
+                "AUTO_COMPOUND_PCT -> 46.2% (3연패 이상으로 인한 리스크 비중 30% 축소)"
+            ],
+            "metrics": {
+                "count": 18,
+                "status": "OK",
+                "win_rate": 0.333,
+                "avg_win": 0.1519,
+                "avg_loss": 0.0567,
+                "profit_factor": 1.34,
+                "loss_streak": 3,
+                "heavy_sl_count": 10,
+                "net_pnl": 0.2316
+            }
+        }
+    ],
+    "last_healed_8407": 1793289740.0
+}
