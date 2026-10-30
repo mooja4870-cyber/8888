@@ -1,5 +1,22 @@
 # Version History
 
+## v1.2.99
+Date: 2026-10-31
+
+### 변경 내용
+* [2번 항목(8410) 완결: 국면 라우터(DonchianVol) 가로채기 해제 및 FUSION(MR+BBTS 1h) 본 전략 직결 가동 (보스 2회 승인 완결)]
+  - `8410/config.json`: `"USE_REGIME_ROUTER": false` 전환으로 `DonchianVol` 채널 관망 가로채기 해제 및 `FUSION (BB 40/2.5 + ADX 14 + RSI 14)` 본 전략 직결
+  - `8410/core/config.py`: `USE_REGIME_ROUTER=False`, `AUTO_TRADING=True`, `BB_PERIOD=40`, `BB_STD_DEV=2.5`, 쿨다운 파라미터 기본값 동기화 완료
+
+### 수정 파일
+* /Users/l/project/8410/config.json
+* /Users/l/project/8410/core/config.py
+* /Users/l/project/8410/ver.md
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.98
 Date: 2026-10-31
 
