@@ -19,9 +19,9 @@ logger = logging.getLogger("Watchdog")
 
 from datetime import datetime, timedelta, timezone
 
-# 상시 기본 관리 대상 5개 핵심 봇 최우선 순찰
+# 상시 기본 관리 대상 7개 핵심 봇 최우선 순찰 + 가동 9개 봇 전수 생존/Foolproof 감시
 CORE_BOTS = [8401, 8402, 8403, 8404, 8405, 8408, 8410]
-BOT_LIST = [8401, 8402, 8403, 8404, 8405, 8408, 8410]
+BOT_LIST = [8401, 8402, 8403, 8404, 8405, 8407, 8408, 8409, 8410]
 HEALTH_CHECK_SEC = 60  # 1 minute for process health
 CONFIG_CHECK_CYCLES = 5  # Check config drift every 5 cycles (5 minutes)
 FLAT_BOT_CHECK_CYCLES = 5  # [보스 지침] 5분 주기 무포지션 봇 정밀 건전성 감사 및 적의조치
@@ -398,13 +398,13 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
     cfg_file = os.path.join(cwd, "config.json")
     if os.path.exists(cfg_file):
         try:
-            with open(cfg_file, "r") as f:
+            with open(cfg_file, "r", encoding="utf-8") as f:
                 cfg = json.load(f)
             if not cfg.get("AUTO_TRADING", True):
                 logger.warning(f"[{b}] 🚨 AUTO_TRADING 꺼짐 감지 (수동 정지/비정상 상태) -> 강제 ON 복구 진행")
                 cfg["AUTO_TRADING"] = True
-                with open(cfg_file, "w") as f:
-                    json.dump(cfg, f, indent=4)
+                with open(cfg_file, "w", encoding="utf-8") as f:
+                    json.dump(cfg, f, indent=4, ensure_ascii=False)
                 
                 alert_msg = f"🚨 **[Foolproof 발동: {b}]**\\n봇이 비정상적으로 '자동매매 OFF(노란색)' 상태에 빠져 신규 진입이 차단되어 있었습니다.\\n-> 🟢 강제로 **자동매매 ON** 상태로 즉시 복구했습니다."
                 py_cmd = f"import sys; sys.path.insert(0, '{cwd}'); import core.alert as alert; alert.send_telegram_alert('{alert_msg}')"

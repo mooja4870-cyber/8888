@@ -1,5 +1,35 @@
 # Version History
 
+## v1.2.98
+Date: 2026-10-31
+
+### 변경 내용
+* [1단계 조치 완료: 8407·8409 무진입 근본 원인 해결(전일 정지 락 해제 + DonchianVol 국면 라우터 해제 + BB MR 7대 영역 동기화) 및 중앙 워치독 감시 편입]
+  - `8407`, `8409`: 전일(`2026-10-30`) 연속손절/드로다운 정지 후 자정 재부팅으로 고착된 `AUTO_TRADING: false` 및 `halted_by_consec_sl: true` 해제, `core/trader.py` 내 과거 날짜 정지 플래그 부팅 시 자동 초기화 로직 탑재
+  - `8407`, `8409`: `USE_REGIME_ROUTER: false` 적용으로 `DonchianVol` 가로채기 해제 및 실제 `BB MR (BB 20/2.0 + RSI 30/70)` 전략 직결, `core/config.py`·`core/strategy.py`·`app.py` 사이드바 7대 영역 정합화 완료
+  - `8888/watchdog_entry.py`: `BOT_LIST`에 `8407`, `8409` 편입하여 가동 9개 봇 전수 프로세스 부활 및 Foolproof `AUTO_TRADING` 자동 복구 보장
+
+### 수정 파일
+* /Users/l/project/8407/config.json
+* /Users/l/project/8407/data/stats.json
+* /Users/l/project/8407/core/config.py
+* /Users/l/project/8407/core/strategy.py
+* /Users/l/project/8407/core/trader.py
+* /Users/l/project/8407/app.py
+* /Users/l/project/8407/ver.md
+* /Users/l/project/8409/config.json
+* /Users/l/project/8409/data/stats.json
+* /Users/l/project/8409/core/config.py
+* /Users/l/project/8409/core/strategy.py
+* /Users/l/project/8409/core/trader.py
+* /Users/l/project/8409/app.py
+* /Users/l/project/8409/ver.md
+* /Users/l/project/8888/watchdog_entry.py
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.97
 Date: 2026-10-31
 
