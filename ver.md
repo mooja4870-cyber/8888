@@ -1,5 +1,22 @@
 # Version History
 
+## v1.2.97
+Date: 2026-10-31
+
+### 변경 내용
+* [8404 봇 대시보드 포지션 미표출 버그 및 TP/SL 재무장 에러 전수 해결 (보스 2회 승인 완결)]
+  - 8404 대시보드 UI(`ui/dashboard_tab.py`)의 소액 잔여 포지션 필터링 조건 개선 (`amount_usdt > 0.1` -> `size > 0 or amount_usdt > 0.001`), CRV 잔여 포지션 표출 복원으로 8888 관제 화면과 100% 동기화
+  - 8404 엔진(`core/exchange.py`)의 `rearm_position_protection()` 함수에 `sl_price`, `tp_price` 인자 수용 로직 확장하여 런타임 타입에러 해소 및 OKX에 CRV TP/SL 보호 주문 실시간 등록 완료
+
+### 수정 파일
+* /Users/l/project/8404/ui/dashboard_tab.py
+* /Users/l/project/8404/core/exchange.py
+* /Users/l/project/8404/ver.md
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.96
 Date: 2026-10-31
 
