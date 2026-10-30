@@ -725,6 +725,76 @@ def _classify_groups(bots):
     return g1, g2, g3, g4
 
 
+def _process_total_summary(data):
+    """
+    [보스 특별 지침: 전체 9개 봇 Total 통합 요약 알림]
+    포맷:
+    YYYY-MM-DD HH:MM:SS
+    ======================================
+    📊 Total - 9개 봇 (xx.x일) : xx.xx +x.xx +xx.xx% [1m]$0.00- [1]$0.00-
+    ======================================
+    """
+    state_file = os.path.join(_DIR, "discord_state_total.json")
+    prev_total, prev_bots, history, prev_sub_total, series, asset_history, asset_series = _load_state(state_file)
+
+    active_names = ["8401", "8402", "8403", "8404", "8405", "8407", "8408", "8409", "8410"]
+    bots = [b for b in data.get("bots", []) if str(b.get("name")) in active_names]
+
+    assets = 0.0
+    seed = 0.0
+    for b in bots:
+        bal = b.get("ex_balance") if (b.get("ex_ok") and b.get("ex_balance") is not None) else ((b.get("seed") or 0) + (b.get("total") or 0))
+        bseed = b.get("seed") if b.get("seed") else bal
+        assets += bal
+        seed += bseed
+
+    import app
+    days_list = [app.bot_days(b["perf_start"]) for b in bots if b.get("perf_start")]
+    days = max(days_list) if days_list else data.get("summary", {}).get("days", 1.0)
+    head_days = f"{days:.1f}일" if days is not None else "—"
+
+    cum_delta = round(assets - seed, 2)
+    valid_bots = [b for b in bots if b.get("daily_ret") is not None and b.get("seed")]
+    if valid_bots:
+        tot_s = sum(b["seed"] for b in valid_bots)
+        avg_daily = round(sum(b["daily_ret"] * b["seed"] for b in valid_bots) / tot_s, 2) if tot_s else 0.0
+    else:
+        cum_ret = round((assets - seed) / seed * 100, 2) if seed else 0.0
+        avg_daily = round(cum_ret / days, 2) if days else 0.0
+
+    assets = round(assets, 2)
+    now_ts = time.time()
+
+    # 시계열 갱신
+    series = [x for x in (series or []) if isinstance(x, (list, tuple)) and len(x) == 2 and now_ts - x[0] <= SERIES_KEEP_SEC]
+    series.append([now_ts, avg_daily])
+
+    asset_series = [x for x in (asset_series or []) if isinstance(x, (list, tuple)) and len(x) == 2 and now_ts - x[0] <= SERIES_KEEP_SEC]
+    asset_series.append([now_ts, assets])
+
+    # 직전 틱(1분) 및 60분 전 대비 변동치
+    h1m = _ago_str_asset(assets, asset_series, now_ts, 60, 60)
+    h1 = _ago_str_asset(assets, asset_series, now_ts, *LOOKBACK[0])
+
+    asset_str = f"{assets:.2f} "
+    delta_str = f"{cum_delta:+.2f} "
+    ret_str = f"{avg_daily:+.2f}%"
+    ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+
+    lines = [
+        ts,
+        "=" * 38,
+        f"📊 Total - 9개 봇 ({head_days}) : {asset_str}{delta_str}{ret_str} [1m]{h1m} [1]{h1}",
+        "=" * 38
+    ]
+    msg = "\n".join(lines)
+
+    ok, info = _post(msg)
+    if ok:
+        _save_state(state_file, avg_daily, {}, history, series=series, asset_history=asset_history, asset_series=asset_series)
+    return ok, info
+
+
 def tick(data, tick_count=0, include_bot_charts=False):
     """집계 1건을 받아 매 1분마다 디스코드 알림 발송 및 상태 갱신 (경과일수 기준 그룹 1~4 동적 분할 발송)."""
     info_changes = "None"
@@ -756,6 +826,10 @@ def tick(data, tick_count=0, include_bot_charts=False):
 
     import time
 
+    # 0. [보스 특별 지침] 전체 9개 봇 Total 통합 요약 알림 선발송
+    ok_tot, info_tot = _process_total_summary(data)
+    time.sleep(1)
+
     # 전략 유형별 봇 그룹 분류 (유형3 -> 유형2 -> 유형1 역순 발송)
     # 유형3: 8404, 8408, 8410 (Various Fusion 다양한 퓨전 전략)
     # 유형2: 8403, 8405, 8407, 8409 (BB MR 평균회귀 전략)
@@ -771,7 +845,7 @@ def tick(data, tick_count=0, include_bot_charts=False):
         type_results.append((f"T{t_num}", ok_t, info_t))
         time.sleep(1)
 
-    all_results = type_results
+    all_results = [("Total", ok_tot, info_tot)] + type_results
     any_ok = any(ok for _, ok, _ in all_results)
     info_all = " / ".join([f"{name}:{inf}" for name, _, inf in all_results]) if all_results else "None"
     return any_ok, f"Changes:{info_changes} / {info_all}"

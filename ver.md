@@ -1,5 +1,21 @@
 # Version History
 
+## v1.2.96
+Date: 2026-10-31
+
+### 변경 내용
+* [보스 특별 지침: 디스코드 9개 봇 Total 통합 요약 알림 신규 추가]
+  - `discord_alert.py`의 `tick()` 최상단에 9개 봇 Total 통합 요약 알림 선발송 로직(`_process_total_summary`) 구현
+  - 보스 지정 표준 양식(시스템 시각, 등호 38자 상하 구분선, 9개 봇 일수/자산/손익/수익률, 1분/1시간 전 자산 변동액) 100% 정합화
+  - `discord_state_total.json` 시계열 버퍼 연동으로 `[1m]`, `[1]` 실시간 자산 변동 추적 보장
+
+### 수정 파일
+* discord_alert.py
+* ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.95
 Date: 2026-10-30
 
