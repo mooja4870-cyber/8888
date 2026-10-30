@@ -1,5 +1,40 @@
 # Version History
 
+## v1.2.100
+Date: 2026-10-31
+
+### 변경 내용
+* [2번·3번 항목 전수 완결: 8403·8405 BB MR(15m) 직결 복원 및 8401·8402 QVT 스나이퍼 KER 임계치(0.40→0.20) 정상화 (보스 일괄 승인 완결)]
+  - `8403` (`v2.2.1`), `8405` (`v1.9.1`): `USE_REGIME_ROUTER: false` 및 `BB(20/2.0)` 적용으로 `DonchianVol` 채널 관망 가로채기 완전 해제 및 `BB MR (볼린저 밴드 평균회귀) 15m` 본 전략 직결, `TradingConfig` 내 `DASHBOARD_META` 보존 및 사이드바 UI 7대 영역 정합화 완료
+  - `8401` (`v2.3.1`), `8402` (`v2.3.1`): 전 종목 1차 차단을 유발하던 `KER_THRESHOLD`를 `0.40 -> 0.20`으로 완화 복원(`ADX >= 20.0`, `BTC Macro Gate`, `35% 핀바` 필터 유지)하고 `TradingConfig`에 누락되었던 `KER_THRESHOLD`, `SL_ATR_MULT`, `ADX_MIN`, `BTC_MACRO_GATE`, `DASHBOARD_META` 선언으로 설정 유실 및 하드코딩 폴백 버그 원천 해결
+  - 전체 9개 가동 봇(`8401, 8402, 8403, 8404, 8405, 8407, 8408, 8409, 8410`) 전수 본 전략 실시간 스캔 정상화 및 `verify_all.py` 100% PASS 검증 완료
+
+### 수정 파일
+* /Users/l/project/8401/config.json
+* /Users/l/project/8401/core/config.py
+* /Users/l/project/8401/core/strategy.py
+* /Users/l/project/8401/app.py
+* /Users/l/project/8401/ver.md
+* /Users/l/project/8402/config.json
+* /Users/l/project/8402/core/config.py
+* /Users/l/project/8402/core/strategy.py
+* /Users/l/project/8402/app.py
+* /Users/l/project/8402/ver.md
+* /Users/l/project/8403/config.json
+* /Users/l/project/8403/core/config.py
+* /Users/l/project/8403/core/strategy.py
+* /Users/l/project/8403/app.py
+* /Users/l/project/8403/ver.md
+* /Users/l/project/8405/config.json
+* /Users/l/project/8405/core/config.py
+* /Users/l/project/8405/core/strategy.py
+* /Users/l/project/8405/app.py
+* /Users/l/project/8405/ver.md
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.99
 Date: 2026-10-31
 
