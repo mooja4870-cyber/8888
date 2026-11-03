@@ -272,12 +272,12 @@ def evaluate_and_heal(bot_id: str) -> bool:
             diagnoses.append("소액 증거금으로 인한 수수료 잠식 과다 감지")
 
     # [규칙 3: 추세돌파 봇(8401, 8402) 횡보장 휩소 가짜돌파 차단]
+    # [보스 5단계 승인 보호] KER_THRESHOLD(0.20)를 워치독이 임의로 0.40으로 상향 덮어쓰지 않도록 차단 (ADX_MIN=20.0만 유지)
     if bot_id in ["8401", "8402"]:
-        if metrics["win_rate"] < 0.35 and (cfg.get("KER_THRESHOLD", 0.35) < 0.40 or not cfg.get("USE_ADX_FILTER", False)):
-            cfg["KER_THRESHOLD"] = 0.40
+        if metrics["win_rate"] < 0.35 and not cfg.get("USE_ADX_FILTER", False):
             cfg["USE_ADX_FILTER"] = True
             cfg["ADX_MIN"] = 20.0
-            actions.append("KER_THRESHOLD -> 0.40 & ADX_MIN -> 20.0 (비추세 횡보장 가짜돌파 차단 게이트 강화)")
+            actions.append("USE_ADX_FILTER -> True & ADX_MIN -> 20.0 (비추세 횡보장 가짜돌파 차단 게이트 유지)")
             cfg_modified = True
             diagnoses.append("횡보장 비추세 휩소 진입 누적으로 승률 저하 감지")
 

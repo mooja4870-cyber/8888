@@ -1,5 +1,30 @@
 # Version History
 
+## v1.2.101
+Date: 2026-11-04
+
+### 변경 내용
+* [8401·8402 장기 미진입 근본 해결: 수익성 워치독 KER 0.40 강제 원복 제거 및 QVT 눌림목 스나이퍼 RSI/핀바 현실화 (보스 5단계 승인)]
+  - `8888/watchdog_profitability.py`: `8401, 8402`의 `KER_THRESHOLD`를 `0.40`으로 무단 원복시키던 코드 제거(`ADX_MIN: 20.0`만 유지)로 `KER 0.20` 설정 영구 보존
+  - `8401` (`v2.3.2`), `8402` (`v2.3.2`): `KER_THRESHOLD: 0.20` 복원(`core/config.py` 상단 중복 선언 정리), 눌림목 RSI 구간(`LONG 30~50`, `SHORT 45~70`) 및 핀바 조건(`꼬리 25%+ & 방향일치` 또는 `꼬리 35%+`) 현실화, 7대 영역 전수 동기화 완료
+
+### 수정 파일
+* /Users/l/project/8888/watchdog_profitability.py
+* /Users/l/project/8888/ver.md
+* /Users/l/project/8401/config.json
+* /Users/l/project/8401/core/config.py
+* /Users/l/project/8401/core/strategy.py
+* /Users/l/project/8401/app.py
+* /Users/l/project/8401/ver.md
+* /Users/l/project/8402/config.json
+* /Users/l/project/8402/core/config.py
+* /Users/l/project/8402/core/strategy.py
+* /Users/l/project/8402/app.py
+* /Users/l/project/8402/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.100
 Date: 2026-10-31
 
