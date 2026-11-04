@@ -28,7 +28,7 @@ WATCHDOG_LOG = os.path.join(BASE_DIR, "8888", "watchdog_profitability.log")
 HISTORY_FILE = os.path.join(BASE_DIR, "8888", "data", "auto_healing_history.json")
 DISCORD_FILE = os.path.join(BASE_DIR, "8888", "discord_webhook.txt")
 
-ACTIVE_BOTS = ["8401", "8402", "8403", "8404", "8405", "8407", "8408", "8409", "8410"]
+ACTIVE_BOTS = ["8401", "8402", "8403", "8404", "8405", "8408"]
 CHECK_INTERVAL_SEC = 3600  # 1시간 주기 검사
 BOT_HEAL_COOLDOWN_SEC = 86400  # 봇당 최소 24시간 자가치유 쿨다운 (과최적화/잦은 변경 방지)
 

@@ -1,5 +1,38 @@
 # Version History
 
+## v1.2.102
+Date: 2026-11-04
+
+### 변경 내용
+* [보스 지침 반영: 8407·8409·8410 3개 봇 전량 청산 확인, 백그라운드 실행 영구 중지 및 8888 관제 집계 제외 (6개 봇 체제 전환)]
+  - `8407` (`v2.3.2`), `8409` (`v2.3.2`), `8410` (`v2.1.2`): 거래소 실 포지션(0건)·미체결 주문(0건)·Algo 조건부 주문(0건) 전수 확인, `config.json` 내 `"AUTO_TRADING": false` 전환, `.stopped` 마커 생성 및 백그라운드 프로세스(`bot.py`, `app.py`) 완전 종료
+  - `8888/app.py`, `8888/discord_alert.py`, `8888/discord_bot_listener.py`, `8888/send_discord_hourly_graph.py`, `8888/send_discord_stats.py`: 관제 대시보드 집계·테이블·디스코드 통합 리포트에서 `8407, 8409, 8410`을 제외하고 6개 가동 봇(`8401, 8402, 8403, 8404, 8405, 8408`) 체제로 전환
+  - `8888/watchdog_entry.py`, `8888/watchdog_profitability.py`, `8888/watchdog_exit.py`, `8888/watchdog_position.py`, `8888/watchdog_99.py`, `8888/bot_watchdog.py`, `8888/entry_recovery.py`: 모든 워치독 순찰 목록에서 `8407, 8409, 8410`을 제외하여 중지된 봇이 자동 부활하지 않도록 원천 차단
+
+### 수정 파일
+* /Users/l/project/8888/app.py
+* /Users/l/project/8888/discord_alert.py
+* /Users/l/project/8888/discord_bot_listener.py
+* /Users/l/project/8888/watchdog_entry.py
+* /Users/l/project/8888/watchdog_profitability.py
+* /Users/l/project/8888/watchdog_exit.py
+* /Users/l/project/8888/watchdog_position.py
+* /Users/l/project/8888/watchdog_99.py
+* /Users/l/project/8888/bot_watchdog.py
+* /Users/l/project/8888/entry_recovery.py
+* /Users/l/project/8888/send_discord_hourly_graph.py
+* /Users/l/project/8888/send_discord_stats.py
+* /Users/l/project/8888/ver.md
+* /Users/l/project/8407/config.json
+* /Users/l/project/8407/ver.md
+* /Users/l/project/8409/config.json
+* /Users/l/project/8409/ver.md
+* /Users/l/project/8410/config.json
+* /Users/l/project/8410/ver.md
+
+### 비고
+* verify_all 100% PASS (8401~8405, 8408 PASS / 8406, 8407, 8409, 8410 SKIP) 검증 완료
+
 ## v1.2.101
 Date: 2026-11-04
 

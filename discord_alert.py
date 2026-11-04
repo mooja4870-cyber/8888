@@ -549,7 +549,7 @@ def _get_recent_bot_changes(days=7):
     - 다중 봇 메타라인/안내문 필터링 강화
     - 개별 봇 로컬 ver.md 우선 수집
     """
-    bots = ['8401', '8402', '8403', '8404', '8405', '8407', '8408', '8409', '8410']
+    bots = ['8401', '8402', '8403', '8404', '8405', '8408']
     all_bot_changes = {str(b): [] for b in bots}
 
     STRAT_KEYWORDS = [
@@ -727,17 +727,17 @@ def _classify_groups(bots):
 
 def _process_total_summary(data):
     """
-    [보스 특별 지침: 전체 9개 봇 Total 통합 요약 알림]
+    [보스 특별 지침: 전체 6개 봇 Total 통합 요약 알림]
     포맷:
     YYYY-MM-DD HH:MM:SS
     ======================================
-    📊 Total - 9개 봇 (xx.x일) : xx.xx +x.xx +xx.xx% [1m]$0.00- [1]$0.00-
+    📊 Total - 6개 봇 (xx.x일) : xx.xx +x.xx +xx.xx% [1m]$0.00- [1]$0.00-
     ======================================
     """
     state_file = os.path.join(_DIR, "discord_state_total.json")
     prev_total, prev_bots, history, prev_sub_total, series, asset_history, asset_series = _load_state(state_file)
 
-    active_names = ["8401", "8402", "8403", "8404", "8405", "8407", "8408", "8409", "8410"]
+    active_names = ["8401", "8402", "8403", "8404", "8405", "8408"]
     bots = [b for b in data.get("bots", []) if str(b.get("name")) in active_names]
 
     assets = 0.0
@@ -784,7 +784,7 @@ def _process_total_summary(data):
     lines = [
         ts,
         "=" * 38,
-        f"📊 Total - 9개 봇 ({head_days}) : {asset_str}{delta_str}{ret_str} [1m]{h1m} [1]{h1}",
+        f"📊 Total - 6개 봇 ({head_days}) : {asset_str}{delta_str}{ret_str} [1m]{h1m} [1]{h1}",
         "=" * 38
     ]
     msg = "\n".join(lines)
@@ -831,12 +831,12 @@ def tick(data, tick_count=0, include_bot_charts=False):
     time.sleep(1)
 
     # 전략 유형별 봇 그룹 분류 (유형3 -> 유형2 -> 유형1 역순 발송)
-    # 유형3: 8404, 8408, 8410 (Various Fusion 다양한 퓨전 전략)
-    # 유형2: 8403, 8405, 8407, 8409 (BB MR 평균회귀 전략)
+    # 유형3: 8404, 8408 (Various Fusion 다양한 퓨전 전략)
+    # 유형2: 8403, 8405 (BB MR 평균회귀 전략)
     # 유형1: 8401, 8402 (QVT 눌림목 스나이퍼 전략)
     types = [
-        (3, "유형3 Various Fusion", ["8404", "8408", "8410"]),
-        (2, "유형2 BB MR 평균회귀", ["8403", "8405", "8407", "8409"]),
+        (3, "유형3 Various Fusion", ["8404", "8408"]),
+        (2, "유형2 BB MR 평균회귀", ["8403", "8405"]),
         (1, "유형1 QVT 눌림목 스나이퍼", ["8401", "8402"]),
     ]
     type_results = []

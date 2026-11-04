@@ -18,7 +18,7 @@ WEBHOOK_URL = ""  # 알림 중단
 ROOT_DIR = "/Users/l/project"
 SNAP_FILE = os.path.join(ROOT_DIR, "8888", "snapshots.json")
 
-GROUP_1_IDS = ["8401", "8402", "8410"]
+GROUP_1_IDS = ["8401", "8402", "8403"]
 GROUP_2_IDS = ["8404", "8405", "8408"]
 ALL_BOT_IDS = GROUP_1_IDS + GROUP_2_IDS
 

@@ -16,7 +16,7 @@ def get_discord_webhook():
     except:
         return ""
 
-BOT_DIRS = ["8401", "8402", "8403", "8404", "8405", "8408", "8410"]
+BOT_DIRS = ["8401", "8402", "8403", "8404", "8405", "8408"]
 BASE_PATH = "/Users/l/project"
 
 class Watchdog99:

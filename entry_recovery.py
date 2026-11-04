@@ -4,7 +4,7 @@ import time
 from datetime import datetime, timedelta
 
 # 대상 봇 목록
-VENUE = ["8401", "8402", "8403", "8404", "8405", "8407", "8408", "8409"]
+VENUE = ["8401", "8402", "8403", "8404", "8405", "8408"]
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def log(msg):

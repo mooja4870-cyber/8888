@@ -10,7 +10,7 @@ import signal
 
 # Base Paths
 BASE_DIR = "/Users/l/project"
-BOTS = ["8401", "8402", "8403", "8404", "8405", "8408", "8410"]
+BOTS = ["8401", "8402", "8403", "8404", "8405", "8408"]
 LOG_FILE = os.path.join(BASE_DIR, "8888", "watchdog_position.log")
 CHECK_INTERVAL = 20
 SILENT_CRASH_TIMEOUT = 1800  # 30분
