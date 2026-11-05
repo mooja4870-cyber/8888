@@ -1,5 +1,45 @@
 # Version History
 
+## v1.2.103
+Date: 2026-11-06
+
+### 변경 내용
+* [8401·8402 연패 행진 근본 원인 5대 결함 해결 및 7대 영역 전수 동기화 (보스 5단계 최고 엄격 통제 승인 완결)]
+  - `8401` (`v2.3.3`), `8402` (`v2.3.3`):
+    1) **독립 본절 가드(`_check_breakeven_guard`) 작동 복구**: `USE_SCALEOUT=False`에 묶여 사문화되어 있던 `USE_BE_GUARD`를 독립 분리하여 가격 `+1.2%` 도달 즉시 거래소 OCO 손절가를 진입가 `+0.20%`(수수료 보전 익절권)로 상향/하향 고정하고, 트레일링 활성화 게이트(`+1.8%`) 및 본절 하한선 클램프를 적용하여 수익 포지션이 손절로 둔갑하는 현상 원천 차단
+    2) **목표 익절폭 현실화**: 1시간봉 눌림목 파동에 맞춰 `TARGET_TP_PCT` 및 `TAKE_PROFIT_PCT`를 `4.5% -> 2.8%`로 현실화 (`8402`의 구형 잔존값 `STOP_LOSS_PCT: 0.11`, `TAKE_PROFIT_PCT: 0.33` 정리)
+    3) **BTC 거시 추세 라우터 연결 복구 및 대칭 방어**: `USE_REGIME_ROUTER=False`일 때 `StrategyRouter.update_trend()`가 하위 전략 `update_trend()`를 호출하지 않아 `_btc_trend`가 `"neutral"`에 고착되던 버그를 수정하고, V자 급반등/상승장 알트 숏 진입 차단 및 급락 음봉 칼날받기 롱 차단 대칭화, 핀바 꼬리 기준 `35%` 및 RSI(`LONG 35~52`, `SHORT 45~62`) 정밀화
+    4) **재진입 쿨다운 레이스 컨디션 해결**: `bot.py` 메인 루프 20초 주기 `_check_closed_positions_async()` 호출 및 `trader.py` `on_signal()` 내 `_risk_check()` 직전 선행 청산 동기화로 거래소 OCO 손절 직후 1~2분 내 동일 심볼 재진입 원천 차단
+    5) **분할 체결 병합**: `pnl_reconciler.py`에서 동일 `order_id` 청산 체결을 합산 기록하여 1회 청산이 2~3건의 패배로 쪼개져 연패가 부풀려지는 현상 차단
+
+### 수정 파일
+* /Users/l/project/8401/bot.py
+* /Users/l/project/8401/app.py
+* /Users/l/project/8401/config.json
+* /Users/l/project/8401/core/config.py
+* /Users/l/project/8401/core/strategy.py
+* /Users/l/project/8401/core/regime_router.py
+* /Users/l/project/8401/core/trailing_stop_manager.py
+* /Users/l/project/8401/core/trader.py
+* /Users/l/project/8401/core/engine.py
+* /Users/l/project/8401/core/pnl_reconciler.py
+* /Users/l/project/8401/ver.md
+* /Users/l/project/8402/bot.py
+* /Users/l/project/8402/app.py
+* /Users/l/project/8402/config.json
+* /Users/l/project/8402/core/config.py
+* /Users/l/project/8402/core/strategy.py
+* /Users/l/project/8402/core/regime_router.py
+* /Users/l/project/8402/core/trailing_stop_manager.py
+* /Users/l/project/8402/core/trader.py
+* /Users/l/project/8402/core/engine.py
+* /Users/l/project/8402/core/pnl_reconciler.py
+* /Users/l/project/8402/ver.md
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.102
 Date: 2026-11-04
 

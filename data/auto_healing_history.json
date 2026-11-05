@@ -20,5 +20,93 @@
             }
         }
     ],
-    "last_healed_8407": 1793289740.0
+    "last_healed_8407": 1793289740.0,
+    "8405": [
+        {
+            "timestamp": "2026-10-30T02:03:06.400385",
+            "bot_id": "8405",
+            "diagnosis": "3연속 손절 발생 — 리스크 자동 다이어트",
+            "actions": [
+                "AUTO_COMPOUND_PCT -> 46.2% (3연패 이상으로 인한 리스크 비중 30% 축소)"
+            ],
+            "metrics": {
+                "count": 72,
+                "status": "OK",
+                "win_rate": 0.5416666666666666,
+                "avg_win": 0.05373076923076925,
+                "avg_loss": 0.09813030303030304,
+                "profit_factor": 0.647098786400272,
+                "loss_streak": 3,
+                "heavy_sl_count": 33,
+                "net_pnl": -1.1427999999999994
+            }
+        }
+    ],
+    "last_healed_8405": 1793293386.4004521,
+    "8409": [
+        {
+            "timestamp": "2026-10-30T11:03:13.558817",
+            "bot_id": "8409",
+            "diagnosis": "3연속 손절 발생 — 리스크 자동 다이어트",
+            "actions": [
+                "AUTO_COMPOUND_PCT -> 46.2% (3연패 이상으로 인한 리스크 비중 30% 축소)"
+            ],
+            "metrics": {
+                "count": 15,
+                "status": "OK",
+                "win_rate": 0.4,
+                "avg_win": 0.26019933333333334,
+                "avg_loss": 0.04881777777777778,
+                "profit_factor": 3.5533412235979607,
+                "loss_streak": 3,
+                "heavy_sl_count": 7,
+                "net_pnl": 1.121836
+            }
+        }
+    ],
+    "last_healed_8409": 1793325793.558845,
+    "8401": [
+        {
+            "timestamp": "2026-10-31T04:27:18.360135",
+            "bot_id": "8401",
+            "diagnosis": "횡보장 비추세 휩소 진입 누적으로 승률 저하 감지",
+            "actions": [
+                "KER_THRESHOLD -> 0.40 & ADX_MIN -> 20.0 (비추세 횡보장 가짜돌파 차단 게이트 강화)"
+            ],
+            "metrics": {
+                "count": 3,
+                "status": "OK",
+                "win_rate": 0.3333333333333333,
+                "avg_win": 0.1304,
+                "avg_loss": 0.05505,
+                "profit_factor": 1.184377838328792,
+                "loss_streak": 0,
+                "heavy_sl_count": 2,
+                "net_pnl": 0.020299999999999985
+            }
+        }
+    ],
+    "last_healed_8401": 1793388438.3603132,
+    "8402": [
+        {
+            "timestamp": "2026-10-31T04:27:30.174984",
+            "bot_id": "8402",
+            "diagnosis": "횡보장 비추세 휩소 진입 누적으로 승률 저하 감지",
+            "actions": [
+                "KER_THRESHOLD -> 0.40 & ADX_MIN -> 20.0 (비추세 횡보장 가짜돌파 차단 게이트 강화)"
+            ],
+            "metrics": {
+                "count": 3,
+                "status": "OK",
+                "win_rate": 0.3333333333333333,
+                "avg_win": 0.0264,
+                "avg_loss": 0.0702,
+                "profit_factor": 0.18803418803418803,
+                "loss_streak": 0,
+                "heavy_sl_count": 2,
+                "net_pnl": -0.11399999999999999
+            }
+        }
+    ],
+    "last_healed_8402": 1793388450.175009
 }
