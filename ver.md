@@ -1,5 +1,31 @@
 # Version History
 
+## v1.2.104
+Date: 2026-11-07
+
+### 변경 내용
+* [8405 최고가($20.15) 이후 수익 하향곡선 5대 근본 원인 해결 및 7대 영역 전수 동기화 (보스 5단계 최고 엄격 통제 승인 완결)]
+  - `8405` (`v2.0.0`):
+    1) **역손익비(`0.48:1`) Dead Code 버그 복원**: `trader.py`에서 `has_swing_sltp`가 가로채어 실행되지 않던 `Mean Reversion` 전용 SL/TP 분기를 최우선으로 끌어올려 `SL = 1.5*ATR (0.8%~1.5% 클램프)`, `TP = max(BB 중심선, SL*1.5)` 정방향 손익비(`1:1.5+`) 복원
+    2) **승패 교차(`승↔패`) Whipsaw 자산 증발 차단**: 평균회귀 전략의 음(-)의 자기상관 구간에서 `66%` 최대 시드 손절 후 `11~33%` 소액 익절로 `-$5.50`이 누수되던 계단식 복리 대신 `USE_DYNAMIC_COMPOUND_SCALING=False` 및 정률 복리 `35.0%` 적용
+    3) **수익 세절기(`USE_PARTIAL_TP`) 차단 및 상태 영속화**: `+1.2%` 조기 50% 반익절 비활성화(`USE_PARTIAL_TP: false`) 및 `_check_partial_tp()` 내 `save_active_positions()` 누락 버그 수정
+    4) **샹들리에 트레일링 활성화 게이트(`+1.5%`) 탑재**: `_apply_trailing_stop()`에 `TRAILING_ACTIVATE_PCT(0.015)` 도달 전 조기 발동 방지 게이트 추가
+    5) **Band Walk(추세 증기롤러) 방어 필터 탑재**: `strategy.py`에 Wilder ADX(14) 산출 및 `ADX > 30` 강추세 시 반전 캔들 확인 필터 추가, `8405/app.py` 및 `8888/app.py` 관제 메타 100% 정합화
+
+### 수정 파일
+* /Users/l/project/8405/core/strategy.py
+* /Users/l/project/8405/core/trader.py
+* /Users/l/project/8405/core/trailing_stop_manager.py
+* /Users/l/project/8405/core/config.py
+* /Users/l/project/8405/config.json
+* /Users/l/project/8405/app.py
+* /Users/l/project/8405/ver.md
+* /Users/l/project/8888/app.py
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.103
 Date: 2026-11-06
 
