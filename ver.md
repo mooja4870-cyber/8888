@@ -1,5 +1,48 @@
 # Version History
 
+## v1.2.105
+Date: 2026-11-08
+
+### 변경 내용
+* [8402·8404·8408 수익성 구조 전면 개선 (8405 v2.0.0 검증 메커니즘 이식 + 각 봇 고유 전략 100% 보존, 보스 5단계 승인)]
+  - `8402` (`v2.4.0` — OKX `QVT 눌림목 스나이퍼 Pro 1h`):
+    1) `trader.py`에서 `DYNAMIC_SL_CAP_PCT(1.5%)` 초과 시 고유 목표 `TP(2.8%)`까지 `ratio`로 동반 토막 내던 버그 제거 (`1:1.87` 손익비 복원)
+    2) 정률 복리(`AUTO_COMPOUND_PCT=30%`, `MAX_POSITIONS=3`) 시 `M4 Sizing` 및 `DRAWDOWN MARGIN SCALING` 시드 축소 차단, `USE_PARTIAL_TP=false`, `REENTRY_BLOCK_MIN=180분` 최적화
+  - `8404` (`v2.2.0` — OKX `FUSION MR+BBTS 1h`) & `8408` (`v12.2.0` — Binance `FUSION MR+BBTS 1h`):
+    1) 마감 확정봉(`iloc[-2]`) 기준 판정 전환, 사문화되어 있던 `Mean Reversion` 전용 SL/TP 분기를 최우선 승격(`SL 0.8%~1.5%`, `TP = max(BB 중심선, SL×1.5)`), `BBTS` 추세 `4.5×ATR` 익절폭 `ratio` 삭감 버그 제거
+    2) 누락되어 있던 `TRAILING_ACTIVATE_PCT(2.0%)` 활성화 게이트 및 `BE_GUARD_PROTECT_PCT(0.2%)` 본절 래칫 탑재, `+1.5%` 본절 알고 주문 이중 장착 및 중복 등록 방지(`Idempotency`), `USE_PARTIAL_TP=false` 및 `save_active_positions()` 누락 수정
+    3) 정률 복리 `28.0%`(`RISK_PER_TRADE_PCT=0.0`), `USE_BLUEFROG=false` 순방향 복원, `core/config.py` 신규 필드 등록 및 `save_config()` 키 보존 병합 저장, `8404/app.py` `OKX_API_KEY` 오타 수정
+  - `8888` (`v1.2.105`): `read_bot_config()`가 `config.json`의 실시간 `USE_BLUEFROG` 값을 `core/config.py` 기본값으로 덮어쓰던 버그 수정 및 `8402`·`8404`·`8408` 손익비 표기 동기화
+
+### 수정 파일
+* /Users/l/project/8402/core/trader.py
+* /Users/l/project/8402/core/config.py
+* /Users/l/project/8402/config.json
+* /Users/l/project/8402/app.py
+* /Users/l/project/8402/ver.md
+* /Users/l/project/8404/core/strategy.py
+* /Users/l/project/8404/core/trader.py
+* /Users/l/project/8404/core/trailing_stop_manager.py
+* /Users/l/project/8404/core/exchange.py
+* /Users/l/project/8404/core/config.py
+* /Users/l/project/8404/config.json
+* /Users/l/project/8404/app.py
+* /Users/l/project/8404/ver.md
+* /Users/l/project/8408/core/strategy.py
+* /Users/l/project/8408/core/trader.py
+* /Users/l/project/8408/core/trailing_stop_manager.py
+* /Users/l/project/8408/core/exchange.py
+* /Users/l/project/8408/core/config.py
+* /Users/l/project/8408/config.json
+* /Users/l/project/8408/data/active_positions.json
+* /Users/l/project/8408/app.py
+* /Users/l/project/8408/ver.md
+* /Users/l/project/8888/app.py
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.104
 Date: 2026-11-07
 

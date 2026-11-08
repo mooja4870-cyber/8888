@@ -686,20 +686,20 @@ def read_bot_config(folder):
         wl = cfg.get("SYMBOL_WHITELIST", [])
         scan_targets = f"지정 {len(wl)}개" if wl else f"상위 {cfg.get('SCAN_TOP_N', '?')}개"
 
-        # 5. 순/역 모드
-        use_bf = cfg.get("USE_BLUEFROG", False)
-        # [FACT CHECK] 실제 파이썬 엔진 설정(core/config.py)을 읽어 100% 동기화 강제
-        actual_py_path = os.path.join(BASE, folder, "core", "config.py")
-        if os.path.exists(actual_py_path):
-            try:
-                with open(actual_py_path, "r", encoding="utf-8", errors="ignore") as pf:
-                    py_code = pf.read()
-                    if "USE_BLUEFROG: bool = True" in py_code or "USE_BLUEFROG = True" in py_code:
-                        use_bf = True
-                    elif "USE_BLUEFROG: bool = False" in py_code or "USE_BLUEFROG = False" in py_code:
-                        use_bf = False
-            except Exception:
-                pass
+        # 5. 순/역 모드 (실시간 폴링 기준인 config.json 최우선, 키 누락 시에만 core/config.py 폴백)
+        if "USE_BLUEFROG" in cfg:
+            use_bf = bool(cfg["USE_BLUEFROG"])
+        else:
+            use_bf = False
+            actual_py_path = os.path.join(BASE, folder, "core", "config.py")
+            if os.path.exists(actual_py_path):
+                try:
+                    with open(actual_py_path, "r", encoding="utf-8", errors="ignore") as pf:
+                        py_code = pf.read()
+                        if "USE_BLUEFROG: bool = True" in py_code or "USE_BLUEFROG = True" in py_code:
+                            use_bf = True
+                except Exception:
+                    pass
 
         # 6. 자동반전 플래그 (메타 우선)
         if meta and "auto_switch" in meta:
@@ -714,9 +714,13 @@ def read_bot_config(folder):
         
         if folder == "8405":
             rr_str = "1:1.5+ (BB중심)"
+        elif folder in ["8404", "8408"]:
+            rr_str = "MR 1.5R+ / BBTS 1:3"
+        elif folder == "8402":
+            rr_str = "1:1.9 (TP 2.8%)"
         elif "SMA" in tp_str or "BB Mid" in tp_str or folder in ["8403"]:
             rr_str = "SMA(동적)"
-        elif "(1:3)" in tp_str or "(1:3.0)" in tp_str or folder in ["8401", "8404", "8407", "8408", "8409", "8410"]:
+        elif "(1:3)" in tp_str or "(1:3.0)" in tp_str or folder in ["8401", "8407", "8409", "8410"]:
             rr_str = "1:3.0"
         elif "(1:2)" in tp_str or "(1:2.0)" in tp_str or folder in ["8402"]:
             rr_str = "1:2.0"
