@@ -712,13 +712,13 @@ def read_bot_config(folder):
         be_trig = float(cfg.get("BE_GUARD_TRIGGER_PCT", 0.0) or 0.0)
         be_str = f"{be_trig * 100:.1f}%" if use_be and be_trig > 0 else "미사용"
         
-        if folder == "8405":
+        if folder in ["8403", "8405"]:
             rr_str = "1:1.5+ (BB중심)"
         elif folder in ["8404", "8408"]:
             rr_str = "MR 1.5R+ / BBTS 1:3"
         elif folder == "8402":
             rr_str = "1:1.9 (TP 2.8%)"
-        elif "SMA" in tp_str or "BB Mid" in tp_str or folder in ["8403"]:
+        elif "SMA" in tp_str or "BB Mid" in tp_str:
             rr_str = "SMA(동적)"
         elif "(1:3)" in tp_str or "(1:3.0)" in tp_str or folder in ["8401", "8407", "8409", "8410"]:
             rr_str = "1:3.0"

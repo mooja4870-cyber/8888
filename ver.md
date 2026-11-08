@@ -1,5 +1,32 @@
 # Version History
 
+## v1.2.106
+Date: 2026-11-09
+
+### 변경 내용
+* [8403(OKX BB MR 15m) 수익성 구조 전면 개선 (8405 v2.0.0 검증 메커니즘 이식 + 7대 영역 동기화, 보스 5단계 승인)]
+  - `8403` (`v2.3.0`):
+    1) `trader.py`에서 `has_swing_sltp`가 가로채어 사문화돼 있던 `Mean Reversion` 1:1.5+ 손익비 분기 최우선 복원 (`SL 0.8~1.5%`, `TP = max(BB중심선, SL×1.5)`), SL 캡 발동 시 TP `ratio` 동반 축소 제거, 정률 복리 `35.0%`(`USE_DYNAMIC_COMPOUND_SCALING=false`) 적용
+    2) `strategy.py`에 Wilder `ADX(14)` 강추세(`ADX > 30`) 반전봉 확인 필터 및 `MR_SL_ATR_MULT(1.5)`, `MR_TP_MIN_RR(1.5)` 연동
+    3) `trailing_stop_manager.py` & `exchange.py`에 `USE_PARTIAL_TP=false`, `TRAILING_ACTIVATE_PCT(+1.5%)` 활성화 게이트 신설, 본절 조건부 주문 수수료 이중 가산 제거 및 중복 등록 방지(`Idempotency`) 탑재
+    4) `core/config.py` 신규 키 선언, `app.py` `🔗 OKX 연결` 라벨·툴팁·사이드바 카드 동기화
+  - `8888` (`v1.2.106`): `read_bot_config()` 내 `8403` 손익비 표기를 `"SMA(동적)"`에서 `"1:1.5+ (BB중심)"`으로 `8405`와 일체화
+
+### 수정 파일
+* /Users/l/project/8403/core/strategy.py
+* /Users/l/project/8403/core/trader.py
+* /Users/l/project/8403/core/trailing_stop_manager.py
+* /Users/l/project/8403/core/exchange.py
+* /Users/l/project/8403/core/config.py
+* /Users/l/project/8403/config.json
+* /Users/l/project/8403/app.py
+* /Users/l/project/8403/ver.md
+* /Users/l/project/8888/app.py
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 검증 완료
+
 ## v1.2.105
 Date: 2026-11-08
 
