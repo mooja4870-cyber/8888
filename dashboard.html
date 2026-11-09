@@ -1370,8 +1370,18 @@ function renderBotAssetSection(d, force = false) {
 
     const _rawBots = [...(d.bots||[]), ...(d.extra_bots||[])];
     const allBots = Array.from(new Map(_rawBots.map(b => [b.name, b])).values());
-    // 고정 탭 순서
-    const tabs = ['8401', '8402', '8403', '8404', '8405', '8407', '8408', '8409', '8410'];
+    // [보스 특별 지침: 미기동 봇 집계/탭 제외] 현재 기동/관제 중인 봇만 탭으로 동적 구성
+    const activeBots = allBots.filter(b => b.alive !== false);
+    const preferredOrder = ['8401', '8402', '8403', '8404', '8405', '8407', '8408', '8409', '8410'];
+    const activeNames = new Set(activeBots.map(b => b.name));
+    const tabs = preferredOrder.filter(t => activeNames.has(t));
+    activeBots.forEach(b => {
+        if (!tabs.includes(b.name)) tabs.push(b.name);
+    });
+
+    if (!tabs.includes(_selectedBotForAsset) && _selectedBotForAsset !== '전체') {
+        _selectedBotForAsset = tabs[0] || '8401';
+    }
     
     // 매매전략 유형별 폰트 색상 (유형1-노랑, 유형2-빨강, 유형3-파랑)
     const typeColors = {
@@ -1412,7 +1422,7 @@ function renderBotAssetSection(d, force = false) {
     if (_selectedBotForAsset === '전체') {
         let min_perf_start = null;
         let min_ts = Infinity;
-        const calcBots = allBots.filter(b => ![''].includes(b.name));
+        const calcBots = allBots.filter(b => b.alive !== false && ![''].includes(b.name));
         calcBots.forEach(b => {
             if (b.perf_start) {
                 const t = new Date(b.perf_start.replace(' ', 'T')).getTime();
