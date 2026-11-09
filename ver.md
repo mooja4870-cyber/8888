@@ -1,5 +1,40 @@
 # Version History
 
+## v1.2.108
+Date: 2026-11-09
+
+### 변경 내용
+* [전체 핵심 봇(8401 v2.3.4, 8402 v2.4.1, 8408 v12.2.1, 8410 v2.1.3) 보호주문 교체 프로토콜 및 청산 상태 영속화 통합 패치 완료 (보스 5단계 승인)]
+  - OKX 봇 (`8401`, `8402`):
+    1) `core/exchange.py`: `rearm_position_protection()` 시그니처 확장(`sl_price_override`, `sl_price`, `tp_price`)으로 `[TP BREAKOUT]` 크래시 방지 및 상향된 SL 실거래소 반영 보장
+    2) `arm_breakeven_stop()`에서 기존 알고주문(`oco`, `conditional`) 사전 확인 및 OCO 선취소 후 재무장 위임으로 OKX `sCode: 51088` 및 워치독 재기동 루프 원천 차단
+    3) `core/engine.py`: `self.ts_manager` 오타 수정 및 `be_guard_armed`, `tp_breakout_done`, `pos_stop_prices`, `pos_peak_prices` 영속화
+  - Binance 봇 (`8408`, `8410`):
+    1) `core/exchange.py`: `arm_breakeven_stop()`에서 `closePosition=True` 중복 발주 대신 기존 SL stopPrice 점검 및 `rearm_position_protection()` 호출로 수량 기반 + `MARK_PRICE` 교체 (-4130 에러 원천 차단)
+    2) `core/trailing_stop_manager.py` & `core/engine.py`: 본절 가드 성공 시에만 등록 및 4대 청산 상태(`be_guard_armed`, `tp_breakout_done`, `pos_stop_prices`, `pos_peak_prices`) 영속화 완료
+
+### 수정 파일
+* /Users/l/project/8401/core/exchange.py
+* /Users/l/project/8401/core/trailing_stop_manager.py
+* /Users/l/project/8401/core/engine.py
+* /Users/l/project/8401/ver.md
+* /Users/l/project/8402/core/exchange.py
+* /Users/l/project/8402/core/trailing_stop_manager.py
+* /Users/l/project/8402/core/engine.py
+* /Users/l/project/8402/ver.md
+* /Users/l/project/8408/core/exchange.py
+* /Users/l/project/8408/core/trailing_stop_manager.py
+* /Users/l/project/8408/core/engine.py
+* /Users/l/project/8408/ver.md
+* /Users/l/project/8410/core/exchange.py
+* /Users/l/project/8410/core/trailing_stop_manager.py
+* /Users/l/project/8410/core/engine.py
+* /Users/l/project/8410/ver.md
+* /Users/l/project/8888/ver.md
+
+### 비고
+* verify_all 100% PASS 확인 완료
+
 ## v1.2.107
 Date: 2026-11-09
 
