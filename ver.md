@@ -1,5 +1,37 @@
 # Version History
 
+## v1.2.107
+Date: 2026-11-09
+
+### 변경 내용
+* [OKX 3대 봇(8405 v2.0.1, 8403 v2.3.1, 8404 v2.2.1) 보호주문 교체 프로토콜(`sCode: 51088` 원천 차단) 및 트레일링 래칫 영속화 패치 (보스 5단계 승인)]
+  - `core/exchange.py` (`8403, 8404, 8405`):
+    1) `rearm_position_protection()`에 `sl_price_override` 파라미터를 추가하여 `[TP BREAKOUT]` 및 본전 가드 발동 시 상향된 손절가가 실제 OKX 거래소 조건부 SL(`slTriggerPx`)로 정확히 등록되도록 수정
+    2) `arm_breakeven_stop()`에서 기존 미체결 알고주문(`oco`, `conditional`)의 `slTriggerPx`를 확인하여 이미 본전 이상으로 상향된 경우 중복 발주를 스킵하고, 불리한 경우에만 기존 알고주문을 선취소 후 단일 주문으로 교체하여 OKX `sCode: 51088` 에러 및 워치독 강제 재기동 루프 원천 차단
+  - `core/trailing_stop_manager.py` & `core/engine.py` (`8403, 8404, 8405`):
+    1) `_check_tp_breakout()`에서 `sl_price_override=new_sl_price` 전달 및 `position_breakeven_armed[sym] = True` 마킹
+    2) `save_engine_states()` / `load_engine_states()`에 `tp_breakout_done`, `breakeven_armed`, `pos_stop_prices`, `pos_peak_prices` 영속화 추가 (재기동 시 트레일링 고점 및 래칫 스탑가 리셋 방지)
+
+### 수정 파일
+* /Users/l/project/8405/core/exchange.py
+* /Users/l/project/8405/core/trailing_stop_manager.py
+* /Users/l/project/8405/core/engine.py
+* /Users/l/project/8405/ver.md
+* /Users/l/project/8403/core/exchange.py
+* /Users/l/project/8403/core/trailing_stop_manager.py
+* /Users/l/project/8403/core/engine.py
+* /Users/l/project/8403/ver.md
+* /Users/l/project/8404/core/exchange.py
+* /Users/l/project/8404/core/trailing_stop_manager.py
+* /Users/l/project/8404/core/engine.py
+* /Users/l/project/8404/ver.md
+* /Users/l/project/8888/ver.md
+
+### 비고
+* 8405 AR/USDT:USDT LONG +18.59% (+$1.0117) 익절 마감 확인 및 verify_all.py 100% PASS 검증 완료
+
+---
+
 ## v1.2.106
 Date: 2026-11-09
 
