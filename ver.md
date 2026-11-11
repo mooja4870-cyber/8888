@@ -1,5 +1,30 @@
 # Version History
 
+## v1.6.0
+
+Date: 2026-11-11
+
+### 변경 내용
+
+* Phase 3 Group A (`8401 v2.3.5`, `8402 v2.5.0`, `8403 v2.4.0`, `8405 v3.0.0`) 전수 적용 및 중앙 관제·워치독·검증 동기화:
+  * `app.py`: `8403`(BB MR 1:1.5+)와 `8405`(Donchian20 ATR×4.5 손익비 동적 파싱) 손익비 표시 로직 분리
+  * `bot_watchdog.py`: `watchdog_common`과 동일한 `/tmp/watchdog_restart_{bot_id}.lock` `fcntl.flock` 락 공유로 다중 워치독 동시 재기동(8403 중복 기동류) 원천 차단
+  * `verify_all.py`: `8403`·`8405` `core/config.py` 신규 데이터클래스 필드 선언 무결성 검증 추가
+  * `strategy_baselines.json`: `8405` 라이브 기준선을 `Donchian20_Vol1.2_BTC200EMA_4h_M4` (4h, 기대 MDD `22.8%`, 최대 연패 `8`)로 승격 등록
+
+### 수정 파일
+
+* app.py
+* bot_watchdog.py
+* verify_all.py
+* strategy_baselines.json
+* ver.md
+
+### 비고
+
+* Phase 3 Group B (`8404 v2.3.0`, `8408 v12.3.0`) + Group A 전체 통합 검증 완료 (기존 레거시 `v1.5.0` 태그가 원격에 이미 존재하여 `v1.6.0`으로 부여)
+
+
 ## v1.4.0
 Date: 2026-11-11
 

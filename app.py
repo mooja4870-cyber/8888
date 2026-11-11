@@ -756,8 +756,13 @@ def read_bot_config(folder):
         be_trig = float(cfg.get("BE_GUARD_TRIGGER_PCT", 0.0) or 0.0)
         be_str = f"{be_trig * 100:.1f}%" if use_be and be_trig > 0 else "미사용"
         
-        if folder in ["8403", "8405"]:
+        if folder == "8403":
             rr_str = "1:1.5+ (BB중심)"
+        elif folder == "8405":
+            _don_sl = float(cfg.get("DON_SL_ATR_MULT", 2.0) or 2.0)
+            _don_tp = float(cfg.get("DON_TP_ATR_MULT", 4.5) or 4.5)
+            _rr_ratio = round(_don_tp / _don_sl, 2) if _don_sl > 0 else 2.25
+            rr_str = f"1:{_rr_ratio:g} (ATR×{_don_tp:g})"
         elif folder in ["8404", "8408"]:
             rr_str = "MR 1.5R+ / BBTS 1:3"
         elif folder == "8402":

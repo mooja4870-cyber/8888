@@ -167,6 +167,34 @@ def kill_port(port):
     time.sleep(1.5)
 
 
+def _bot_id_from_target(name: str):
+    """'8403_bot' / '8403_app' 등에서 4자리 봇 ID 추출."""
+    head = str(name or "").split("_", 1)[0]
+    return head if (head.isdigit() and len(head) == 4) else None
+
+
+def _run_with_restart_lock(target, action_fn):
+    """watchdog_common.bot_restart_locked()와 동일한 /tmp/watchdog_restart_{bot}.lock으로 경합 방지."""
+    bot_id = _bot_id_from_target(target.get("name"))
+    if not bot_id:
+        return action_fn()
+    import fcntl
+    lock_path = f"/tmp/watchdog_restart_{bot_id}.lock"
+    with open(lock_path, "a+") as lf:
+        try:
+            fcntl.flock(lf.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except (BlockingIOError, OSError):
+            log(f"⏳ [{target['name']}] 타 워치독 재기동 진행 중(lock_held) → 이번 주기 스킵")
+            return False
+        try:
+            return action_fn()
+        finally:
+            try:
+                fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
+            except Exception:
+                pass
+
+
 def launch(target):
     """해당 폴더에서 분리(start_new_session) 실행."""
     os.makedirs(LOG_DIR, exist_ok=True)
@@ -337,7 +365,7 @@ def main():
         launched_any = False
         for t in targets:
             try:
-                if check_and_manage(t):
+                if _run_with_restart_lock(t, lambda _t=t: check_and_manage(_t)):
                     launched_any = True
             except Exception as e:
                 log(f"⚠️ [{t['name']}] 검사/조치 중 오류: {str(e)[:150]}")

@@ -132,7 +132,7 @@ def verify_all():
                     pass
 
                 # (3) core/config.py 필수 필드 선언 검사 (키 유실 방지)
-                if bot_id in ['8404', '8407', '8409', '8410']:
+                if bot_id in ['8403', '8404', '8405', '8407', '8409', '8410']:
                     core_cfg_file = os.path.join(bot_path, 'core', 'config.py')
                     if os.path.exists(core_cfg_file):
                         try:
@@ -141,6 +141,14 @@ def verify_all():
                             check_keys = ['DASHBOARD_META']
                             if bot_id == '8404':
                                 check_keys += ['KC_PERIOD', 'KC_MULT', 'HURST_MR_THRESH', 'HURST_TREND_THRESH']
+                            elif bot_id == '8403':
+                                check_keys += ['ALLOW_ADX_COUNTER', 'USE_DYNAMIC_REGIME']
+                            elif bot_id == '8405':
+                                check_keys += [
+                                    'DON_LEN', 'DON_VOL_LEN', 'DON_VOL_MULT', 'BTC_EMA_LEN',
+                                    'USE_BTC_TREND_FILTER', 'DON_SL_ATR_MULT', 'DON_TP_ATR_MULT',
+                                    'MIN_SL_PCT', 'USE_BE_GUARD', 'STRATEGY_NAME',
+                                ]
                             for sk in check_keys:
                                 if sk in cfg_data and sk not in core_cfg_text:
                                     errors.append(f"❌ core/config.py 데이터클래스 선언 누락: '{sk}' 필드가 없어 저장 시 유실 위험!")
