@@ -6,14 +6,29 @@ import socket
 import subprocess
 import logging
 
-# Set up logging for the watchdog
+BASE_8888 = os.path.dirname(os.path.abspath(__file__))
+if BASE_8888 not in sys.path:
+    sys.path.insert(0, BASE_8888)
+from watchdog_common import bot_restart_locked, record_proactive_alert
+
+_ENTRY_LOG = os.path.join(BASE_8888, "watchdog_entry.log")
+_stdout_redirected = False
+try:
+    if os.path.exists(_ENTRY_LOG):
+        _s1, _s2 = os.fstat(sys.stdout.fileno()), os.stat(_ENTRY_LOG)
+        _stdout_redirected = (_s1.st_dev == _s2.st_dev and _s1.st_ino == _s2.st_ino)
+except Exception:
+    _stdout_redirected = False
+
+# Avoid duplicate log lines when watchdog_keeper.sh already redirects stdout -> watchdog_entry.log
+_handlers = [logging.StreamHandler(sys.stdout)] if _stdout_redirected else [
+    logging.FileHandler(_ENTRY_LOG),
+    logging.StreamHandler(sys.stdout),
+]
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.FileHandler("/Users/l/project/8888/watchdog_entry.log"),
-        logging.StreamHandler(sys.stdout)
-    ]
+    handlers=_handlers,
 )
 logger = logging.getLogger("Watchdog")
 
@@ -470,83 +485,36 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
             if entry_issue:
                 logger.warning(f"[{b}] 🚨 진입 주문 거절/실패 이상 감지: {entry_reason}")
                 action_taken.append(entry_reason)
-                
-                # [적의조처: 에러 유형별 자동 치유]
-                if err_type == "NOTIONAL_MIN_ERROR" or err_type == "LEVERAGE_RESTRICTION_ERROR":
+
+                # [원칙 준수] config.json / 리스크 파라미터 임의 자동 수정 금지 -> 선제 진단·승인 권고 보고만 기록
+                if err_type in ("NOTIONAL_MIN_ERROR", "LEVERAGE_RESTRICTION_ERROR", "MARGIN_SETTING_ERROR", "AVAILABLE_MARGIN_ERROR"):
                     cfg_file = os.path.join(cwd, "config.json")
+                    cur_margin = cur_lev = cur_risk = None
                     if os.path.exists(cfg_file):
                         try:
                             with open(cfg_file, "r", encoding="utf-8") as cf:
                                 b_cfg = json.load(cf)
-                            
                             cur_lev = float(b_cfg.get("LEVERAGE", 3.0) or 3.0)
                             cur_margin = float(b_cfg.get("MARGIN_USDT", 1.5) or 1.5)
-                            
-                            fix_msg_list = []
-                            # 1) 레버리지 강제 하향 (서브계정 5배 제한 대응)
-                            if cur_lev > 5.0 and (err_type == "LEVERAGE_RESTRICTION_ERROR" or cur_lev > 5):
-                                b_cfg["LEVERAGE"] = 5.0
-                                fix_msg_list.append(f"LEVERAGE 하향({cur_lev}→5.0)")
-                                cur_lev = 5.0
-                            
-                            # 2) 안전 마진(최소 6 Notional 확보) 상향 조정
-                            # 보수적으로 실제 레버리지가 3일 수도 있으므로, 계산은 최소 레버리지(min(cur_lev, 3.0))를 기반으로 안전하게 2.0 이상을 확보하도록 함.
-                            safe_lev = min(cur_lev, 3.0)
-                            req_margin = max(round(6.0 / safe_lev, 1), 2.0)
-                            
-                            if cur_margin < req_margin:
-                                b_cfg["MARGIN_USDT"] = req_margin
-                                fix_msg_list.append(f"MARGIN_USDT 상향({cur_margin}→{req_margin})")
-                                
-                                # 마진을 높였는데 RISK_PER_TRADE_PCT가 낮으면 진입을 못하므로 리스크 허용치도 보정
-                                cur_risk = float(b_cfg.get("RISK_PER_TRADE_PCT", 0.01) or 0.01)
-                                if cur_risk < 0.05:
-                                    b_cfg["RISK_PER_TRADE_PCT"] = 0.05
-                                    fix_msg_list.append(f"RISK_PCT 상향({cur_risk}→0.05)")
+                            cur_risk = float(b_cfg.get("RISK_PER_TRADE_PCT", 0.01) or 0.01)
+                        except Exception:
+                            pass
+                    rec = (
+                        f"{err_type} 반복 발생 (margin={cur_margin}, lev={cur_lev}, risk={cur_risk}) — "
+                        "보스 승인 후 최소 주문금액(>=5 USDT 명목가) 또는 증거금/리스크 한도 점검 권고"
+                    )
+                    logger.warning(f"[{b}] 📋 자동 설정 변경 차단됨 (승인 대기 보고): {rec}")
+                    record_proactive_alert(
+                        str(b),
+                        f"entry_{err_type.lower()}",
+                        "WARN",
+                        f"진입 주문 이상 감지 ({err_type})",
+                        entry_reason,
+                        rec,
+                    )
+                    action_taken.append("설정 자동변경 차단·보고완료")
 
-                            if fix_msg_list:
-                                with open(cfg_file, "w", encoding="utf-8") as cf:
-                                    json.dump(b_cfg, cf, indent=4, ensure_ascii=False)
-                                msg_fix = " | ".join(fix_msg_list) + " 자가 치유"
-                                logger.info(f"[{b}] 🛠 {msg_fix}")
-                                action_taken.append(msg_fix)
-                        except Exception as ce:
-                            logger.error(f"[{b}] config.json Notional/Leverage 치유 실패: {ce}")
-                elif err_type == "MARGIN_SETTING_ERROR":
-                    cfg_file = os.path.join(cwd, "config.json")
-                    if os.path.exists(cfg_file):
-                        try:
-                            with open(cfg_file, "r", encoding="utf-8") as cf:
-                                b_cfg = json.load(cf)
-                            cur_factor = float(b_cfg.get("EQUITY_SCALE_FACTOR", 1.0) or 1.0)
-                            if cur_factor < 1.0:
-                                b_cfg["EQUITY_SCALE_FACTOR"] = 1.0
-                                with open(cfg_file, "w", encoding="utf-8") as cf:
-                                    json.dump(b_cfg, cf, indent=4, ensure_ascii=False)
-                                msg_fix = f"EQUITY_SCALE_FACTOR 자가 상향 치유({cur_factor}→1.0)"
-                                logger.info(f"[{b}] 🛠 {msg_fix}")
-                                action_taken.append(msg_fix)
-                        except Exception as ce:
-                            logger.error(f"[{b}] config.json MARGIN_SETTING_ERROR 치유 실패: {ce}")
-                elif err_type == "AVAILABLE_MARGIN_ERROR":
-                    state_file = os.path.join(cwd, "data", "dynamic_compound_state.json")
-                    if os.path.exists(state_file):
-                        try:
-                            with open(state_file, "r", encoding="utf-8") as sf:
-                                state_data = json.load(sf)
-                            cur_pct = state_data.get("target_pct", 0.0)
-                            if cur_pct > 3.0:
-                                new_pct = round(cur_pct - 3.0, 1)
-                                state_data["target_pct"] = new_pct
-                                with open(state_file, "w", encoding="utf-8") as sf:
-                                    json.dump(state_data, sf, indent=4, ensure_ascii=False)
-                                msg_fix = f"복리 목표율(target_pct) 하향 튜닝({cur_pct}%→{new_pct}%)"
-                                logger.info(f"[{b}] 🛠 {msg_fix}")
-                                action_taken.append(msg_fix)
-                        except Exception as ce:
-                            logger.error(f"[{b}] dynamic_compound_state 치유 실패: {ce}")
-                
-                needs_restart = True
+                needs_restart = err_type not in ("AVAILABLE_MARGIN_ERROR", "INSUFFICIENT_BALANCE_ERROR")
             else:
                 # 2) 무포지션 봇 정밀 건전성 감사
                 flat_issue, flat_reason = check_flat_bot_readiness(b, cwd)
@@ -573,7 +541,7 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                 with open(active_pos_file, "r") as pf:
                     pdata = json.load(pf)
                 if len(pdata) > 0:
-                    logger.warning(f"[{b}] 🛡 포지션({len(pdata)}건) 보유 확인! 트레일링 스탑 보호를 위해 재기동 유예 및 교정 지연(Deferred Patch).")
+                    logger.warning(f"[{b}] 🛡 포지션({len(pdata)}건) 보유 확인! 트레일링 스탑 보호를 위해 재기동 유예.")
                     needs_restart = False
         except Exception as e:
             logger.error(f"[{b}] ⚠️ 포지션 상태 확인 실패: {e}")
@@ -581,38 +549,30 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
     # [보스 지침] 이상이 감지되었으나 포지션 보호로 재기동이 유예된 경우 텔레그램 경보 발송
     if action_taken and not needs_restart and bot_alive:
         try:
-            alert_msg = f"⚠️ **[워치독 진입 이상 감지 (재기동 유예): {b}]**\\n\\n감지 내역: {', '.join(action_taken)}\\n상태: 포지션 보호를 위해 청산 후 재기동 유예 (Config 교정 완료)."
+            alert_msg = f"⚠️ **[워치독 진입 이상 감지 (재기동 유예): {b}]**\\n\\n감지 내역: {', '.join(action_taken)}\\n상태: 포지션 보호를 위해 재기동 유예 (설정 자동변경 차단 · 승인 대기 보고 완료)."
             py_cmd = f"import sys; sys.path.insert(0, '{cwd}'); import core.alert as alert; alert.send_telegram_alert('{alert_msg}')"
             subprocess.run(["python3", "-c", py_cmd], cwd=cwd)
         except Exception as e:
             logger.error(f"[{b}] 텔레그램 알림 발송 실패: {e}")
 
-    # 3. 조치 (재기동 및 교정)
+    # 3. 조치 (재기동)
     if needs_restart:
-        logger.info(f"[{b}] 🛠 적의조처 실행: Config 교정 및 2-Step 재부팅...")
-        
-        # [Phase 2] 이 순간에 비로소 디스크를 교정하여 상태 비동기화를 완벽 방어
-        # [2026-09-02] 매매방향 교정 제거 — 스위칭은 엔진 단일 주체다.
-        # 워치독이 config.json의 USE_BLUEFROG를 되쓰면, 엔진이 방금 바꾼 방향을
-        # 워치독이 되돌리는 경합이 난다(실제로 "방향성 오염 확정 / 자가 교정 실패"
-        # 로그가 반복됐다). 워치독은 생존·재기동만 책임진다.
+        logger.info(f"[{b}] 🛠 공유 락(flock) 기반 2-Step 안전 재부팅 시도...")
 
-        # [Phase 2] 2-Step Graceful Shutdown은 각 봇의 run.sh 내부 로직에 이미 완벽하게 구현되어 있습니다.
-        # 전역 pkill은 다른 봇을 학살하므로 절대 사용하지 않고 run.sh에 위임합니다.
-        subprocess.run("bash run.sh > /dev/null 2>&1", shell=True, cwd=cwd)
-        logger.info(f"[{b}] ✅ 재기동 완료. 조치 내역: {', '.join(action_taken)}")
-        
-        # API Rate Limit (밴) 방지를 위한 지연 재기동 (Staggered Restart)
-        logger.info(f"[{b}] API 보호를 위해 5초 대기 후 다음 봇 순찰로 넘어갑니다...")
-        time.sleep(5)
-        
-        # 텔레그램 알림 발송 (각 봇의 폴더 내에서 독립된 프로세스로 실행하여 캐싱 방지)
-        try:
-            alert_msg = f"🚨 **[워치독 긴급 조치: {b}]**\\n\\n발견된 문제: {', '.join(action_taken)}\\n조치: 2-Step Graceful 재기동 완료."
-            py_cmd = f"import sys; sys.path.insert(0, '{cwd}'); import core.alert as alert; alert.send_telegram_alert('{alert_msg}')"
-            subprocess.run(["python3", "-c", py_cmd], cwd=cwd)
-        except Exception as e:
-            logger.error(f"[{b}] 텔레그램 알림 발송 실패: {e}")
+        restart_ok, restart_detail = bot_restart_locked(
+            str(b), cwd, source="watchdog_entry", reason=", ".join(action_taken) or "health_restart", cooldown_sec=120
+        )
+        if not restart_ok:
+            logger.info(f"[{b}] ⏭️ 재기동 생략/보류 ({restart_detail})")
+        else:
+            logger.info(f"[{b}] ✅ 재기동 완료. 조치 내역: {', '.join(action_taken)} ({restart_detail})")
+            time.sleep(5)
+            try:
+                alert_msg = f"🚨 **[워치독 긴급 조치: {b}]**\\n\\n발견된 문제: {', '.join(action_taken)}\\n조치: 공유 락 2-Step Graceful 재기동 완료."
+                py_cmd = f"import sys; sys.path.insert(0, '{cwd}'); import core.alert as alert; alert.send_telegram_alert('{alert_msg}')"
+                subprocess.run(["python3", "-c", py_cmd], cwd=cwd, timeout=15)
+            except Exception as e:
+                logger.error(f"[{b}] 텔레그램 알림 발송 실패: {e}")
     else:
         logger.info(f"[{b}] 정상 작동 중")
         # [보스 특별 지침] 핵심 봇 대상 포지션 청산 기준 건전성 실시간 감시

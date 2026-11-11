@@ -1,0 +1,217 @@
+{
+  "_meta": {
+    "version": "1.0.0",
+    "generated_at": "2026-11-11",
+    "source": "Phase 1 Binance 5y (1h/4h 21-coin common span 2021-11-11~2026-11-11) & 3y (15m 18-coin 2023-11-11~2026-11-11) + OKX 3y OOS",
+    "policy": "Detect breaches proactively and emit approval proposals to Boss; NEVER auto-mutate bot strategies or config.json."
+  },
+  "bots": {
+    "8401": {
+      "strategy_id": "QVT_Pullback_1h",
+      "timeframe": "1h",
+      "exchange": "okx",
+      "approval_tier": 5,
+      "backtest": {
+        "horizon_years": 5.0,
+        "cost_bps_rt": 10,
+        "trades": 1809,
+        "win_rate_pct": 55.4,
+        "net_pf": 0.88,
+        "net_ret_pct": -67.6,
+        "expected_mdd_pct": 72.0,
+        "expected_max_loss_streak": 12,
+        "fee_ratio_pct": 829.0,
+        "recent_30d_pf": 1.15,
+        "recent_30d_mdd_pct": 6.2
+      },
+      "thresholds": {
+        "peak_mdd_warn_pct": 12.0,
+        "peak_mdd_kill_pct": 20.0,
+        "max_loss_streak_warn": 8,
+        "max_loss_streak_kill": 12,
+        "max_fee_ratio_warn_pct": 50.0,
+        "max_fee_ratio_kill_pct": 100.0,
+        "min_sample_days": 30,
+        "review_target_days": 60,
+        "recommend_max_drawdown_pct": 0.20,
+        "recommend_daily_loss_limit_pct_of_seed": 0.06,
+        "require_dynamic_regime": true
+      }
+    },
+    "8402": {
+      "strategy_id": "QVT_Pullback_1h",
+      "timeframe": "1h",
+      "exchange": "okx",
+      "approval_tier": 5,
+      "backtest": {
+        "horizon_years": 5.0,
+        "cost_bps_rt": 10,
+        "trades": 2125,
+        "win_rate_pct": 55.4,
+        "net_pf": 0.89,
+        "net_ret_pct": -82.9,
+        "expected_mdd_pct": 88.3,
+        "expected_max_loss_streak": 12,
+        "fee_ratio_pct": 573.0,
+        "note": "Current Comp30% MP3 NoScale vs 8401-parity M4 1% MP2 Scale (-66.8% / MDD 70.7%)"
+      },
+      "thresholds": {
+        "peak_mdd_warn_pct": 12.0,
+        "peak_mdd_kill_pct": 20.0,
+        "max_loss_streak_warn": 8,
+        "max_loss_streak_kill": 12,
+        "max_fee_ratio_warn_pct": 50.0,
+        "max_fee_ratio_kill_pct": 100.0,
+        "min_sample_days": 30,
+        "review_target_days": 60,
+        "recommend_max_drawdown_pct": 0.20,
+        "recommend_daily_loss_limit_pct_of_seed": 0.06,
+        "require_dynamic_regime": true
+      }
+    },
+    "8403": {
+      "strategy_id": "BB_MR_15m",
+      "timeframe": "15m",
+      "exchange": "okx",
+      "approval_tier": 5,
+      "backtest": {
+        "horizon_years": 3.0,
+        "cost_bps_rt": 10,
+        "trades": 2206,
+        "win_rate_pct": 40.8,
+        "net_pf": 0.85,
+        "net_ret_pct": -95.1,
+        "expected_mdd_pct": 95.4,
+        "expected_max_loss_streak": 17,
+        "fee_ratio_pct": 1592.0,
+        "note": "All 6x 6m splits negative [-46..-90%]; Strict ADX<=30 reduces BandWalk tail only if upgraded"
+      },
+      "thresholds": {
+        "peak_mdd_warn_pct": 12.0,
+        "peak_mdd_kill_pct": 20.0,
+        "max_loss_streak_warn": 7,
+        "max_loss_streak_kill": 10,
+        "max_fee_ratio_warn_pct": 50.0,
+        "max_fee_ratio_kill_pct": 100.0,
+        "min_sample_days": 30,
+        "review_target_days": 45,
+        "recommend_max_drawdown_pct": 0.20,
+        "recommend_daily_loss_limit_pct_of_seed": 0.06,
+        "require_dynamic_regime": true
+      }
+    },
+    "8404": {
+      "strategy_id": "FUSION_1h_OKX",
+      "timeframe": "1h",
+      "exchange": "okx",
+      "approval_tier": 2,
+      "backtest": {
+        "horizon_years": 5.0,
+        "cost_bps_rt": 12,
+        "trades": 2130,
+        "win_rate_pct": 45.4,
+        "net_pf": 0.87,
+        "net_ret_pct": -95.1,
+        "expected_mdd_pct": 96.9,
+        "expected_max_loss_streak": 13,
+        "fee_ratio_pct": 861.0,
+        "static_5y_pf": 0.90,
+        "static_5y_mdd_pct": 97.5,
+        "note": "Collect 30~60d live sample before judging Static vs 5-of-3 AutoSwitch"
+      },
+      "thresholds": {
+        "peak_mdd_warn_pct": 14.0,
+        "peak_mdd_kill_pct": 22.0,
+        "max_loss_streak_warn": 8,
+        "max_loss_streak_kill": 12,
+        "max_fee_ratio_warn_pct": 50.0,
+        "max_fee_ratio_kill_pct": 100.0,
+        "min_sample_days": 30,
+        "review_target_days": 60,
+        "recommend_max_drawdown_pct": 0.22,
+        "recommend_daily_loss_limit_pct_of_seed": 0.06,
+        "require_dynamic_regime": true
+      }
+    },
+    "8405": {
+      "strategy_id": "BB_MR_15m_Candidate_4h_Don20",
+      "timeframe": "15m",
+      "exchange": "okx",
+      "approval_tier": 5,
+      "backtest": {
+        "horizon_years": 3.0,
+        "cost_bps_rt": 10,
+        "trades": 2206,
+        "win_rate_pct": 40.8,
+        "net_pf": 0.85,
+        "net_ret_pct": -95.1,
+        "expected_mdd_pct": 95.4,
+        "expected_max_loss_streak": 17,
+        "fee_ratio_pct": 1592.0,
+        "recommended_4h_target": {
+          "strategy": "Donchian20_Vol1.2_BTC200EMA_4h_M4",
+          "horizon_years": 5.0,
+          "cost_bps_rt": 12,
+          "trades": 1633,
+          "win_rate_pct": 68.6,
+          "net_pf": 1.19,
+          "net_ret_pct": 159.1,
+          "expected_mdd_pct": 22.8,
+          "expected_max_loss_streak": 8,
+          "fee_ratio_pct": 33.0,
+          "corr_vs_8401": 0.072,
+          "corr_vs_8404": 0.065,
+          "okx_3y_wl_pf": 1.07,
+          "okx_3y_wl_ret_pct": 24.7,
+          "okx_3y_wl_mdd_pct": 21.7
+        }
+      },
+      "thresholds": {
+        "peak_mdd_warn_pct": 14.0,
+        "peak_mdd_kill_pct": 22.0,
+        "max_loss_streak_warn": 6,
+        "max_loss_streak_kill": 9,
+        "max_fee_ratio_warn_pct": 50.0,
+        "max_fee_ratio_kill_pct": 100.0,
+        "min_sample_days": 30,
+        "review_target_days": 60,
+        "recommend_max_drawdown_pct": 0.22,
+        "recommend_daily_loss_limit_pct_of_seed": 0.06,
+        "require_dynamic_regime": true
+      }
+    },
+    "8408": {
+      "strategy_id": "FUSION_1h_BNC",
+      "timeframe": "1h",
+      "exchange": "binance",
+      "approval_tier": 2,
+      "backtest": {
+        "horizon_years": 5.0,
+        "cost_bps_rt": 12,
+        "trades": 2130,
+        "win_rate_pct": 45.4,
+        "net_pf": 0.87,
+        "net_ret_pct": -95.1,
+        "expected_mdd_pct": 96.9,
+        "expected_max_loss_streak": 13,
+        "fee_ratio_pct": 861.0,
+        "static_5y_pf": 0.90,
+        "static_5y_mdd_pct": 97.5,
+        "note": "Collect 30~60d live sample before judging Static vs 5-of-3 AutoSwitch"
+      },
+      "thresholds": {
+        "peak_mdd_warn_pct": 14.0,
+        "peak_mdd_kill_pct": 22.0,
+        "max_loss_streak_warn": 8,
+        "max_loss_streak_kill": 12,
+        "max_fee_ratio_warn_pct": 50.0,
+        "max_fee_ratio_kill_pct": 100.0,
+        "min_sample_days": 30,
+        "review_target_days": 60,
+        "recommend_max_drawdown_pct": 0.22,
+        "recommend_daily_loss_limit_pct_of_seed": 0.06,
+        "require_dynamic_regime": true
+      }
+    }
+  }
+}

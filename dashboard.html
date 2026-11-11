@@ -667,15 +667,89 @@ function render(d,anim){
   ${_effRows.map(([lbl,tp,fn],ri)=>'<tr style="background:'+(ri%2?'var(--card)':'var(--card2)')+';border-top:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);white-space:nowrap;text-align:center">'+lbl+(tp?' '+wtip(tp):'')+'</td>'+d.bots.map(b=>{const[v,col]=fn(b);return '<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border);color:'+col+'">'+v+'</td>'}).join('')+'</tr>').join('')}
  </table>`;
  document.getElementById('efficiencyTable').innerHTML=effTable;
- // ── [2단계] 최대 낙폭(Drawdown) 경고 배너 + 표 ──
- const _ddTip='<b>가장 많이 떨어졌을 때 얼마나 깊이 빠졌는지</b> 보여줘요. 봇 잔고가 최고점을 찍은 뒤 바닥까지 떨어진 폭이에요. 깊을수록 위험하고, 한 봇이 크게 무너지면 전체 하루 목표가 흔들려요.<br>• 당일 낙폭: 오늘 고점 대비 현재 하락폭<br>• 최대 낙폭: 시작 후 가장 깊었던 하락폭<br>• 예: 100→90달러면 −10%<br>• −10% 넘으면 빨강 경고(위험)<br>※ 실현 청산 기준(보유중 미반영)';
+ // ── [2단계] 최대 낙폭(Drawdown) + 3~5y 수명 기준선·사전 승인 제안 ──
+ const _ddTip='<b>가장 많이 떨어졌을 때 얼마나 깊이 빠졌는지</b> 보여줘요. 봇 잔고가 최고점을 찍은 뒤 바닥까지 떨어진 폭이에요. 깊을수록 위험하고, 한 봇이 크게 무너지면 전체 하루 목표가 흔들려요.<br>• 당일 낙폭: 오늘 고점 대비 현재 하락폭<br>• 고점 대비 낙폭: 전고점(ATH) 대비 실시간 잔고 낙폭 (생존 킬선 기준)<br>• 기대 MDD 한계: 3~5년 장기 백테스트 실측 MDD / 실전 생존컷<br>• 수수료 비중: 총수익 대비 수수료 잠식률 (100% 이상=수수료 적자)';
+ const _escH=t=>String(t==null?'':t).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
  const _dd=(v)=>{if(v==null)return['—','var(--muted)'];const c=v<=-10?'#e24b4a':(v<=-5?'var(--amber)':(v<0?'var(--loss)':'var(--muted)'));return[v.toFixed(1)+'%',c]};
  const _ddDr=b=>{const v=b.daily_ret;if(v==null)return['—','var(--muted)'];const sv=(v>0?'+':'')+v.toFixed(1)+'%';return[sv,v>0?'var(--profit)':(v<0?'var(--loss)':'var(--muted)')]};
- const _ddRows=[['당일 낙폭',b=>_dd(b.today_dd)],['최대 낙폭 (누적)',b=>_dd(b.max_dd)],['일 평균 수익률',_ddDr]];
+ const _pkDd=b=>{
+  const v=b.peak_dd_pct;
+  if(v==null)return['—','var(--muted)'];
+  const th=(b.baseline||{});
+  const warn=-(th.peak_mdd_warn_pct||12),kill=-(th.peak_mdd_kill_pct||20);
+  const c=v<=kill?'#e24b4a':(v<=warn?'#efa027':(v<0?'var(--loss)':'var(--green)'));
+  const pk=b.peak_asset!=null?' <span style="font-size:11px;color:var(--muted)">($'+Number(b.peak_asset).toFixed(2)+')</span>':'';
+  return[v.toFixed(1)+'%'+pk,c];
+ };
+ const _blLim=b=>{
+  const bl=(b.baseline||{});
+  const exp=bl.expected_mdd_pct,kill=bl.peak_mdd_kill_pct,mls=bl.expected_max_loss_streak;
+  if(exp==null&&kill==null)return['—','var(--muted)'];
+  const txt='−'+(exp!=null?Number(exp).toFixed(0):'?')+'% / 컷 −'+(kill!=null?Number(kill).toFixed(0):'?')+'%';
+  const sub=mls!=null?' <span style="font-size:11px;color:var(--muted)">('+mls+'연패)</span>':'';
+  return[txt+sub,'#94a3b8'];
+ };
+ const _feeCell=b=>{
+  const lc=(b.lifecycle||{});
+  const aDef=!!lc.fee_deficit_all,d7Def=!!lc.fee_deficit_7d;
+  const aVal=lc.fee_ratio_all_pct,d7Val=lc.fee_ratio_7d_pct;
+  if(aVal==null&&!aDef&&d7Val==null&&!d7Def)return['—','var(--muted)'];
+  const aTxt=aDef?'적자':(aVal!=null?Math.round(aVal)+'%':'—');
+  const d7Txt=d7Def?'적자':(d7Val!=null?Math.round(d7Val)+'%':'—');
+  const col=(aDef||(aVal!=null&&aVal>=100))?'#e24b4a':((aVal!=null&&aVal>=50||d7Def||(d7Val!=null&&d7Val>=100))?'#efa027':'#34d399');
+  return['누적 '+aTxt+' <span style="font-size:11px;color:var(--muted)">(7d '+d7Txt+')</span>',col];
+ };
+ const _smpCell=b=>{
+  const lc=(b.lifecycle||{}),bl=(b.baseline||{});
+  const sd=lc.sample_days;
+  if(sd==null)return['—','var(--muted)'];
+  const minD=lc.min_sample_days||bl.min_sample_days||30;
+  const tgtD=lc.review_target_days||bl.review_target_days||60;
+  const curLs=lc.cur_loss_streak!=null?lc.cur_loss_streak:0;
+  const col=sd>=tgtD?'#38bdf8':(sd>=minD?'var(--green)':'#94a3b8');
+  return[Number(sd).toFixed(0)+'일 / '+tgtD+'일 <span style="font-size:11px;color:var(--muted)">(현 '+curLs+'연패)</span>',col];
+ };
+ const _ddRows=[
+  ['당일 낙폭',b=>_dd(b.today_dd)],
+  ['최대 낙폭 (누적)',b=>_dd(b.max_dd)],
+  ['고점 대비 낙폭 (Peak DD)',_pkDd],
+  ['기대 MDD 한계 (3~5y / 생존컷)',_blLim],
+  ['수수료 비중 (누적 / 7d FeeR)',_feeCell],
+  ['표본 경과일 (관측목표)',_smpCell],
+  ['일 평균 수익률',_ddDr]
+ ];
  let ddBan='';
  if(s.dd_danger&&s.dd_danger.length)ddBan+='<div style="border-radius:10px;padding:13px 16px;margin-bottom:10px;font-size:13px;font-weight:600;background:rgba(226,75,74,0.13);border-left:3px solid #e24b4a;color:#e24b4a">⚠️ 위험: '+s.dd_danger.map(x=>x.name+' 당일 낙폭 '+x.today_dd.toFixed(1)+'%').join(' · ')+' (한계 −10% 초과)</div>';
  if(s.dd_warn&&s.dd_warn.length)ddBan+='<div style="border-radius:10px;padding:13px 16px;margin-bottom:10px;font-size:13px;font-weight:600;background:rgba(239,160,39,0.13);border-left:3px solid #efa027;color:#efa027">⚡ 주의: '+s.dd_warn.map(x=>x.name+' '+x.today_dd.toFixed(1)+'%').join(' · ')+' (−5% 초과)</div>';
  if(!ddBan)ddBan='<div style="border-radius:10px;padding:13px 16px;margin-bottom:10px;font-size:13px;font-weight:600;background:rgba(45,189,133,0.10);border-left:3px solid var(--green);color:var(--green)">✅ 전 봇 당일 낙폭 안전 (−5% 이내)</div>';
+ const paObj=d.proactive_alerts||{};
+ const paList=Array.isArray(paObj.active)?paObj.active:[];
+ const paActionable=paList.filter(a=>a.severity==='CRITICAL'||a.severity==='WARN');
+ const paInfo=paList.filter(a=>a.severity==='INFO');
+ if(paActionable.length||paInfo.length){
+  const critCnt=paActionable.filter(a=>a.severity==='CRITICAL').length;
+  const warnCnt=paActionable.filter(a=>a.severity==='WARN').length;
+  const paHtml=paActionable.map(a=>{
+   const isCrit=a.severity==='CRITICAL';
+   const col=isCrit?'#e24b4a':'#efa027';
+   const badge=isCrit?'🚨 CRITICAL':'⚡ WARN';
+   return '<div style="margin-top:6px;padding:7px 10px;border-radius:6px;background:rgba(15,23,42,0.55);border-left:2px solid '+col+';font-size:12px;line-height:1.45">'
+    +'<span style="color:'+col+';font-weight:700">'+badge+'</span> '
+    +'<span style="background:rgba(56,189,248,0.16);color:#38bdf8;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:700">[승인 대기 제안]</span> '
+    +'<b>'+_escH(a.bot_id)+'</b> · <b>'+_escH(a.title)+'</b>'
+    +'<div style="color:#cbd5e1;margin-top:2px">'+_escH(a.details)+'</div>'
+    +(a.recommendation?'<div style="color:#93c5fd;margin-top:2px">👉 '+_escH(a.recommendation)+'</div>':'')
+    +'</div>';
+  }).join('');
+  const infoHtml=paInfo.length?'<div style="margin-top:6px;font-size:11.5px;color:#94a3b8">ℹ️ 참고: '+paInfo.map(a=>_escH(a.bot_id)+' '+_escH(a.title)).join(' · ')+'</div>':'';
+  const hdrBg=critCnt>0?'rgba(226,75,74,0.10)':'rgba(239,160,39,0.10)';
+  const hdrBdr=critCnt>0?'#e24b4a':'#efa027';
+  const hdrCol=critCnt>0?'#fca5a5':'#fcd34d';
+  ddBan+='<div style="border-radius:10px;padding:11px 14px;margin-bottom:10px;background:'+hdrBg+';border-left:3px solid '+hdrBdr+'">'
+   +'<div style="font-size:12.5px;font-weight:700;color:'+hdrCol+'">🛡️ [사전 감시·승인 대기 제안] CRITICAL '+critCnt+'건 · WARN '+warnCnt+'건'
+   +(paObj.lifecycle_updated?' <span style="font-weight:400;color:var(--muted);font-size:11px">('+_escH(paObj.lifecycle_updated)+')</span>':'')
+   +'</div>'+paHtml+infoHtml+'</div>';
+ }
  document.getElementById('ddBanner').innerHTML=ddBan;
  const ddTable=`<table style="width:100%;border-collapse:collapse;background:var(--card);font-size:14px;font-weight:600">
   <tr style="border-bottom:1px solid var(--border)"><td style="padding:12px 16px;color:var(--muted);text-align:center">봇</td>${d.bots.map(b=>'<td style="padding:12px 8px;text-align:center;border-left:1px solid var(--border)">'+(((b.config&&b.config.USE_BLUEFROG)||(b.is_bluefrog))?'<span style="color:#ff5a5a;font-weight:bold;margin-right:3px;">[역]</span> ':'<span style="color:#4d9fff;font-weight:bold;margin-right:3px;">[순]</span> ')+b.name+'</td>').join('')}</tr>

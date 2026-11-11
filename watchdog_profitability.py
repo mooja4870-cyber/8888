@@ -1,404 +1,595 @@
 #!/usr/bin/env python3
 """
-watchdog_profitability.py
-=============================================================================
-[중앙 관제소 8888] 전 봇 수익성 자가감시 및 자율 자가치유 워치독 (Zero-Touch Auto-Healer)
-=============================================================================
-목적:
-- 사용자의 수동 개입(OK) 없이도 24시간 365일 전 봇의 수익성(승률, 손익비, 연속손절, 수수료 잠식)을
-  스스로 주기적(매 1시간 체크 / 48~72h 롤링 윈도우)으로 감시하고,
-- 수익성 악화 이상 징후 발생 시 시스템이 '완전 자율(Autonomous)'로 매매·청산 방어 설정을
-  자가 치유(Self-Healing)하고 검증(verify_all) 후 자동 배포한다.
-- 모든 조치 내역은 auto_healing_history.json에 기록되고 디스코드로 즉시 전송된다.
-=============================================================================
-"""
+8888 — Proactive Strategy Lifecycle & Threshold Monitor (watchdog_profitability.py)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+역할:
+  1. strategy_baselines.json에 등록된 3~5년 실측 백테스트 기대치(MDD, 최대연패, 수수료 비중,
+     최소 관측 표본일)와 실제 거래소/장부 데이터(snapshots.json, peak_assets.json, stats.json,
+     trade_history.csv, config.json)를 5분 주기로 대조 감시한다.
+  2. 임계치 초과, 수수료 잠식, 생존 설정 미비, 표본 검증 시점 도달 시 임의로 봇 코드나
+     config.json을 수정하거나 강제 재기동하지 않고, data/lifecycle_status.json 기록 +
+     data/proactive_alerts.json 등록 + Discord 사전 승인 제안 알림만 발송한다.
 
+[보스 특별 규칙 준수]
+  - 개별 봇 폴더(8401~8408)의 *.py, config.json, Lock 파일은 절대 쓰기/삭제 금지 (Read-Only).
+  - 8401, 8402, 8403, 8405: 5단계 명시적 승인(5-Step Approval) 대상
+  - 8404, 8408: 2단계 명시적 승인(2-Step Approval) 대상
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+import argparse
+import csv
+import fcntl
+import json
 import os
 import sys
+import tempfile
 import time
-import json
-import csv
-import subprocess
-import requests
-import signal
+import urllib.request
 from datetime import datetime, timedelta
 
-BASE_DIR = "/Users/l/project"
-WATCHDOG_LOG = os.path.join(BASE_DIR, "8888", "watchdog_profitability.log")
-HISTORY_FILE = os.path.join(BASE_DIR, "8888", "data", "auto_healing_history.json")
-DISCORD_FILE = os.path.join(BASE_DIR, "8888", "discord_webhook.txt")
+BASE_8888 = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(BASE_8888)
+if BASE_8888 not in sys.path:
+    sys.path.insert(0, BASE_8888)
+
+from watchdog_common import (  # noqa: E402
+    clear_proactive_alert,
+    load_proactive_alerts,
+    record_proactive_alert,
+    setup_clean_logger,
+)
 
 ACTIVE_BOTS = ["8401", "8402", "8403", "8404", "8405", "8408"]
-CHECK_INTERVAL_SEC = 3600  # 1시간 주기 검사
-BOT_HEAL_COOLDOWN_SEC = 86400  # 봇당 최소 24시간 자가치유 쿨다운 (과최적화/잦은 변경 방지)
+CHECK_INTERVAL_SEC = 300
+LOCK_PATH = "/tmp/watchdog_profitability.lock"
+LOG_PATH = os.path.join(BASE_8888, "watchdog_profitability.log")
+BASELINES_PATH = os.path.join(BASE_8888, "strategy_baselines.json")
+LIVE_BALANCES_PATH = os.path.join(BASE_8888, "data", "live_balances.json")
+PEAK_ASSETS_PATH = os.path.join(BASE_8888, "peak_assets.json")
+SNAPSHOTS_PATH = os.path.join(BASE_8888, "snapshots.json")
+LIFECYCLE_STATUS_PATH = os.path.join(BASE_8888, "data", "lifecycle_status.json")
 
-# ── 로깅 유틸 ──────────────────────────────────────────────
-def log(msg: str):
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    formatted = f"[{now_str}] {msg}"
-    print(formatted)
+_log = setup_clean_logger(LOG_PATH)
+
+
+def _atomic_save_json(path, data):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(
+        dir=os.path.dirname(path), prefix=os.path.basename(path) + ".", suffix=".tmp"
+    )
     try:
-        with open(WATCHDOG_LOG, "a", encoding="utf-8") as f:
-            f.write(formatted + "\n")
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, path)
+    except Exception:
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
+        raise
+
+
+def _load_json(path, default=None):
+    if not os.path.exists(path):
+        return default
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        bak = path + ".bak"
+        if os.path.exists(bak):
+            try:
+                with open(bak, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return default
+
+
+def _parse_dt(val):
+    if not val or not isinstance(val, str):
+        return None
+    val = val.strip()
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(val[:19], fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def _safe_float(val, default=0.0):
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return default
+
+
+def _analyze_trade_history(csv_path, perf_start_dt, now_dt):
+    """
+    trade_history.csv를 읽어 perf_start_time 이후 누적 및 최근 7일 수수료·손익·연패를 집계한다.
+    동일 주문ID의 분할 체결 청산은 1건의 청산 거래로 병합하여 연패 수 왜곡을 방지한다.
+    """
+    result = {
+        "closed_trades_all": 0,
+        "wins_all": 0,
+        "losses_all": 0,
+        "gross_pnl_all": 0.0,
+        "fees_all": 0.0,
+        "net_pnl_all": 0.0,
+        "fee_ratio_all_pct": None,
+        "fee_deficit_all": False,
+        "closed_trades_7d": 0,
+        "gross_pnl_7d": 0.0,
+        "fees_7d": 0.0,
+        "net_pnl_7d": 0.0,
+        "fee_ratio_7d_pct": None,
+        "fee_deficit_7d": False,
+        "cur_loss_streak": 0,
+        "max_loss_streak": 0,
+        "first_trade_ts": None,
+        "last_trade_ts": None,
+    }
+    if not os.path.exists(csv_path):
+        return result
+
+    cutoff_7d = now_dt - timedelta(days=7)
+    grouped_closes = {}
+    close_order = []
+    anon_seq = 0
+
+    try:
+        with open(csv_path, "r", encoding="utf-8-sig", errors="replace") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                ts_str = (row.get("시간") or row.get("time") or "").strip()
+                ts_dt = _parse_dt(ts_str)
+                if ts_dt is None:
+                    continue
+                if perf_start_dt and ts_dt < perf_start_dt:
+                    continue
+
+                if result["first_trade_ts"] is None or ts_str < result["first_trade_ts"]:
+                    result["first_trade_ts"] = ts_str
+                if result["last_trade_ts"] is None or ts_str > result["last_trade_ts"]:
+                    result["last_trade_ts"] = ts_str
+
+                fee = abs(_safe_float(row.get("수수료(USDT)") or row.get("fee"), 0.0))
+                result["fees_all"] += fee
+                if ts_dt >= cutoff_7d:
+                    result["fees_7d"] += fee
+
+                row_type = (row.get("유형") or row.get("type") or "").strip()
+                is_close = ("청산" in row_type) or (row_type.lower() == "close")
+                if not is_close:
+                    continue
+
+                pnl = _safe_float(row.get("수익(USDT)") or row.get("pnl"), 0.0)
+                sym = (row.get("심볼") or row.get("symbol") or "").strip()
+                ord_id = (row.get("주문ID") or row.get("order_id") or "").strip()
+                if ord_id and ord_id.lower() not in ("none", "null", "nan", "0"):
+                    key = (ord_id, sym)
+                else:
+                    anon_seq += 1
+                    key = (f"__row_{anon_seq}", sym)
+
+                if key not in grouped_closes:
+                    grouped_closes[key] = {
+                        "ts": ts_dt,
+                        "pnl": 0.0,
+                        "close_fee": 0.0,
+                        "in_7d": ts_dt >= cutoff_7d,
+                    }
+                    close_order.append(key)
+                grouped_closes[key]["pnl"] += pnl
+                grouped_closes[key]["close_fee"] += fee
+                if ts_dt >= cutoff_7d:
+                    grouped_closes[key]["in_7d"] = True
+    except Exception as exc:
+        _log(f"⚠️ CSV 파싱 오류 ({csv_path}): {exc}")
+        return result
+
+    cur_streak = 0
+    max_streak = 0
+    for key in sorted(close_order, key=lambda k: grouped_closes[k]["ts"]):
+        item = grouped_closes[key]
+        pnl = item["pnl"]
+        result["closed_trades_all"] += 1
+        result["gross_pnl_all"] += pnl
+        if item["in_7d"]:
+            result["closed_trades_7d"] += 1
+            result["gross_pnl_7d"] += pnl
+
+        # 청산가 기준 수익(또는 손익) 판별: 순수 가격차익 기준 손실(< 0) 시 연패 증가
+        if pnl > 0:
+            result["wins_all"] += 1
+            cur_streak = 0
+        elif pnl < 0:
+            result["losses_all"] += 1
+            cur_streak += 1
+            if cur_streak > max_streak:
+                max_streak = cur_streak
+
+    result["gross_pnl_all"] = round(result["gross_pnl_all"], 4)
+    result["fees_all"] = round(result["fees_all"], 4)
+    result["net_pnl_all"] = round(result["gross_pnl_all"] - result["fees_all"], 4)
+    result["gross_pnl_7d"] = round(result["gross_pnl_7d"], 4)
+    result["fees_7d"] = round(result["fees_7d"], 4)
+    result["net_pnl_7d"] = round(result["gross_pnl_7d"] - result["fees_7d"], 4)
+    result["cur_loss_streak"] = cur_streak
+    result["max_loss_streak"] = max_streak
+
+    if result["closed_trades_all"] > 0:
+        if result["gross_pnl_all"] > 0:
+            result["fee_ratio_all_pct"] = round(
+                (result["fees_all"] / result["gross_pnl_all"]) * 100.0, 1
+            )
+        elif result["fees_all"] > 0:
+            result["fee_deficit_all"] = True
+        else:
+            result["fee_ratio_all_pct"] = 0.0
+
+    if result["closed_trades_7d"] > 0:
+        if result["gross_pnl_7d"] > 0:
+            result["fee_ratio_7d_pct"] = round(
+                (result["fees_7d"] / result["gross_pnl_7d"]) * 100.0, 1
+            )
+        elif result["fees_7d"] > 0:
+            result["fee_deficit_7d"] = True
+        else:
+            result["fee_ratio_7d_pct"] = 0.0
+
+    return result
+
+
+def _fetch_live_8888_balances(timeout_sec=20):
+    """data/live_balances.json(거래소 실측 캐시, <=300s) 또는 8888 /api/status에서 실시간 잔고를 조회한다."""
+    doc = _load_json(LIVE_BALANCES_PATH, {}) or {}
+    ts_epoch = _safe_float(doc.get("ts"), 0.0)
+    bots_map = doc.get("bots") or {}
+    if bots_map and ts_epoch > 0 and (time.time() - ts_epoch) <= 300:
+        live = {}
+        for bid, val in bots_map.items():
+            fv = _safe_float(val, 0.0)
+            if fv > 0:
+                live[str(bid)] = fv
+        if live:
+            return live
+
+    live = {}
+    try:
+        req = urllib.request.urlopen("http://127.0.0.1:8888/api/status", timeout=timeout_sec)
+        data = json.loads(req.read().decode("utf-8"))
+        for b in data.get("bots") or []:
+            bid = str(b.get("name") or "")
+            bal = _safe_float(b.get("ex_balance"), 0.0)
+            if bid and b.get("ex_ok") and bal > 0:
+                live[bid] = bal
     except Exception:
         pass
-
-# ── 디스코드 알림 ──────────────────────────────────────────
-_cached_webhook = None
-def send_discord(msg: str):
-    global _cached_webhook
-    if _cached_webhook is None:
-        try:
-            if os.path.exists(DISCORD_FILE):
-                with open(DISCORD_FILE, "r", encoding="utf-8") as f:
-                    _cached_webhook = f.read().strip()
-        except Exception:
-            _cached_webhook = ""
-    
-    if _cached_webhook and _cached_webhook.startswith("http"):
-        try:
-            payload = {"content": msg}
-            requests.post(_cached_webhook, json=payload, timeout=5)
-        except Exception as e:
-            log(f"⚠️ 디스코드 전송 실패: {e}")
-
-# ── 치유 이력 관리 ──────────────────────────────────────────
-def load_healing_history() -> dict:
-    if os.path.exists(HISTORY_FILE):
-        try:
-            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return {}
-    return {}
-
-def save_healing_history(bot_id: str, diagnosis: str, actions: list, metrics: dict):
-    history = load_healing_history()
-    now_iso = datetime.now().isoformat()
-    clean_metrics = {k: v for k, v in metrics.items() if k != "trades"}
-    record = {
-        "timestamp": now_iso,
-        "bot_id": bot_id,
-        "diagnosis": diagnosis,
-        "actions": actions,
-        "metrics": clean_metrics
-    }
-    bot_records = history.get(bot_id, [])
-    bot_records.append(record)
-    history[bot_id] = bot_records[-30:]  # 최근 30건 유지
-    history[f"last_healed_{bot_id}"] = time.time()
-    
-    try:
-        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
-            json.dump(history, f, indent=4, ensure_ascii=False)
-    except Exception as e:
-        log(f"⚠️ 이력 저장 실패: {e}")
+    return live
 
 
-# ── 거래 장부 분석 ──────────────────────────────────────────
-def analyze_recent_trades(bot_id: str, hours: int = 72) -> dict:
-    csv_path = os.path.join(BASE_DIR, bot_id, "data", "trade_history.csv")
-    if not os.path.exists(csv_path):
-        return {"count": 0, "status": "NO_TRADES"}
+def _eval_bot(bot_id, bot_baseline, live_ex_bots, latest_snap_bots, peak_assets_map, now_dt):
+    bot_dir = os.path.join(PROJECT_ROOT, bot_id)
+    if os.path.exists(os.path.join(bot_dir, ".stopped")):
+        return None
 
-    cutoff_time = datetime.now() - timedelta(hours=hours)
-    trades = []
-    
-    try:
-        with open(csv_path, "r", encoding="utf-8-sig", errors="ignore") as f:
-            reader = csv.reader(f)
-            header = next(reader, None)
-            for row in reader:
-                if len(row) < 8:
-                    continue
-                # 0: 시간, 1: 심볼, 2: 유형, 3: 방향, 4: 가격, 5: 수량, 6: 수익(USDT), 7: 수익률(%)
-                dt_str = row[0].strip()
-                trade_type = row[2].strip()
-                if trade_type != "청산":
-                    continue
-                
-                trade_dt = None
-                for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M"):
-                    try:
-                        trade_dt = datetime.strptime(dt_str.split(".")[0], fmt)
-                        break
-                    except Exception:
-                        continue
-                
-                try:
-                    pnl = float(row[6].replace("$", "").replace(",", ""))
-                except Exception:
-                    pnl = 0.0
-                try:
-                    pnl_pct = float(row[7].replace("%", "").replace(",", ""))
-                except Exception:
-                    pnl_pct = 0.0
+    stats = _load_json(os.path.join(bot_dir, "data", "stats.json"), {}) or {}
+    cfg = _load_json(os.path.join(bot_dir, "config.json"), {}) or {}
+    backtest = bot_baseline.get("backtest", {})
+    thresholds = bot_baseline.get("thresholds", {})
+    tier = int(bot_baseline.get("approval_tier", 2))
+    tier_label = "5회 승인 필수" if tier >= 5 else "2회 승인 필수"
 
-                sym = row[1].strip()
-                
-                if trade_dt and trade_dt >= cutoff_time:
-                    trades.append({"dt": trade_dt, "pnl": pnl, "pnl_pct": pnl_pct, "sym": sym})
-    except Exception as e:
-        log(f"[{bot_id}] 장부 파싱 오류: {e}")
-        return {"count": 0, "status": "ERROR"}
+    seed = _safe_float(stats.get("seed_money"), 0.0)
+    perf_start_str = stats.get("perf_start_time")
+    perf_start_dt = _parse_dt(perf_start_str)
+    sample_days = 0.0
+    if perf_start_dt:
+        sample_days = round(max(0.0, (now_dt - perf_start_dt).total_seconds() / 86400.0), 1)
 
-    if len(trades) < 3:
-        return {"count": len(trades), "status": "INSUFFICIENT_DATA"}
+    trade_stats = _analyze_trade_history(
+        os.path.join(bot_dir, "data", "trade_history.csv"), perf_start_dt, now_dt
+    )
 
-    wins = [t for t in trades if t["pnl"] > 0]
-    losses = [t for t in trades if t["pnl"] < 0]
-    
-    win_rate = len(wins) / len(trades) if trades else 0.0
-    avg_win = sum(t["pnl"] for t in wins) / len(wins) if wins else 0.0
-    avg_loss = abs(sum(t["pnl"] for t in losses) / len(losses)) if losses else 0.0
-    gross_win = sum(t["pnl"] for t in wins)
-    gross_loss = abs(sum(t["pnl"] for t in losses))
-    profit_factor = (gross_win / gross_loss) if gross_loss > 0 else 999.0
-    
-    # 최근 연속 손절 계산 (시간 역순 정렬)
-    sorted_trades = sorted(trades, key=lambda x: x["dt"], reverse=True)
-    loss_streak = 0
-    for t in sorted_trades:
-        if t["pnl"] < 0:
-            loss_streak += 1
-        else:
-            break
+    live_bal = live_ex_bots.get(bot_id)
+    snap_bal = latest_snap_bots.get(bot_id)
+    if live_bal is not None and _safe_float(live_bal, 0.0) > 0:
+        current_asset = round(_safe_float(live_bal, 0.0), 4)
+        asset_source = "exchange_live"
+    elif seed > 0:
+        current_asset = round(seed + _safe_float(trade_stats.get("net_pnl_all"), 0.0), 4)
+        asset_source = "csv_net_fallback"
+    elif snap_bal is not None and _safe_float(snap_bal, 0.0) > 0:
+        current_asset = round(_safe_float(snap_bal, 0.0), 4)
+        asset_source = "snapshot_fallback"
+    else:
+        current_asset = None
+        asset_source = "unknown"
 
-    # 풀 손절(손실률 1.4% 초과) 발생 건수
-    heavy_sl_count = len([t for t in losses if abs(t["pnl_pct"]) >= 1.4])
+    peak_entry = peak_assets_map.get(bot_id) or {}
+    raw_peak = _safe_float(peak_entry.get("peak_asset"), 0.0)
+    peak_ts = peak_entry.get("peak_ts")
+    if current_asset is not None and current_asset > raw_peak:
+        peak_asset = round(current_asset, 4)
+        peak_ts = now_dt.strftime("%Y-%m-%d %H:%M:%S")
+    elif raw_peak > 0:
+        peak_asset = round(raw_peak, 4)
+    else:
+        peak_asset = current_asset
+
+    peak_dd_pct = None
+    abs_peak_dd = 0.0
+    if peak_asset and peak_asset > 0 and current_asset is not None:
+        raw_dd = ((current_asset - peak_asset) / peak_asset) * 100.0
+        peak_dd_pct = round(min(0.0, raw_dd), 2)
+        abs_peak_dd = round(max(0.0, -peak_dd_pct), 2)
+
+    active_alerts = []
+
+    # 1) Peak-to-Current MDD vs Survival Thresholds
+    mdd_warn = float(thresholds.get("peak_mdd_warn_pct", 12.0))
+    mdd_kill = float(thresholds.get("peak_mdd_kill_pct", 20.0))
+    if peak_dd_pct is not None and abs_peak_dd >= mdd_kill:
+        msg = (
+            f"전고점(${peak_asset:.2f}, {peak_ts or '?'}) 대비 현재자산 ${current_asset:.2f} "
+            f"({peak_dd_pct:.2f}% / 허용 킬선 -{mdd_kill:.1f}% 초과)"
+        )
+        rec = (
+            f"[{tier_label}] 봇 진입 일시중단 또는 전략·비중({bot_baseline.get('strategy_id')}) "
+            f"파라미터 전면 재조정 승인을 요청합니다."
+        )
+        record_proactive_alert(
+            bot_id, "peak_mdd", "CRITICAL", f"Peak-MDD 한계 초과 ({peak_dd_pct:.1f}%)",
+            msg, recommendation=rec, cooldown_sec=21600, notify_discord=True
+        )
+        active_alerts.append({"key": "peak_mdd", "severity": "CRITICAL", "title": f"Peak-MDD 한계 초과 ({peak_dd_pct:.1f}%)"})
+    elif peak_dd_pct is not None and abs_peak_dd >= mdd_warn:
+        msg = (
+            f"전고점(${peak_asset:.2f}) 대비 현재자산 ${current_asset:.2f} "
+            f"({peak_dd_pct:.2f}% / 주의 -{mdd_warn:.1f}%, 킬선 -{mdd_kill:.1f}%)"
+        )
+        rec = f"[{tier_label}] 추가 하락 시 킬선(-{mdd_kill:.1f}%) 도달 예정. 비중 축소 및 리스크 한도 검토 권고."
+        record_proactive_alert(
+            bot_id, "peak_mdd", "WARN", f"Peak-MDD 주의 구간 ({peak_dd_pct:.1f}%)",
+            msg, recommendation=rec, cooldown_sec=21600, notify_discord=True
+        )
+        active_alerts.append({"key": "peak_mdd", "severity": "WARN", "title": f"Peak-MDD 주의 구간 ({peak_dd_pct:.1f}%)"})
+    else:
+        clear_proactive_alert(bot_id, "peak_mdd")
+
+    # 2) Fee-to-Gross Ratio Monitoring (누적 기준 우선 + 7d 충분표본 보조 감시)
+    fee_warn = float(thresholds.get("max_fee_ratio_warn_pct", 50.0))
+    fee_kill = float(thresholds.get("max_fee_ratio_kill_pct", 100.0))
+    fr_7d = trade_stats["fee_ratio_7d_pct"]
+    fr_all = trade_stats["fee_ratio_all_pct"]
+    fd_7d = bool(trade_stats.get("fee_deficit_7d"))
+    fd_all = bool(trade_stats.get("fee_deficit_all"))
+    closed_7d = trade_stats["closed_trades_7d"]
+    closed_all = trade_stats["closed_trades_all"]
+
+    fr_7d_txt = "적자(Gross<=0)" if fd_7d else (f"{fr_7d:.1f}%" if fr_7d is not None else "—")
+    fr_all_txt = "적자(Gross<=0)" if fd_all else (f"{fr_all:.1f}%" if fr_all is not None else "—")
+
+    if closed_all >= 20 and (fd_all or (fr_all is not None and fr_all >= fee_kill)):
+        lbl = "Gross<=0 적자" if fd_all else f"{fr_all:.0f}%"
+        msg = (
+            f"누적 수수료 비중 {fr_all_txt} (누적 Gross ${trade_stats['gross_pnl_all']:+.2f}/Fee ${trade_stats['fees_all']:.2f}, "
+            f"7d {fr_7d_txt} Gross ${trade_stats['gross_pnl_7d']:+.2f}/Fee ${trade_stats['fees_7d']:.2f})"
+        )
+        rec = f"[{tier_label}] 수익 대비 수수료 잠식 >=100%. 타임프레임 상향·필터 강화 또는 전략 교체 검토를 요청합니다."
+        record_proactive_alert(
+            bot_id, "fee_ratio", "CRITICAL", f"누적 수수료 적자 ({lbl})",
+            msg, recommendation=rec, cooldown_sec=21600, notify_discord=True
+        )
+        active_alerts.append({"key": "fee_ratio", "severity": "CRITICAL", "title": f"수수료 적자 ({lbl})"})
+    elif (closed_all >= 20 and fr_all is not None and fr_all >= fee_warn) or (
+        closed_7d >= 20 and (fd_7d or (fr_7d is not None and fr_7d >= fee_kill))
+    ):
+        pct_str = f"누적 {fr_all:.0f}%" if (fr_all is not None and fr_all >= fee_warn) else f"7d {fr_7d_txt}"
+        msg = (
+            f"수수료 비중 주의 ({pct_str} | 7d {fr_7d_txt} Fee ${trade_stats['fees_7d']:.2f} / "
+            f"누적 {fr_all_txt} Fee ${trade_stats['fees_all']:.2f})"
+        )
+        rec = f"[{tier_label}] 수수료 잠식 심화. 메이커 지정가 비중 확대 또는 진입 필터 보강 검토 권고."
+        record_proactive_alert(
+            bot_id, "fee_ratio", "WARN", f"수수료 비중 주의 ({pct_str})",
+            msg, recommendation=rec, cooldown_sec=21600, notify_discord=True
+        )
+        active_alerts.append({"key": "fee_ratio", "severity": "WARN", "title": f"수수료 비중 주의 ({pct_str})"})
+    else:
+        clear_proactive_alert(bot_id, "fee_ratio")
+
+    # 3) Active Loss Streak vs Expected Max Loss Streak
+    ls_warn = int(thresholds.get("max_loss_streak_warn", 8))
+    ls_kill = int(thresholds.get("max_loss_streak_kill", 12))
+    cur_ls = int(trade_stats["cur_loss_streak"])
+    max_ls = int(trade_stats["max_loss_streak"])
+    if cur_ls >= ls_kill:
+        msg = f"현재 {cur_ls}연패 진행 중 (역대 기대 한계 {ls_kill}연패 도달/초과)"
+        rec = f"[{tier_label}] 5년 백테스트 최대 연패 한계 도달. 레짐 이상 또는 전략 수명 종료 여부 점검 승인을 요청합니다."
+        record_proactive_alert(
+            bot_id, "loss_streak", "CRITICAL", f"최대 연패 임계 초과 ({cur_ls}연패)",
+            msg, recommendation=rec, cooldown_sec=21600, notify_discord=True
+        )
+        active_alerts.append({"key": "loss_streak", "severity": "CRITICAL", "title": f"{cur_ls}연패 임계 초과"})
+    elif cur_ls >= ls_warn:
+        msg = f"현재 {cur_ls}연패 진행 중 (주의 {ls_warn}연패 이상, 킬선 {ls_kill}연패)"
+        rec = f"[{tier_label}] 연패 비중 축소(USE_DYNAMIC_REGIME) 동작 여부 및 손실 진행 점검 권고."
+        record_proactive_alert(
+            bot_id, "loss_streak", "WARN", f"연패 주의 구간 ({cur_ls}연패)",
+            msg, recommendation=rec, cooldown_sec=21600, notify_discord=True
+        )
+        active_alerts.append({"key": "loss_streak", "severity": "WARN", "title": f"{cur_ls}연패 주의"})
+    else:
+        clear_proactive_alert(bot_id, "loss_streak")
+
+    # 4) Sample Observation Milestones (30d / 60d)
+    min_days = int(thresholds.get("min_sample_days", 30))
+    target_days = int(thresholds.get("review_target_days", 60))
+    if sample_days >= target_days:
+        msg = f"운용 표본 {sample_days:.1f}일 / 청산 {closed_all}건 (목표 검증 {target_days}일 도달)"
+        rec = f"[{tier_label}] 충분한 표본 확보 완료. 순/역 자동스위칭 및 전략 유지/개선 최종 판정 보고 권고."
+        record_proactive_alert(
+            bot_id, "sample_review", "WARN", f"표본 {sample_days:.0f}일 도달 (최종 검토 시점)",
+            msg, recommendation=rec, cooldown_sec=86400, notify_discord=True
+        )
+        active_alerts.append({"key": "sample_review", "severity": "WARN", "title": f"표본 {sample_days:.0f}일 도달"})
+    elif sample_days >= min_days:
+        msg = f"운용 표본 {sample_days:.1f}일 / 청산 {closed_all}건 (최소 {min_days}일 충족, 목표 {target_days}일)"
+        rec = f"[{tier_label}] 최소 표본 충족 — 백테스트 기대치 대비 중간 성과 비교 가능."
+        record_proactive_alert(
+            bot_id, "sample_review", "INFO", f"최소 표본 {min_days}일 충족 ({sample_days:.1f}일)",
+            msg, recommendation=rec, cooldown_sec=86400, notify_discord=False
+        )
+        active_alerts.append({"key": "sample_review", "severity": "INFO", "title": f"표본 {sample_days:.0f}일 충족"})
+    else:
+        clear_proactive_alert(bot_id, "sample_review")
+
+    # 5) Survival Config Gaps (Read-Only Detection + Approval Request)
+    gaps = []
+    cfg_mdd = _safe_float(cfg.get("MAX_DRAWDOWN_PCT"), 0.5)
+    rec_mdd = float(thresholds.get("recommend_max_drawdown_pct", 0.20))
+    if cfg_mdd >= 0.45:
+        gaps.append(f"MAX_DRAWDOWN_PCT={cfg_mdd:.2f}(초기자본-50% 방치 → 고점기준 -{rec_mdd*100:.0f}% 킬스위치 필요)")
+
+    cfg_dll = _safe_float(cfg.get("DAILY_LOSS_LIMIT_USDT"), 999.0)
+    ref_cap = max(seed, current_asset or 0.0, 10.0)
+    if cfg_dll >= 500.0 or cfg_dll > ref_cap * 0.25:
+        rec_dll = round(ref_cap * float(thresholds.get("recommend_daily_loss_limit_pct_of_seed", 0.06)), 2)
+        gaps.append(f"DAILY_LOSS_LIMIT_USDT={cfg_dll:.0f}(실질 무력 → 약 ${rec_dll:.2f} 현실화 필요)")
+
+    if bool(thresholds.get("require_dynamic_regime", True)) and not bool(cfg.get("USE_DYNAMIC_REGIME", False)):
+        gaps.append("USE_DYNAMIC_REGIME=False(연패 시 비중 50% 축소 미작동)")
+
+    risk_pct = _safe_float(cfg.get("RISK_PER_TRADE_PCT"), 0.0)
+    comp_pct = _safe_float(cfg.get("AUTO_COMPOUND_PCT"), 0.0)
+    if risk_pct == 0.0 and comp_pct >= 0.25:
+        gaps.append(f"M4 리스크사이징 미적용(RISK_PER_TRADE_PCT=0, AUTO_COMPOUND_PCT={comp_pct})")
+
+    if bot_id == "8402" and int(_safe_float(cfg.get("MAX_POSITIONS"), 3)) > 2:
+        gaps.append(f"MAX_POSITIONS={int(_safe_float(cfg.get('MAX_POSITIONS'), 3))}(8401 동급 2개 일치 필요)")
+
+    if gaps:
+        msg = "생존 안전장치 미비 항목: " + " | ".join(gaps)
+        rec = f"[{tier_label}] 봇 소스/설정 임의 수정은 금지되어 있습니다. Phase 3 승인 절차로 반영 요청 중."
+        record_proactive_alert(
+            bot_id, "config_gap", "WARN", f"생존 설정 미비 {len(gaps)}건 감지",
+            msg, recommendation=rec, cooldown_sec=43200, notify_discord=True
+        )
+        active_alerts.append({"key": "config_gap", "severity": "WARN", "title": f"생존 설정 {len(gaps)}건 미비"})
+    else:
+        clear_proactive_alert(bot_id, "config_gap")
 
     return {
-        "count": len(trades),
-        "status": "OK",
-        "win_rate": win_rate,
-        "avg_win": avg_win,
-        "avg_loss": avg_loss,
-        "profit_factor": profit_factor,
-        "loss_streak": loss_streak,
-        "heavy_sl_count": heavy_sl_count,
-        "net_pnl": gross_win - gross_loss,
-        "trades": sorted_trades
+        "bot_id": bot_id,
+        "strategy_id": bot_baseline.get("strategy_id"),
+        "timeframe": cfg.get("TIMEFRAME") or bot_baseline.get("timeframe"),
+        "approval_tier": tier,
+        "approval_label": tier_label,
+        "seed_money": round(seed, 4),
+        "current_asset": current_asset,
+        "asset_source": asset_source,
+        "peak_asset": peak_asset,
+        "peak_ts": peak_ts,
+        "peak_dd_pct": peak_dd_pct,
+        "expected_mdd_pct": backtest.get("expected_mdd_pct"),
+        "peak_mdd_warn_pct": mdd_warn,
+        "peak_mdd_kill_pct": mdd_kill,
+        "sample_days": sample_days,
+        "min_sample_days": min_days,
+        "review_target_days": target_days,
+        "closed_trades": closed_all,
+        "closed_trades_7d": closed_7d,
+        "gross_pnl_all": trade_stats["gross_pnl_all"],
+        "fees_all": trade_stats["fees_all"],
+        "fee_ratio_all_pct": fr_all,
+        "fee_deficit_all": fd_all,
+        "gross_pnl_7d": trade_stats["gross_pnl_7d"],
+        "fees_7d": trade_stats["fees_7d"],
+        "fee_ratio_7d_pct": fr_7d,
+        "fee_deficit_7d": fd_7d,
+        "cur_loss_streak": cur_ls,
+        "max_loss_streak": max_ls,
+        "expected_max_loss_streak": backtest.get("expected_max_loss_streak"),
+        "max_loss_streak_warn": ls_warn,
+        "max_loss_streak_kill": ls_kill,
+        "config_gaps": gaps,
+        "active_alerts": active_alerts,
+        "checked_at": now_dt.strftime("%Y-%m-%d %H:%M:%S"),
     }
 
 
-# ── 봇 안전 재기동 ──────────────────────────────────────────
-def restart_bot(bot_id: str) -> bool:
-    bot_dir = os.path.join(BASE_DIR, bot_id)
-    log(f"[{bot_id}] 봇 자율 재기동 시작...")
-    
-    try:
-        # 1. 기존 프로세스 종료
-        subprocess.run(["pkill", "-9", "-f", f"python3.*{bot_id}/bot.py"], timeout=5)
-        time.sleep(1)
-        
-        # 2. 락 파일 및 stale pid 제거
-        lock_file = f"/tmp/quantum_{bot_id}_trader.lock"
-        pid_file = os.path.join(bot_dir, "bot.pid")
-        if os.path.exists(lock_file):
-            os.remove(lock_file)
-        if os.path.exists(pid_file):
-            os.remove(pid_file)
-            
-        # 3. bot.py 재기동
-        cmd = f"cd {bot_dir} && nohup python3 bot.py > bot_stdout.log 2>&1 & echo $! > bot.pid"
-        subprocess.run(cmd, shell=True, timeout=5)
-        
-        # 4. Streamlit UI 생존 확인 및 재기동
-        port = int(bot_id)
-        ui_res = subprocess.run(["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", f"http://localhost:{port}"], capture_output=True, text=True, timeout=3)
-        if ui_res.stdout.strip() != "200":
-            cmd_st = f"cd {bot_dir} && nohup python3 -m streamlit run app.py --server.port {port} --server.headless true > streamlit_server.log 2>&1 &"
-            subprocess.run(cmd_st, shell=True, timeout=5)
-            
-        time.sleep(3)
-        log(f"[{bot_id}] 봇 자율 재기동 완료.")
-        return True
-    except Exception as e:
-        log(f"[{bot_id}] 봇 재기동 실패: {e}")
-        return False
+def run_once():
+    now_dt = datetime.now()
+    baselines_doc = _load_json(BASELINES_PATH, {}) or {}
+    bots_baselines = baselines_doc.get("bots", {})
+    peak_assets_map = _load_json(PEAK_ASSETS_PATH, {}) or {}
+    live_ex_bots = _fetch_live_8888_balances()
+    snapshots = _load_json(SNAPSHOTS_PATH, []) or []
+    latest_snap_bots = {}
+    if isinstance(snapshots, list) and snapshots:
+        last_snap = snapshots[-1]
+        if isinstance(last_snap, dict):
+            latest_snap_bots = last_snap.get("bots") or {}
 
-# ── 자가치유 판정 및 실행 엔진 ──────────────────────────────
-def evaluate_and_heal(bot_id: str) -> bool:
-    history = load_healing_history()
-    last_healed = history.get(f"last_healed_{bot_id}", 0)
-    if time.time() - last_healed < BOT_HEAL_COOLDOWN_SEC:
-        # 최근 24시간 이내 치유 이력이 있으면 과최적화 방지 쿨다운
-        return False
-
-    metrics = analyze_recent_trades(bot_id, hours=72)
-    if metrics.get("status") != "OK":
-        return False
-
-    cfg_path = os.path.join(BASE_DIR, bot_id, "config.json")
-    if not os.path.exists(cfg_path):
-        return False
-
-    with open(cfg_path, "r", encoding="utf-8") as f:
-        cfg = json.load(f)
-
-    diagnoses = []
-    actions = []
-    cfg_modified = False
-
-    # [규칙 1: 역손익비 및 풀 손절 출혈 차단]
-    # 평균 손실이 평균 이익보다 1.5배 이상 크거나, 최근 72시간 내 1.4% 이상 풀손절이 1건 이상 발생했을 때
-    if metrics["heavy_sl_count"] >= 1 or (metrics["avg_loss"] > 1.5 * metrics["avg_win"] and metrics["win_rate"] < 0.60):
-        if cfg.get("DYNAMIC_SL_CAP_PCT", 0.05) > 0.015:
-            cfg["DYNAMIC_SL_CAP_PCT"] = 0.015
-            actions.append("DYNAMIC_SL_CAP_PCT -> 0.015 (1.5% 슬림 손절 상한 캡 긴축)")
-            cfg_modified = True
-            diagnoses.append("손익비 역전 및 광범위 손절 출혈 감지")
-
-        if not cfg.get("USE_BE_GUARD", False) or cfg.get("BREAKEVEN_FEE_BUFFER_PCT", 0.0) < 0.001:
-            cfg["USE_BE_GUARD"] = True
-            cfg["BREAKEVEN_FEE_BUFFER_PCT"] = 0.001
-            actions.append("USE_BE_GUARD=True, BREAKEVEN_FEE_BUFFER_PCT=0.001 (수수료 무손실 본절가드 활성화)")
-            cfg_modified = True
-            diagnoses.append("본절 가드 부재로 인한 반락 손실 감지")
-
-    # [규칙 2: 퓨전 봇(8404, 8408, 8410) 조기 헐값 익절 정상화]
-    if bot_id in ["8404", "8408", "8410"]:
-        if cfg.get("PARTIAL_TP_TRIGGER_PCT", 0.02) < 0.020:
-            cfg["PARTIAL_TP_TRIGGER_PCT"] = 0.020
-            cfg["BE_GUARD_TRIGGER_PCT"] = 0.020
-            actions.append("PARTIAL_TP_TRIGGER_PCT -> 0.020 (+2.0% 분할익절 상향으로 손익비 15배 개선)")
-            cfg_modified = True
-            diagnoses.append("1.2% 조기 헐값 익절로 인한 손익비 왜곡 감지")
-
-        if cfg.get("MARGIN_USDT", 2.0) < 2.5:
-            cfg["MARGIN_USDT"] = 2.5
-            actions.append("MARGIN_USDT -> 2.5 ($2.5 증거금 정상화로 거래소 수수료 잠식율 반감)")
-            cfg_modified = True
-            diagnoses.append("소액 증거금으로 인한 수수료 잠식 과다 감지")
-
-    # [규칙 3: 추세돌파 봇(8401, 8402) 횡보장 휩소 가짜돌파 차단]
-    # [보스 5단계 승인 보호] KER_THRESHOLD(0.20)를 워치독이 임의로 0.40으로 상향 덮어쓰지 않도록 차단 (ADX_MIN=20.0만 유지)
-    if bot_id in ["8401", "8402"]:
-        if metrics["win_rate"] < 0.35 and not cfg.get("USE_ADX_FILTER", False):
-            cfg["USE_ADX_FILTER"] = True
-            cfg["ADX_MIN"] = 20.0
-            actions.append("USE_ADX_FILTER -> True & ADX_MIN -> 20.0 (비추세 횡보장 가짜돌파 차단 게이트 유지)")
-            cfg_modified = True
-            diagnoses.append("횡보장 비추세 휩소 진입 누적으로 승률 저하 감지")
-
-    # [규칙 4: 3연패 이상 발생 시 리스크 긴급 다이어트]
-    if metrics["loss_streak"] >= 3:
-        if cfg.get("AUTO_COMPOUND_PCT", 100.0) > 50.0:
-            cfg["AUTO_COMPOUND_PCT"] = float(cfg.get("AUTO_COMPOUND_PCT", 100.0)) * 0.7
-            actions.append(f"AUTO_COMPOUND_PCT -> {cfg['AUTO_COMPOUND_PCT']:.1f}% (3연패 이상으로 인한 리스크 비중 30% 축소)")
-            cfg_modified = True
-            diagnoses.append(f"{metrics['loss_streak']}연속 손절 발생 — 리스크 자동 다이어트")
-
-    if not cfg_modified or not actions:
-        return False
-
-    # ── 백업 및 디스크 쓰기 ──────────────────────────────────
-    bak_path = cfg_path + f".bak_autotune_{int(time.time())}"
-    try:
-        with open(cfg_path, "r", encoding="utf-8") as f:
-            raw_orig = f.read()
-        with open(bak_path, "w", encoding="utf-8") as f:
-            f.write(raw_orig)
-            
-        with open(cfg_path, "w", encoding="utf-8") as f:
-            json.dump(cfg, f, indent=4, ensure_ascii=False)
-            
-        log(f"[{bot_id}] 🚨 자가치유 감지: {', '.join(diagnoses)}")
-        log(f"[{bot_id}] 🛠️ 자동 반영 액션: {', '.join(actions)}")
-    except Exception as e:
-        log(f"[{bot_id}] ❌ 설정 파일 저장 실패: {e}")
-        return False
-
-    # ── 자가 안전 검증 (Self-Verification) ────────────────────
-    verify_script = os.path.join(BASE_DIR, "8888", "verify_all.py")
-    verify_res = subprocess.run(["python3", verify_script], capture_output=True, text=True, timeout=10)
-    
-    if verify_res.returncode != 0 and "FAIL" in verify_res.stdout:
-        log(f"[{bot_id}] ❌ verify_all 검증 실패! 즉각 롤백(Rollback)합니다.")
-        with open(cfg_path, "w", encoding="utf-8") as f:
-            f.write(raw_orig)
-        send_discord(f"🚨 [자가치유 실패 롤백] {bot_id} 자동 설정 반영 중 검증 오류 발생하여 원복되었습니다.")
-        return False
-
-    # ── 검증 성공 ➔ 봇 자율 재기동 ──────────────────────────
-    restart_ok = restart_bot(bot_id)
-    if restart_ok:
-        save_healing_history(bot_id, " | ".join(diagnoses), actions, metrics)
-        
-        # 디스코드 실시간 브리핑
-        discord_msg = (
-            f"🛠️ **[수익성 자가치유 워치독] {bot_id}번 봇 자율 개선 완결 (Zero-Touch)**\n"
-            f"• **진단 사유**: {' | '.join(diagnoses)}\n"
-            f"• **자율 조치**: {', '.join(actions)}\n"
-            f"• **검증 결과**: `verify_all 100% PASS` 자가 통과\n"
-            f"• **실매매 엔진**: 무인 재기동 및 정상 스캔 순항 확인 완료"
-        )
-        send_discord(discord_msg)
-        log(f"[{bot_id}] ✅ 자율 치유 및 안전 배포 100% 완료!")
-        return True
-
-    return False
-
-# ── 단일 실행 사이클 ────────────────────────────────────────
-def run_healing_cycle():
-    log("==================================================")
-    log("🔍 [수익성 자가치유 워치독] 9개 봇 전수 건강 진단 사이클 시작")
-    log("==================================================")
-    
-    healed_count = 0
+    status_bots = {}
+    all_alerts_summary = []
     for bot_id in ACTIVE_BOTS:
-        # 의도적 중지 봇은 검사 제외
-        if os.path.exists(os.path.join(BASE_DIR, bot_id, ".stopped")):
+        bot_bl = bots_baselines.get(bot_id)
+        if not bot_bl:
             continue
-            
-        try:
-            healed = evaluate_and_heal(bot_id)
-            if healed:
-                healed_count += 1
-        except Exception as e:
-            log(f"[{bot_id}] 진단 중 예외 발생: {e}")
-            
-    log(f"🏁 진단 사이클 완료: 총 {healed_count}개 봇 자율 치유 집행 완료.")
+        res = _eval_bot(bot_id, bot_bl, live_ex_bots, latest_snap_bots, peak_assets_map, now_dt)
+        if res is None:
+            continue
+        status_bots[bot_id] = res
+        if res["active_alerts"]:
+            titles = ", ".join(a["title"] for a in res["active_alerts"])
+            all_alerts_summary.append(f"{bot_id}: {titles}")
 
-# ── 메인 엔트리포인트 ──────────────────────────────────────
-if __name__ == "__main__":
-    # 중복 실행 방지 락
-    lock_file = "/tmp/watchdog_profitability.lock"
-    if os.path.exists(lock_file):
-        try:
-            with open(lock_file, "r") as f:
-                old_pid = int(f.read().strip())
-            if os.system(f"kill -0 {old_pid} 2>/dev/null") == 0:
-                print(f"[LOCK] watchdog_profitability가 이미 가동 중입니다 (PID: {old_pid}). 종료.")
-                sys.exit(0)
-        except Exception:
-            pass
+    payload = {
+        "updated": now_dt.strftime("%Y-%m-%d %H:%M:%S"),
+        "baselines_version": (baselines_doc.get("_meta") or {}).get("version", "1.0.0"),
+        "bots": status_bots,
+        "proactive_alerts_snapshot": load_proactive_alerts().get("active", {}),
+    }
+    _atomic_save_json(LIFECYCLE_STATUS_PATH, payload)
 
-    with open(lock_file, "w") as f:
-        f.write(str(os.getpid()))
+    if all_alerts_summary:
+        _log(f"📊 수명·임계치 점검 완료 (경고/제안 {len(all_alerts_summary)}봇): " + " | ".join(all_alerts_summary))
+    else:
+        _log("✅ 전 봇 수명·임계치 점검 완료 — 이상 없음")
+    return payload
 
-    def _cleanup(sig, frame):
-        if os.path.exists(lock_file):
-            os.remove(lock_file)
-        sys.exit(0)
 
-    signal.signal(signal.SIGINT, _cleanup)
-    signal.signal(signal.SIGTERM, _cleanup)
+def main():
+    parser = argparse.ArgumentParser(description="8888 Proactive Strategy Lifecycle Monitor")
+    parser.add_argument("--once", action="store_true", help="Run a single lifecycle inspection cycle and exit")
+    args = parser.parse_args()
 
-    log(f"🚀 수익성 자가치유 워치독(watchdog_profitability.py) 백그라운드 상시 가동 시작 (PID: {os.getpid()})")
-    
-    # 1회성 플래그 (--once) 지원
-    if "--once" in sys.argv:
-        run_healing_cycle()
-        if os.path.exists(lock_file):
-            os.remove(lock_file)
-        sys.exit(0)
+    if args.once:
+        run_once()
+        return
 
-    # 데몬 상시 루프
+    lock_fd = open(LOCK_PATH, "w", encoding="utf-8")
     try:
-        while True:
-            run_healing_cycle()
-            time.sleep(CHECK_INTERVAL_SEC)
-    finally:
-        if os.path.exists(lock_file):
-            os.remove(lock_file)
+        fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        _log("⚠️ watchdog_profitability.py 이미 실행 중 (fcntl.flock 충돌) — 중복 기동 종료")
+        return
+    lock_fd.write(f"{os.getpid()}\n")
+    lock_fd.flush()
+
+    _log(f"🛡️ watchdog_profitability.py 가동 (PID {os.getpid()}, Read-Only 사전감시 모드, 주기 {CHECK_INTERVAL_SEC}s)")
+    while True:
+        try:
+            run_once()
+        except Exception as exc:
+            _log(f"❌ 점검 루프 예외: {exc}")
+        time.sleep(CHECK_INTERVAL_SEC)
+
+
+if __name__ == "__main__":
+    main()

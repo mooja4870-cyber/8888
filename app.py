@@ -1666,6 +1666,71 @@ def collect_bots(bot_tuples):
         for k, v in (b.get("hm_grid") or {}).items():
             heatmap[k] = round(heatmap.get(k, 0.0) + v, 4)
 
+    _dir_8888 = os.path.dirname(os.path.abspath(__file__))
+    _baselines_doc = safe_load_json(os.path.join(_dir_8888, "strategy_baselines.json"), {}) or {}
+    _baselines = _baselines_doc.get("bots") or {}
+    _lifecycle_doc = safe_load_json(os.path.join(_dir_8888, "data", "lifecycle_status.json"), {}) or {}
+    _lifecycle = _lifecycle_doc.get("bots") or {}
+    _proactive_doc = safe_load_json(os.path.join(_dir_8888, "data", "proactive_alerts.json"), {}) or {}
+    _peaks_map = load_peak_assets() or {}
+
+    for b in bots:
+        bid = str(b.get("name") or "")
+        _bl = _baselines.get(bid) or {}
+        _bl_bt = _bl.get("backtest") or {}
+        _bl_th = _bl.get("thresholds") or {}
+        _lc = _lifecycle.get(bid) or {}
+        _pk_entry = _peaks_map.get(bid) or {}
+
+        _cur_bal = b.get("ex_balance")
+        _pk_val = _pk_entry.get("peak_asset") or _lc.get("peak_asset")
+        try:
+            if _cur_bal is not None and _pk_val is not None and float(_pk_val) > 0:
+                _cur_f = float(_cur_bal)
+                _pk_eff = max(float(_pk_val), _cur_f)
+                b["peak_asset"] = round(_pk_eff, 2)
+                b["peak_dd_pct"] = round(min(0.0, ((_cur_f - _pk_eff) / _pk_eff) * 100.0), 2)
+            else:
+                b["peak_asset"] = _lc.get("peak_asset")
+                b["peak_dd_pct"] = _lc.get("peak_dd_pct")
+        except (TypeError, ValueError):
+            b["peak_asset"] = _lc.get("peak_asset")
+            b["peak_dd_pct"] = _lc.get("peak_dd_pct")
+
+        b["baseline"] = {
+            "strategy_id": _bl.get("strategy_id"),
+            "approval_tier": _bl.get("approval_tier"),
+            "expected_mdd_pct": _bl_bt.get("expected_mdd_pct"),
+            "expected_max_loss_streak": _bl_bt.get("expected_max_loss_streak"),
+            "peak_mdd_warn_pct": _bl_th.get("peak_mdd_warn_pct"),
+            "peak_mdd_kill_pct": _bl_th.get("peak_mdd_kill_pct"),
+            "min_sample_days": _bl_th.get("min_sample_days"),
+            "review_target_days": _bl_th.get("review_target_days"),
+        }
+        b["lifecycle"] = _lc
+
+    _live_snap = {}
+    for b in bots:
+        if b.get("ex_ok") and b.get("ex_balance") is not None:
+            try:
+                _live_snap[str(b.get("name") or "")] = round(float(b["ex_balance"]), 4)
+            except (TypeError, ValueError):
+                pass
+    if _live_snap:
+        try:
+            atomic_save_json(
+                os.path.join(_dir_8888, "data", "live_balances.json"),
+                {"ts": time.time(), "updated": time.strftime("%Y-%m-%d %H:%M:%S"), "bots": _live_snap},
+            )
+        except Exception:
+            pass
+
+    _sev_rank = {"CRITICAL": 0, "WARN": 1, "INFO": 2}
+    _active_alerts = sorted(
+        list((_proactive_doc.get("active") or {}).values()),
+        key=lambda a: (_sev_rank.get(a.get("severity"), 9), str(a.get("bot_id", "")), str(a.get("alert_key", ""))),
+    )
+
     dd_danger = [{"name": b["name"], "today_dd": b["today_dd"]}
                  for b in bots if b.get("today_dd") is not None and b["today_dd"] <= -10]
     dd_warn = [{"name": b["name"], "today_dd": b["today_dd"]}
@@ -1702,7 +1767,17 @@ def collect_bots(bot_tuples):
         watchdog_logs.extend(_load_watchdog_logs(log_path, str(b[0])))
     watchdog_logs.sort(key=lambda x: x["ts"], reverse=True)
     
-    return {"summary": summary, "bots": bots, "stale_min": STALE_MIN, "watchdog": watchdog_logs}
+    return {
+        "summary": summary,
+        "bots": bots,
+        "stale_min": STALE_MIN,
+        "watchdog": watchdog_logs,
+        "proactive_alerts": {
+            "active": _active_alerts,
+            "updated": _proactive_doc.get("updated"),
+            "lifecycle_updated": _lifecycle_doc.get("updated"),
+        },
+    }
 
 
 def collect():

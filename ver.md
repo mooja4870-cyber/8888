@@ -1,5 +1,31 @@
 # Version History
 
+## v1.3.0
+Date: 2026-11-11
+
+### 변경 내용
+* [Phase 2: 3~5년 장기 백테스트 기준선 등록 · 사전 수명/리스크 경보 시스템 구축 · 워치독 CPU/락 아키텍처 개편]
+  - `strategy_baselines.json`: 가동 6개 봇(`8401`, `8402`, `8403`, `8404`, `8405`, `8408`)의 Phase 1 3~5년 실측 백테스트 기대치(Expected MDD, Max Loss Streak, Fee Ratio, 최소 표본일 30~60일) 및 실전 생존 임계치(`peak_mdd_warn_pct`, `peak_mdd_kill_pct`) 등록
+  - `watchdog_common.py`: `error_dict.txt` 364개 시그니처 단일 정규식 사전컴파일(`BotErrorMatcher`), 중복 로그 제거 로거(`setup_clean_logger`), `fcntl.flock` + `/tmp/watchdog_restart_state.json` 기반 120초 재기동 쿨다운(`bot_restart_locked`), Read-Only 사전 경보 등록/해제(`record_proactive_alert`/`clear_proactive_alert`) 모듈 신설
+  - `watchdog_position.py` / `watchdog_exit.py` / `watchdog_entry.py`: V5 저CPU 공유 엔진 통합으로 `watchdog_position.py` CPU 점유율 **80.6% → 0.0%**, 이중 로그 출력 제거, `watchdog_entry.py`의 무단 `config.json`/복리 상태 수정 로직 전면 제거 및 사전 승인 대기 경보 전환
+  - `watchdog_profitability.py`: 봇 코드/`config.json` 자동 변경 및 `pkill` 강제 재기동 완전 제거(Read-Only 사전 수명·임계치 모니터 전환), `data/live_balances.json`·`/api/status`·`trade_history.csv`(누적 및 최근 7일)·`peak_assets.json` 기반 Peak-MDD·수수료 잠식률·연패·표본 경과일·생존 설정 미비 항목 상시 감시 (`data/lifecycle_status.json`, `data/proactive_alerts.json`)
+  - `app.py` / `dashboard.html`: 실시간 거래소 기준 전고점 대비 낙폭(`peak_dd_pct`), 장기 백테스트 기대 MDD 및 생존컷(`baseline`), 수수료 비중·표본 경과일(`lifecycle`), 사전 감시 `[승인 대기 제안]` 배너(`proactive_alerts`) 및 `data/live_balances.json` 원자적 캐시 연동
+
+### 수정 파일
+* app.py
+* dashboard.html
+* watchdog_common.py
+* watchdog_position.py
+* watchdog_exit.py
+* watchdog_entry.py
+* watchdog_profitability.py
+* strategy_baselines.json
+* ver.md
+
+### 비고
+* 개별 봇(`8401`~`8408`) 소스/설정은 미변경(Phase 3 다단계 승인 대기)
+* `verify_all.py` 100% PASS, 4대 워치독 CPU 0.0%, `GET /` HTTP 200 및 `/api/status` 실시간 Peak-MDD 정합성 검증 완료
+
 ## v1.2.110
 Date: 2026-11-11
 
