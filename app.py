@@ -151,34 +151,59 @@ def _load_watchdog_logs(path, bot_name):
     _WATCHDOG_CACHE[path] = (mt, sz, logs)
     return logs
 
+_LAST_EXIT_SYM_CACHE = {}
+
+
 def _load_entries(path):
-    """trade_history.csv에서 각 주문ID(order ID)별 최초 출현 시각을 진입 시각으로 파싱. mtime 캐시."""
+    """trade_history.csv에서 각 (심볼, 주문ID)별 최초 출현 시각을 진입 시각으로 파싱. mtime 캐시."""
     try:
         mt = os.path.getmtime(path)
         sz = os.path.getsize(path)
     except OSError:
         return []
     c = _ENTRY_CACHE.get(path)
-    if c and c[0] == mt and c[1] == sz:
+    if c and c[0] == mt and c[1] == sz and path in _LAST_EXIT_SYM_CACHE:
         return c[2]
-    oid_min_ts = {}
+    key_min_ts = {}
+    last_exit_by_sym = {}
     try:
         with open(path, encoding="utf-8-sig", errors="replace") as f:
             for i, r in enumerate(csv.reader(f)):
                 if len(r) < 3:
                     continue
-                if r[2].strip() != "진입":
-                    continue
                 ts = r[0].strip()[:19]
                 if not ts[:4].isdigit():
                     continue
-                oid = r[10].strip() if len(r) > 10 and r[10].strip() else f"unk_entry_{ts}_{i}"
-                if oid not in oid_min_ts or ts < oid_min_ts[oid]:
-                    oid_min_ts[oid] = ts
-        entries = sorted([(ts, oid) for oid, ts in oid_min_ts.items()])
+                sym = r[1].strip()
+                cat = r[2].strip()
+                if any(col.strip().upper() == "MOCK" for col in r[2:]):
+                    continue
+                if cat.startswith("청산"):
+                    if sym and (sym not in last_exit_by_sym or ts > last_exit_by_sym[sym]):
+                        last_exit_by_sym[sym] = ts
+                    continue
+                if cat not in ("진입", "*진입"):
+                    continue
+                r9 = r[9].strip() if len(r) > 9 else ""
+                r10 = r[10].strip() if len(r) > 10 else ""
+                if r9.isdigit() and len(r9) >= 6 and not (r10.isdigit() and len(r10) >= 6):
+                    oid = r9
+                elif r10:
+                    oid = r10
+                elif r9 and r9.upper() not in ("LIVE", "REAL", "TEST", "PAPER", "MOCK") and r9 not in ("실전", "실매매"):
+                    oid = r9
+                else:
+                    oid = ""
+                if oid in ("", "RECOVERED_ENTRY", "nan", "None"):
+                    oid = f"unk_entry_{ts}_{i}"
+                k = (sym, oid)
+                if k not in key_min_ts or ts < key_min_ts[k]:
+                    key_min_ts[k] = ts
+        entries = sorted([(ts, oid, sym) for (sym, oid), ts in key_min_ts.items()])
     except OSError:
         return []
     _ENTRY_CACHE[path] = (mt, sz, entries)
+    _LAST_EXIT_SYM_CACHE[path] = (mt, sz, last_exit_by_sym)
     return entries
 
 
@@ -312,13 +337,28 @@ def hist_metrics(path, perf_start, pos_count=0):
     today_grp, since_grp = {}, {}
     entry_dict = {}
     
+    def _sym_key(s):
+        return (s or "").strip().split(":")[0].replace("-SWAP", "").replace("/", "").replace("-", "").upper()
+
+    raw_last_exit = (_LAST_EXIT_SYM_CACHE.get(path) or (None, None, {}))[2]
+    last_exit_by_sym = {}
+    for _k_s, _ex_ts in raw_last_exit.items():
+        _ns = _sym_key(_k_s)
+        if _ns and (_ns not in last_exit_by_sym or _ex_ts > last_exit_by_sym[_ns]):
+            last_exit_by_sym[_ns] = _ex_ts
+    last_entry_ge_ps_by_sym = {}
+
     # OID 누락 방지 (빈 문자열이면 가상 ID 부여)
-    for i, (ts, oid) in enumerate(entries):
+    for i, (ts, oid, sym) in enumerate(entries):
         if not oid:
             oid = f"unk_entry_{ts}_{i}"
-            entries[i] = (ts, oid)
+            entries[i] = (ts, oid, sym)
         if oid not in entry_dict:
             entry_dict[oid] = ts  # 첫 진입 시각 기준
+        _ns = _sym_key(sym)
+        if _ns and (not ps or ts >= ps):
+            if _ns not in last_entry_ge_ps_by_sym or ts > last_entry_ge_ps_by_sym[_ns]:
+                last_entry_ge_ps_by_sym[_ns] = ts
 
     holding_times = []
     for i in range(len(exits)):
@@ -429,18 +469,21 @@ def hist_metrics(path, perf_start, pos_count=0):
     periods = {"1h": 3600, "4h": 14400, "6h": 21600, "12h": 43200, "24h": 86400,
                "48h": 172800, "72h": 259200, "1w": 604800}
     # [v8.21.0] 활성화된 현재 포지션 진입 시각도 윈도우에 포함하여 진입 횟수 계산 (역사 초기화 후 누락 방지)
-    active_entry_times = []
+    active_entries = []
     try:
         apos_path = os.path.join(os.path.dirname(path), "active_positions.json")
         if os.path.exists(apos_path):
             import json
             with open(apos_path, "r", encoding="utf-8") as f:
                 apos = json.load(f)
-            for _, v in apos.items():
+            for k_sym, v in apos.items():
+                if not isinstance(v, dict):
+                    continue
                 ot = v.get("open_time")
                 if ot:
                     # '2026-09-23T08:37:00.017619' 형식 지원
-                    active_entry_times.append(ot.replace("T", " ")[:19])
+                    sym_name = str(v.get("symbol") or k_sym).strip()
+                    active_entries.append((ot.replace("T", " ")[:19], sym_name))
     except Exception:
         pass
 
@@ -450,36 +493,37 @@ def hist_metrics(path, perf_start, pos_count=0):
         cutoff = pure_cutoff
         if ps and cutoff < ps:
             cutoff = ps
-        # 1. 해당 윈도우 내에 진입한 거래 건수 산출 (분할 체결/주문 60초 이내 병합)
-        valid_entry_secs = []
-        for ts, oid in entries:
+        # 1. 해당 윈도우 내에 진입한 거래 건수 산출 (동일 심볼 내 분할 체결/주문 60초 이내만 병합)
+        valid_entries_by_sym = {}
+        for ts, oid, sym in entries:
             if ts >= cutoff:
                 try:
                     ts_sec = time.mktime(time.strptime(ts[:19], "%Y-%m-%d %H:%M:%S"))
-                    # 이전 카운트된 진입과 60초 이내면 같은 진입으로 간주하여 병합
-                    if valid_entry_secs and (ts_sec - valid_entry_secs[-1]) < 60:
+                    ns = _sym_key(sym) or sym or "__unknown__"
+                    lst = valid_entries_by_sym.setdefault(ns, [])
+                    # 동일 심볼 내 이전 카운트된 진입과 60초 이내면 같은 진입으로 간주하여 병합
+                    if lst and (ts_sec - lst[-1]) < 60:
                         continue
-                    valid_entry_secs.append(ts_sec)
+                    lst.append(ts_sec)
                 except Exception:
                     pass
-        
-        # 현재 활성 포지션들의 진입 시각도 합산
-        for i, ot in enumerate(active_entry_times):
+
+        # 현재 활성 포지션들의 진입 시각도 합산 (이미 CSV에 미청산 진입이 기록된 심볼은 중복 가산 제외)
+        for ot, sym in active_entries:
             if ot >= pure_cutoff:
-                # 중복 방지: 이미 카운트된 진입건(CSV) 중 60초 내외가 있는지 확인
+                ns = _sym_key(sym) or sym or "__unknown__"
+                if ns in last_entry_ge_ps_by_sym and last_entry_ge_ps_by_sym[ns] > last_exit_by_sym.get(ns, ""):
+                    continue
                 try:
                     ot_sec = time.mktime(time.strptime(ot[:19], "%Y-%m-%d %H:%M:%S"))
-                    already_counted = False
-                    for vts in valid_entry_secs:
-                        if abs(vts - ot_sec) < 60:
-                            already_counted = True
-                            break
-                    if not already_counted:
-                        valid_entry_secs.append(ot_sec)
+                    lst = valid_entries_by_sym.setdefault(ns, [])
+                    if any(abs(vts - ot_sec) < 60 for vts in lst):
+                        continue
+                    lst.append(ot_sec)
                 except Exception:
-                    valid_entry_secs.append(0)
-                
-        entries_by_period[key] = len(valid_entry_secs)
+                    valid_entries_by_sym.setdefault(ns, []).append(0)
+
+        entries_by_period[key] = sum(len(v) for v in valid_entries_by_sym.values())
 
     return {"today_pnl": round(today_pnl, 4), "today_w": tw, "today_l": tl,
             "since_w": sw, "since_l": sl, "since_orders": sw + sl,

@@ -1,5 +1,25 @@
 # Version History
 
+## v1.2.110
+Date: 2026-11-11
+
+### 변경 내용
+* [전체 가동 6개 봇(8401, 8402, 8403, 8404, 8405, 8408) 진입 건수 집계 및 거래소 원장 동기화 통합 패치]
+  - `app.py`: `_load_entries()` 및 `hist_metrics()` 기간별 진입 건수(`entries_by_period`: 1h~1w) 전수 정합화
+    - 서로 다른 심볼의 60초 이내 동시 진입이 단일 건으로 병합되던 전역 병합 오류를 **동일 심볼(`_sym_key`) 기준 60초 이내 분할 체결 병합**으로 개선 (`8402`, `8404`, `8405`, `8408` 누락 해소)
+    - `주문ID`가 `RECOVERED_ENTRY` / 빈값 / `nan` / `None`인 복구 진입 행들이 하나로 뭉개지던 오류 제거 (`unk_entry_{ts}_{i}` 고유 키 및 `(sym, oid)` 키잉 적용, `8402`, `8403`, `8405` 보정)
+    - `_LAST_EXIT_SYM_CACHE` 및 `last_entry_ge_ps_by_sym` 기반 대조로 CSV에 이미 미청산 진입이 기록된 심볼의 `active_positions.json` 중복 가산 차단 (`8408` 등 이중 카운팅 해소)
+    - `*진입` 유형 인식, 시프트된 `r[9]` 주문ID 폴백 처리 및 `"MOCK"` 행 필터링 추가
+  - `exchange_pnl.py`: `VENUE` 목록을 가동 6개 봇(`8401`~`8405` OKX, `8408` Binance)으로 현행화 (`8405` 추가, 미기동 `8409` 제외)
+
+### 수정 파일
+* app.py
+* exchange_pnl.py
+* ver.md
+
+### 비고
+* 6개 봇 CSV 실측 대조, live `/api/status` 및 `verify_all.py` 100% PASS 검증 완료
+
 ## v1.2.109
 Date: 2026-11-09
 
