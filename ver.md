@@ -1,5 +1,26 @@
 # Version History
 
+## v1.7.0
+
+Date: 2026-11-12
+
+### 변경 내용
+
+* `매매기법 비교` 대시보드 테이블에 6개 핵심 봇(`8401`, `8402`, `8403`, `8404`, `8405`, `8408`) 향후 운영방향 및 Phase 3 리스크·기대값 기준선 7개 항목 전면 통합 반영:
+  * `app.py`: `read_bot_config()`에 `risk_per_trade_pct`, `max_drawdown_pct`, `daily_loss_limit_usdt`, `use_dynamic_regime`, `use_btc_trend_filter`, `allow_adx_counter` 추가 및 `collect_bots()` `baseline` 페이로드에 3~5y 백테스트 메타(`horizon_years`, `net_pf`, `net_ret_pct`, `fee_ratio_pct`, `recent_30d_pf`, `static_5y_pf`, `okx_3y_wl_*`, `corr_vs_*`, `max_loss_streak_kill`, `note`) 동적 노출
+  * `dashboard.html`: 비교표(`#comparisonTable`) 내 7개 신규 비교 행(`리스크 사이징 (M4)`, `최대손실허용치 (전고점 컷)`, `연패·인스턴스·진입 가드`, `기대 MDD · 최대연패 (3~5y)`, `월 예상 수익률 (장기 vs 최근/조건)`, `수수료 비중 · 포트폴리오 역할`, `향후 운영방향 (수명 · 재판정)`) 신설 및 `4h`/`Donchian` 색상 매핑·`_escH` 초기화 순서 정합화
+
+### 수정 파일
+
+* app.py
+* dashboard.html
+* ver.md
+
+### 비고
+
+* 헤드리스 Chrome 실측 DOM/스크린샷 렌더링 검증 및 6개 봇 전수 비교표 정상 출력 확인 완료 (`선택 A` 보스 승인 반영)
+
+
 ## v1.6.0
 
 Date: 2026-11-11

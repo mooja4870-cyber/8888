@@ -802,12 +802,20 @@ def read_bot_config(folder):
             "risk_reward": rr_str,
             "be_guard": be_str,
             "rr_and_be": rr_be_str,
+            "risk_per_trade_pct": float(cfg.get("RISK_PER_TRADE_PCT", 0.0) or 0.0),
+            "max_drawdown_pct": float(cfg.get("MAX_DRAWDOWN_PCT", 0.0) or 0.0),
+            "daily_loss_limit_usdt": float(cfg.get("DAILY_LOSS_LIMIT_USDT", 0.0) or 0.0),
+            "use_dynamic_regime": bool(cfg.get("USE_DYNAMIC_REGIME", False)),
+            "use_btc_trend_filter": bool(cfg.get("USE_BTC_TREND_FILTER", False)),
+            "allow_adx_counter": cfg.get("ALLOW_ADX_COUNTER"),
         }
     except (OSError, json.JSONDecodeError, ValueError):
         return {k: "—" for k in ["leverage", "margin_usdt", "max_positions", "stop_loss_pct",
                                   "take_profit_pct", "timeframe", "indicators", "strategy", "scan_targets",
                                   "max_holding_hours", "USE_AUTO_COMPOUND", "AUTO_COMPOUND_PCT", "use_auto_mode_switch",
-                                  "use_be_guard", "be_guard_trigger_pct", "risk_reward", "be_guard", "rr_and_be"]}
+                                  "use_be_guard", "be_guard_trigger_pct", "risk_reward", "be_guard", "rr_and_be",
+                                  "risk_per_trade_pct", "max_drawdown_pct", "daily_loss_limit_usdt",
+                                  "use_dynamic_regime", "use_btc_trend_filter", "allow_adx_counter"]}
 
 
 def parse_api_md_okx(folder):
@@ -1704,11 +1712,31 @@ def collect_bots(bot_tuples):
 
         b["baseline"] = {
             "strategy_id": _bl.get("strategy_id"),
+            "previous_strategy_id": _bl.get("previous_strategy_id"),
             "approval_tier": _bl.get("approval_tier"),
+            "horizon_years": _bl_bt.get("horizon_years"),
+            "cost_bps_rt": _bl_bt.get("cost_bps_rt"),
+            "trades": _bl_bt.get("trades"),
+            "win_rate_pct": _bl_bt.get("win_rate_pct"),
+            "net_pf": _bl_bt.get("net_pf"),
+            "net_ret_pct": _bl_bt.get("net_ret_pct"),
             "expected_mdd_pct": _bl_bt.get("expected_mdd_pct"),
             "expected_max_loss_streak": _bl_bt.get("expected_max_loss_streak"),
+            "fee_ratio_pct": _bl_bt.get("fee_ratio_pct"),
+            "recent_30d_pf": _bl_bt.get("recent_30d_pf"),
+            "recent_30d_mdd_pct": _bl_bt.get("recent_30d_mdd_pct"),
+            "static_5y_pf": _bl_bt.get("static_5y_pf"),
+            "static_5y_mdd_pct": _bl_bt.get("static_5y_mdd_pct"),
+            "okx_3y_wl_pf": _bl_bt.get("okx_3y_wl_pf"),
+            "okx_3y_wl_ret_pct": _bl_bt.get("okx_3y_wl_ret_pct"),
+            "okx_3y_wl_mdd_pct": _bl_bt.get("okx_3y_wl_mdd_pct"),
+            "corr_vs_8401": _bl_bt.get("corr_vs_8401"),
+            "corr_vs_8404": _bl_bt.get("corr_vs_8404"),
+            "note": _bl_bt.get("note"),
             "peak_mdd_warn_pct": _bl_th.get("peak_mdd_warn_pct"),
             "peak_mdd_kill_pct": _bl_th.get("peak_mdd_kill_pct"),
+            "max_loss_streak_warn": _bl_th.get("max_loss_streak_warn"),
+            "max_loss_streak_kill": _bl_th.get("max_loss_streak_kill"),
             "min_sample_days": _bl_th.get("min_sample_days"),
             "review_target_days": _bl_th.get("review_target_days"),
         }

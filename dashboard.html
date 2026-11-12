@@ -537,6 +537,13 @@ function render(d,anim){
     </tr>`;
   };
 
+  const _escH=t=>String(t==null?'':t).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const _mCagr = (retPct, yrs) => {
+    const g = 1 + Number(retPct) / 100;
+    if (!isFinite(g) || g <= 0.001 || !yrs || Number(yrs) <= 0) return null;
+    return (Math.pow(g, 1 / (Number(yrs) * 12)) - 1) * 100;
+  };
+
   const compTable=`<table style="width:100%;border-collapse:collapse;font-size:12px">
     <thead><tr style="background:var(--card2);border-bottom:1px solid var(--border)">
      <th style="padding:8px;text-align:center;font-weight:600;min-width:90px">구분</th>
@@ -588,7 +595,7 @@ function render(d,anim){
        }
      })}
      ${_cRow("타임프레임", "var(--card)", b => ((b.config && b.config.timeframe) || '1h'), {
-       explicitMap: { '1h': '#38bdf8', '15m': '#c084fc' }
+       explicitMap: { '1h': '#38bdf8', '15m': '#c084fc', '4h': '#34d399' }
      })}
      ${_cRow("1패 즉시전환", "var(--card)", b => (['8403', '8404', '8407', '8409'].includes((b.name || '').trim()) ? 'O' : 'X'), {
        isOx: true
@@ -597,6 +604,7 @@ function render(d,anim){
        const s = ((b.config && b.config.strategy) || '스캐너');
        let k = s;
        if (/QVT/i.test(s)) k = 'QVT';
+       else if (/Donchian/i.test(s)) k = 'DONCHIAN';
        else if (/BB\s*MR.*15m|BB\s*Mean\s*Reversion.*15m/i.test(s)) k = 'BB_MR_15m';
        else if (/BB\s*MR.*1h|BB\s*Mean\s*Reversion.*1h/i.test(s)) k = 'BB_MR_1h';
        else if (/TTM/i.test(s)) k = 'TTM';
@@ -606,6 +614,7 @@ function render(d,anim){
      }, {
        explicitMap: {
          'QVT': '#38bdf8',
+         'DONCHIAN': '#34d399',
          'BB_MR_15m': '#34d399',
          'TTM': '#c084fc',
          'BBTS': '#fbbf24',
@@ -622,6 +631,138 @@ function render(d,anim){
      ${_cRow("즉각 조기 손절", "var(--card2)", b => ((b.config && b.config.ui_early_sl) ? 'O' : 'X'), { isOx: true })}
      ${_cRow("양방향 시황 감지", "var(--card)", b => ((b.config && b.config.ui_macro_detect) ? 'O' : 'X'), { isOx: true })}
      ${_cRow("데드캣 락온 (쿨다운)", "var(--card)", b => ((b.config && b.config.ui_deadcat_lock) ? 'O' : 'X'), { isOx: true })}
+     ${_cRow("리스크 사이징 (M4)", "var(--card2)", b => {
+       const c = b.config || {};
+       const n = (b.name || '').trim();
+       const rp = Number(c.risk_per_trade_pct || 0);
+       const mp = c.max_positions != null ? c.max_positions : '—';
+       const rawComp = Number(c.AUTO_COMPOUND_PCT || 0);
+       const compPct = Math.round(rawComp > 0 && rawComp <= 1 ? rawComp * 100 : rawComp);
+       if (rp > 0) {
+         const col = n === '8405' ? 'var(--green)' : '#38bdf8';
+         const rpTxt = (rp * 100).toFixed(rp * 100 >= 1 ? 0 : 1) + '% M4';
+         const sub = n === '8405'
+           ? ('고정 $' + _escH(String(c.margin_usdt != null ? c.margin_usdt : '3.5')) + ' (단리)')
+           : (n === '8402' ? ('8401 패리티 동기화 (복리 ' + compPct + '%)') : ('복리 ' + compPct + '% 연동'));
+         return { key: 'M4', val: '<span style="color:' + col + '">' + rpTxt + ' · ' + mp + '포지션</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">' + sub + '</span>' };
+       }
+       const col = n === '8403' ? '#c084fc' : '#fb923c';
+       const sub = n === '8403' ? '동시 1포지션 축소' : (n === '8408' ? 'BNC 최소 $5 주문 보정' : ('동시 ' + mp + '포지션 유지'));
+       return { key: 'COMP', val: '<span style="color:' + col + '">복리 ' + compPct + '% · ' + mp + '포지션</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">' + sub + '</span>' };
+     })}
+     ${_cRow("최대손실허용치 (전고점 컷)", "var(--card2)", b => {
+       const c = b.config || {}, bl = b.baseline || {};
+       const kill = (c.max_drawdown_pct && Number(c.max_drawdown_pct) > 0) ? Number(c.max_drawdown_pct) * 100 : bl.peak_mdd_kill_pct;
+       if (kill == null) return '—';
+       const warn = bl.peak_mdd_warn_pct != null ? Number(bl.peak_mdd_warn_pct).toFixed(0) : '12';
+       const daily = Number(c.daily_loss_limit_usdt || 0);
+       const col = kill <= 20 ? '#f87171' : '#fbbf24';
+       return { key: String(kill), val: '<span style="color:' + col + '">전고점 -' + Number(kill).toFixed(0) + '% 킬</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">경고 -' + warn + '% · 일한도 $' + daily.toFixed(2) + '</span>' };
+     })}
+     ${_cRow("연패·인스턴스·진입 가드", "var(--card)", b => {
+       const c = b.config || {}, n = (b.name || '').trim();
+       const dyn = c.use_dynamic_regime ? '3연패 50%축소' : '비중축소 꺼짐';
+       let head = '<span style="color:#38bdf8">' + dyn + '</span>';
+       let sub = 'flock 단일락';
+       if (n === '8403' && c.allow_adx_counter === false) {
+         head = '<span style="color:#c084fc">ADX>30 차단 · 50%축소</span>';
+         sub = 'flock · 추세역매매 차단';
+       } else if (n === '8405' && c.use_btc_trend_filter) {
+         head = '<span style="color:var(--green)">BTC200EMA + 거래량1.2x</span>';
+         sub = 'flock · ' + dyn;
+       } else if (n === '8404' || n === '8408') {
+         sub = 'flock · 순/역 자동반전';
+       } else if (n === '8401' || n === '8402') {
+         sub = 'flock · QVT 원형유지';
+       }
+       return { key: n, val: head + '<br><span style="font-size:10px;color:#8b93a5;font-weight:400">' + sub + '</span>' };
+     })}
+     ${_cRow("기대 MDD · 최대연패 (3~5y)", "var(--card)", b => {
+       const bl = b.baseline || {}, n = (b.name || '').trim();
+       if (bl.expected_mdd_pct == null) return '—';
+       const mdd = Number(bl.expected_mdd_pct).toFixed(1);
+       const strk = bl.expected_max_loss_streak != null ? bl.expected_max_loss_streak : '—';
+       const sKill = bl.max_loss_streak_kill != null ? bl.max_loss_streak_kill : '—';
+       if (n === '8405') {
+         const okxMdd = bl.okx_3y_wl_mdd_pct != null ? Number(bl.okx_3y_wl_mdd_pct).toFixed(1) : '—';
+         return { key: '8405', val: '<span style="color:var(--green)">MDD ' + mdd + '% · ' + strk + '연패</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">OKX OOS ' + okxMdd + '% · 연패컷 ' + sKill + '</span>' };
+       }
+       if (n === '8402') {
+         const pm = (bl.note || '').match(/MDD\s*([\d.]+)%/i);
+         const pMdd = pm ? pm[1] : mdd;
+         return { key: '8402', val: '<span style="color:#fbbf24">MDD ' + pMdd + '% (패리티)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">기존 ' + mdd + '% · ' + strk + '연패 / 컷 ' + sKill + '</span>' };
+       }
+       if (n === '8401') {
+         const r30m = bl.recent_30d_mdd_pct != null ? Number(bl.recent_30d_mdd_pct).toFixed(1) : '—';
+         return { key: '8401', val: '<span style="color:#fbbf24">MDD ' + mdd + '% · ' + strk + '연패</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">최근30d ' + r30m + '% · 연패컷 ' + sKill + '</span>' };
+       }
+       if (n === '8403') {
+         return { key: '8403', val: '<span style="color:#f87171">MDD ' + mdd + '% · ' + strk + '연패</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">개편전 ' + (bl.horizon_years || 3) + 'y · 연패컷 ' + sKill + '</span>' };
+       }
+       const stMdd = bl.static_5y_mdd_pct != null ? Number(bl.static_5y_mdd_pct).toFixed(1) : '—';
+       return { key: n, val: '<span style="color:#fb923c">MDD ' + mdd + '% · ' + strk + '연패</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">정적 ' + stMdd + '% · 연패컷 ' + sKill + '</span>' };
+     })}
+     ${_cRow("월 예상 수익률 (장기 vs 최근/조건)", "var(--card2)", b => {
+       const bl = b.baseline || {}, n = (b.name || '').trim();
+       if (bl.net_ret_pct == null || bl.horizon_years == null) return '—';
+       const m = _mCagr(bl.net_ret_pct, bl.horizon_years);
+       const mTxt = m != null ? ((m >= 0 ? '+' : '') + m.toFixed(2) + '%/월') : '—';
+       const pfTxt = bl.net_pf != null ? Number(bl.net_pf).toFixed(2) : '—';
+       const tgt = bl.review_target_days || 60;
+       if (n === '8405') {
+         const oosM = _mCagr(bl.okx_3y_wl_ret_pct, 3.0);
+         const oosTxt = oosM != null ? ((oosM >= 0 ? '+' : '') + oosM.toFixed(2) + '%/월') : '—';
+         const oosPf = bl.okx_3y_wl_pf != null ? Number(bl.okx_3y_wl_pf).toFixed(2) : '—';
+         return { key: '8405', val: '<span style="color:var(--green)">' + mTxt + ' (5y PF ' + pfTxt + ')</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">OKX OOS ' + oosTxt + ' (PF ' + oosPf + ')</span>' };
+       }
+       if (n === '8401') {
+         const rPf = bl.recent_30d_pf != null ? Number(bl.recent_30d_pf).toFixed(2) : '—';
+         return { key: '8401', val: '<span style="color:#38bdf8">최근30d PF ' + rPf + ' (생존)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">5y 월 ' + mTxt.replace('/월','') + ' (PF ' + pfTxt + ') · ' + tgt + 'd 관측</span>' };
+       }
+       if (n === '8402') {
+         const pm = (bl.note || '').match(/Scale\s*\((-?[\d.]+)%/i);
+         const parM = pm ? _mCagr(parseFloat(pm[1]), bl.horizon_years) : null;
+         const parTxt = parM != null ? ((parM >= 0 ? '+' : '') + parM.toFixed(2) + '%') : mTxt;
+         return { key: '8402', val: '<span style="color:#fbbf24">패리티 월 ' + parTxt + ' (개선)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">기존 ' + mTxt + ' · ' + tgt + 'd 비교</span>' };
+       }
+       if (n === '8403') {
+         return { key: '8403', val: '<span style="color:#f87171">개편후 재검증 (ADX≤30)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">개편전 3y ' + mTxt + ' (PF ' + pfTxt + ') · ' + tgt + 'd 컷</span>' };
+       }
+       const stPf = bl.static_5y_pf != null ? Number(bl.static_5y_pf).toFixed(2) : '—';
+       return { key: n, val: '<span style="color:#fb923c">AutoSwitch 표본판정</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">5y ' + mTxt + ' (PF ' + pfTxt + ' / 정적 ' + stPf + ')</span>' };
+     })}
+     ${_cRow("수수료 비중 · 포트폴리오 역할", "var(--card2)", b => {
+       const bl = b.baseline || {}, n = (b.name || '').trim();
+       if (bl.fee_ratio_pct == null) return '—';
+       const fee = Number(bl.fee_ratio_pct);
+       const yrs = bl.horizon_years || 5;
+       if (n === '8405') {
+         const c1 = bl.corr_vs_8401 != null ? bl.corr_vs_8401 : '—';
+         const c4 = bl.corr_vs_8404 != null ? bl.corr_vs_8404 : '—';
+         return { key: '8405', val: '<span style="color:var(--green)">수수료 ' + fee.toFixed(1) + '% (건전)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">8401 상관 ' + c1 + ' / 8404 ' + c4 + '</span>' };
+       }
+       if (n === '8403') {
+         return { key: '8403', val: '<span style="color:#f87171">수수료 ' + fee.toFixed(0) + '% (고위험)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">8405 분리완료 · 최우선 감시</span>' };
+       }
+       if (n === '8401' || n === '8402') {
+         const sub = n === '8401' ? '1h 기준선 (원형 유지)' : '8401 M4 사이징 대조군';
+         return { key: n, val: '<span style="color:#fbbf24">수수료 ' + fee.toFixed(0) + '% (' + Number(yrs).toFixed(0) + 'y)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">' + sub + '</span>' };
+       }
+       return { key: n, val: '<span style="color:#fb923c">수수료 ' + fee.toFixed(0) + '% (' + Number(yrs).toFixed(0) + 'y)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">' + (n === '8404' ? 'OKX' : 'BNC') + ' 5전3패 순/역 검증</span>' };
+     })}
+     ${_cRow("향후 운영방향 (수명 · 재판정)", "var(--card)", b => {
+       const bl = b.baseline || {}, lc = b.lifecycle || {}, n = (b.name || '').trim();
+       const minD = bl.min_sample_days || 30, tgtD = bl.review_target_days || 60;
+       const sd = lc.sample_days != null ? Number(lc.sample_days).toFixed(0) : null;
+       const prog = sd != null ? (' · ' + sd + '/' + tgtD + 'd') : '';
+       if (n === '8401') return { key: '8401', val: '<span style="color:#38bdf8">뼈대 유지 · ' + tgtD + '일 관측</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">Peak -20% 도달 시 교체보고' + prog + '</span>' };
+       if (n === '8402') return { key: '8402', val: '<span style="color:#38bdf8">8401 패리티 ' + tgtD + '일 비교</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">사이징 개선효과 후 유지/전환' + prog + '</span>' };
+       if (n === '8403') return { key: '8403', val: '<span style="color:#f87171">최우선 퇴출·교체 감시 (' + tgtD + '일)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">ADX차단 실패시 4h전환 보고' + prog + '</span>' };
+       if (n === '8404') return { key: '8404', val: '<span style="color:#fb923c">OKX 표본 ' + minD + '~' + tgtD + '일 수집</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">5전3패 스위칭 vs 고정 판정' + prog + '</span>' };
+       if (n === '8405') return { key: '8405', val: '<span style="color:var(--green)">핵심 분산축 · 장기 가동 (' + tgtD + '일)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">4h Donchian20 유일 +EV 축' + prog + '</span>' };
+       if (n === '8408') return { key: '8408', val: '<span style="color:#fb923c">BNC 표본 ' + minD + '~' + tgtD + '일 수집</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">$5 최소주문 · 스위칭 vs 고정 판정' + prog + '</span>' };
+       return tgtD + '일 관측';
+     })}
      ${_cRow("설정변경 승인횟수", "var(--card2)", b => {
        const n = (b.name || '').trim();
        if (['8401', '8402', '8403', '8405'].includes(n)) {
@@ -669,7 +810,6 @@ function render(d,anim){
  document.getElementById('efficiencyTable').innerHTML=effTable;
  // ── [2단계] 최대 낙폭(Drawdown) + 3~5y 수명 기준선·사전 승인 제안 ──
  const _ddTip='<b>가장 많이 떨어졌을 때 얼마나 깊이 빠졌는지</b> 보여줘요. 봇 잔고가 최고점을 찍은 뒤 바닥까지 떨어진 폭이에요. 깊을수록 위험하고, 한 봇이 크게 무너지면 전체 하루 목표가 흔들려요.<br>• 당일 낙폭: 오늘 고점 대비 현재 하락폭<br>• 고점 대비 낙폭: 전고점(ATH) 대비 실시간 잔고 낙폭 (생존 킬선 기준)<br>• 기대 MDD 한계: 3~5년 장기 백테스트 실측 MDD / 실전 생존컷<br>• 수수료 비중: 총수익 대비 수수료 잠식률 (100% 이상=수수료 적자)';
- const _escH=t=>String(t==null?'':t).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
  const _dd=(v)=>{if(v==null)return['—','var(--muted)'];const c=v<=-10?'#e24b4a':(v<=-5?'var(--amber)':(v<0?'var(--loss)':'var(--muted)'));return[v.toFixed(1)+'%',c]};
  const _ddDr=b=>{const v=b.daily_ret;if(v==null)return['—','var(--muted)'];const sv=(v>0?'+':'')+v.toFixed(1)+'%';return[sv,v>0?'var(--profit)':(v<0?'var(--loss)':'var(--muted)')]};
  const _pkDd=b=>{
