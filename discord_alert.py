@@ -205,6 +205,23 @@ def _bot_daily_ret_24h_ago(b_obj, now_ts):
         return None
 
 
+def _bot_reset_epoch(b_obj):
+    perf_str = str((b_obj or {}).get("perf_start") or "").replace("T", " ")[:19]
+    if not perf_str:
+        return 0.0
+    try:
+        return float(time.mktime(time.strptime(perf_str, "%Y-%m-%d %H:%M:%S")))
+    except Exception:
+        return 0.0
+
+
+def _min_reset_epoch(bots):
+    """Return latest perf_start epoch across target bots so pre-reset series samples are excluded."""
+    epochs = [_bot_reset_epoch(b) for b in (bots or [])]
+    epochs = [e for e in epochs if e > 0]
+    return max(epochs) if epochs else 0.0
+
+
 def build_message(data, prev_total, prev_bots, history, title_prefix="전체", sub_assets=None, sub_total=None, prev_sub_total=None, include_bot_charts=False, series=None, asset_history=None, asset_series=None, bot_series=None):
     s = data["summary"]
     total = s.get("daily_ret")
@@ -387,12 +404,13 @@ def _process_single(data, path, title_prefix, include_bot_charts=False):
 
     # 60분/24시간 대비용 시계열. 발송 성공 여부와 무관하게 시각을 남긴다.
     now_ts = time.time()
+    reset_cutoff_ts = _min_reset_epoch(data.get("bots", []))
     series = [x for x in series if isinstance(x, (list, tuple)) and len(x) == 2
-              and now_ts - x[0] <= SERIES_KEEP_SEC]
+              and now_ts - x[0] <= SERIES_KEEP_SEC and x[0] >= reset_cutoff_ts]
     series.append([now_ts, total])
     
     asset_series = [x for x in asset_series if isinstance(x, (list, tuple)) and len(x) == 2
-                    and now_ts - x[0] <= SERIES_KEEP_SEC]
+                    and now_ts - x[0] <= SERIES_KEEP_SEC and x[0] >= reset_cutoff_ts]
     asset_series.append([now_ts, assets])
 
     if not isinstance(bot_series, dict):
@@ -401,9 +419,10 @@ def _process_single(data, path, title_prefix, include_bot_charts=False):
         b_name = b.get("name")
         if not b_name:
             continue
+        b_reset_ts = _bot_reset_epoch(b)
         b_dr = float(b.get("daily_ret")) if b.get("daily_ret") is not None else 0.0
         b_ser = [x for x in bot_series.get(b_name, []) if isinstance(x, (list, tuple)) and len(x) == 2
-                 and now_ts - x[0] <= SERIES_KEEP_SEC]
+                 and now_ts - x[0] <= SERIES_KEEP_SEC and x[0] >= b_reset_ts]
         b_ser.append([now_ts, b_dr])
         bot_series[b_name] = b_ser
 
@@ -716,7 +735,7 @@ def _get_recent_bot_changes(days=7):
         '8402': 'QVT 눌림목 스나이퍼 (1h) 전략 정상 가동 중',
         '8403': 'BB MR 볼린저 평균회귀 (15m) 전략 정상 가동 중',
         '8404': 'TTM 스퀴즈 + 허스트 퓨전 (1h) 전략 가동 중',
-        '8405': 'BB MR 볼린저 평균회귀 (15m) 전략 가동 중',
+        '8405': 'BB MR 볼린저 평균회귀 (4h) 전략 가동 중',
         '8407': 'BB MR 볼린저 평균회귀 (15m) 전략 가동 중',
         '8408': 'BBTS 변동성 돌파 (1h) 전략 가동 중',
         '8409': 'BB MR 볼린저 평균회귀 (1h) 전략 가동 중',
@@ -810,12 +829,15 @@ def _process_total_summary(data):
 
     assets = round(assets, 2)
     now_ts = time.time()
+    reset_cutoff_ts = _min_reset_epoch(bots)
 
-    # 시계열 갱신
-    series = [x for x in (series or []) if isinstance(x, (list, tuple)) and len(x) == 2 and now_ts - x[0] <= SERIES_KEEP_SEC]
+    # 시계열 갱신 (초기화 이전 표본 자동 배제)
+    series = [x for x in (series or []) if isinstance(x, (list, tuple)) and len(x) == 2
+              and now_ts - x[0] <= SERIES_KEEP_SEC and x[0] >= reset_cutoff_ts]
     series.append([now_ts, avg_daily])
 
-    asset_series = [x for x in (asset_series or []) if isinstance(x, (list, tuple)) and len(x) == 2 and now_ts - x[0] <= SERIES_KEEP_SEC]
+    asset_series = [x for x in (asset_series or []) if isinstance(x, (list, tuple)) and len(x) == 2
+                    and now_ts - x[0] <= SERIES_KEEP_SEC and x[0] >= reset_cutoff_ts]
     asset_series.append([now_ts, assets])
 
     # 직전 틱(1분) 및 60분 전 대비 변동치

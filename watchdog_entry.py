@@ -379,16 +379,20 @@ def check_flat_bot_readiness(b: int, cwd: str) -> tuple:
                 pass
 
     # 4) 스캐너 진행 정체(Scanner Stall: 최근 15분간 로그 무반응) 검사
-    for log_name in ["bot_stdout.log", "bot_engine.log"]:
+    # bot.py의 FileHandler가 직접 기록하는 bot_engine.log를 최우선으로 보고,
+    # 복수 로그 중 가장 최근 갱신된 파일 기준으로 정체 여부를 판정해 오탐 재기동을 방지한다.
+    log_mtimes = []
+    for log_name in ["bot_engine.log", "bot_stdout.log"]:
         log_path = os.path.join(cwd, log_name)
         if os.path.exists(log_path):
             try:
-                mtime = os.path.getmtime(log_path)
-                elapsed = time.time() - mtime
-                if elapsed > 900:
-                    return True, f"스캐너 루프 정체(Stall: {int(elapsed/60)}분간 로그 갱신 없음)"
+                log_mtimes.append(os.path.getmtime(log_path))
             except Exception:
                 pass
+    if log_mtimes:
+        elapsed = time.time() - max(log_mtimes)
+        if elapsed > 900:
+            return True, f"스캐너 루프 정체(Stall: {int(elapsed/60)}분간 로그 갱신 없음)"
 
     return False, "무포지션 대기 중 정상 (정상 스캔 지속)"
 

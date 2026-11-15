@@ -1,5 +1,29 @@
 # Version History
 
+## v1.7.3
+
+Date: 2026-11-16
+
+### 변경 내용
+
+* `discord_alert.py`: 초기화 시점(`perf_start`) 이전의 잔여 시계열(`series`, `asset_series`, `bot_series`)을 자동 배제하는 `_bot_reset_epoch()` · `_min_reset_epoch()` 차단 가드 추가 및 `8405` 폴백 전략 타임프레임 표기(`15m` → `4h`) 정합화
+* `discord_state*.json` 및 `asset_history.json` 내 `$10.00` 초기화(`2026-11-15 23:35:39`) 이전 시계열 왜곡 데이터 정리 (잘못된 `[1]` 60분 대비 낙폭 표기 제거)
+* `watchdog_entry.py`: 스캐너 정체(Stall) 검사 시 `bot_engine.log`와 `bot_stdout.log` 중 최신 갱신 파일 기준으로 판정하도록 개선하여 정상 가동 중인 봇에 대한 오탐 재기동 방지
+* `seeds.json`, `peak_assets.json`: 6개 가동 봇(`8401`, `8402`, `8403`, `8404`, `8405`, `8408`)의 `$10.00` 신규 초기화 기준선 동기화
+
+### 수정 파일
+
+* discord_alert.py
+* watchdog_entry.py
+* seeds.json
+* peak_assets.json
+* ver.md
+
+### 비고
+
+* `verify_all.py` 100% PASS, 8888 웹 대시보드 HTTP 200 응답 및 워치독·디스코드 알림 정상 동작 검증 완료
+
+
 ## v1.7.2
 
 Date: 2026-11-15
