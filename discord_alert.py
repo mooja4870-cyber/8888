@@ -63,18 +63,19 @@ def _load_state(path):
         with open(path, encoding="utf-8") as f:
             s = json.load(f)
         return (s.get("prev_total"), s.get("prev_bots", {}), s.get("history", []),
-                s.get("prev_sub_total"), s.get("series", []), s.get("asset_history", []), s.get("asset_series", []))
+                s.get("prev_sub_total"), s.get("series", []), s.get("asset_history", []),
+                s.get("asset_series", []), s.get("bot_series", {}))
     except (OSError, ValueError):
-        return None, {}, [], None, [], [], []
+        return None, {}, [], None, [], [], [], {}
 
 
-def _save_state(path, prev_total, prev_bots, history, prev_sub_total=None, series=None, asset_history=None, asset_series=None):
+def _save_state(path, prev_total, prev_bots, history, prev_sub_total=None, series=None, asset_history=None, asset_series=None, bot_series=None):
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump({"prev_total": prev_total, "prev_bots": prev_bots,
                    "history": history[-HISTORY_MAX:], "prev_sub_total": prev_sub_total,
                    "series": series or [], "asset_history": (asset_history or [])[-HISTORY_MAX:],
-                   "asset_series": asset_series or []}, f, ensure_ascii=False)
+                   "asset_series": asset_series or [], "bot_series": bot_series or {}}, f, ensure_ascii=False)
     os.replace(tmp, path)
 
 
@@ -178,7 +179,33 @@ def get_bot_200min_history(b_obj):
     return history
 
 
-def build_message(data, prev_total, prev_bots, history, title_prefix="전체", sub_assets=None, sub_total=None, prev_sub_total=None, include_bot_charts=False, series=None, asset_history=None, asset_series=None):
+def _bot_daily_ret_24h_ago(b_obj, now_ts):
+    """24시간 전(now_ts - 86400) 시점의 봇 일평균 수익률(%)을 산출 (bot_series 미축적 구간 폴백용)."""
+    try:
+        import app
+        bid = b_obj.get("name", "")
+        folder = b_obj.get("folder") or bid
+        seed = float(b_obj.get("seed") or 10.0)
+        perf_str = str(b_obj.get("perf_start") or "").replace("T", " ")[:19]
+        if not perf_str or seed <= 0:
+            return None
+        t0 = time.mktime(time.strptime(perf_str, "%Y-%m-%d %H:%M:%S"))
+        t_24h = now_ts - 86400
+        if t_24h <= t0:
+            return 0.0
+        t_24h_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t_24h))
+        path = f"/Users/l/project/{folder}/data/trade_history.csv"
+        if not os.path.exists(path):
+            return 0.0
+        exits = [e for e in app._load_exits(path) if e[0] >= perf_str]
+        cum_24h = sum(pnl for ex_ts, pnl, oid in exits if ex_ts <= t_24h_str)
+        days_24h = max(1.0, (t_24h - t0) / 86400.0)
+        return round((cum_24h / seed * 100.0) / days_24h, 2)
+    except Exception:
+        return None
+
+
+def build_message(data, prev_total, prev_bots, history, title_prefix="전체", sub_assets=None, sub_total=None, prev_sub_total=None, include_bot_charts=False, series=None, asset_history=None, asset_series=None, bot_series=None):
     s = data["summary"]
     total = s.get("daily_ret")
     days = s.get("days")
@@ -211,7 +238,12 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
     for b in bots:
         dr = b.get("daily_ret")
         dr = float(dr) if dr is not None else 0.0
-        pic, parrow, pdelta = _trend(dr, prev_bots.get(b["name"]))
+        # [보스 지침] 직전 알림(1분 전) 대비가 아닌 '24시간 전 알림 대비 일평균 수익률 변동폭(%)' 산출
+        b_ser = (bot_series or {}).get(b["name"], []) if isinstance(bot_series, dict) else []
+        prev_24h = _value_at(b_ser, now_ts, *LOOKBACK[3])
+        if prev_24h is None:
+            prev_24h = _bot_daily_ret_24h_ago(b, now_ts)
+        pic, parrow, pdelta = _trend(dr, prev_24h)
         eb = b.get("entries_by_period") or {}
         
         # 100항목 체크리스트: 변수가 None이거나 잘못된 타입일 때 포맷팅(02d) 예외 차단
@@ -344,7 +376,7 @@ def recalc_data(data, exclude_names):
 
 
 def _process_single(data, path, title_prefix, include_bot_charts=False):
-    prev_total, prev_bots, history, prev_sub_total, series, asset_history, asset_series = _load_state(path)
+    prev_total, prev_bots, history, prev_sub_total, series, asset_history, asset_series, bot_series = _load_state(path)
     total = data["summary"].get("daily_ret")
     history.append(total)
     history = history[-HISTORY_MAX:]
@@ -363,13 +395,27 @@ def _process_single(data, path, title_prefix, include_bot_charts=False):
                     and now_ts - x[0] <= SERIES_KEEP_SEC]
     asset_series.append([now_ts, assets])
 
+    if not isinstance(bot_series, dict):
+        bot_series = {}
+    for b in data.get("bots", []):
+        b_name = b.get("name")
+        if not b_name:
+            continue
+        b_dr = float(b.get("daily_ret")) if b.get("daily_ret") is not None else 0.0
+        b_ser = [x for x in bot_series.get(b_name, []) if isinstance(x, (list, tuple)) and len(x) == 2
+                 and now_ts - x[0] <= SERIES_KEEP_SEC]
+        b_ser.append([now_ts, b_dr])
+        bot_series[b_name] = b_ser
+
     msg = build_message(data, prev_total, prev_bots, history, title_prefix,
-                        include_bot_charts=include_bot_charts, series=series, asset_history=asset_history, asset_series=asset_series)
+                        include_bot_charts=include_bot_charts, series=series, asset_history=asset_history,
+                        asset_series=asset_series, bot_series=bot_series)
     ok, info = _post(msg)
     if ok:
         new_prev_bots = {b["name"]: (b.get("daily_ret") if b.get("daily_ret") is not None else 0.0)
                          for b in data["bots"]}
-        _save_state(path, total, new_prev_bots, history, series=series, asset_history=asset_history, asset_series=asset_series)
+        _save_state(path, total, new_prev_bots, history, series=series, asset_history=asset_history,
+                    asset_series=asset_series, bot_series=bot_series)
     return ok, info
 
 
@@ -735,7 +781,7 @@ def _process_total_summary(data):
     ======================================
     """
     state_file = os.path.join(_DIR, "discord_state_total.json")
-    prev_total, prev_bots, history, prev_sub_total, series, asset_history, asset_series = _load_state(state_file)
+    prev_total, prev_bots, history, prev_sub_total, series, asset_history, asset_series, bot_series = _load_state(state_file)
 
     active_names = ["8401", "8402", "8403", "8404", "8405", "8408"]
     bots = [b for b in data.get("bots", []) if str(b.get("name")) in active_names]

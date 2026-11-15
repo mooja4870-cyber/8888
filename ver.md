@@ -1,5 +1,27 @@
 # Version History
 
+## v1.7.1
+
+Date: 2026-11-15
+
+### 변경 내용
+
+* 디스코드 요약 알림(`discord_alert.py`) 내 봇별 변동률 표기 기준을 `직전 알림(1분 전) 대비`에서 **`직전 알림(24시간 전) 대비 일평균 수익률 변동률`**로 변경 (`bot_series` 100시간 시계열 영속 저장 및 미축적 구간 24시간 전 장부 기반 자동 폴백 적용)
+* 6개 가동 봇(`8401`, `8402`, `8403`, `8404`, `8405`, `8408`) 성과 기산점(`perf_start_time`)을 Phase 3 개편 시점인 `2026-11-11 22:30:00`으로 일괄 동기화하고 구버전 스냅샷·전고점(`snapshots.json`, `peak_assets.json`) 왜곡 정리
+
+### 수정 파일
+
+* discord_alert.py
+* seeds.json
+* peak_assets.json
+* snapshots.json
+* ver.md
+
+### 비고
+
+* `verify_all.py` 100% PASS 및 디스코드 알림 메시지 실측 렌더링 검증 완료
+
+
 ## v1.7.0
 
 Date: 2026-11-12
