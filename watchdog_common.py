@@ -154,7 +154,7 @@ class BotErrorMatcher:
         # Explicit harmless log tags or lock-refusal exit messages handled elsewhere
         if "[lock]" in ll and "중복 방지" in ll:
             return False, False, True, "lock_guard"
-        if "진입유실 방지" in ll or ("[info]" in ll and "exception" not in ll and "error" not in ll and "traceback" not in ll):
+        if "진입유실 방지" in ll or "cancelallorders() is not supported yet" in ll or ("[info]" in ll and "exception" not in ll and "error" not in ll and "traceback" not in ll):
             return False, False, False, ""
 
         for fk in self.fatal_lower:

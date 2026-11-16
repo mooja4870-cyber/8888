@@ -47,6 +47,8 @@ def run_33_point_audit(bot_id: int, cwd: str) -> list:
                 # 마지막 500줄 파싱
                 lines = f.readlines()[-500:]
                 for line in lines:
+                    if "cancelallorders() is not supported yet" in line.lower():
+                        continue
                     if "거절" in line or "실패" in line or "must be no smaller than" in line or "-4164" in line:
                         rejects.append(line.strip())
                     if "Timeout" in line or "timeout" in line:

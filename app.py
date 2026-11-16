@@ -1290,8 +1290,13 @@ def bot_status(folder, port, ex):
         r["perf_start"] = s.get("perf_start_time")
         r["orders_today"] = s.get("orders_today") or 0
         r["total_trades"] = s.get("total_trades") or 0
-        if os.path.exists(sp):
-            r["age_min"] = round((time.time() - os.path.getmtime(sp)) / 60, 1)
+        mtimes = [
+            os.path.getmtime(p)
+            for p in (sp, os.path.join(d, "bot_runtime.json"), os.path.join(BASE, folder, "bot_engine.log"))
+            if os.path.exists(p)
+        ]
+        if mtimes:
+            r["age_min"] = round((time.time() - max(mtimes)) / 60, 1)
     except Exception:
         pass
 

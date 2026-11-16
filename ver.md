@@ -1,5 +1,34 @@
 # Version History
 
+## v1.7.4
+
+Date: 2026-11-16
+
+### 변경 내용
+
+* **전 6개 가동 봇(`8401, 8402, 8403, 8404, 8405, 8408`) 진입/청산 무결성 정밀 감사 및 잠재 결함 일괄 조치**:
+  * `8403, 8404, 8405, 8408` `core/trader.py` (`on_signal`): 중복 지역 `from core.alert import send_telegram_alert`로 인한 `UnboundLocalError` 치명 버그 제거 (`8403` 진입 로그 예외 및 `watchdog_exit` 재기동 방지, `8404/8405/8408` 진입 차단 위험 차단)
+  * `8401, 8402, 8403, 8404, 8405` `core/exchange.py` (`cancel_all_orders`): OKX `cancelAllOrders() is not supported yet` 예외 시 `fetch_open_orders` + `cancel_order` 개별 취소 폴백 적용
+  * `8401, 8402, 8403, 8404, 8405, 8408` `core/engine.py` (`_check_positions`, `check_auto_mode_switch`): 익절/본절(`pnl >= 0`) 청산 후 `REENTRY_BLOCK_MIN`(12시간) 장기 쿨다운 오작동 수정(손절 시에만 장기 차단, 익절 시 60초 가드) 및 중복 지역 import 제거
+  * `8401, 8402, 8403` 잔여 쿨다운(승리 종목 `ETH`, `ORDI`, `XRP` 12시간 차단 포함) 및 종료 포지션 잔여 피크/트레일링 상태 정리 후 6개 봇 안전 재기동
+* `8888` 중앙 관제소·워치독 보강:
+  * `app.py` (`bot_status`): `age_min`을 `stats.json`, `bot_runtime.json`, `bot_engine.log` 중 최신 갱신 시각 기준으로 산출해 정상 가동 봇의 `stale` 오탐 해소
+  * `core/audit_33.py`, `watchdog_common.py`: 구형 로그 내 `cancelAllOrders() is not supported yet` 오탐 제외
+  * `data/proactive_alerts.json`: `$10.00` 초기화 이전(`2026-11-15 06:xx`) `8408` 잔여 진입 경보 정리
+
+### 수정 파일
+
+* app.py
+* core/audit_33.py
+* watchdog_common.py
+* data/proactive_alerts.json
+* ver.md
+
+### 비고
+
+* AST 지역 변수/임포트 스코프 전수 검증(`0`건) 및 `verify_all.py` 100% PASS 검증 완료
+
+
 ## v1.7.3
 
 Date: 2026-11-16
