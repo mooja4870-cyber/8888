@@ -1,5 +1,29 @@
 # Version History
 
+## v1.7.10
+
+Date: 2026-11-17
+
+### 변경 내용
+
+* **8404·8408 실시간 진입 차단 결함 탐지 및 자동 적의조치 (`8404 v2.3.3`, `8408 v12.3.2`)**:
+  * `8404` `core/trader.py`: `BBTS`/`FUSION` 전략(`strength=85`)에 대한 `required_strength=80` 분기 누락으로 `AAVE/USDT:USDT` 롱 시그널이 `신호 강도 부족 (85% < 90%)`으로 반복 차단되던 결함 수정
+  * `8408` `core/exchange.py`: Binance `amount_to_precision()` 호출 전 `limits.amount.min` 선검증 및 `1.5x` 증거금 허용 범위 내 최소 수량 자동 보정(`[MIN AMOUNT ADJUST]`) 도입(`AAVE/USDT:USDT` 주문 거절 및 연쇄 재기동 차단)
+* **워치독 2차 고도화 (`watchdog_entry.py`, `core/audit_33.py`)**:
+  * `watchdog_entry.py`: `신호 강도 부족` 반복 차단 패턴(`STRENGTH_GATE_MISMATCH`) 실시간 탐지 및 `proactive_alerts.json` 사전 경보 기록 기능 추가
+  * `core/audit_33.py`: 종목별 최소 수량 스킵 로그(`minimum amount precision`, `최소 주문 단위`)로 인한 불필요한 2분 주기 봇 재기동 루프 차단
+
+### 수정 파일
+
+* watchdog_entry.py
+* core/audit_33.py
+* ver.md
+
+### 비고
+
+* `verify_all.py` 100% PASS, `8404`/`8408` 안전 재기동(`8403` `ORDI` 보유 포지션 무중단 유지) 및 워치독 상시 가동 검증 완료
+
+
 ## v1.7.4
 
 Date: 2026-11-16

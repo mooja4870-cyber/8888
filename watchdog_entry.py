@@ -200,7 +200,7 @@ def check_entry_failure_readiness(b: int, cwd: str) -> tuple:
     order_err_keywords = [
         "주문 거절", "주문 실패", "order's notional must be no smaller than",
         "-4164", "-4421", "order timeout/error", "최소 주문 단위", "무방비 진입",
-        "증거금 설정 오류", "가용 증거금 부족",
+        "신호 강도 부족", "증거금 설정 오류", "가용 증거금 부족",
         "name 'cfg' is not defined", "ohlcv 조회 실패", "시황 조회 실패",
         "minimum amount precision", "partial tp 실패",
         "fetch_tickers", "tickers 일괄 조회 실패", "fetch_ohlcv 실패", "nonetype",
@@ -286,6 +286,9 @@ def check_entry_failure_readiness(b: int, cwd: str) -> tuple:
         elif "증거금 설정 오류" in last_fail:
             err_type = "MARGIN_SETTING_ERROR"
             reason_summary = "증거금 하한선 미달에 의한 진입 차단"
+        elif "신호 강도 부족" in last_fail:
+            err_type = "STRENGTH_GATE_MISMATCH"
+            reason_summary = "전략 시그널 강도와 리스크 게이트(required_strength) 불일치 차단"
         elif "가용 증거금 부족" in last_fail:
             err_type = "AVAILABLE_MARGIN_ERROR"
             reason_summary = "요구 증거금이 가용 잔고를 초과하여 진입 차단"
@@ -491,7 +494,7 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                 action_taken.append(entry_reason)
 
                 # [원칙 준수] config.json / 리스크 파라미터 임의 자동 수정 금지 -> 선제 진단·승인 권고 보고만 기록
-                if err_type in ("NOTIONAL_MIN_ERROR", "LEVERAGE_RESTRICTION_ERROR", "MARGIN_SETTING_ERROR", "AVAILABLE_MARGIN_ERROR"):
+                if err_type in ("NOTIONAL_MIN_ERROR", "LEVERAGE_RESTRICTION_ERROR", "MARGIN_SETTING_ERROR", "AVAILABLE_MARGIN_ERROR", "STRENGTH_GATE_MISMATCH"):
                     cfg_file = os.path.join(cwd, "config.json")
                     cur_margin = cur_lev = cur_risk = None
                     if os.path.exists(cfg_file):
@@ -503,10 +506,13 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                             cur_risk = float(b_cfg.get("RISK_PER_TRADE_PCT", 0.01) or 0.01)
                         except Exception:
                             pass
-                    rec = (
-                        f"{err_type} 반복 발생 (margin={cur_margin}, lev={cur_lev}, risk={cur_risk}) — "
-                        "보스 승인 후 최소 주문금액(>=5 USDT 명목가) 또는 증거금/리스크 한도 점검 권고"
-                    )
+                    if err_type == "STRENGTH_GATE_MISMATCH":
+                        rec = "strategy.py 시그널 강도와 trader.py _risk_check required_strength 게이트 불일치 — 코드/게이트 정합화 점검 권고"
+                    else:
+                        rec = (
+                            f"{err_type} 반복 발생 (margin={cur_margin}, lev={cur_lev}, risk={cur_risk}) — "
+                            "보스 승인 후 최소 주문금액(>=5 USDT 명목가) 또는 증거금/리스크 한도 점검 권고"
+                        )
                     logger.warning(f"[{b}] 📋 자동 설정 변경 차단됨 (승인 대기 보고): {rec}")
                     record_proactive_alert(
                         str(b),
@@ -518,7 +524,7 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                     )
                     action_taken.append("설정 자동변경 차단·보고완료")
 
-                needs_restart = err_type not in ("AVAILABLE_MARGIN_ERROR", "INSUFFICIENT_BALANCE_ERROR")
+                needs_restart = err_type not in ("AVAILABLE_MARGIN_ERROR", "INSUFFICIENT_BALANCE_ERROR", "STRENGTH_GATE_MISMATCH")
             else:
                 # 2) 무포지션 봇 정밀 건전성 감사
                 flat_issue, flat_reason = check_flat_bot_readiness(b, cwd)

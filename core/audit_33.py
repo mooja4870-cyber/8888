@@ -49,6 +49,8 @@ def run_33_point_audit(bot_id: int, cwd: str) -> list:
                 for line in lines:
                     if "cancelallorders() is not supported yet" in line.lower():
                         continue
+                    if "minimum amount precision" in line.lower() or "최소 주문 단위" in line:
+                        continue
                     if "거절" in line or "실패" in line or "must be no smaller than" in line or "-4164" in line:
                         rejects.append(line.strip())
                     if "Timeout" in line or "timeout" in line:
