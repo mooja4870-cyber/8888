@@ -1,5 +1,36 @@
 # Version History
 
+## v1.7.14
+
+Date: 2026-11-18
+
+### 변경 내용
+
+* **AI 자율 발굴·선제 치유 워치독 10대 관리체계 확장 고도화 (`core/autonomous_auditor.py`, `bot_sentinel.py`, `watchdog_entry.py`)**:
+  * 기존 5대 자율감사에 5개 신규 파이프라인 모듈을 추가하여 **전 10대 자율 발굴·자가 치유 체계** 완성
+  * **[M1]** 코드-프로세스 메모리 동기화 감사 (`check_stale_code_sync`): 디스크 `.py` 패치 미반영 감지 시 포지션 보존 안전 핫리로드
+  * **[M2]** 무포지션 시그널 미체결 역추적·만료 `recently_entered` 락(`>600s`) 자동 해제 (`check_unexecuted_signal_trace`)
+  * **[M3]** 주문 수량·최소 단위 프리플라이트 감사 (`check_order_sizing_preflight`): `[MIN AMOUNT ADJUST]` 가드 및 증거금·레버리지 선검증
+  * **[M4]** `AST` 기반 시그널 강도 ↔ 리스크 게이트 계약 정합성 상시 감사 (`check_signal_gate_contract`)
+  * **[M5]** 거래소 실 포지션 보호주문(OCO / `has_protective_orders`) 실시간 대조 (`bot_sentinel.py`)
+  * **[M6]** 중복 `bot.py` 프로세스 · `lock↔bot.pid` 자동 동기화 · `lsof` 기반 `bot_engine.log.bak` 로그 FD 단절 감지 (`check_log_fd_and_pid_lock_integrity`)
+  * **[M7]** 만료 쿨다운 청소 · 익절(`pnl > 0`) 후 오작동 장기 쿨다운 자동 해제 · `engine.py` 손절 한정 재진입 가드 검증 (`check_cooldown_and_reentry_integrity`)
+  * **[M8]** 스캔 결과 가격·화이트리스트 커버리지·지표 `NaN`/`BTC=UNK` 전수 감사 (`check_scan_indicator_health`)
+  * **[M9]** `config.json` ↔ `core/config.py` ↔ `stats.json`(`peak_equity_usdt` 자동 보정) 7대 영역 정합성 감사 (`check_full_stack_7zone_sync`)
+  * **[M10]** 보유 포지션 트레일링/청산 컨텍스트·`prev_position_symbols` 자동 복원 (`check_position_context_integrity`) 및 Binance 무포지션 잔여 고아 알고주문(`sweep_orphan_algo`) 자동 청소 (`bot_sentinel.py`)
+
+### 수정 파일
+
+* core/autonomous_auditor.py
+* bot_sentinel.py
+* watchdog_entry.py
+* ver.md
+
+### 비고
+
+* 모듈 6~10 단위 검증(쿨다운 오작동 해제, `BTC=UNK` 탐지, `peak_equity_usdt` 보정, 포지션 컨텍스트·`prev_position_symbols` 복원) 통과, `watchdog_entry.py`(`PID 50237`) 전 6개 봇(`[8401, 8402, 8403, 8404, 8405, 8408]`) Cycle 1 `[AI 10대 자율감사] 10/10 전수 정상` 및 `verify_all.py` 100% PASS 검증 완료
+
+
 ## v1.7.13
 
 Date: 2026-11-18

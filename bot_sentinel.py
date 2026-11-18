@@ -206,6 +206,31 @@ async def audit_bot(b: int):
                     f"보호주문(SL/TP) 누락 감지: {', '.join(report['unprotected_positions'])}"
                 )
 
+            # 보유 포지션 컨텍스트 누락 방어 보정
+            ctx_changed = False
+            for sym in ex_map:
+                ent = local_act.get(sym)
+                if isinstance(ent, dict):
+                    if not ent.get("exit_profile"):
+                        ent["exit_profile"] = "SL/TP"
+                        ctx_changed = True
+                    if float(ent.get("atr_activation") or 0.0) <= 0:
+                        ent["atr_activation"] = 0.015
+                        ctx_changed = True
+                    if float(ent.get("atr_callback") or 0.0) <= 0:
+                        ent["atr_callback"] = 0.008
+                        ctx_changed = True
+            if ctx_changed:
+                atomic_write_json(act_file, local_act)
+                report["actions"].append("포지션 트레일링 컨텍스트 보정")
+        elif ex_id == "binance" and hasattr(client, "sweep_orphan_algo"):
+            try:
+                swept = await client.sweep_orphan_algo([])
+                if swept and swept > 0:
+                    report["actions"].append(f"무포지션 고아 알고주문 {swept}건 자동 청소")
+            except Exception:
+                pass
+
         # 4. 잔고 괴리율 검사 (Ledger Drift Guard)
         # Seeds 정보 로드
         seed_money = 10.0

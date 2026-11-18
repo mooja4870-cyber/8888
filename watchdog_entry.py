@@ -12,9 +12,8 @@ if BASE_8888 not in sys.path:
 from watchdog_common import bot_restart_locked, record_proactive_alert
 from core.autonomous_auditor import (
     check_stale_code_sync,
-    check_signal_gate_contract,
-    check_unexecuted_signal_trace,
-    check_order_sizing_preflight,
+    check_log_fd_and_pid_lock_integrity,
+    run_all_autonomous_audits,
 )
 
 _ENTRY_LOG = os.path.join(BASE_8888, "watchdog_entry.log")
@@ -224,7 +223,7 @@ def check_entry_failure_readiness(b: int, cwd: str) -> tuple:
         "networkerror", "ratelimitexceeded", "timestamp for this request", "empty dataframe",
         "zerodivisionerror", "-2019", "insufficient balance", "reduceonly", "order failed", "connection reset"
     ]
-    now_kst = datetime.utcnow() + timedelta(hours=9)
+    now_kst = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=9)
     recent_fails = []
     
     # bot_engine.log를 우선 탐색, 부재 시 bot_stdout.log 확인
@@ -363,7 +362,7 @@ def check_flat_bot_readiness(b: int, cwd: str) -> tuple:
         try:
             with open(stats_file, "r") as f:
                 sdata = json.load(f)
-            today_kst = (datetime.utcnow() + timedelta(hours=9)).strftime("%Y-%m-%d")
+            today_kst = (datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=9)).strftime("%Y-%m-%d")
             s_date = sdata.get("consec_sl_date", "")
             is_halted = sdata.get("halted_by_consec_sl", False)
             if is_halted and s_date and s_date < today_kst:
@@ -372,7 +371,7 @@ def check_flat_bot_readiness(b: int, cwd: str) -> tuple:
             pass
 
     # 3) 최근 엔진 로그 trader disabled 발생 검사 (최근 15분 이내)
-    now_kst = datetime.utcnow() + timedelta(hours=9)
+    now_kst = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=9)
     for log_name in ["bot_stdout.log", "bot_engine.log"]:
         log_path = os.path.join(cwd, log_name)
         if os.path.exists(log_path):
@@ -499,17 +498,25 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
         needs_restart = True
         action_taken.append("프로세스 다운 (재기동 필요)")
 
-    # 1-0. [AI 자율감사 모듈 1] 디스크 코드 변경 후 메모리 미반영(Stale Code) 검사
+    # 1-0. [AI 10대 자율감사 모듈 1·6] 코드-메모리 미반영(Stale Code) + 중복프로세스/로그FD 단절 상시 검사
     if bot_alive and not needs_restart:
         try:
             stale_code, stale_reason = check_stale_code_sync(b, cwd)
             if stale_code:
-                logger.warning(f"[{b}] 🔄 [AI 자율감사] {stale_reason} → 포지션 보존 안전 핫리로드 트리거")
+                logger.warning(f"[{b}] 🔄 [AI 자율감사 M1] {stale_reason} → 포지션 보존 안전 핫리로드 트리거")
                 needs_restart = True
                 allow_hot_restart_with_pos = True
                 action_taken.append(stale_reason)
+            fd_issue, fd_reason, fd_restart = check_log_fd_and_pid_lock_integrity(b, cwd)
+            if fd_issue and fd_restart:
+                logger.warning(f"[{b}] 🔄 [AI 자율감사 M6] {fd_reason}")
+                needs_restart = True
+                allow_hot_restart_with_pos = True
+                action_taken.append(fd_reason)
+            elif "동기화" in fd_reason:
+                logger.info(f"[{b}] 🛠 [AI 자율감사 M6] {fd_reason}")
         except Exception as e:
-            logger.debug(f"[{b}] Stale Code 감사 예외: {e}")
+            logger.debug(f"[{b}] 상시 M1/M6 감사 예외: {e}")
         
     # 1-1. 엔진 심장박동 (로그 갱신) 검사 (좀비 봇 감지)
     if bot_alive and not needs_restart:
@@ -584,28 +591,26 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                 else:
                     logger.info(f"[{b}] 🛡 무포지션 건전성: {flat_reason}")
 
-            # 3) [AI 자율감사 모듈 2/3/4] 시그널-게이트 계약 · 사이징 프리플라이트 · 미체결 역추적
-            gate_err, gate_reason = check_signal_gate_contract(b, cwd)
-            preflight_err, preflight_reason = check_order_sizing_preflight(b, cwd)
-            trace_err, trace_reason, trace_restart = check_unexecuted_signal_trace(b, cwd)
-            ai_warns = []
-            if gate_err:
-                ai_warns.append(gate_reason)
-                record_proactive_alert(str(b), "ai_signal_gate_contract", "WARN", "시그널-게이트 불일치", gate_reason, "strategy.py/trader.py 정합화 점검 필요")
-            if preflight_err:
-                ai_warns.append(preflight_reason)
-                record_proactive_alert(str(b), "ai_sizing_preflight", "WARN", "주문 사이징 프리플라이트 경보", preflight_reason, "exchange.py/config.json 수량 산출 조건 점검 필요")
-            if trace_err:
-                ai_warns.append(trace_reason)
-                if trace_restart:
+            # 3) [AI 10대 자율감사] 전 파이프라인(모듈 2/3/4/6/7/8/9/10) 통합 감시·자가치유
+            audit_res = run_all_autonomous_audits(b, cwd)
+            if audit_res["healed"]:
+                logger.warning(f"[{b}] 🛠 [AI 10대 자율감사] 자가 치유 수행: {' | '.join(audit_res['healed'])}")
+            if audit_res["issues"]:
+                issue_msgs = [msg for _, msg in audit_res["issues"]]
+                logger.warning(f"[{b}] 🚨 [AI 10대 자율감사] 이상 감지: {' | '.join(issue_msgs)}")
+                for key, msg in audit_res["issues"]:
+                    record_proactive_alert(str(b), key, "WARN", "AI 10대 자율감사 이상 감지", msg, "원인 분석 및 조치 결과 확인 필요")
+                if audit_res["needs_restart"]:
                     needs_restart = True
-                    action_taken.append(trace_reason)
-                else:
-                    record_proactive_alert(str(b), "ai_unexecuted_signal_trace", "WARN", "시그널 미체결 차단 감지", trace_reason, "최근 시그널 차단 원인 점검 권고")
-            if ai_warns:
-                logger.warning(f"[{b}] 🤖 [AI 자율감사] 이상 감지: {' | '.join(ai_warns)}")
+                    action_taken.extend(issue_msgs)
             else:
-                logger.info(f"[{b}] 🤖 [AI 자율감사] 파이프라인 전수 정상 ({gate_reason})")
+                if audit_res["needs_restart"]:
+                    needs_restart = True
+                    action_taken.extend(audit_res["healed"])
+                logger.info(
+                    f"[{b}] 🤖 [AI 10대 자율감사] 10/10 전수 정상 "
+                    f"({audit_res['gate_summary']} | {audit_res['scan_summary']})"
+                )
         except Exception as e:
             logger.error(f"[{b}] 진입 건전성 감사 중 예외: {e}")
 

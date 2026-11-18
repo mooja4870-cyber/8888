@@ -1,21 +1,34 @@
 #!/usr/bin/env python3
 """
-autonomous_auditor.py — 8888 AI 자율 감시·선제 발굴·자가 치유 엔진
+autonomous_auditor.py — 8888 10대 AI 자율 발굴·자가 치유 감사 엔진
 
-매매 전 파이프라인(코드-메모리 동기화 → 시그널-게이트 계약 → 주문 수량 프리플라이트 →
-미체결 시그널 역추적 및 스테일 락 해제)을 상시 자동 감사하여 조용한 매매 저해 요인을
-보스 질문 이전에 선제 탐지·조치한다.
+매매 전 파이프라인(코드 동기화 → 시그널 추적 → 사이징 프리플라이트 → 게이트 계약 →
+프로세스/로그FD 무결성 → 쿨다운/재진입 정합성 → 스캔/지표 건전성 → 7대영역 동기화 →
+포지션 보호 컨텍스트 복원)을 상시 자동 감사하여 조용한 매매 저해 요인을 선제 치유한다.
+(모듈 5 및 거래소 고아 알고주문 청소는 bot_sentinel.py와 연계 수행)
 """
 import ast
+import csv
 import json
 import os
 import subprocess
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-BASE_8888 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CONTRACT_SIZES_FILE = os.path.join(BASE_8888, "data", "contract_sizes.json")
+
+def _now_kst() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=9)
+
+
+def _load_json(path: str, default: Any = None) -> Any:
+    if not os.path.exists(path):
+        return default
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return default
 
 
 def _atomic_write_json(path: str, data: Any) -> None:
@@ -25,8 +38,14 @@ def _atomic_write_json(path: str, data: Any) -> None:
     os.replace(tmp, path)
 
 
-def _get_running_bot_pid(bot_id: int, cwd: str) -> Optional[int]:
-    """실행 중인 bot.py의 실제 PID를 lock/pid 파일에서 조회한다."""
+def _atomic_write_text(path: str, text: str) -> None:
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(text)
+    os.replace(tmp, path)
+
+
+def _get_lock_pid(bot_id: int, cwd: str) -> Optional[int]:
     for path in (f"/tmp/quantum_{bot_id}_trader.lock", os.path.join(cwd, "bot.pid")):
         if not os.path.exists(path):
             continue
@@ -35,8 +54,7 @@ def _get_running_bot_pid(bot_id: int, cwd: str) -> Optional[int]:
                 raw = f.read().strip()
             if raw.isdigit():
                 pid = int(raw)
-                res = subprocess.run(["kill", "-0", str(pid)], capture_output=True)
-                if res.returncode == 0:
+                if subprocess.run(["kill", "-0", str(pid)], capture_output=True).returncode == 0:
                     return pid
         except Exception:
             continue
@@ -44,28 +62,20 @@ def _get_running_bot_pid(bot_id: int, cwd: str) -> Optional[int]:
 
 
 def _get_process_start_epoch(pid: int) -> Optional[float]:
-    """macOS `ps -p <pid> -o lstart=` 출력에서 프로세스 기동 epoch를 파싱한다."""
     try:
-        res = subprocess.run(
-            ["ps", "-p", str(pid), "-o", "lstart="],
-            capture_output=True,
-            text=True,
-            timeout=3,
-        )
+        res = subprocess.run(["ps", "-p", str(pid), "-o", "lstart="], capture_output=True, text=True, timeout=3)
         raw = " ".join((res.stdout or "").strip().split())
-        if not raw:
-            return None
-        return datetime.strptime(raw, "%a %b %d %H:%M:%S %Y").timestamp()
+        return datetime.strptime(raw, "%a %b %d %H:%M:%S %Y").timestamp() if raw else None
     except Exception:
         return None
 
 
+# ── [모듈 1] 디스크 코드 변경 후 메모리 미반영(Stale Code) 감사 ──────────────
 def check_stale_code_sync(bot_id: int, cwd: str) -> Tuple[bool, str]:
-    """[모듈 1] 디스크 코드(bot.py, core/*.py) 수정 후 미재기동 상태 탐지."""
-    pid = _get_running_bot_pid(bot_id, cwd)
+    """실행 중인 bot.py 기동 시각과 디스크 .py 수정 시각을 대조해 미반영 상태를 탐지한다."""
+    pid = _get_lock_pid(bot_id, cwd)
     if pid is None:
-        return False, "실행 PID 없음 (생존 감시 위임)"
-
+        return False, "실행 PID 없음"
     proc_start_ts = _get_process_start_epoch(pid)
     if proc_start_ts is None:
         return False, "기동 시각 조회 불가"
@@ -76,287 +86,68 @@ def check_stale_code_sync(bot_id: int, cwd: str) -> Tuple[bool, str]:
         watch_files.append(bot_py)
     core_dir = os.path.join(cwd, "core")
     if os.path.isdir(core_dir):
-        for fn in os.listdir(core_dir):
-            if fn.endswith(".py"):
-                watch_files.append(os.path.join(core_dir, fn))
+        watch_files.extend(os.path.join(core_dir, fn) for fn in os.listdir(core_dir) if fn.endswith(".py"))
 
     now_ts = time.time()
-    newer_files: List[str] = []
+    newer = []
     for fp in watch_files:
         try:
-            mtime = os.path.getmtime(fp)
-            if mtime > proc_start_ts + 30.0 and (now_ts - mtime) > 15.0:
-                newer_files.append(os.path.relpath(fp, cwd))
+            mt = os.path.getmtime(fp)
+            if mt > proc_start_ts + 30.0 and (now_ts - mt) > 15.0:
+                newer.append(os.path.relpath(fp, cwd))
         except OSError:
             continue
-
-    if newer_files:
-        sample = ", ".join(sorted(newer_files)[:3])
-        suffix = f" 외 {len(newer_files) - 3}건" if len(newer_files) > 3 else ""
-        return True, f"디스크 코드 수정 후 미재기동 감지 ({sample}{suffix})"
+    if newer:
+        sample = ", ".join(sorted(newer)[:3])
+        extra = f" 외 {len(newer) - 3}건" if len(newer) > 3 else ""
+        return True, f"디스크 코드 수정 후 미재기동 감지 ({sample}{extra})"
     return False, "코드-메모리 동기화 정상"
 
 
-def _eval_str_consts(tree: ast.AST) -> Dict[str, str]:
-    consts: Dict[str, str] = {}
-    if isinstance(tree, ast.Module):
-        for node in tree.body:
-            if isinstance(node, ast.Assign) and len(node.targets) == 1:
-                t = node.targets[0]
-                if isinstance(t, ast.Name) and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
-                    consts[t.id] = node.value.value
-    return consts
-
-
-def _extract_signal_min_strength(expr: Optional[ast.AST]) -> Optional[int]:
-    if expr is None:
-        return None
-    if isinstance(expr, ast.Constant) and isinstance(expr.value, (int, float)):
-        return int(expr.value)
-    if isinstance(expr, ast.IfExp):
-        # 예: `85 if direction != "none" else 0` → 활성 경로 강도(body) 우선 추출
-        if isinstance(expr.body, ast.Constant) and isinstance(expr.body.value, (int, float)):
-            return int(expr.body.value)
-        if isinstance(expr.orelse, ast.Constant) and isinstance(expr.orelse.value, (int, float)):
-            return int(expr.orelse.value)
-    return None
-
-
-def _is_none_direction_signal(call_node: ast.Call) -> bool:
-    for kw in call_node.keywords:
-        if kw.arg == "direction" and isinstance(kw.value, ast.Constant) and kw.value.value == "none":
-            return True
-    if len(call_node.args) >= 2 and isinstance(call_node.args[1], ast.Constant) and call_node.args[1].value == "none":
-        return True
-    return False
-
-
-def _parse_strategy_outputs(strat_path: str) -> Tuple[Set[str], int]:
-    """core/strategy.py에서 활성 Signal의 strategy_type 후보와 최소 강도를 추출한다."""
-    with open(strat_path, "r", encoding="utf-8") as f:
-        src = f.read()
-    tree = ast.parse(src, filename=strat_path)
-    consts = _eval_str_consts(tree)
-
-    default_strat_type: Optional[str] = None
-    emitted_types: Set[str] = set()
-    active_strengths: List[int] = []
-
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ClassDef) and node.name == "Signal":
-            for stmt in node.body:
-                if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name) and stmt.target.id == "strategy_type":
-                    if isinstance(stmt.value, ast.Constant) and isinstance(stmt.value.value, str):
-                        default_strat_type = stmt.value.value
-                    elif isinstance(stmt.value, ast.Name) and stmt.value.id in consts:
-                        default_strat_type = consts[stmt.value.id]
-        elif isinstance(node, ast.Assign):
-            for t in node.targets:
-                if isinstance(t, ast.Name) and t.id == "strategy_type":
-                    if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
-                        emitted_types.add(node.value.value)
-        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "Signal":
-            if _is_none_direction_signal(node):
-                continue
-            kw_map = {kw.arg: kw.value for kw in node.keywords if kw.arg}
-            st_val = kw_map.get("strategy_type")
-            if isinstance(st_val, ast.Constant) and isinstance(st_val.value, str):
-                emitted_types.add(st_val.value)
-            elif isinstance(st_val, ast.Name) and st_val.id in consts:
-                emitted_types.add(consts[st_val.id])
-
-            s_expr = kw_map.get("strength")
-            if s_expr is None and len(node.args) >= 3:
-                s_expr = node.args[2]
-            s_val = _extract_signal_min_strength(s_expr)
-            if s_val is not None and s_val > 0:
-                active_strengths.append(s_val)
-
-    if not emitted_types and default_strat_type:
-        emitted_types.add(default_strat_type)
-
-    min_strength = min(active_strengths) if active_strengths else 100
-    return emitted_types, min_strength
-
-
-def _extract_gate_strings(test_node: ast.AST) -> List[str]:
-    found: List[str] = []
-    for n in ast.walk(test_node):
-        if isinstance(n, ast.Compare):
-            for c in n.comparators:
-                for sub in ast.walk(c):
-                    if isinstance(sub, ast.Constant) and isinstance(sub.value, str) and sub.value:
-                        found.append(sub.value)
-    return list(dict.fromkeys(found))
-
-
-def _collect_if_chain(if_node: ast.If, gate_map: Dict[str, int], default_box: List[int]) -> None:
-    keys = _extract_gate_strings(if_node.test)
-    for stmt in if_node.body:
-        if isinstance(stmt, ast.Assign):
-            for t in stmt.targets:
-                if isinstance(t, ast.Name) and t.id == "required_strength" and isinstance(stmt.value, ast.Constant):
-                    if isinstance(stmt.value.value, (int, float)):
-                        for k in keys:
-                            gate_map[k] = int(stmt.value.value)
-    if if_node.orelse:
-        if len(if_node.orelse) == 1 and isinstance(if_node.orelse[0], ast.If):
-            _collect_if_chain(if_node.orelse[0], gate_map, default_box)
-        else:
-            for stmt in if_node.orelse:
-                if isinstance(stmt, ast.Assign):
-                    for t in stmt.targets:
-                        if isinstance(t, ast.Name) and t.id == "required_strength" and isinstance(stmt.value, ast.Constant):
-                            if isinstance(stmt.value.value, (int, float)):
-                                default_box[0] = int(stmt.value.value)
-
-
-def _parse_trader_strength_gates(trader_path: str) -> Tuple[Dict[str, int], int]:
-    """core/trader.py _risk_check()에서 strategy_type별 required_strength 맵을 추출한다."""
-    with open(trader_path, "r", encoding="utf-8") as f:
-        src = f.read()
-    tree = ast.parse(src, filename=trader_path)
-    gate_map: Dict[str, int] = {}
-    default_box = [90]
-
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)) and node.name == "_risk_check":
-            for stmt in node.body:
-                if isinstance(stmt, ast.If) and "required_strength" in ast.dump(stmt):
-                    _collect_if_chain(stmt, gate_map, default_box)
-    return gate_map, default_box[0]
-
-
-def check_signal_gate_contract(bot_id: int, cwd: str) -> Tuple[bool, str]:
-    """[모듈 4] strategy.py 생성 시그널 강도와 trader.py _risk_check() 게이트 정합성 검사."""
-    strat_path = os.path.join(cwd, "core", "strategy.py")
-    trader_path = os.path.join(cwd, "core", "trader.py")
-    if not (os.path.exists(strat_path) and os.path.exists(trader_path)):
-        return False, "전략/트레이더 파일 없음"
-
-    try:
-        emitted_types, min_strength = _parse_strategy_outputs(strat_path)
-        gate_map, default_req = _parse_trader_strength_gates(trader_path)
-    except Exception as e:
-        return False, f"시그널-게이트 정적 분석 스킵 ({e})"
-
-    if not emitted_types:
-        return False, "활성 시그널 유형 추출 불가(스킵)"
-
-    mismatches: List[str] = []
-    for st in sorted(emitted_types):
-        req = gate_map.get(st, default_req)
-        if min_strength < req:
-            mismatches.append(f"{st}: 생성강도 {min_strength}% < 필요강도 {req}%")
-
-    if mismatches:
-        return True, f"시그널-게이트 불일치 감지 ({'; '.join(mismatches)})"
-    return False, f"시그널-게이트 정합 정상 ({','.join(sorted(emitted_types))}≥{min_strength}%)"
-
-
-def check_order_sizing_preflight(bot_id: int, cwd: str) -> Tuple[bool, str]:
-    """[모듈 3] exchange.py 최소주문 보정 가드 및 화이트리스트 진입 수량 가능성 프리플라이트 점검."""
-    ex_path = os.path.join(cwd, "core", "exchange.py")
-    cfg_path = os.path.join(cwd, "config.json")
-    if not os.path.exists(ex_path) or not os.path.exists(cfg_path):
-        return False, "설정/거래소 모듈 없음"
-
-    try:
-        with open(ex_path, "r", encoding="utf-8") as f:
-            ex_src = f.read()
-        if "[MIN AMOUNT ADJUST]" not in ex_src:
-            return True, "exchange.py 최소 주문 수량 자동 보정([MIN AMOUNT ADJUST]) 가드 누락"
-
-        with open(cfg_path, "r", encoding="utf-8") as f:
-            cfg = json.load(f)
-        margin_usdt = float(cfg.get("MARGIN_USDT", 0.0) or 0.0)
-        eq_scale = float(cfg.get("EQUITY_SCALE_FACTOR", 1.0) or 1.0)
-        lev = float(cfg.get("LEVERAGE", 3.0) or 3.0)
-        use_compound = bool(cfg.get("USE_AUTO_COMPOUND", False))
-        risk_pct = float(cfg.get("RISK_PER_TRADE_PCT", 0.0) or 0.0)
-
-        if not use_compound and risk_pct <= 0 and (margin_usdt * eq_scale) < 1.0:
-            return True, f"고정 증거금 설정 과소 ({margin_usdt * eq_scale:.2f} USDT < 1.0 USDT)"
-        if lev <= 0:
-            return True, f"레버리지 설정 오류 ({lev})"
-    except Exception as e:
-        return False, f"사이징 프리플라이트 스킵 ({e})"
-
-    return False, "주문 사이징 프리플라이트 정상"
-
-
+# ── [모듈 2] 무포지션 시그널 미체결 역추적 및 스테일 락 자동 해제 ─────────────
 def check_unexecuted_signal_trace(bot_id: int, cwd: str) -> Tuple[bool, str, bool]:
-    """[모듈 2] 무포지션 봇의 스테일 락 자동 청소 및 최근 시그널 미체결 차단 원인 추적.
+    """만료된 recently_entered 락 청소 및 최근 30분 시그널 차단 원인을 추적한다."""
+    pos_data = _load_json(os.path.join(cwd, "data", "active_positions.json"), {})
+    if isinstance(pos_data, dict) and pos_data:
+        return False, "보유 포지션 있음", False
 
-    반환: (이상 감지 여부, 상세 사유, 재기동 필요 여부)
-    """
-    act_file = os.path.join(cwd, "data", "active_positions.json")
-    if os.path.exists(act_file):
-        try:
-            with open(act_file, "r", encoding="utf-8") as f:
-                pos_data = json.load(f)
-            if pos_data and len(pos_data) > 0:
-                return False, "보유 포지션 있음", False
-        except Exception:
-            pass
-
-    now_local = datetime.now()
-
-    # 1) engine_states.json 내 10분(600초) 초과 만료 recently_entered 락 자동 해제
     eng_state_file = os.path.join(cwd, "data", "engine_states.json")
-    if os.path.exists(eng_state_file):
-        try:
-            with open(eng_state_file, "r", encoding="utf-8") as f:
-                estate = json.load(f)
-            rec = estate.get("recently_entered") or {}
-            if isinstance(rec, dict) and rec:
-                kept = {}
-                stale_syms = []
-                for sym, ts_str in rec.items():
-                    try:
-                        dt = datetime.fromisoformat(str(ts_str).split("+")[0])
-                        if (now_local - dt).total_seconds() <= 600:
-                            kept[sym] = ts_str
-                        else:
-                            stale_syms.append(sym)
-                    except Exception:
-                        stale_syms.append(sym)
-                if stale_syms:
-                    estate["recently_entered"] = kept
-                    _atomic_write_json(eng_state_file, estate)
-                    return True, f"만료된 recently_entered 락 잔존 자동 해제 ({', '.join(stale_syms)})", True
-        except Exception:
-            pass
+    estate = _load_json(eng_state_file)
+    if isinstance(estate, dict):
+        rec = estate.get("recently_entered") or {}
+        if isinstance(rec, dict) and rec:
+            now_local = datetime.now()
+            kept, stale = {}, []
+            for sym, ts_str in rec.items():
+                try:
+                    dt = datetime.fromisoformat(str(ts_str).split("+")[0])
+                    if (now_local - dt).total_seconds() <= 600:
+                        kept[sym] = ts_str
+                    else:
+                        stale.append(sym)
+                except Exception:
+                    stale.append(sym)
+            if stale:
+                estate["recently_entered"] = kept
+                _atomic_write_json(eng_state_file, estate)
+                return True, f"만료된 recently_entered 락 자동 해제 ({', '.join(stale)})", True
 
-    # 2) 최근 30분 내 [SIG]/[SIGNAL] 발생 후 미체결 차단 원인 역추적
-    now_kst = datetime.utcnow() + timedelta(hours=9)
     log_path = os.path.join(cwd, "bot_engine.log")
     if not os.path.exists(log_path):
         log_path = os.path.join(cwd, "bot_stdout.log")
     if not os.path.exists(log_path):
-        return False, "신호 트레이스 로그 없음", False
+        return False, "미체결 차단 이상 없음", False
 
     try:
         with open(log_path, "rb") as lf:
             lf.seek(0, os.SEEK_END)
-            size = lf.tell()
-            lf.seek(max(0, size - 32768))
+            lf.seek(max(0, lf.tell() - 32768))
             tail = lf.read().decode("utf-8", errors="ignore")
     except Exception:
-        return False, "신호 트레이스 읽기 실패", False
+        return False, "미체결 차단 이상 없음", False
 
-    recent_sig_lines: List[str] = []
-    recent_block_lines: List[str] = []
-    sig_tags = ("[sig]", "[signal]", "[fusion signal]", "[donchian signal]")
-    block_tags = (
-        "trader disabled",
-        "신호 강도 부족",
-        "최소 주문 단위",
-        "minimum amount precision",
-        "[entry block]",
-        "[risk block]",
-    )
-
+    now_kst = _now_kst()
+    sigs, blocks = [], []
     for line in tail.splitlines():
         ls = line.strip()
         if len(ls) < 19:
@@ -368,17 +159,462 @@ def check_unexecuted_signal_trace(bot_id: int, cwd: str) -> Tuple[bool, str, boo
         except Exception:
             continue
         low = ls.lower()
-        if any(t in low for t in sig_tags):
-            recent_sig_lines.append(ls)
-        if any(t in low for t in block_tags):
-            recent_block_lines.append(ls)
+        if any(t in low for t in ("[sig]", "[signal]", "[fusion signal]", "[donchian signal]")):
+            sigs.append(ls)
+        if any(t in low for t in ("trader disabled", "신호 강도 부족", "최소 주문 단위", "minimum amount precision", "[entry block]", "[risk block]")):
+            blocks.append(ls)
 
-    if recent_sig_lines and recent_block_lines:
-        last_block = recent_block_lines[-1]
-        low_b = last_block.lower()
-        if "trader disabled" in low_b:
-            return True, f"최근 시그널 발생 후 trader disabled 차단 감지 ({last_block[:90]})", True
-        if "신호 강도 부족" in last_block or "최소 주문 단위" in last_block or "minimum amount precision" in low_b:
-            return True, f"최근 시그널 게이트/수량 차단 감지 ({last_block[:110]})", False
-
+    if sigs and blocks:
+        last_b = blocks[-1]
+        if "trader disabled" in last_b.lower():
+            return True, f"최근 시그널 후 trader disabled 차단 ({last_b[:80]})", True
+        if any(k in last_b.lower() for k in ("신호 강도 부족", "최소 주문 단위", "minimum amount precision")):
+            return True, f"최근 시그널 게이트/수량 차단 ({last_b[:100]})", False
     return False, "미체결 차단 이상 없음", False
+
+
+# ── [모듈 3] 주문 수량·최소 단위 프리플라이트 감사 ───────────────────────────
+def check_order_sizing_preflight(bot_id: int, cwd: str) -> Tuple[bool, str]:
+    """exchange.py 최소수량 자동 보정 가드 및 증거금/레버리지 설정 유효성을 점검한다."""
+    ex_path = os.path.join(cwd, "core", "exchange.py")
+    cfg = _load_json(os.path.join(cwd, "config.json"))
+    if not (os.path.exists(ex_path) and isinstance(cfg, dict)):
+        return False, "설정/거래소 모듈 없음"
+
+    try:
+        with open(ex_path, "r", encoding="utf-8") as f:
+            if "[MIN AMOUNT ADJUST]" not in f.read():
+                return True, "exchange.py 최소 주문 수량 자동 보정([MIN AMOUNT ADJUST]) 가드 누락"
+        margin_usdt = float(cfg.get("MARGIN_USDT", 0.0) or 0.0)
+        eq_scale = float(cfg.get("EQUITY_SCALE_FACTOR", 1.0) or 1.0)
+        lev = float(cfg.get("LEVERAGE", 3.0) or 3.0)
+        if not cfg.get("USE_AUTO_COMPOUND", False) and float(cfg.get("RISK_PER_TRADE_PCT", 0.0) or 0.0) <= 0:
+            if margin_usdt * eq_scale < 1.0:
+                return True, f"고정 증거금 설정 과소 ({margin_usdt * eq_scale:.2f} USDT < 1.0 USDT)"
+        if lev <= 0:
+            return True, f"레버리지 설정 오류 ({lev})"
+    except Exception as e:
+        return False, f"프리플라이트 스킵 ({e})"
+    return False, "주문 사이징 프리플라이트 정상"
+
+
+# ── [모듈 4] AST 기반 시그널 강도 ↔ 리스크 게이트 계약 감사 ─────────────────
+def _parse_strategy_outputs(strat_path: str) -> Tuple[Set[str], int]:
+    with open(strat_path, "r", encoding="utf-8") as f:
+        tree = ast.parse(f.read(), filename=strat_path)
+    consts = {
+        node.targets[0].id: node.value.value
+        for node in getattr(tree, "body", [])
+        if isinstance(node, ast.Assign) and len(node.targets) == 1
+        and isinstance(node.targets[0], ast.Name) and isinstance(node.value, ast.Constant)
+        and isinstance(node.value.value, str)
+    }
+    default_type: Optional[str] = None
+    emitted: Set[str] = set()
+    strengths: List[int] = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == "Signal":
+            for st in node.body:
+                if isinstance(st, ast.AnnAssign) and isinstance(st.target, ast.Name) and st.target.id == "strategy_type":
+                    if isinstance(st.value, ast.Constant) and isinstance(st.value.value, str):
+                        default_type = st.value.value
+                    elif isinstance(st.value, ast.Name) and st.value.id in consts:
+                        default_type = consts[st.value.id]
+        elif isinstance(node, ast.Assign):
+            for t in node.targets:
+                if isinstance(t, ast.Name) and t.id == "strategy_type" and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
+                    emitted.add(node.value.value)
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "Signal":
+            kw_map = {kw.arg: kw.value for kw in node.keywords if kw.arg}
+            is_none_kw = isinstance(kw_map.get("direction"), ast.Constant) and kw_map["direction"].value == "none"
+            is_none_arg = len(node.args) >= 2 and isinstance(node.args[1], ast.Constant) and node.args[1].value == "none"
+            if is_none_kw or is_none_arg:
+                continue
+            stv = kw_map.get("strategy_type")
+            if isinstance(stv, ast.Constant) and isinstance(stv.value, str):
+                emitted.add(stv.value)
+            elif isinstance(stv, ast.Name) and stv.id in consts:
+                emitted.add(consts[stv.id])
+            s_expr = kw_map.get("strength") or (node.args[2] if len(node.args) >= 3 else None)
+            if isinstance(s_expr, ast.Constant) and isinstance(s_expr.value, (int, float)) and s_expr.value > 0:
+                strengths.append(int(s_expr.value))
+            elif isinstance(s_expr, ast.IfExp) and isinstance(s_expr.body, ast.Constant) and isinstance(s_expr.body.value, (int, float)) and s_expr.body.value > 0:
+                strengths.append(int(s_expr.body.value))
+
+    if not emitted and default_type:
+        emitted.add(default_type)
+    return emitted, (min(strengths) if strengths else 100)
+
+
+def _collect_if_chain(if_node: ast.If, gate_map: Dict[str, int], default_box: List[int]) -> None:
+    keys: List[str] = []
+    for n in ast.walk(if_node.test):
+        if isinstance(n, ast.Compare):
+            for c in n.comparators:
+                for sub in ast.walk(c):
+                    if isinstance(sub, ast.Constant) and isinstance(sub.value, str) and sub.value:
+                        keys.append(sub.value)
+    for st in if_node.body:
+        if isinstance(st, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "required_strength" for t in st.targets):
+            if isinstance(st.value, ast.Constant) and isinstance(st.value.value, (int, float)):
+                for k in dict.fromkeys(keys):
+                    gate_map[k] = int(st.value.value)
+    if if_node.orelse:
+        if len(if_node.orelse) == 1 and isinstance(if_node.orelse[0], ast.If):
+            _collect_if_chain(if_node.orelse[0], gate_map, default_box)
+        else:
+            for st in if_node.orelse:
+                if isinstance(st, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "required_strength" for t in st.targets):
+                    if isinstance(st.value, ast.Constant) and isinstance(st.value.value, (int, float)):
+                        default_box[0] = int(st.value.value)
+
+
+def check_signal_gate_contract(bot_id: int, cwd: str) -> Tuple[bool, str]:
+    """strategy.py 활성 시그널 강도와 trader.py _risk_check() required_strength 정합성을 검사한다."""
+    strat_path = os.path.join(cwd, "core", "strategy.py")
+    trader_path = os.path.join(cwd, "core", "trader.py")
+    if not (os.path.exists(strat_path) and os.path.exists(trader_path)):
+        return False, "전략/트레이더 파일 없음"
+    try:
+        emitted, min_str = _parse_strategy_outputs(strat_path)
+        with open(trader_path, "r", encoding="utf-8") as f:
+            ttree = ast.parse(f.read(), filename=trader_path)
+        gate_map: Dict[str, int] = {}
+        default_box = [90]
+        for node in ast.walk(ttree):
+            if isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)) and node.name == "_risk_check":
+                for st in node.body:
+                    if isinstance(st, ast.If) and "required_strength" in ast.dump(st):
+                        _collect_if_chain(st, gate_map, default_box)
+    except Exception as e:
+        return False, f"시그널-게이트 정적 분석 스킵 ({e})"
+
+    if not emitted:
+        return False, "활성 시그널 유형 추출 불가"
+    bad = [f"{st}: 생성 {min_str}% < 필요 {gate_map.get(st, default_box[0])}%" for st in sorted(emitted) if min_str < gate_map.get(st, default_box[0])]
+    if bad:
+        return True, f"시그널-게이트 불일치 ({'; '.join(bad)})"
+    return False, f"시그널-게이트 정상 ({','.join(sorted(emitted))}≥{min_str}%)"
+
+
+# ── [모듈 6] 중복 프로세스 · PID/Lock 동기화 · 로그 FD 단절 감시 ───────────
+def check_log_fd_and_pid_lock_integrity(bot_id: int, cwd: str) -> Tuple[bool, str, bool]:
+    """중복 bot.py 실행, lock↔bot.pid 불일치(자동 동기화), bot_engine.log FD 단절을 탐지한다."""
+    lock_file = f"/tmp/quantum_{bot_id}_trader.lock"
+    pid_file = os.path.join(cwd, "bot.pid")
+    bot_py = os.path.join(cwd, "bot.py")
+
+    # 1) 동일 폴더 bot.py 중복 실행 검사
+    live_pids: List[int] = []
+    try:
+        out = subprocess.check_output(["ps", "-eo", "pid=,args="], text=True, timeout=3)
+        for line in out.splitlines():
+            parts = line.strip().split(None, 1)
+            if len(parts) == 2 and parts[0].isdigit() and bot_py in parts[1]:
+                live_pids.append(int(parts[0]))
+    except Exception:
+        pass
+    if len(live_pids) > 1:
+        return True, f"중복 bot.py 프로세스 감지 ({live_pids}) — 이중 매매 차단 필요", True
+
+    # 2) lock 파일 PID ↔ bot.pid 자동 동기화
+    healed_msg = ""
+    lock_pid = None
+    if os.path.exists(lock_file):
+        try:
+            with open(lock_file, "r", encoding="utf-8") as f:
+                raw = f.read().strip()
+            if raw.isdigit() and subprocess.run(["kill", "-0", raw], capture_output=True).returncode == 0:
+                lock_pid = int(raw)
+        except Exception:
+            pass
+    if lock_pid is not None:
+        cur_pid_raw = ""
+        if os.path.exists(pid_file):
+            try:
+                cur_pid_raw = open(pid_file, "r", encoding="utf-8").read().strip()
+            except Exception:
+                pass
+        if cur_pid_raw != str(lock_pid):
+            try:
+                _atomic_write_text(pid_file, f"{lock_pid}\n")
+                healed_msg = f"bot.pid 자동 동기화 ({cur_pid_raw or '없음'}→{lock_pid})"
+            except Exception:
+                pass
+
+    # 3) 로그 로테이션 FD 단절(.bak 쓰기) 감지
+    check_pid = lock_pid or (live_pids[0] if live_pids else None)
+    if check_pid is not None:
+        try:
+            lsof_out = subprocess.check_output(["lsof", "-p", str(check_pid), "-Fn"], text=True, timeout=3)
+            paths = [ln[1:] for ln in lsof_out.splitlines() if ln.startswith("n")]
+            bak_log = os.path.join(cwd, "bot_engine.log.bak")
+            main_log = os.path.join(cwd, "bot_engine.log")
+            if bak_log in paths and main_log not in paths:
+                return True, f"엔진 로그 FD 단절 감지 (PID {check_pid}가 .bak에 기록 중) → 재기동 복구", True
+        except Exception:
+            pass
+
+    if healed_msg:
+        return False, healed_msg, False
+    return False, "프로세스/FD/PID 무결성 정상", False
+
+
+# ── [모듈 7] 쿨다운 · 손절 한정 재진입 차단 정합성 자동 감사/청소 ──────────
+def check_cooldown_and_reentry_integrity(bot_id: int, cwd: str) -> Tuple[bool, str, bool]:
+    """만료 쿨다운 청소, 익절 후 오작동 심볼 쿨다운 자동 해제, engine.py 가드를 점검한다."""
+    stats_file = os.path.join(cwd, "data", "stats.json")
+    stats = _load_json(stats_file)
+    if not isinstance(stats, dict):
+        return False, "stats.json 없음", False
+
+    now = datetime.now()
+    changed = False
+    healed: List[str] = []
+
+    g_cd = stats.get("global_cooldown_until")
+    if g_cd:
+        try:
+            if datetime.fromisoformat(str(g_cd).split("+")[0]) <= now:
+                stats["global_cooldown_until"] = None
+                changed = True
+                healed.append("만료 글로벌 쿨다운 해제")
+        except Exception:
+            stats["global_cooldown_until"] = None
+            changed = True
+
+    s_cd = stats.get("symbol_cooldown_until")
+    if isinstance(s_cd, dict) and s_cd:
+        # 최근 종목별 청산 손익 확인 (익절 청산인데 장기 쿨다운 걸린 경우 해제)
+        last_exit_pnl: Dict[str, float] = {}
+        csv_file = os.path.join(cwd, "data", "trade_history.csv")
+        if os.path.exists(csv_file):
+            try:
+                with open(csv_file, "r", encoding="utf-8-sig") as cf:
+                    for row in csv.DictReader(cf):
+                        kind = row.get("유형") or row.get("category") or ""
+                        if "청산" in kind:
+                            sym = row.get("심볼") or row.get("symbol") or ""
+                            pnl_val = float(row.get("수익(USDT)") or row.get("pnl") or 0.0)
+                            if sym:
+                                last_exit_pnl[sym] = pnl_val
+            except Exception:
+                pass
+
+        kept_cd = {}
+        for sym, iso_s in s_cd.items():
+            try:
+                dt = datetime.fromisoformat(str(iso_s).split("+")[0])
+                rem_sec = (dt - now).total_seconds()
+                if rem_sec <= 0:
+                    changed = True
+                    healed.append(f"{sym} 만료 쿨다운 청소")
+                elif rem_sec > 1800 and last_exit_pnl.get(sym, -1.0) > 0:
+                    changed = True
+                    healed.append(f"{sym} 익절 후 오작동 쿨다운 자동 해제")
+                else:
+                    kept_cd[sym] = iso_s
+            except Exception:
+                changed = True
+        if changed:
+            stats["symbol_cooldown_until"] = kept_cd
+
+    if changed:
+        _atomic_write_json(stats_file, stats)
+
+    eng_path = os.path.join(cwd, "core", "engine.py")
+    if os.path.exists(eng_path):
+        try:
+            eng_src = open(eng_path, "r", encoding="utf-8").read()
+            if "pnl < 0" not in eng_src and "is_loss" not in eng_src:
+                return True, "core/engine.py 손절 한정 재진입 차단 가드(pnl < 0) 누락", False
+        except Exception:
+            pass
+
+    if healed:
+        return False, ", ".join(healed), True
+    return False, "쿨다운/재진입 규칙 정상", False
+
+
+# ── [모듈 8] 스캔 결과 유효성 · 지표 NaN/BTC 미확인 전수 감사 ───────────────
+def check_scan_indicator_health(bot_id: int, cwd: str) -> Tuple[bool, str, bool]:
+    """scan_results.json 전 종목 가격·화이트리스트 커버리지·지표 에러 여부를 점검한다."""
+    cfg = _load_json(os.path.join(cwd, "config.json"))
+    sr_path = os.path.join(cwd, "scan_results.json")
+    sr = _load_json(sr_path)
+    if not (isinstance(cfg, dict) and sr is not None):
+        return False, "스캔 결과 없음", False
+    if os.path.exists(sr_path) and (time.time() - os.path.getmtime(sr_path)) > 600:
+        return False, "스캔 파일 10분 경과(Stall 감시 위임)", False
+
+    res = sr.get("results", sr) if isinstance(sr, dict) else sr
+    if not isinstance(res, list) or not res:
+        return True, "scan_results.json 결과 비어 있음", False
+
+    wl = list(cfg.get("SYMBOL_WHITELIST") or [])
+    if str(cfg.get("EXCHANGE_ID", "okx")).lower() == "binance":
+        wl = [s for s in wl if s not in ("OKB/USDT:USDT", "PEPE/USDT:USDT")]
+    if wl and len(res) < len(wl) - 1:
+        return True, f"화이트리스트 스캔 누락 ({len(res)}/{len(wl)})", True
+
+    bad_px = [str(r.get("symbol")) for r in res if float(r.get("price") or 0) <= 0]
+    if bad_px:
+        return True, f"시세 0 이하 종목 감지 ({', '.join(bad_px[:3])})", False
+
+    btc_unk = [str(r.get("symbol")) for r in res if "BTC=UNK" in str(r.get("reason", ""))]
+    if btc_unk:
+        return True, f"BTC 추세 필터 미확인(BTC=UNK)으로 진입 차단 상태 ({len(btc_unk)}종목)", True
+
+    ind_err = [str(r.get("symbol")) for r in res if any(k in str(r.get("reason", "")) for k in ("지표 NaN/무효", "오류:"))]
+    if ind_err:
+        return True, f"지표 계산 오류 종목 감지 ({', '.join(ind_err[:3])})", False
+
+    return False, f"스캔/지표 정상 ({len(res)}종목)", False
+
+
+# ── [모듈 9] 7대 영역(Config ↔ TradingConfig ↔ Stats) 정합성 감사/치유 ─────
+def check_full_stack_7zone_sync(bot_id: int, cwd: str) -> Tuple[bool, str]:
+    """config.json, core/config.py, data/stats.json 간 핵심 설정·PeakMDD 정합성을 점검한다."""
+    cfg = _load_json(os.path.join(cwd, "config.json"))
+    core_cfg_path = os.path.join(cwd, "core", "config.py")
+    if not (isinstance(cfg, dict) and os.path.exists(core_cfg_path)):
+        return False, "설정 파일 없음"
+
+    tf = str(cfg.get("TIMEFRAME", "")).strip().lower()
+    meta = cfg.get("DASHBOARD_META") or {}
+    if isinstance(meta, dict):
+        m_tf = str(meta.get("timeframe", "")).strip().lower()
+        m_strat = str(meta.get("strategy", "")).lower()
+        if tf and m_tf and tf != m_tf:
+            return True, f"7대영역 타임프레임 불일치 (config={tf} vs META={m_tf})"
+        for tag in ("15m", "1h", "4h", "1d"):
+            if f"({tag})" in m_strat and tf and tf != tag:
+                return True, f"7대영역 전략태그 불일치 (config={tf} vs strategy={meta.get('strategy')})"
+
+    try:
+        core_src = open(core_cfg_path, "r", encoding="utf-8").read()
+        missing = [k for k in ("DASHBOARD_META", "MAX_DRAWDOWN_PCT", "LEVERAGE", "TIMEFRAME") if k not in core_src]
+        if missing:
+            return True, f"core/config.py TradingConfig 필드 누락 ({', '.join(missing)})"
+    except Exception:
+        pass
+
+    stats_file = os.path.join(cwd, "data", "stats.json")
+    stats = _load_json(stats_file)
+    if isinstance(stats, dict):
+        seed = float(stats.get("seed_money", 0.0) or 0.0)
+        peak = float(stats.get("peak_equity_usdt", 0.0) or 0.0)
+        if seed > 0 and peak <= 0:
+            stats["peak_equity_usdt"] = round(seed, 4)
+            _atomic_write_json(stats_file, stats)
+            return False, f"peak_equity_usdt 누락 자동 보정 (${seed:.2f})"
+
+    return False, "7대영역 정합성 정상"
+
+
+# ── [모듈 10] 보유 포지션 트레일링 컨텍스트 · prev_position_symbols 자동 복구
+def check_position_context_integrity(bot_id: int, cwd: str) -> Tuple[bool, str]:
+    """active_positions.json과 engine_states.json의 청산·트레일링 필수 상태를 자가 복원한다."""
+    act_file = os.path.join(cwd, "data", "active_positions.json")
+    pos_data = _load_json(act_file, {})
+    if not isinstance(pos_data, dict) or not pos_data:
+        return False, "포지션 없음(컨텍스트 대기 정상)"
+
+    cfg = _load_json(os.path.join(cwd, "config.json"), {}) or {}
+    def_act = float(cfg.get("TRAILING_ACTIVATE_PCT", 0.015) or 0.015)
+    def_cb = float(cfg.get("TRAILING_CALLBACK_PCT", 0.008) or 0.008)
+
+    repaired: List[str] = []
+    act_changed = False
+    for sym, info in pos_data.items():
+        if not isinstance(info, dict):
+            continue
+        if not info.get("exit_profile"):
+            info["exit_profile"] = "ATR" if cfg.get("USE_DYNAMIC_SLTP", False) else "SL/TP"
+            act_changed = True
+            repaired.append(f"{sym}:exit_profile")
+        if float(info.get("atr_activation") or 0.0) <= 0:
+            info["atr_activation"] = def_act
+            act_changed = True
+            repaired.append(f"{sym}:atr_activation")
+        if float(info.get("atr_callback") or 0.0) <= 0:
+            info["atr_callback"] = def_cb
+            act_changed = True
+            repaired.append(f"{sym}:atr_callback")
+    if act_changed:
+        _atomic_write_json(act_file, pos_data)
+
+    eng_file = os.path.join(cwd, "data", "engine_states.json")
+    es = _load_json(eng_file)
+    if isinstance(es, dict):
+        prev_syms = list(es.get("prev_position_symbols") or [])
+        missing_prev = [s for s in pos_data if s not in prev_syms]
+        if missing_prev:
+            es["prev_position_symbols"] = list(dict.fromkeys(prev_syms + missing_prev))
+            _atomic_write_json(eng_file, es)
+            repaired.append(f"prev_position_symbols+{','.join(missing_prev)}")
+
+    if repaired:
+        return False, f"포지션 청산 컨텍스트 자동 복원 ({'; '.join(repaired)})"
+    return False, f"포지션 컨텍스트 정상 ({len(pos_data)}건)"
+
+
+# ── 통합 오케스트레이터 (모듈 2/3/4/6/7/8/9/10 일괄 점검) ─────────────────────
+def run_all_autonomous_audits(bot_id: int, cwd: str) -> Dict[str, Any]:
+    """모듈 1(별도 상시)·모듈 5/10b(bot_sentinel) 외 8개 모듈을 통합 실행해 보고/조치 데이터를 반환한다."""
+    issues: List[Tuple[str, str]] = []
+    healed: List[str] = []
+    needs_restart = False
+
+    trace_err, trace_msg, trace_rst = check_unexecuted_signal_trace(bot_id, cwd)
+    if trace_err:
+        issues.append(("ai_unexecuted_signal_trace", trace_msg))
+        needs_restart = needs_restart or trace_rst
+
+    size_err, size_msg = check_order_sizing_preflight(bot_id, cwd)
+    if size_err:
+        issues.append(("ai_sizing_preflight", size_msg))
+
+    gate_err, gate_msg = check_signal_gate_contract(bot_id, cwd)
+    if gate_err:
+        issues.append(("ai_signal_gate_contract", gate_msg))
+
+    fd_err, fd_msg, fd_rst = check_log_fd_and_pid_lock_integrity(bot_id, cwd)
+    if fd_err:
+        issues.append(("ai_log_fd_pid_lock", fd_msg))
+        needs_restart = needs_restart or fd_rst
+    elif "동기화" in fd_msg:
+        healed.append(fd_msg)
+
+    cd_err, cd_msg, cd_rst = check_cooldown_and_reentry_integrity(bot_id, cwd)
+    if cd_err:
+        issues.append(("ai_cooldown_reentry", cd_msg))
+    elif "해제" in cd_msg or "청소" in cd_msg:
+        healed.append(cd_msg)
+        needs_restart = needs_restart or cd_rst
+
+    scan_err, scan_msg, scan_rst = check_scan_indicator_health(bot_id, cwd)
+    if scan_err:
+        issues.append(("ai_scan_indicator_health", scan_msg))
+        needs_restart = needs_restart or scan_rst
+
+    sync_err, sync_msg = check_full_stack_7zone_sync(bot_id, cwd)
+    if sync_err:
+        issues.append(("ai_7zone_sync", sync_msg))
+    elif "보정" in sync_msg:
+        healed.append(sync_msg)
+
+    ctx_err, ctx_msg = check_position_context_integrity(bot_id, cwd)
+    if ctx_err:
+        issues.append(("ai_position_context", ctx_msg))
+    elif "복원" in ctx_msg:
+        healed.append(ctx_msg)
+
+    return {
+        "issues": issues,
+        "healed": healed,
+        "needs_restart": needs_restart,
+        "gate_summary": gate_msg,
+        "scan_summary": scan_msg,
+    }
