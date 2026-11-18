@@ -10,6 +10,12 @@ BASE_8888 = os.path.dirname(os.path.abspath(__file__))
 if BASE_8888 not in sys.path:
     sys.path.insert(0, BASE_8888)
 from watchdog_common import bot_restart_locked, record_proactive_alert
+from core.autonomous_auditor import (
+    check_stale_code_sync,
+    check_signal_gate_contract,
+    check_unexecuted_signal_trace,
+    check_order_sizing_preflight,
+)
 
 _ENTRY_LOG = os.path.join(BASE_8888, "watchdog_entry.log")
 _stdout_redirected = False
@@ -158,6 +164,17 @@ def audit_trade_reconciliation(b: int, cwd: str) -> None:
             if data:
                 actions = data.get("actions", [])
                 diff = data.get("balance_diff", 0.0)
+                unprot = data.get("unprotected_positions") or []
+                if unprot:
+                    logger.warning(f"[{b}] 🚨 [보호주문 누락] 실 포지션 보호주문 미감지: {unprot}")
+                    record_proactive_alert(
+                        str(b),
+                        "sentinel_unprotected_position",
+                        "CRITICAL",
+                        "실 포지션 보호주문(SL/TP) 누락 감지",
+                        f"대상 심볼: {', '.join(unprot)}",
+                        "거래소 OCO / STOP_MARKET 주문 존재 여부 즉시 점검 필요",
+                    )
                 if actions:
                     logger.warning(f"[{b}] 🛡 센티넬 감사 조치: {', '.join(actions)} (잔고괴리: ${diff:+.4f})")
                 else:
@@ -433,6 +450,7 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
         return
         
     needs_restart = False
+    allow_hot_restart_with_pos = False
     action_taken = []
     
     # [Foolproof 방지책] AUTO_TRADING이 강제로 꺼져(false) 죽은 것처럼 보이는 현상 원천 차단
@@ -480,6 +498,18 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
         logger.error(f"[{b}] 🚨 bot.py 프로세스가 죽어 있습니다!")
         needs_restart = True
         action_taken.append("프로세스 다운 (재기동 필요)")
+
+    # 1-0. [AI 자율감사 모듈 1] 디스크 코드 변경 후 메모리 미반영(Stale Code) 검사
+    if bot_alive and not needs_restart:
+        try:
+            stale_code, stale_reason = check_stale_code_sync(b, cwd)
+            if stale_code:
+                logger.warning(f"[{b}] 🔄 [AI 자율감사] {stale_reason} → 포지션 보존 안전 핫리로드 트리거")
+                needs_restart = True
+                allow_hot_restart_with_pos = True
+                action_taken.append(stale_reason)
+        except Exception as e:
+            logger.debug(f"[{b}] Stale Code 감사 예외: {e}")
         
     # 1-1. 엔진 심장박동 (로그 갱신) 검사 (좀비 봇 감지)
     if bot_alive and not needs_restart:
@@ -553,6 +583,29 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                     action_taken.append(flat_reason)
                 else:
                     logger.info(f"[{b}] 🛡 무포지션 건전성: {flat_reason}")
+
+            # 3) [AI 자율감사 모듈 2/3/4] 시그널-게이트 계약 · 사이징 프리플라이트 · 미체결 역추적
+            gate_err, gate_reason = check_signal_gate_contract(b, cwd)
+            preflight_err, preflight_reason = check_order_sizing_preflight(b, cwd)
+            trace_err, trace_reason, trace_restart = check_unexecuted_signal_trace(b, cwd)
+            ai_warns = []
+            if gate_err:
+                ai_warns.append(gate_reason)
+                record_proactive_alert(str(b), "ai_signal_gate_contract", "WARN", "시그널-게이트 불일치", gate_reason, "strategy.py/trader.py 정합화 점검 필요")
+            if preflight_err:
+                ai_warns.append(preflight_reason)
+                record_proactive_alert(str(b), "ai_sizing_preflight", "WARN", "주문 사이징 프리플라이트 경보", preflight_reason, "exchange.py/config.json 수량 산출 조건 점검 필요")
+            if trace_err:
+                ai_warns.append(trace_reason)
+                if trace_restart:
+                    needs_restart = True
+                    action_taken.append(trace_reason)
+                else:
+                    record_proactive_alert(str(b), "ai_unexecuted_signal_trace", "WARN", "시그널 미체결 차단 감지", trace_reason, "최근 시그널 차단 원인 점검 권고")
+            if ai_warns:
+                logger.warning(f"[{b}] 🤖 [AI 자율감사] 이상 감지: {' | '.join(ai_warns)}")
+            else:
+                logger.info(f"[{b}] 🤖 [AI 자율감사] 파이프라인 전수 정상 ({gate_reason})")
         except Exception as e:
             logger.error(f"[{b}] 진입 건전성 감사 중 예외: {e}")
 
@@ -570,8 +623,11 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                 with open(active_pos_file, "r") as pf:
                     pdata = json.load(pf)
                 if len(pdata) > 0:
-                    logger.warning(f"[{b}] 🛡 포지션({len(pdata)}건) 보유 확인! 트레일링 스탑 보호를 위해 재기동 유예.")
-                    needs_restart = False
+                    if allow_hot_restart_with_pos:
+                        logger.warning(f"[{b}] 🔄 [AI 자율감사] 디스크 코드 변경 반영을 위해 보유 포지션({len(pdata)}건) 상태 보존 핫리로드 허용")
+                    else:
+                        logger.warning(f"[{b}] 🛡 포지션({len(pdata)}건) 보유 확인! 트레일링 스탑 보호를 위해 재기동 유예.")
+                        needs_restart = False
         except Exception as e:
             logger.error(f"[{b}] ⚠️ 포지션 상태 확인 실패: {e}")
 

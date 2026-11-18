@@ -1,5 +1,32 @@
 # Version History
 
+## v1.7.13
+
+Date: 2026-11-18
+
+### 변경 내용
+
+* **AI 자율 발굴·선제 치유 워치독 파이프라인 고도화 (`core/autonomous_auditor.py`, `bot_sentinel.py`, `core/audit_33.py`, `watchdog_entry.py`)**:
+  * **모듈 1 — 코드-프로세스 메모리 동기화 자동 감사 (`check_stale_code_sync`)**: 각 봇의 실행 PID 기동 시각(`lstart`)과 디스크 `bot.py`/`core/*.py` 수정 시각(`mtime`)을 매분 대조하여 디스크 패치 후 메모리 미반영 상태 감지 시 보유 포지션 상태를 보존한 채 `bot_restart_locked` 안전 핫리로드 자동 트리거
+  * **모듈 2 — 미체결 시그널 역추적 및 스테일 락 해제 (`check_unexecuted_signal_trace`)**: 무포지션 봇의 최근 시그널(`[SIG]`/`[SIGNAL]`) 발생 후 미체결 차단(`trader disabled`, 게이트·최소단위 거절) 역추적 및 `engine_states.json` 만료(`>600s`) `recently_entered` 락 자동 청소·재기동
+  * **모듈 3 — 주문 수량 프리플라이트 감사 (`check_order_sizing_preflight`)**: `core/exchange.py` 내 `[MIN AMOUNT ADJUST]` 가드 누락 및 고정 증거금(`1.0 USDT` 미만)·레버리지 이상 선제 차단
+  * **모듈 4 — 시그널-게이트 계약 정합성 감사 (`check_signal_gate_contract`)**: `AST` 기반으로 `core/strategy.py`의 활성 시그널 `strategy_type`·최소 `strength`와 `core/trader.py` `_risk_check()`의 `required_strength` 분기 불일치 상시 감시
+  * **모듈 5 — 실 포지션 거래소 보호주문(OCO / SL·TP) 실시간 대조 (`bot_sentinel.py`)**: OKX `privateGetTradeOrdersAlgoPending` 및 Binance `has_protective_orders()`를 직접 조회하여 90초 초과 무방비 포지션 즉각 탐지·CRITICAL 경보 연계
+  * **`core/audit_33.py` 정확도 보강**: 하드코딩된 `len(pos_data) > 1` 오류를 `config.json`의 `MAX_POSITIONS` 동적 읽기로 수정하고, 로그 에러/거절/타임아웃 파싱 범위를 최근 15분 이내로 한정해 과거 Resolved 로그로 인한 오탐 제거
+
+### 수정 파일
+
+* core/autonomous_auditor.py (신규)
+* bot_sentinel.py
+* core/audit_33.py
+* watchdog_entry.py
+* ver.md
+
+### 비고
+
+* 단위 테스트 4종(`gate mismatch`, `sizing preflight`, `stale recently_entered cleanup`, `audit_33 MAX_POSITIONS=2`), `watchdog_entry.py` PID `45713` 전 6개 봇(`[8401, 8402, 8403, 8404, 8405, 8408]`) Cycle 1 `[AI 자율감사]` 정상 통과, `verify_all.py` 100% PASS 검증 완료
+
+
 ## v1.7.12
 
 Date: 2026-11-18

@@ -20,47 +20,65 @@ def run_33_point_audit(bot_id: int, cwd: str) -> list:
     now = time.time()
     
     # 1. 장부 무결성 및 Max Position 확인
-    pos_data = []
+    pos_data = {}
     if os.path.exists(pos_file):
         try:
             with open(pos_file, "r") as f:
                 pos_data = json.load(f)
         except Exception:
             anomalies.append("장부 읽기 실패 (A2)")
-            
-    if len(pos_data) > 1:
-        anomalies.append(f"MAX_POSITIONS 초과 (D21) - 현재 {len(pos_data)}개")
-        
-    # 2. 엔진 로그 파싱 (에러, 거절, 타임아웃, 프리즈 확인)
+
+    conf = {}
+    if os.path.exists(conf_file):
+        try:
+            with open(conf_file, "r") as f:
+                conf = json.load(f)
+        except Exception:
+            pass
+
+    max_pos = int(conf.get("MAX_POSITIONS", 2) or 2)
+    if isinstance(pos_data, dict) and len(pos_data) > max_pos:
+        anomalies.append(f"MAX_POSITIONS 초과 (D21) - 현재 {len(pos_data)}/{max_pos}개")
+
+    # 2. 엔진 로그 파싱 (최근 15분 내 에러, 거절, 타임아웃, 프리즈 확인)
     errors = []
     rejects = []
     timeouts = []
-    
+    now_kst = datetime.utcnow() + timedelta(hours=9)
+
     if os.path.exists(log_file):
         mtime = os.path.getmtime(log_file)
         age = now - mtime
         if age > 300:
             anomalies.append(f"엔진 좀비/프리즈 (E27) - 로그 갱신 안됨 ({int(age)}초)")
-            
+
         try:
             with open(log_file, "r") as f:
-                # 마지막 500줄 파싱
+                # 마지막 500줄 파싱 (최근 15분 이내만)
                 lines = f.readlines()[-500:]
                 for line in lines:
+                    ls = line.strip()
+                    if len(ls) >= 19:
+                        try:
+                            ldt = datetime.strptime(ls[:19], "%Y-%m-%d %H:%M:%S")
+                            if abs((now_kst - ldt).total_seconds()) > 900:
+                                continue
+                        except Exception:
+                            pass
                     if "cancelallorders() is not supported yet" in line.lower():
                         continue
                     if "minimum amount precision" in line.lower() or "최소 주문 단위" in line:
                         continue
                     if "거절" in line or "실패" in line or "must be no smaller than" in line or "-4164" in line:
-                        rejects.append(line.strip())
+                        rejects.append(ls)
                     if "Timeout" in line or "timeout" in line:
-                        timeouts.append(line.strip())
+                        timeouts.append(ls)
                     if "Exception" in line or "Error" in line:
                         if "asyncio" in line:
                             errors.append("asyncio Event Loop (E31)")
                         elif "RateLimit" in line or "429" in line or "IP ban" in line:
                             errors.append("Rate Limit 밴 (E29)")
-        except Exception as e:
+        except Exception:
             pass
             
     if rejects: anomalies.append(f"주문 거절/실패 발견 (B12/D23) - 최근 500줄 내 {len(rejects)}건")

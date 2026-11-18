@@ -103,6 +103,7 @@ async def audit_bot(b: int):
         "exchange": ex_id,
         "ghosts_cleaned": [],
         "orphans_restored": [],
+        "unprotected_positions": [],
         "partial_exits_added": 0,
         "balance_diff": 0.0,
         "actions": []
@@ -165,6 +166,45 @@ async def audit_bot(b: int):
                 report["orphans_restored"].append(o)
             atomic_write_json(act_file, local_act)
             report["actions"].append(f"고아 포지션 {len(orphans)}건 복원")
+
+        # 3.5. 거래소 실 포지션 보호주문(OCO / SL·TP) 존재 여부 실시간 대조
+        if ex_map:
+            now_dt = datetime.now()
+            for sym in ex_map:
+                ot_str = (local_act.get(sym) or {}).get("open_time")
+                if ot_str:
+                    try:
+                        ot_dt = datetime.fromisoformat(str(ot_str).split(".")[0].split("+")[0])
+                        if abs((now_dt - ot_dt).total_seconds()) < 90:
+                            continue
+                    except Exception:
+                        pass
+                has_prot = True
+                try:
+                    if ex_id == "okx":
+                        mkt = client.exchange.market(sym)
+                        inst_id = mkt.get("id")
+                        if inst_id:
+                            res_oco = await client._execute_with_retry(
+                                client.exchange.privateGetTradeOrdersAlgoPending,
+                                {"instId": inst_id, "ordType": "oco"},
+                            )
+                            res_cond = await client._execute_with_retry(
+                                client.exchange.privateGetTradeOrdersAlgoPending,
+                                {"instId": inst_id, "ordType": "conditional"},
+                            )
+                            prot_cnt = len((res_oco or {}).get("data") or []) + len((res_cond or {}).get("data") or [])
+                            has_prot = prot_cnt > 0
+                    elif hasattr(client, "has_protective_orders"):
+                        has_prot = bool(await client.has_protective_orders(sym))
+                except Exception:
+                    has_prot = True
+                if not has_prot:
+                    report["unprotected_positions"].append(sym)
+            if report["unprotected_positions"]:
+                report["actions"].append(
+                    f"보호주문(SL/TP) 누락 감지: {', '.join(report['unprotected_positions'])}"
+                )
 
         # 4. 잔고 괴리율 검사 (Ledger Drift Guard)
         # Seeds 정보 로드
