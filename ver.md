@@ -1,5 +1,34 @@
 # Version History
 
+## v1.7.16
+
+Date: 2026-11-18
+
+### 변경 내용
+
+* **8888 통합 관제 대시보드·디스코드 알림 유형2·전담 워치독에 `8407` 전수 편입 (7개 봇 관제 체제 완성)**:
+  * `8888/app.py`: `BOTS` 목록에 `("8407", 8407, "BNC")` 편입 및 `run_check_auto_mode_switch_all()`·`checksum_guard_loop()` `target_bots` 7개 봇 확장
+  * `8888/strategy_baselines.json`: `8407`(`Donchian20_Vol1.2_BTC200EMA_1h_M4`, 5y MDD `22.8%` / PF `1.19` / 8연패 / 수수료 `33.0%` 기준선) 등록
+  * `8888/dashboard.html`: `매매기법 비교` 표 전 항목(1패 즉시전환 `X`, M4 `1%` 고정 `$3.5`, `BTC200EMA + 거래량1.2x`, 기대 MDD/월수익률/수수료 비중/향후 운영방향) 8407 Donchian20 `1h` 이식 기준 동기화 및 `봇별 총자산 추이` 탭 색상 `유형2`(`#ff5252`) 분류
+  * `8888/discord_alert.py` & `discord_bot_listener.py`: 디스코드 실시간 알림 **유형2 (`["8403", "8405", "8407"]`)**, `Total - 7개 봇` 통합 요약, 최근 변경 요약 및 원격 제어(`!모드`/`!초기화`/`!재가동`) 7개 봇 지원
+  * `8888/watchdog_profitability.py`, `watchdog_exit.py`, `watchdog_position.py`: `8407` 편입 및 재기동
+
+### 수정 파일
+
+* app.py
+* dashboard.html
+* strategy_baselines.json
+* discord_alert.py
+* discord_bot_listener.py
+* watchdog_profitability.py
+* watchdog_exit.py
+* watchdog_position.py
+* ver.md
+
+### 비고
+
+* `http://localhost:8888/api/status` 7개 봇(`8407` BNC `$10.00`) 정상 집계, Headless Chrome 실측 대시보드 스크린샷 및 디스코드 `유형2` 드라이런 검증 완료, `verify_all.py` 100% PASS 확인
+
 ## v1.7.15
 
 Date: 2026-11-18

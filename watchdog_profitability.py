@@ -39,7 +39,7 @@ from watchdog_common import (  # noqa: E402
     setup_clean_logger,
 )
 
-ACTIVE_BOTS = ["8401", "8402", "8403", "8404", "8405", "8408"]
+ACTIVE_BOTS = ["8401", "8402", "8403", "8404", "8405", "8407", "8408"]
 CHECK_INTERVAL_SEC = 300
 LOCK_PATH = "/tmp/watchdog_profitability.lock"
 LOG_PATH = os.path.join(BASE_8888, "watchdog_profitability.log")

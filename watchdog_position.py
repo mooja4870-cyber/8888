@@ -12,7 +12,7 @@ if BASE_8888 not in sys.path:
 
 from watchdog_common import run_log_watchdog
 
-BOTS = ["8401", "8402", "8403", "8404", "8405", "8408"]
+BOTS = ["8401", "8402", "8403", "8404", "8405", "8407", "8408"]
 LOG_FILE = os.path.join(BASE_8888, "watchdog_position.log")
 DICT_PATH = os.path.join(BASE_8888, "error_dict.txt")
 

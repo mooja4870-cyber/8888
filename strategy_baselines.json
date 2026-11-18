@@ -169,6 +169,42 @@
       },
       "previous_strategy_id": "BB_MR_15m"
     },
+    "8407": {
+      "strategy_id": "Donchian20_Vol1.2_BTC200EMA_1h_M4",
+      "timeframe": "1h",
+      "exchange": "binance",
+      "approval_tier": 1,
+      "backtest": {
+        "horizon_years": 5.0,
+        "cost_bps_rt": 10,
+        "trades": 1633,
+        "win_rate_pct": 68.6,
+        "net_pf": 1.19,
+        "net_ret_pct": 159.1,
+        "expected_mdd_pct": 22.8,
+        "expected_max_loss_streak": 8,
+        "fee_ratio_pct": 33.0,
+        "corr_vs_8401": 0.072,
+        "corr_vs_8404": 0.065,
+        "okx_3y_wl_pf": 1.07,
+        "okx_3y_wl_ret_pct": 24.7,
+        "okx_3y_wl_mdd_pct": 21.7
+      },
+      "thresholds": {
+        "peak_mdd_warn_pct": 14.0,
+        "peak_mdd_kill_pct": 22.0,
+        "max_loss_streak_warn": 6,
+        "max_loss_streak_kill": 9,
+        "max_fee_ratio_warn_pct": 50.0,
+        "max_fee_ratio_kill_pct": 100.0,
+        "min_sample_days": 30,
+        "review_target_days": 60,
+        "recommend_max_drawdown_pct": 0.22,
+        "recommend_daily_loss_limit_pct_of_seed": 0.06,
+        "require_dynamic_regime": true
+      },
+      "previous_strategy_id": "QVT_Pullback_15m"
+    },
     "8408": {
       "strategy_id": "FUSION_1h_BNC",
       "timeframe": "1h",
