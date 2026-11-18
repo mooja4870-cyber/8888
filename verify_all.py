@@ -143,7 +143,7 @@ def verify_all():
                                 check_keys += ['KC_PERIOD', 'KC_MULT', 'HURST_MR_THRESH', 'HURST_TREND_THRESH']
                             elif bot_id == '8403':
                                 check_keys += ['ALLOW_ADX_COUNTER', 'USE_DYNAMIC_REGIME']
-                            elif bot_id == '8405':
+                            elif bot_id in ['8405', '8407']:
                                 check_keys += [
                                     'DON_LEN', 'DON_VOL_LEN', 'DON_VOL_MULT', 'BTC_EMA_LEN',
                                     'USE_BTC_TREND_FILTER', 'DON_SL_ATR_MULT', 'DON_TP_ATR_MULT',

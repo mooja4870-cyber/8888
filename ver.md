@@ -1,5 +1,29 @@
 # Version History
 
+## v1.7.15
+
+Date: 2026-11-18
+
+### 변경 내용
+
+* **8407 봇 Donchian(20) 돌파 (`1h` 타임프레임) 이식 및 중앙 관제소·감시체계 100% 동기화 (8407 v3.0.0 연동)**:
+  * `8888/app.py` `read_bot_config("8407")` 손익비·전략 메타 파싱(`ATR×4.5`, `1:2.25`) 동기화
+  * `8888/verify_all.py` `8407` 필수 설정 키(`DON_LEN`, `DON_VOL_LEN`, `DON_VOL_MULT`, `BTC_EMA_LEN`, `USE_BTC_TREND_FILTER`, `DON_SL_ATR_MULT`, `DON_TP_ATR_MULT`, `MIN_SL_PCT`, `USE_BE_GUARD`, `STRATEGY_NAME`) 전수 검증 편입
+  * `8888/watchdog_entry.py` `CORE_BOTS`/`BOT_LIST`에 `8407` 편입 (`[8401, 8402, 8403, 8404, 8405, 8407, 8408]`)
+  * `8888/seeds.json` `8407` 이식 기준선(`seed: 10.0`, `perf_start: 2026-11-18 21:05:14`) 갱신
+
+### 수정 파일
+
+* app.py
+* verify_all.py
+* watchdog_entry.py
+* seeds.json
+* ver.md
+
+### 비고
+
+* 8407 (`v3.0.0`) + 8888 (`v1.7.15`) 동시 배포 및 활성 7개 봇 `verify_all.py` 100% PASS 검증 완료
+
 ## v1.7.14
 
 Date: 2026-11-18

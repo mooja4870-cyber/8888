@@ -758,7 +758,7 @@ def read_bot_config(folder):
         
         if folder == "8403":
             rr_str = "1:1.5+ (BB중심)"
-        elif folder == "8405":
+        elif folder in ["8405", "8407"]:
             _don_sl = float(cfg.get("DON_SL_ATR_MULT", 2.0) or 2.0)
             _don_tp = float(cfg.get("DON_TP_ATR_MULT", 4.5) or 4.5)
             _rr_ratio = round(_don_tp / _don_sl, 2) if _don_sl > 0 else 2.25
@@ -769,7 +769,7 @@ def read_bot_config(folder):
             rr_str = "1:1.9 (TP 2.8%)"
         elif "SMA" in tp_str or "BB Mid" in tp_str:
             rr_str = "SMA(동적)"
-        elif "(1:3)" in tp_str or "(1:3.0)" in tp_str or folder in ["8401", "8407", "8409", "8410"]:
+        elif "(1:3)" in tp_str or "(1:3.0)" in tp_str or folder in ["8401", "8409", "8410"]:
             rr_str = "1:3.0"
         elif "(1:2)" in tp_str or "(1:2.0)" in tp_str or folder in ["8402"]:
             rr_str = "1:2.0"
