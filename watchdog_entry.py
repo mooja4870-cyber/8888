@@ -397,6 +397,25 @@ def check_flat_bot_readiness(b: int, cwd: str) -> tuple:
         if elapsed > 900:
             return True, f"스캐너 루프 정체(Stall: {int(elapsed/60)}분간 로그 갱신 없음)"
 
+    # 5) 화이트리스트 스캔 누락(Whitelist Scan Drop) 검사
+    sr_file = os.path.join(cwd, "scan_results.json")
+    if os.path.exists(cfg_file) and os.path.exists(sr_file):
+        try:
+            if (time.time() - os.path.getmtime(sr_file)) < 600:
+                with open(cfg_file, "r", encoding="utf-8") as f:
+                    cfg_w = json.load(f)
+                with open(sr_file, "r", encoding="utf-8") as f:
+                    sr_w = json.load(f)
+                wl = cfg_w.get("SYMBOL_WHITELIST", []) or []
+                ex_id = str(cfg_w.get("EXCHANGE_ID", "okx")).lower()
+                if ex_id == "binance":
+                    wl = [s for s in wl if s not in ("OKB/USDT:USDT", "PEPE/USDT:USDT")]
+                res_list = sr_w.get("results", sr_w) if isinstance(sr_w, dict) else sr_w
+                if wl and isinstance(res_list, list) and len(res_list) < len(wl) - 1:
+                    return True, f"화이트리스트 스캔 누락 감지 ({len(res_list)}/{len(wl)}개만 스캔됨)"
+        except Exception:
+            pass
+
     return False, "무포지션 대기 중 정상 (정상 스캔 지속)"
 
 def run_entry_recovery_global():

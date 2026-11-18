@@ -1,5 +1,26 @@
 # Version History
 
+## v1.7.12
+
+Date: 2026-11-18
+
+### 변경 내용
+
+* **`v1.7.11` 사후 완결 감사 적의조치 (`8401 v2.3.8`, `8402 v2.5.3`, `8403 v2.4.3`, `8404 v2.3.5`, `8405 v3.0.3`, `watchdog_entry.py`)**:
+  * **실시간 반영 누락 해소 (`8403`, `8404`)**: 보유 포지션 보호 이유로 재기동이 보류되어 구버전 `core/exchange.py`로 동작하던 `8403`(`18/25`), `8404`(`19/26`)를 `watchdog_common.bot_restart_locked`로 안전 재기동 완료 → **`8403`(`25/25`, `BNB` 보유 유지), `8404`(`26/26`, `XRP` 보유 유지)** 전 화이트리스트 스캔 및 OCO 보호 상태 100% 검증
+  * **OKX `place_order()` 최소 계약 수량 선검증 및 자동 보정 (`8401~8405` `core/exchange.py`)**: `amount_to_precision()` 호출 전 `limits.amount.min` 선검증 및 허용 증거금(`max(margin_usdt * 1.8, 2.2)`) 내 `[MIN AMOUNT ADJUST]` 최소 단위 보정 이식 (`8405` M4 1% 소액 증거금 시 `BNB`/`UNI`/`LTC`/`PEPE`/`NEAR` 1계약 미만 진입 누락 방지)
+  * **워치독 화이트리스트 스캔 누락 자동 탐지 (`watchdog_entry.py`)**: `check_flat_bot_readiness()` 5번 검사 추가 — `scan_results.json` 스캔 수가 유효 화이트리스트 수 대비 2개 이상 누락 시 자동 감지·재기동 트리거
+
+### 수정 파일
+
+* watchdog_entry.py
+* ver.md (및 `8401~8405` `core/exchange.py`, `ver.md`)
+
+### 비고
+
+* 전 6개 가동 봇(`8401` 33/33, `8402` 33/33, `8403` 25/25, `8404` 26/26, `8405` 25/25, `8408` 31/31 유효심볼) 전수 스캔 및 `verify_all.py` 100% PASS 검증 완료
+
+
 ## v1.7.11
 
 Date: 2026-11-18
