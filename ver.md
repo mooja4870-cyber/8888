@@ -1,5 +1,27 @@
 # Version History
 
+## v1.7.11
+
+Date: 2026-11-18
+
+### 변경 내용
+
+* **8405 2.8일 무포지션 원인 규명 및 OKX SWAP 24h 거래대금 산출 버그 전 OKX 봇(`8401, 8402, 8403, 8404, 8405`) 일괄 수정 (`8401 v2.3.7`, `8402 v2.5.2`, `8403 v2.4.2`, `8404 v2.3.4`, `8405 v3.0.2`)**:
+  * **시장 요인**: `8405`(4시간봉 Donchian(20) + 거래량 1.2x + BTC 4h EMA200 하락장 추세 필터) 기준 `11-15 23:35` 이후 18개 스캔 종목의 롱 돌파 3건(`NEAR`, `XRP`, `XLM`)은 거래량 미달(`0.72x~1.02x < 1.2x`) 및 `BTC=BEAR` 필터로 정상 차단됨
+  * **핵심 결함 (`core/exchange.py` `get_tickers` / `get_ticker`)**: CCXT OKX SWAP 응답에서 `quoteVolume`이 `None`이고 `baseVolume`이 코인 수량이 아닌 **계약 수(`vol24h`)**로 반환됨에도 `baseVolume * last_price`에 `contractSize`(`10~1000` 등) 또는 `info["volCcy24h"]`를 반영하지 않아 `DOGE`, `PEPE`, `ADA`, `PUMP`, `TRX`, `PENGU`, `XLM`, `MON`의 24h 거래대금이 10배~10,000,000배 과소 계상되어 `MIN_VOLUME_USDT($500,000)` 미만으로 스캔에서 누락됨 (`8403/8404/8405`: 25개 중 18개만 스캔, `8401/8402`: 33개 중 25개만 스캔)
+  * 이 결함으로 `8405`가 `11-17 21:00`에 발생한 `PENGU/USDT:USDT` 유효 숏 돌파 신호(`Vol=1.88x`, `BTC=BEAR`)를 스캔 누락으로 놓친 것을 확인
+  * `volCcy24h * last_price` 우선 적용 및 `baseVolume * contractSize * last_price` 폴백으로 전 OKX 봇 `core/exchange.py` 패치 완료
+  * 무포지션 봇(`8401, 8402, 8405`) `watchdog_common.bot_restart_locked` 안전 재기동 후 `8405` **25/25 전 종목**, `8401·8402` **33/33 전 종목** 스캔 복원 검증 완료 (`8403` `BNB`, `8404` `XRP` 보유 중으로 무중단 유지)
+
+### 수정 파일
+
+* ver.md (글로벌 관제 이력 및 8401~8405 `core/exchange.py`, `ver.md` 배포)
+
+### 비고
+
+* `verify_all.py` 100% PASS 및 `OKXClient.get_tickers` / `get_ticker` 실측(`PENGU` `$33.95M`, `DOGE` `$162.09M`) 확인 완료
+
+
 ## v1.7.10
 
 Date: 2026-11-17
