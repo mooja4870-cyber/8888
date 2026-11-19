@@ -560,9 +560,103 @@ def check_position_context_integrity(bot_id: int, cwd: str) -> Tuple[bool, str]:
     return False, f"포지션 컨텍스트 정상 ({len(pos_data)}건)"
 
 
-# ── 통합 오케스트레이터 (모듈 2/3/4/6/7/8/9/10 일괄 점검) ─────────────────────
+# ── [모듈 11] 승패(W/L) ↔ 시퀀스(seq) 정합성 및 오분류 유령 청산행 자가 치유 ──
+def check_ledger_seq_integrity(bot_id: int, cwd: str) -> Tuple[bool, str]:
+    """
+    1) trade_history.csv에서 진입 주문ID(주문ID)와 동일하면서 손익 0으로 오분류된
+       유령 '청산' 행이 있으면 체결ID를 진입 행으로 보존한 뒤 자동 제거한다.
+    2) extract_bot_metrics.py 기준 since_w/since_l과 seq의 O/x 개수가 100% 일치하는지 감사한다.
+    """
+    csv_path = os.path.join(cwd, "data", "trade_history.csv")
+    if not os.path.exists(csv_path):
+        return False, "거래장부 없음(정상)"
+
+    stats_data = _load_json(os.path.join(cwd, "data", "stats.json"), {}) or {}
+    perf_start = str(stats_data.get("perf_start_time") or "").strip()
+
+    # 1) 진입 동일 order_id + pnl==0 오분류 유령 청산행 탐지 및 자가 치유
+    healed_rows = 0
+    try:
+        with open(csv_path, "r", encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            fieldnames = reader.fieldnames or []
+            rows = list(reader)
+
+        if rows and fieldnames:
+            entry_by_oid: Dict[str, int] = {}
+            for idx, r in enumerate(rows):
+                ts = str(r.get("시간") or "").strip()
+                if perf_start and ts and ts < perf_start:
+                    continue
+                cat = str(r.get("유형") or "").strip()
+                oid = str(r.get("주문ID") or "").strip()
+                if cat in ("진입", "*진입") and oid:
+                    entry_by_oid[oid] = idx
+
+            drop_indices: Set[int] = set()
+            for idx, r in enumerate(rows):
+                ts = str(r.get("시간") or "").strip()
+                if perf_start and ts and ts < perf_start:
+                    continue
+                cat = str(r.get("유형") or "").strip()
+                oid = str(r.get("주문ID") or "").strip()
+                try:
+                    pnl = float(r.get("수익(USDT)") or 0.0)
+                except Exception:
+                    pnl = 0.0
+                if cat in ("청산", "청산(로테이션)") and oid in entry_by_oid and abs(pnl) <= 1e-12:
+                    e_idx = entry_by_oid[oid]
+                    tid = str(r.get("체결ID") or "").strip()
+                    if tid and not str(rows[e_idx].get("체결ID") or "").strip():
+                        rows[e_idx]["체결ID"] = tid
+                    drop_indices.add(idx)
+
+            if drop_indices:
+                healed_rows = len(drop_indices)
+                cleaned_rows = [r for i, r in enumerate(rows) if i not in drop_indices]
+                tmp = csv_path + ".tmp"
+                with open(tmp, "w", encoding="utf-8-sig", newline="") as wf:
+                    writer = csv.DictWriter(wf, fieldnames=fieldnames)
+                    writer.writeheader()
+                    writer.writerows(cleaned_rows)
+                os.replace(tmp, csv_path)
+    except Exception:
+        pass
+
+    # 2) extract_bot_metrics.py 기준 since_w/since_l ↔ seq(O/x) 100% 일치 검증
+    helper_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "extract_bot_metrics.py")
+    if os.path.exists(helper_path):
+        try:
+            res = subprocess.run(
+                ["python3", helper_path, cwd, perf_start],
+                capture_output=True,
+                text=True,
+                timeout=8,
+            )
+            if res.returncode == 0 and res.stdout.strip():
+                metrics = json.loads(res.stdout.strip().splitlines()[-1])
+                if isinstance(metrics, dict) and "error" not in metrics:
+                    sw = int(metrics.get("since_w") or 0)
+                    sl = int(metrics.get("since_l") or 0)
+                    seq = str(metrics.get("seq") or "")
+                    total_wl = sw + sl
+                    expected_len = min(30, total_wl)
+                    if total_wl <= 30:
+                        if seq.count("O") != sw or seq.count("x") != sl or len(seq) != total_wl:
+                            return True, f"승패({sw}W/{sl}L)↔seq('{seq}') 불일치 감지"
+                    elif len(seq) != expected_len:
+                        return True, f"승패({sw}W/{sl}L)↔seq 길이({len(seq)}!={expected_len}) 불일치 감지"
+        except Exception:
+            pass
+
+    if healed_rows > 0:
+        return False, f"오분류 유령 청산행 {healed_rows}건 자동 제거(체결ID 보존)"
+    return False, "승패↔seq 정합성 정상"
+
+
+# ── 통합 오케스트레이터 (모듈 2/3/4/6/7/8/9/10/11 일괄 점검) ───────────────────
 def run_all_autonomous_audits(bot_id: int, cwd: str) -> Dict[str, Any]:
-    """모듈 1(별도 상시)·모듈 5/10b(bot_sentinel) 외 8개 모듈을 통합 실행해 보고/조치 데이터를 반환한다."""
+    """모듈 1(별도 상시)·모듈 5/10b(bot_sentinel) 외 통합 모듈을 실행해 보고/조치 데이터를 반환한다."""
     issues: List[Tuple[str, str]] = []
     healed: List[str] = []
     needs_restart = False
@@ -610,6 +704,12 @@ def run_all_autonomous_audits(bot_id: int, cwd: str) -> Dict[str, Any]:
         issues.append(("ai_position_context", ctx_msg))
     elif "복원" in ctx_msg:
         healed.append(ctx_msg)
+
+    seq_err, seq_msg = check_ledger_seq_integrity(bot_id, cwd)
+    if seq_err:
+        issues.append(("ai_ledger_seq_integrity", seq_msg))
+    elif "제거" in seq_msg:
+        healed.append(seq_msg)
 
     return {
         "issues": issues,

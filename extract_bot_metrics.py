@@ -25,7 +25,18 @@ try:
             dt = datetime.datetime.strptime(ps_str, '%Y-%m-%d %H:%M:%S')
         except ValueError:
             pass
-    closed = closed_trades_since(trades, dt)
+    entry_order_ids = {
+        (r.get('order_id') or '')
+        for r in trades
+        if str(r.get('category', '')).strip() in ('진입', '*진입') and (r.get('order_id') or '')
+    }
+    closed = [
+        r for r in closed_trades_since(trades, dt)
+        if not (
+            abs(float(r.get('pnl_usdt') or 0.0)) <= 1e-12
+            and (r.get('order_id') or '') in entry_order_ids
+        )
+    ]
 
     # closed_trades_since()가 돌려주는 청산시각 키는 'exit_time'(pandas Timestamp)이다.
     # 종전엔 존재하지 않는 'close_dt'를 참조해 기본값 ''만 돌아왔고, 그 결과
@@ -80,7 +91,7 @@ try:
     since_grouped = _group_by_order(closed)
     since_w = sum(1 for pnl in since_grouped.values() if pnl > 0)
     since_l = sum(1 for pnl in since_grouped.values() if pnl < 0)
-    since_orders = len(since_grouped)
+    since_orders = since_w + since_l
 
     # sequence and 20 stats for discord alert
     # 주의: closed는 이미 시간순으로 정렬됨 (과거→최신)
@@ -97,6 +108,8 @@ try:
     grouped_trades = []  # (exit_time, pnl, trade_mode)
     for oid, rows in order_id_to_rows.items():
         pnl = sum(float(r.get('pnl_usdt') or 0.0) for r in rows)
+        if abs(pnl) <= 1e-12:
+            continue
         exit_time = max(_exit_dt(r) for r in rows)
         # trade_mode는 첫 진입 기준 (rows 중 가장 오래된 exit_time을 찾음)
         first_row = min(rows, key=_exit_dt)

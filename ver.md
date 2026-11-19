@@ -1,5 +1,25 @@
 # Version History
 
+## v1.7.17
+
+Date: 2026-11-19
+
+### 변경 내용
+
+* **`01W/01L` vs 시퀀스 `xOx` 불일치 근본 수정 및 AI 자율감사 자동 치유 모듈(모듈 11) 추가 (`8407 v3.0.1` 연동)**:
+  * `8888/extract_bot_metrics.py`: 진입 주문ID(`진입`/`*진입`)와 겹치는 `pnl==0.0` 유령 `"청산"` 행 및 순손익 `0.0`(`abs(pnl) <= 1e-12`) 거래가 `seq`에 거짓 패(`x`)로 섞이지 않도록 승패 카운트(`since_w`/`since_l`)와 `seq`(`O`/`x`) 판정 기준을 100% 통일 (`8407`: `01W/01L` + `xO`, `8404`: `03W/05L` + `xOxxOOxx`)
+  * `8888/core/autonomous_auditor.py`: `check_ledger_seq_integrity()` 상시 감사·자가 치유 모듈 추가 (`진입` 동일 `주문ID` + `pnl==0` 유령 청산행 자동 제거 및 `W/L ↔ seq` 불일치 상시 감시) 및 `watchdog_entry.py` 재기동 반영
+
+### 수정 파일
+
+* extract_bot_metrics.py
+* core/autonomous_auditor.py
+* ver.md
+
+### 비고
+
+* 전 7개 활성 봇 `W/L ↔ seq` 100% 일치 확인, 디스코드 `유형2` 드라이런 `8407` `01W/01L` + `xO` 정상 확인, `verify_all.py` 100% PASS 확인
+
 ## v1.7.16
 
 Date: 2026-11-18
