@@ -11,9 +11,9 @@
      data/proactive_alerts.json 등록 + Discord 사전 승인 제안 알림만 발송한다.
 
 [보스 특별 규칙 준수]
-  - 개별 봇 폴더(8401~8408)의 *.py, config.json, Lock 파일은 절대 쓰기/삭제 금지 (Read-Only).
+  - 개별 봇 폴더(8401~8410)의 *.py, config.json, Lock 파일은 절대 쓰기/삭제 금지 (Read-Only).
   - 8401, 8402, 8403, 8405: 5단계 명시적 승인(5-Step Approval) 대상
-  - 8404, 8408: 2단계 명시적 승인(2-Step Approval) 대상
+  - 8404, 8408, 8410: 2단계 명시적 승인(2-Step Approval) 대상
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 import argparse
@@ -469,7 +469,7 @@ def _eval_bot(bot_id, bot_baseline, live_ex_bots, latest_snap_bots, peak_assets_
     if risk_pct == 0.0 and comp_pct >= 0.25:
         gaps.append(f"M4 리스크사이징 미적용(RISK_PER_TRADE_PCT=0, AUTO_COMPOUND_PCT={comp_pct})")
 
-    if bot_id == "8402" and int(_safe_float(cfg.get("MAX_POSITIONS"), 3)) > 2:
+    if bot_id in ("8402", "8410") and int(_safe_float(cfg.get("MAX_POSITIONS"), 3)) > 2:
         gaps.append(f"MAX_POSITIONS={int(_safe_float(cfg.get('MAX_POSITIONS'), 3))}(8401 동급 2개 일치 필요)")
 
     if gaps:

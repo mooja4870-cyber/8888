@@ -49,6 +49,9 @@ _BENIGN_TAGS = (
     "🚀 [tp breakout]",
     "🛡️ [drawdown guard]",
     "⚠️ [danger zone sizing]",
+    "[order result]",
+    "-5022",
+    "could not be executed as maker",
 )
 
 _DOCSTRING_NOISE_RE = re.compile(
@@ -76,6 +79,7 @@ TRANSIENT_HINTS = (
     "timeout",
     "스캐너 tickers",
     "hover 차트 조회 실패",
+    "timestamp ahead error detected",
 )
 
 
@@ -155,6 +159,10 @@ class BotErrorMatcher:
         if "[lock]" in ll and "중복 방지" in ll:
             return False, False, True, "lock_guard"
         if "진입유실 방지" in ll or "cancelallorders() is not supported yet" in ll or ("[info]" in ll and "exception" not in ll and "error" not in ll and "traceback" not in ll):
+            return False, False, False, ""
+        if "[info]" in ll and "[order result]" in ll and "'order_id':" in ll and "'order_id': none" not in ll:
+            return False, False, False, ""
+        if "-5022" in ll or "could not be executed as maker" in ll:
             return False, False, False, ""
 
         for fk in self.fatal_lower:

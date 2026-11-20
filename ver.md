@@ -1,5 +1,29 @@
 # Version History
 
+## v1.7.20
+
+Date: 2026-11-21
+
+### 변경 내용
+
+* **`8410` 누락 자가치유/워치독 스크립트 전수 동기화 및 진입 직후 오탐 재기동 방지 (`watchdog_common`)**:
+  * `/Users/l/project/auto_heal_stats.py`: 크론 5분 주기 장부 자동 복구 대상 목록에 `"8410"` 추가 (9개 봇 전수 커버)
+  * `8888/watchdog_profitability.py`: `MAX_POSITIONS > 2` 생존 설정 가드 대상에 `("8402", "8410")` 함께 적용 및 문서 주석 `8401~8410` 동기화
+  * `8888/watchdog_99.py`: 레거시 봇 목록 `BOT_DIRS`를 9개 활성 봇(`8401~8405, 8407~8410`)으로 동기화
+  * `8888/watchdog_common.py`: 정상 체결 로그 `[info] [order result]`(유효 `order_id`), Binance Post-Only 폴백 정상 거절(`-5022`, `could not be executed as maker`)을 오탐 에러에서 제외하고 `timestamp ahead error detected`를 일시 네트워크 힌트(`TRANSIENT_HINTS`)로 분류하여 진입 직후 불필요한 워치독 재기동 차단
+
+### 수정 파일
+
+* watchdog_common.py
+* watchdog_profitability.py
+* watchdog_99.py
+* ver.md
+* (상위 루트) `/Users/l/project/auto_heal_stats.py`
+
+### 비고
+
+* `BotErrorMatcher` 단위 검증 100% PASS, 4대 워치독(`PID 34916~34919`) 재기동 정상 가동, `auto_heal_stats.py` 9봇 실행 및 `verify_all.py` 100% PASS 확인
+
 ## v1.7.19
 
 Date: 2026-11-20
