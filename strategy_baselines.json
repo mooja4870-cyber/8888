@@ -237,6 +237,71 @@
         "recommend_daily_loss_limit_pct_of_seed": 0.06,
         "require_dynamic_regime": true
       }
+    },
+    "8409": {
+      "strategy_id": "QVT_Pullback_1h",
+      "timeframe": "1h",
+      "exchange": "binance",
+      "approval_tier": 1,
+      "backtest": {
+        "horizon_years": 5.0,
+        "cost_bps_rt": 10,
+        "trades": 1809,
+        "win_rate_pct": 55.4,
+        "net_pf": 0.88,
+        "net_ret_pct": -67.6,
+        "expected_mdd_pct": 72.0,
+        "expected_max_loss_streak": 12,
+        "fee_ratio_pct": 829.0,
+        "recent_30d_pf": 1.15,
+        "recent_30d_mdd_pct": 6.2
+      },
+      "thresholds": {
+        "peak_mdd_warn_pct": 12.0,
+        "peak_mdd_kill_pct": 20.0,
+        "max_loss_streak_warn": 8,
+        "max_loss_streak_kill": 12,
+        "max_fee_ratio_warn_pct": 50.0,
+        "max_fee_ratio_kill_pct": 100.0,
+        "min_sample_days": 30,
+        "review_target_days": 60,
+        "recommend_max_drawdown_pct": 0.2,
+        "recommend_daily_loss_limit_pct_of_seed": 0.06,
+        "require_dynamic_regime": true
+      },
+      "previous_strategy_id": "BB_MR_1h"
+    },
+    "8410": {
+      "strategy_id": "QVT_Pullback_1h",
+      "timeframe": "1h",
+      "exchange": "binance",
+      "approval_tier": 2,
+      "backtest": {
+        "horizon_years": 5.0,
+        "cost_bps_rt": 10,
+        "trades": 2125,
+        "win_rate_pct": 55.4,
+        "net_pf": 0.89,
+        "net_ret_pct": -82.9,
+        "expected_mdd_pct": 88.3,
+        "expected_max_loss_streak": 12,
+        "fee_ratio_pct": 573.0,
+        "note": "Current Comp30% MP3 NoScale vs 8401-parity M4 1% MP2 Scale (-66.8% / MDD 70.7%)"
+      },
+      "thresholds": {
+        "peak_mdd_warn_pct": 12.0,
+        "peak_mdd_kill_pct": 20.0,
+        "max_loss_streak_warn": 8,
+        "max_loss_streak_kill": 12,
+        "max_fee_ratio_warn_pct": 50.0,
+        "max_fee_ratio_kill_pct": 100.0,
+        "min_sample_days": 30,
+        "review_target_days": 60,
+        "recommend_max_drawdown_pct": 0.2,
+        "recommend_daily_loss_limit_pct_of_seed": 0.06,
+        "require_dynamic_regime": true
+      },
+      "previous_strategy_id": "FUSION_1h_BNC"
     }
   }
 }

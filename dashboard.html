@@ -597,7 +597,7 @@ function render(d,anim){
      ${_cRow("타임프레임", "var(--card)", b => ((b.config && b.config.timeframe) || '1h'), {
        explicitMap: { '1h': '#38bdf8', '15m': '#c084fc', '4h': '#34d399' }
      })}
-     ${_cRow("1패 즉시전환", "var(--card)", b => (['8403', '8404', '8409'].includes((b.name || '').trim()) ? 'O' : 'X'), {
+     ${_cRow("1패 즉시전환", "var(--card)", b => (['8403', '8404'].includes((b.name || '').trim()) ? 'O' : 'X'), {
        isOx: true
      })}
      ${_cRow("전략 (스캐너)", "var(--card2)", b => {
@@ -644,7 +644,7 @@ function render(d,anim){
          const rpTxt = (rp * 100).toFixed(rp * 100 >= 1 ? 0 : 1) + '% M4';
          const sub = isDon
            ? ('고정 $' + _escH(String(c.margin_usdt != null ? c.margin_usdt : '3.5')) + ' (단리)')
-           : (n === '8402' ? ('8401 패리티 동기화 (복리 ' + compPct + '%)') : ('복리 ' + compPct + '% 연동'));
+           : ((n === '8402' || n === '8410') ? ('8401 패리티 동기화 (복리 ' + compPct + '%)') : ('복리 ' + compPct + '% 연동'));
          return { key: 'M4', val: '<span style="color:' + col + '">' + rpTxt + ' · ' + mp + '포지션</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">' + sub + '</span>' };
        }
        const col = n === '8403' ? '#c084fc' : '#fb923c';
@@ -673,7 +673,7 @@ function render(d,anim){
          sub = 'flock · ' + dyn;
        } else if (n === '8404' || n === '8408') {
          sub = 'flock · 순/역 자동반전';
-       } else if (n === '8401' || n === '8402') {
+       } else if (['8401', '8402', '8409', '8410'].includes(n)) {
          sub = 'flock · QVT 원형유지';
        }
        return { key: n, val: head + '<br><span style="font-size:10px;color:#8b93a5;font-weight:400">' + sub + '</span>' };
@@ -689,14 +689,15 @@ function render(d,anim){
          const subMdd = n === '8407' ? ('BNC 1h 이식 (' + okxMdd + '%)') : ('OKX OOS ' + okxMdd + '%');
          return { key: n, val: '<span style="color:var(--green)">MDD ' + mdd + '% · ' + strk + '연패</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">' + subMdd + ' · 연패컷 ' + sKill + '</span>' };
        }
-       if (n === '8402') {
+       if (n === '8402' || n === '8410') {
          const pm = (bl.note || '').match(/MDD\s*([\d.]+)%/i);
          const pMdd = pm ? pm[1] : mdd;
-         return { key: '8402', val: '<span style="color:#fbbf24">MDD ' + pMdd + '% (패리티)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">기존 ' + mdd + '% · ' + strk + '연패 / 컷 ' + sKill + '</span>' };
+         const subMdd = n === '8410' ? '8402 이식' : ('기존 ' + mdd + '%');
+         return { key: n, val: '<span style="color:#fbbf24">MDD ' + pMdd + '% (패리티)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">' + subMdd + ' · ' + strk + '연패 / 컷 ' + sKill + '</span>' };
        }
-       if (n === '8401') {
+       if (n === '8401' || n === '8409') {
          const r30m = bl.recent_30d_mdd_pct != null ? Number(bl.recent_30d_mdd_pct).toFixed(1) : '—';
-         return { key: '8401', val: '<span style="color:#fbbf24">MDD ' + mdd + '% · ' + strk + '연패</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">최근30d ' + r30m + '% · 연패컷 ' + sKill + '</span>' };
+         return { key: n, val: '<span style="color:#fbbf24">MDD ' + mdd + '% · ' + strk + '연패</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">최근30d ' + r30m + '% · 연패컷 ' + sKill + '</span>' };
        }
        if (n === '8403') {
          return { key: '8403', val: '<span style="color:#f87171">MDD ' + mdd + '% · ' + strk + '연패</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">개편전 ' + (bl.horizon_years || 3) + 'y · 연패컷 ' + sKill + '</span>' };
@@ -718,15 +719,16 @@ function render(d,anim){
          const subRet = n === '8407' ? ('1h 빈도강화 · OOS ' + oosTxt + ' (PF ' + oosPf + ')') : ('OKX OOS ' + oosTxt + ' (PF ' + oosPf + ')');
          return { key: n, val: '<span style="color:var(--green)">' + mTxt + ' (5y PF ' + pfTxt + ')</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">' + subRet + '</span>' };
        }
-       if (n === '8401') {
+       if (n === '8401' || n === '8409') {
          const rPf = bl.recent_30d_pf != null ? Number(bl.recent_30d_pf).toFixed(2) : '—';
-         return { key: '8401', val: '<span style="color:#38bdf8">최근30d PF ' + rPf + ' (생존)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">5y 월 ' + mTxt.replace('/월','') + ' (PF ' + pfTxt + ') · ' + tgt + 'd 관측</span>' };
+         return { key: n, val: '<span style="color:#38bdf8">최근30d PF ' + rPf + ' (생존)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">5y 월 ' + mTxt.replace('/월','') + ' (PF ' + pfTxt + ') · ' + tgt + 'd 관측</span>' };
        }
-       if (n === '8402') {
+       if (n === '8402' || n === '8410') {
          const pm = (bl.note || '').match(/Scale\s*\((-?[\d.]+)%/i);
          const parM = pm ? _mCagr(parseFloat(pm[1]), bl.horizon_years) : null;
          const parTxt = parM != null ? ((parM >= 0 ? '+' : '') + parM.toFixed(2) + '%') : mTxt;
-         return { key: '8402', val: '<span style="color:#fbbf24">패리티 월 ' + parTxt + ' (개선)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">기존 ' + mTxt + ' · ' + tgt + 'd 비교</span>' };
+         const subR = n === '8410' ? '8402 1h 이식' : ('기존 ' + mTxt);
+         return { key: n, val: '<span style="color:#fbbf24">패리티 월 ' + parTxt + ' (개선)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">' + subR + ' · ' + tgt + 'd 비교</span>' };
        }
        if (n === '8403') {
          return { key: '8403', val: '<span style="color:#f87171">개편후 재검증 (ADX≤30)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">개편전 3y ' + mTxt + ' (PF ' + pfTxt + ') · ' + tgt + 'd 컷</span>' };
@@ -748,8 +750,8 @@ function render(d,anim){
        if (n === '8403') {
          return { key: '8403', val: '<span style="color:#f87171">수수료 ' + fee.toFixed(0) + '% (고위험)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">8405 분리완료 · 최우선 감시</span>' };
        }
-       if (n === '8401' || n === '8402') {
-         const sub = n === '8401' ? '1h 기준선 (원형 유지)' : '8401 M4 사이징 대조군';
+       if (['8401', '8402', '8409', '8410'].includes(n)) {
+         const sub = n === '8401' ? '1h 기준선 (원형 유지)' : (n === '8402' ? '8401 M4 사이징 대조군' : (n === '8409' ? '8401 1h 이식 (BNC)' : '8402 1h 이식 (BNC)'));
          return { key: n, val: '<span style="color:#fbbf24">수수료 ' + fee.toFixed(0) + '% (' + Number(yrs).toFixed(0) + 'y)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">' + sub + '</span>' };
        }
        return { key: n, val: '<span style="color:#fb923c">수수료 ' + fee.toFixed(0) + '% (' + Number(yrs).toFixed(0) + 'y)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">' + (n === '8404' ? 'OKX' : 'BNC') + ' 5전3패 순/역 검증</span>' };
@@ -761,6 +763,8 @@ function render(d,anim){
        const prog = sd != null ? (' · ' + sd + '/' + tgtD + 'd') : '';
        if (n === '8401') return { key: '8401', val: '<span style="color:#38bdf8">뼈대 유지 · ' + tgtD + '일 관측</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">Peak -20% 도달 시 교체보고' + prog + '</span>' };
        if (n === '8402') return { key: '8402', val: '<span style="color:#38bdf8">8401 패리티 ' + tgtD + '일 비교</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">사이징 개선효과 후 유지/전환' + prog + '</span>' };
+       if (n === '8409') return { key: '8409', val: '<span style="color:#38bdf8">8401 이식 · ' + tgtD + '일 관측</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">BNC 1h QVT 스나이퍼' + prog + '</span>' };
+       if (n === '8410') return { key: '8410', val: '<span style="color:#38bdf8">8402 이식 · ' + tgtD + '일 비교</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">BNC SL캡1.5% 패리티' + prog + '</span>' };
        if (n === '8403') return { key: '8403', val: '<span style="color:#f87171">최우선 퇴출·교체 감시 (' + tgtD + '일)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">ADX차단 실패시 4h전환 보고' + prog + '</span>' };
        if (n === '8404') return { key: '8404', val: '<span style="color:#fb923c">OKX 표본 ' + minD + '~' + tgtD + '일 수집</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">5전3패 스위칭 vs 고정 판정' + prog + '</span>' };
        if (n === '8405') return { key: '8405', val: '<span style="color:var(--green)">핵심 분산축 · 장기 가동 (' + tgtD + '일)</span><br><span style="font-size:10px;color:#8b93a5;font-weight:400">4h Donchian20 유일 +EV 축' + prog + '</span>' };
@@ -1607,12 +1611,12 @@ function renderBotAssetSection(d, force = false) {
         '8401': '#ffd21e', // 유형1 QVT 눌림목 스나이퍼 (노랑)
         '8402': '#ffd21e',
         '8409': '#ffd21e',
+        '8410': '#ffd21e',
         '8403': '#ff5252', // 유형2 BB MR 평균회귀 / Donchian 돌파 (빨강)
         '8405': '#ff5252',
         '8407': '#ff5252',
         '8404': '#4da6ff', // 유형3 Various Fusion (파랑)
-        '8408': '#4da6ff',
-        '8410': '#4da6ff'
+        '8408': '#4da6ff'
     };
 
     let tabsHtml = tabs.map(t => {

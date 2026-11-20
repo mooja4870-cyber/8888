@@ -614,7 +614,7 @@ def _get_recent_bot_changes(days=7):
     - 다중 봇 메타라인/안내문 필터링 강화
     - 개별 봇 로컬 ver.md 우선 수집
     """
-    bots = ['8401', '8402', '8403', '8404', '8405', '8407', '8408']
+    bots = ['8401', '8402', '8403', '8404', '8405', '8407', '8408', '8409', '8410']
     all_bot_changes = {str(b): [] for b in bots}
 
     STRAT_KEYWORDS = [
@@ -738,8 +738,8 @@ def _get_recent_bot_changes(days=7):
         '8405': 'Donchian20 돌파 (4h) 전략 가동 중',
         '8407': 'Donchian20 돌파 (1h) 전략 가동 중',
         '8408': 'BBTS 변동성 돌파 (1h) 전략 가동 중',
-        '8409': 'BB MR 볼린저 평균회귀 (1h) 전략 가동 중',
-        '8410': 'ADX 국면적응 퓨전 (1h) 전략 가동 중',
+        '8409': 'QVT 눌림목 스나이퍼 (1h) 전략 정상 가동 중',
+        '8410': 'QVT 눌림목 스나이퍼 (1h) 전략 정상 가동 중',
     }
 
     bot_changes = {}
@@ -802,7 +802,7 @@ def _process_total_summary(data):
     state_file = os.path.join(_DIR, "discord_state_total.json")
     prev_total, prev_bots, history, prev_sub_total, series, asset_history, asset_series, bot_series = _load_state(state_file)
 
-    active_names = ["8401", "8402", "8403", "8404", "8405", "8407", "8408"]
+    active_names = ["8401", "8402", "8403", "8404", "8405", "8407", "8408", "8409", "8410"]
     bots = [b for b in data.get("bots", []) if str(b.get("name")) in active_names]
 
     assets = 0.0
@@ -901,11 +901,11 @@ def tick(data, tick_count=0, include_bot_charts=False):
     # 전략 유형별 봇 그룹 분류 (유형3 -> 유형2 -> 유형1 역순 발송)
     # 유형3: 8404, 8408 (Various Fusion 다양한 퓨전 전략)
     # 유형2: 8403, 8405, 8407 (BB MR 평균회귀 / Donchian 돌파 전략)
-    # 유형1: 8401, 8402 (QVT 눌림목 스나이퍼 전략)
+    # 유형1: 8401, 8402, 8409, 8410 (QVT 눌림목 스나이퍼 전략)
     types = [
         (3, "유형3 Various Fusion", ["8404", "8408"]),
         (2, "유형2 BB MR 평균회귀", ["8403", "8405", "8407"]),
-        (1, "유형1 QVT 눌림목 스나이퍼", ["8401", "8402"]),
+        (1, "유형1 QVT 눌림목 스나이퍼", ["8401", "8402", "8409", "8410"]),
     ]
     type_results = []
     for t_num, t_title, t_bots in types:

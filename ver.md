@@ -1,5 +1,37 @@
 # Version History
 
+## v1.7.18
+
+Date: 2026-11-20
+
+### 변경 내용
+
+* **`8409` (`8401` QVT Pro 1h 이식) · `8410` (`8402` QVT Pro 1h 슬림SL 이식) 8888 통합 관제 전수 편입 및 디스코드 유형1 알림 등록 (9개 봇 관제 체제 완성)**:
+  * `8888/app.py`: `BOTS` 목록에 `("8409", 8409, "BNC")`, `("8410", 8410, "BNC")` 편입, `read_bot_config()` 손익비(`8409` `1:3.0` / `8410` `1:1.9 (TP 2.8%)`) 동기화 및 `target_bots` 9개 봇 확장
+  * `8888/strategy_baselines.json`, `seeds.json`, `peak_assets.json`: `8409`·`8410` 기준선(Binance 5y 기대치), `$10.00` 초기화 기준(`2026-11-20 17:16:27`) 및 전고점 `$10.00` 리셋 등록
+  * `8888/dashboard.html`: `매매기법 비교` 표 전 항목(스캔 31개, M4 `1%` + 복리 `25%`, SL/TP, 기대 MDD/월수익률/수수료 비중/향후 운영방향) 8409·8410 동기화 및 `봇별 총자산 추이` 탭 색상 `유형1`(`#ffd21e`) 분류
+  * `8888/discord_alert.py` & `discord_bot_listener.py`: 디스코드 실시간 알림 **유형1 (`["8401", "8402", "8409", "8410"]`)**, `Total - 9개 봇` 통합 요약, 최근 변경 요약 및 원격 제어 9개 봇 지원
+  * `8888/watchdog_entry.py`, `watchdog_profitability.py`, `watchdog_exit.py`, `watchdog_position.py`: `8409`·`8410` 편입 및 전 워치독 재기동
+
+### 수정 파일
+
+* app.py
+* dashboard.html
+* strategy_baselines.json
+* seeds.json
+* peak_assets.json
+* discord_alert.py
+* discord_bot_listener.py
+* watchdog_entry.py
+* watchdog_profitability.py
+* watchdog_exit.py
+* watchdog_position.py
+* ver.md
+
+### 비고
+
+* `8409`(`v3.0.0`)·`8410`(`v3.0.0`) 기동 및 `bot_sentinel.py` `balance_diff=0.0` 확인, `8888` `/api/status` `9/9` 정상, 디스코드 `유형1`(`8401, 8402, 8409, 8410`)·`Total - 9개 봇` 드라이런 및 UI 스크린샷 검증 완료
+
 ## v1.7.17
 
 Date: 2026-11-19
