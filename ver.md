@@ -1,5 +1,25 @@
 # Version History
 
+## v1.7.19
+
+Date: 2026-11-20
+
+### 변경 내용
+
+* **`dashboard.html` 변경 시 열린 브라우저 자동 새로고침(`location.reload`) 기능 도입**:
+  * `8888/app.py`: `collect()` 반환 JSON(`/api/status` 및 `window._FB_DATA`)에 `dashboard.html`의 수정 시각(`html_mtime`) 포함
+  * `8888/dashboard.html`: 5초 폴링(`tick()`)에서 `_loadedHtmlMtime`과 `d.html_mtime`을 대조하여 HTML/JS 수정 배포 시 수동 `Cmd+R` 없이 자동으로 브라우저 페이지를 새로고침하도록 개선
+
+### 수정 파일
+
+* app.py
+* dashboard.html
+* ver.md
+
+### 비고
+
+* `/api/status` `html_mtime=1795167473` 확인 및 `봇별 총자산 추이` 탭 색상 `8401, 8402, 8409, 8410` 4개 모두 `rgb(255, 210, 30)`(노랑) 실측 스크린샷 검증, `verify_all.py` 100% PASS 확인
+
 ## v1.7.18
 
 Date: 2026-11-20

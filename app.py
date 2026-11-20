@@ -1826,6 +1826,10 @@ def collect():
     # 8406, 8408 등 대시보드 탭 차트를 위해 추가적인 봇 데이터 조회 (메인 요약 및 알림에는 미포함)
     extra_tuples = []
     data["extra_bots"] = collect_bots(extra_tuples)["bots"]
+    try:
+        data["html_mtime"] = int(os.path.getmtime(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard.html")))
+    except Exception:
+        data["html_mtime"] = 0
     return data
 
 

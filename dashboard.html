@@ -959,11 +959,20 @@ function render(d,anim){
  // (v0.8.0에서 손익차트 섹션 제거됨 — 관련 차트 JS도 삭제. 잔존 시 new Chart(null) 예외로 render 크래시→오'끊김')
 }
 let _fails=0;
+let _loadedHtmlMtime=(window._FB_DATA && window._FB_DATA.html_mtime) ? window._FB_DATA.html_mtime : null;
 async function tick(){
  try{
   const r=await fetch('/api/status',{cache:'no-store'});
   if(!r.ok) throw new Error('http '+r.status);
-  render(await r.json());
+  const d=await r.json();
+  if(d && d.html_mtime){
+   if(_loadedHtmlMtime!==null && d.html_mtime!==_loadedHtmlMtime){
+    location.reload();
+    return;
+   }
+   _loadedHtmlMtime=d.html_mtime;
+  }
+  render(d);
   _fails=0;
  }catch(e){
   _fails++;
