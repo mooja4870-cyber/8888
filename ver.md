@@ -1,5 +1,30 @@
 # Version History
 
+## v1.7.21
+
+Date: 2026-11-21
+
+### 변경 내용
+
+* **풀프루프(Foolproof) 5대 자율감시·자가치유·선제 경보 업그레이드 및 장부 5분 핑퐁 충돌 영구 해소**:
+  * `8888/bot_sentinel.py` & `/Users/l/project/auto_heal_stats.py`: 승/패·거래수 집계 로직을 `extract_bot_metrics.py`(`v1.7.17` 통일 기준: `주문ID` 병합 + 진입 주문ID 중복 `pnl==0` 유령 청산 제외 + `>1e-12`/`<-1e-12` 중립 제외)로 100% 통일하여 `8403`·`8404`·`8407` 5분 주기 `stats.json` 무한 덮어쓰기 핑퐁 제거
+  * `8888/watchdog_common.py`: 재기동으로 해결 불가한 파라미터/규격 오류(`NON_RESTART_STRUCTURAL_HINTS`: `-4164`, `-4067` 등)는 무의미한 재기동을 생략하고 즉시 `CRITICAL` + 디스코드 선제 보고로 승격, 동일 오류 시그니처 60분 내 2회 이상 재기동 시 서킷브레이커(`record_restart_attempt_and_check_breaker`) 발동(단 프로세스 다운·CPU·Silent Crash는 항상 복구)
+  * `8888/watchdog_entry.py`: ① `sentinel_action_history.json` 기반 30분 내 3회 이상 반복 시 자가치유 핑퐁 루프 `CRITICAL` 선제 보고, ② `entry_error_tracker.json` 기반 재기동 너머 60분 누적 진입 장애 추적(`-5022`/정상 리스크 차단은 제외), ③ `sentinel_unprotected_position`·`self_heal_loop`·`entry_*`·`ai_*` 경보 정상 복구 시 대칭 자동 해제(`clear_proactive_alert`) 실장
+  * `8888/core/autonomous_auditor.py`: **모듈 12 (`check_self_heal_loop_and_repeat_restarts`)** 신설 및 `run_all_autonomous_audits()` 통합
+
+### 수정 파일
+
+* watchdog_common.py
+* watchdog_entry.py
+* bot_sentinel.py
+* core/autonomous_auditor.py
+* ver.md
+* (상위 루트) `/Users/l/project/auto_heal_stats.py`
+
+### 비고
+
+* `auto_heal_stats.py` → `bot_sentinel.py` (`8403, 8404, 8405, 8407`) `전적 장부 동기화` 핑퐁 0건 확인, 서킷브레이커·구조적 오류 분리 단위 테스트 PASS, 4대 워치독(`PID 11955~11958`) 재기동 및 `verify_all.py` 100% PASS 확인
+
 ## v1.7.20
 
 Date: 2026-11-21

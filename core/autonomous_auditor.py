@@ -655,6 +655,44 @@ def check_ledger_seq_integrity(bot_id: int, cwd: str) -> Tuple[bool, str]:
 
 
 # ── 통합 오케스트레이터 (모듈 2/3/4/6/7/8/9/10/11 일괄 점검) ───────────────────
+# ── 모듈 12: 자가치유 무한 반복(핑퐁 루프) & 동일 오류 반복 재기동 감시 ─────
+def check_self_heal_loop_and_repeat_restarts(bot_id: int, cwd: str) -> Tuple[bool, str]:
+    """
+    모듈 12:
+      1) sentinel_action_history.json 내 동일 치유 액션이 30분 내 3회 이상 반복 시 충돌/루프로 적발
+      2) /tmp/watchdog_restart_state.json 내 동일 오류 시그니처 재기동이 60분 내 2회 이상이면 적발
+    """
+    bid = str(bot_id)
+    now = time.time()
+    base_8888 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    hist_path = os.path.join(base_8888, "data", "sentinel_action_history.json")
+    hist = _load_json(hist_path, {}) or {}
+    bot_hist = hist.get(bid) or {}
+    if isinstance(bot_hist, dict):
+        for bucket, ts_list in bot_hist.items():
+            if isinstance(ts_list, list):
+                recent = [t for t in ts_list if (now - float(t or 0.0)) <= 1800]
+                if len(recent) >= 3:
+                    return True, f"자가치유 핑퐁 루프 감지: {bucket} ({len(recent)}회/30m)"
+
+    rstate = _load_json("/tmp/watchdog_restart_state.json", {}) or {}
+    brec = rstate.get(bid) or {}
+    if isinstance(brec, dict):
+        counts: Dict[str, int] = {}
+        for att in (brec.get("recent_attempts") or []):
+            if not isinstance(att, dict):
+                continue
+            if (now - float(att.get("ts") or 0.0)) <= 3600:
+                sig = str(att.get("sig") or "")
+                if sig:
+                    counts[sig] = counts.get(sig, 0) + 1
+        for sig, cnt in counts.items():
+            if cnt >= 2:
+                return True, f"동일 오류 반복 재기동 감지: {sig} ({cnt}회/60m)"
+
+    return False, "자가치유 루프·반복 재기동 없음"
+
+
 def run_all_autonomous_audits(bot_id: int, cwd: str) -> Dict[str, Any]:
     """모듈 1(별도 상시)·모듈 5/10b(bot_sentinel) 외 통합 모듈을 실행해 보고/조치 데이터를 반환한다."""
     issues: List[Tuple[str, str]] = []
@@ -710,6 +748,10 @@ def run_all_autonomous_audits(bot_id: int, cwd: str) -> Dict[str, Any]:
         issues.append(("ai_ledger_seq_integrity", seq_msg))
     elif "제거" in seq_msg:
         healed.append(seq_msg)
+
+    loop_err, loop_msg = check_self_heal_loop_and_repeat_restarts(bot_id, cwd)
+    if loop_err:
+        issues.append(("ai_self_heal_loop", loop_msg))
 
     return {
         "issues": issues,

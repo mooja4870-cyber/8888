@@ -277,24 +277,37 @@ async def audit_bot(b: int):
                 with open(stats_file, "r", encoding="utf-8") as sf:
                     st_data = json.load(sf)
                 st_perf = st_data.get("perf_start_time") or perf_start
-                st_exits = []
                 with open(csv_file, "r", encoding="utf-8-sig") as cf:
-                    reader = csv.DictReader(cf)
-                    for r in reader:
-                        t_str = r.get("시간") or r.get("timestamp", "")
-                        if t_str >= st_perf and (r.get("유형") in ("청산", "청산(로테이션)") or r.get("category") == "청산" or str(r.get("side","")).lower() == "exit"):
-                            st_exits.append(r)
-                
-                # 주문 ID 그룹화 (부분체결/분할청산 합산)
+                    all_rows = list(csv.DictReader(cf))
+
+                entry_order_ids = {
+                    str(r.get("주문ID") or r.get("order_id") or "").strip()
+                    for r in all_rows
+                    if str(r.get("유형") or r.get("category") or "").strip() in ("진입", "*진입")
+                    and str(r.get("주문ID") or r.get("order_id") or "").strip()
+                }
+
+                # extract_bot_metrics.py & auto_heal_stats.py와 100% 동일한 통일 판정:
+                # 1) 진입 주문ID 중복 + pnl==0 유령 청산행 제외
+                # 2) 주문ID 기준 분할청산 병합 후 >1e-12(승) / <-1e-12(패)만 집계
                 order_pnls = {}
-                for r in st_exits:
-                    oid = r.get("주문ID") or r.get("order_id") or f"_uniq_{len(order_pnls)}"
+                for idx, r in enumerate(all_rows):
+                    t_str = str(r.get("시간") or r.get("timestamp", ""))[:19].replace("T", " ")
+                    cat = str(r.get("유형") or r.get("category") or "").strip()
+                    if t_str < st_perf:
+                        continue
+                    if cat not in ("청산", "청산(로테이션)") and str(r.get("side", "")).lower() != "exit":
+                        continue
                     pnl = float(r.get("수익(USDT)") or r.get("pnl", 0) or 0)
-                    order_pnls[oid] = order_pnls.get(oid, 0.0) + pnl
-                
-                real_w = sum(1 for p in order_pnls.values() if p > 0)
-                real_l = sum(1 for p in order_pnls.values() if p <= 0)
-                real_trades = len(order_pnls)
+                    oid = str(r.get("주문ID") or r.get("order_id") or "").strip()
+                    if oid and oid in entry_order_ids and abs(pnl) <= 1e-12:
+                        continue
+                    key = oid if oid else f"_uniq_{idx}"
+                    order_pnls[key] = order_pnls.get(key, 0.0) + pnl
+
+                real_w = sum(1 for p in order_pnls.values() if p > 1e-12)
+                real_l = sum(1 for p in order_pnls.values() if p < -1e-12)
+                real_trades = real_w + real_l
                 
                 cur_w = st_data.get("total_wins", 0)
                 cur_l = st_data.get("total_losses", 0)

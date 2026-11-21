@@ -82,6 +82,66 @@ TRANSIENT_HINTS = (
     "timestamp ahead error detected",
 )
 
+# Structural / exchange parameter errors that restarting the bot cannot fix
+NON_RESTART_STRUCTURAL_HINTS = (
+    "-4164",
+    "order's notional must be no smaller than",
+    "-4067",
+    "position side cannot be changed",
+    "마진모드 설정 실패",
+)
+
+_CIRCUIT_EXEMPT_PREFIXES = ("프로세스 중단", "cpu 폭주", "silent crash", "좀비")
+
+
+def _error_signature(reason: str) -> str:
+    """Normalize an error line into a stable short signature for repeat-restart circuit breaking."""
+    raw = str(reason or "").strip()
+    if not raw:
+        return ""
+    low = raw.lower()
+    if any(p in low for p in _CIRCUIT_EXEMPT_PREFIXES):
+        return ""
+    m = re.search(r"-\d{4}", raw)
+    if m:
+        return m.group(0)
+    stripped = re.sub(r"^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:,\d+)?\s*", "", low)
+    stripped = re.sub(r"\d+(?:\.\d+)?", "", stripped)
+    return _ALNUM_RE.sub("", stripped)[:36]
+
+
+def record_restart_attempt_and_check_breaker(
+    bot_name: str,
+    reason: str,
+    window_sec: int = 3600,
+    max_same_sig: int = 2,
+) -> Tuple[bool, int, str]:
+    """
+    Check whether restarting `bot_name` for `reason` has already been attempted `max_same_sig`
+    or more times within `window_sec`. Process-down/CPU/silent crashes are exempt.
+    """
+    sig = _error_signature(reason)
+    if not sig:
+        return False, 0, ""
+
+    now = time.time()
+    with open(RESTART_STATE_LOCK, "w") as sf:
+        fcntl.flock(sf.fileno(), fcntl.LOCK_EX)
+        try:
+            state = _read_restart_state_unlocked()
+            rec = dict(state.get(bot_name) or {})
+            attempts = [
+                a for a in (rec.get("recent_attempts") or [])
+                if isinstance(a, dict) and (now - float(a.get("ts") or 0.0)) <= window_sec
+            ]
+            rec["recent_attempts"] = attempts
+            state[bot_name] = rec
+            _write_restart_state_unlocked(state)
+            same_cnt = sum(1 for a in attempts if a.get("sig") == sig)
+            return (same_cnt >= max_same_sig), same_cnt, sig
+        finally:
+            fcntl.flock(sf.fileno(), fcntl.LOCK_UN)
+
 
 def setup_clean_logger(log_file: str) -> Callable[[str], None]:
     """Return a single-sink logger that never double-writes when stdout is already redirected to `log_file`."""
@@ -244,11 +304,19 @@ def bot_restart_locked(
                 if now - last_ts < cooldown_sec:
                     rem = int(cooldown_sec - (now - last_ts))
                     return False, f"global_cooldown_{rem}s_by_{rec.get('source', '?')}"
+                prev_attempts = [
+                    a for a in (rec.get("recent_attempts") or [])
+                    if isinstance(a, dict) and (now - float(a.get("ts") or 0.0)) <= 3600
+                ]
+                sig = _error_signature(reason)
+                if sig:
+                    prev_attempts.append({"ts": now, "sig": sig})
                 state[bot_name] = {
                     "last_restart_ts": now,
                     "source": source,
                     "reason": str(reason)[:200],
                     "status": "starting",
+                    "recent_attempts": prev_attempts[-20:],
                 }
                 _write_restart_state_unlocked(state)
             finally:
@@ -273,12 +341,14 @@ def bot_restart_locked(
             fcntl.flock(sf.fileno(), fcntl.LOCK_EX)
             try:
                 state = _read_restart_state_unlocked()
+                rec = state.get(bot_name) or {}
                 state[bot_name] = {
                     "last_restart_ts": time.time(),
                     "source": source,
                     "reason": str(reason)[:200],
                     "status": "ok" if res.returncode == 0 else f"rc={res.returncode}",
                     "summary": out_tail,
+                    "recent_attempts": rec.get("recent_attempts") or [],
                 }
                 _write_restart_state_unlocked(state)
             finally:
@@ -578,6 +648,38 @@ def run_log_watchdog(
                 "거래소 잔고/마진모드/포지션모드 확인 후 .pause 해제 검토",
             )
             return True
+
+        if not fatal and any(h in str(reason or "").lower() for h in NON_RESTART_STRUCTURAL_HINTS):
+            sig = _error_signature(reason) or "structural"
+            _jump_offsets_to_eof(bot_name)
+            log(f"[{bot_name}] 🧩 구조적 주문/모드 오류 감지(재기동 생략, {sig}): {reason[:140]}")
+            record_proactive_alert(
+                bot_name,
+                f"structural_{sig}",
+                "CRITICAL",
+                f"구조적 주문/모드 오류 감지 ({sig})",
+                reason[:200],
+                "재기동으로 해결 불가한 파라미터/거래소 규격 오류 — 소스 패치 검토 필요",
+                cooldown_sec=3600,
+                notify_discord=True,
+            )
+            return False
+
+        tripped, same_cnt, sig = record_restart_attempt_and_check_breaker(bot_name, reason)
+        if tripped:
+            _jump_offsets_to_eof(bot_name)
+            log(f"[{bot_name}] 🛑 동일 오류 반복 재기동 서킷브레이커 발동({same_cnt}회/60m, sig={sig}) → 추가 재기동 중단")
+            record_proactive_alert(
+                bot_name,
+                f"repeat_restart_{sig}",
+                "CRITICAL",
+                f"동일 오류 반복 재기동 서킷브레이커 ({same_cnt}회/60m)",
+                reason[:200],
+                "재기동으로 해결되지 않는 구조적 장애 — 즉시 원인 점검 및 패치 필요",
+                cooldown_sec=3600,
+                notify_discord=True,
+            )
+            return False
 
         ok, detail = bot_restart_locked(bot_name, bot_dir, source=role_name, reason=reason, cooldown_sec=120, log_fn=log)
         if ok:

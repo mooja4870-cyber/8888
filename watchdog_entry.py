@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import json
 import time
@@ -9,7 +10,7 @@ import logging
 BASE_8888 = os.path.dirname(os.path.abspath(__file__))
 if BASE_8888 not in sys.path:
     sys.path.insert(0, BASE_8888)
-from watchdog_common import bot_restart_locked, record_proactive_alert
+from watchdog_common import bot_restart_locked, record_proactive_alert, clear_proactive_alert
 from core.autonomous_auditor import (
     check_stale_code_sync,
     check_log_fd_and_pid_lock_integrity,
@@ -130,6 +131,82 @@ def check_exit_readiness(b: int, cwd: str) -> str:
         logger.info(f"[{b}] 🛡 청산 건전성: {summary_str}")
     return summary_str
 
+_SENTINEL_HIST_FILE = os.path.join(BASE_8888, "data", "sentinel_action_history.json")
+_ENTRY_ERR_TRACKER_FILE = os.path.join(BASE_8888, "data", "entry_error_tracker.json")
+
+
+def _load_json_safe(path: str, default: dict) -> dict:
+    try:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                d = json.load(f)
+                if isinstance(d, dict):
+                    return d
+    except Exception:
+        pass
+    return dict(default)
+
+
+def _save_json_atomic(path: str, data: dict) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
+
+
+def _track_sentinel_actions(bot_id: str, actions: list, window_sec: int = 1800) -> list:
+    """Record sentinel actions and return (bucket, count) pairs repeating >=3x within 30m."""
+    now = time.time()
+    hist = _load_json_safe(_SENTINEL_HIST_FILE, {})
+    bhist = hist.get(bot_id)
+    if not isinstance(bhist, dict):
+        bhist = {}
+
+    pruned = {}
+    for k, ts_list in bhist.items():
+        if isinstance(ts_list, list):
+            kept = [float(t) for t in ts_list if (now - float(t or 0.0)) <= window_sec]
+            if kept:
+                pruned[k] = kept
+
+    for act in (actions or []):
+        bucket = re.sub(r"\(.*?\)", "", str(act)).strip()[:60]
+        if not bucket:
+            continue
+        pruned.setdefault(bucket, []).append(now)
+
+    hist[bot_id] = pruned
+    try:
+        _save_json_atomic(_SENTINEL_HIST_FILE, hist)
+    except Exception:
+        pass
+    return [(k, len(v)) for k, v in pruned.items() if len(v) >= 3]
+
+
+def _record_and_count_entry_errors(bot_id: str, events: list, window_sec: int = 3600) -> tuple:
+    """Persist hard entry rejection events across restarts and return (count, latest_type, latest_msg)."""
+    now = time.time()
+    tracker = _load_json_safe(_ENTRY_ERR_TRACKER_FILE, {})
+    brec = tracker.get(bot_id)
+    if not isinstance(brec, list):
+        brec = []
+    brec = [e for e in brec if isinstance(e, dict) and (now - float(e.get("ts") or 0.0)) <= window_sec]
+    existing_keys = {(e.get("log_ts"), e.get("err_type")) for e in brec}
+    for log_ts, err_type, msg in (events or []):
+        if (log_ts, err_type) not in existing_keys:
+            brec.append({"ts": now, "log_ts": log_ts, "err_type": err_type, "msg": msg[:180]})
+            existing_keys.add((log_ts, err_type))
+    tracker[bot_id] = brec[-30:]
+    try:
+        _save_json_atomic(_ENTRY_ERR_TRACKER_FILE, tracker)
+    except Exception:
+        pass
+    if not brec:
+        return 0, "", ""
+    return len(brec), brec[-1].get("err_type", ""), brec[-1].get("msg", "")
+
+
 def audit_trade_reconciliation(b: int, cwd: str) -> None:
     """
     [보스 특별 지침] 거래소 체결 내역 vs 로컬 장부(trade_history.csv) 4대 무결성 상시 감사:
@@ -174,6 +251,26 @@ def audit_trade_reconciliation(b: int, cwd: str) -> None:
                         f"대상 심볼: {', '.join(unprot)}",
                         "거래소 OCO / STOP_MARKET 주문 존재 여부 즉시 점검 필요",
                     )
+                else:
+                    clear_proactive_alert(str(b), "sentinel_unprotected_position")
+
+                loops = _track_sentinel_actions(str(b), actions)
+                if loops:
+                    loop_desc = ", ".join(f"{k}({cnt}회/30m)" for k, cnt in loops)
+                    logger.error(f"[{b}] 🔁 [자가치유 핑퐁 루프 감지] {loop_desc}")
+                    record_proactive_alert(
+                        str(b),
+                        "self_heal_loop",
+                        "CRITICAL",
+                        "자가치유 무한 반복(핑퐁 루프) 감지",
+                        loop_desc,
+                        "서로 다른 치유/집계 모듈 충돌 가능 — 즉시 점검 필요",
+                        cooldown_sec=3600,
+                        notify_discord=True,
+                    )
+                else:
+                    clear_proactive_alert(str(b), "self_heal_loop")
+
                 if actions:
                     logger.warning(f"[{b}] 🛡 센티넬 감사 조치: {', '.join(actions)} (잔고괴리: ${diff:+.4f})")
                 else:
@@ -261,8 +358,15 @@ def check_entry_failure_readiness(b: int, cwd: str) -> tuple:
                     pass
 
                 lower_line = line_str.lower()
+                # 정상 포스트온리 폴백(-5022) 및 정상 리스크 방어 차단은 장애 카운트에서 제외
+                if "-5022" in lower_line or "could not be executed as maker" in lower_line:
+                    continue
+                if "[risk block]" in lower_line or "[entry block]" in lower_line:
+                    if any(ok_blk in lower_line for ok_blk in ("일일 손실 한도", "종목별 쿨다운", "최대 포지션 수", "이미 포지션 보유")):
+                        continue
+
                 is_known_err = False
-                if any(kw in lower_line for kw in order_err_keywords):
+                if any(kw in lower_line for kw in order_err_keywords) or "-4067" in lower_line or "마진모드 설정 실패" in lower_line:
                     recent_fails.append(line_str)
                     seen_lines.add(line_str)
                     is_known_err = True
@@ -274,14 +378,30 @@ def check_entry_failure_readiness(b: int, cwd: str) -> tuple:
         except Exception:
             pass
 
-    if len(recent_fails) >= 2:
-        last_fail = recent_fails[-1]
-        err_type = "ORDER_REJECTED"
+    # 구조적 주문/모드 거절은 재기동 후에도 재발하므로 60분 누적 추적
+    hard_events = []
+    for fail_ln in recent_fails:
+        fl = fail_ln.lower()
+        ts_key = fail_ln[:19]
+        if "notional" in fl or "-4164" in fail_ln:
+            hard_events.append((ts_key, "NOTIONAL_MIN_ERROR", fail_ln))
+        elif "-4067" in fail_ln or "마진모드 설정 실패" in fl:
+            hard_events.append((ts_key, "MARGIN_SETTING_ERROR", fail_ln))
+        elif "주문 거절" in fl or "order timeout/error" in fl or "주문 결과: none" in fl:
+            hard_events.append((ts_key, "ORDER_REJECTED", fail_ln))
+    tracked_cnt, tracked_type, tracked_msg = _record_and_count_entry_errors(str(b), hard_events)
+
+    if len(recent_fails) >= 2 or tracked_cnt >= 2:
+        last_fail = recent_fails[-1] if recent_fails else tracked_msg
+        err_type = tracked_type or "ORDER_REJECTED"
         reason_summary = "주문 반복 거절/실패"
         lower_last = last_fail.lower()
         if "notional" in lower_last or "-4164" in last_fail:
             err_type = "NOTIONAL_MIN_ERROR"
             reason_summary = "최소 주문 명목가치(Notional < 5 USDT) 미달 거절"
+        elif "-4067" in last_fail or "마진모드 설정 실패" in lower_last:
+            err_type = "MARGIN_SETTING_ERROR"
+            reason_summary = "마진모드 설정 거절(-4067)"
         elif "-4421" in last_fail or "leverage" in lower_last:
             err_type = "LEVERAGE_RESTRICTION_ERROR"
             reason_summary = "서브계정 레버리지 제한(5x 초과 불가) 위반"
@@ -570,18 +690,37 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                             "보스 승인 후 최소 주문금액(>=5 USDT 명목가) 또는 증거금/리스크 한도 점검 권고"
                         )
                     logger.warning(f"[{b}] 📋 자동 설정 변경 차단됨 (승인 대기 보고): {rec}")
+                    sev = "CRITICAL" if err_type in ("NOTIONAL_MIN_ERROR", "MARGIN_SETTING_ERROR", "ORDER_REJECTED") else "WARN"
                     record_proactive_alert(
                         str(b),
                         f"entry_{err_type.lower()}",
-                        "WARN",
+                        sev,
                         f"진입 주문 이상 감지 ({err_type})",
                         entry_reason,
                         rec,
+                        cooldown_sec=3600,
+                        notify_discord=True,
                     )
                     action_taken.append("설정 자동변경 차단·보고완료")
 
-                needs_restart = err_type not in ("AVAILABLE_MARGIN_ERROR", "INSUFFICIENT_BALANCE_ERROR", "STRENGTH_GATE_MISMATCH")
+                needs_restart = err_type not in (
+                    "AVAILABLE_MARGIN_ERROR",
+                    "INSUFFICIENT_BALANCE_ERROR",
+                    "STRENGTH_GATE_MISMATCH",
+                    "NOTIONAL_MIN_ERROR",
+                    "LEVERAGE_RESTRICTION_ERROR",
+                    "MARGIN_SETTING_ERROR",
+                )
             else:
+                for clr_k in (
+                    "entry_notional_min_error",
+                    "entry_leverage_restriction_error",
+                    "entry_margin_setting_error",
+                    "entry_available_margin_error",
+                    "entry_strength_gate_mismatch",
+                    "entry_order_rejected",
+                ):
+                    clear_proactive_alert(str(b), clr_k)
                 # 2) 무포지션 봇 정밀 건전성 감사
                 flat_issue, flat_reason = check_flat_bot_readiness(b, cwd)
                 if flat_issue:
@@ -591,15 +730,31 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                 else:
                     logger.info(f"[{b}] 🛡 무포지션 건전성: {flat_reason}")
 
-            # 3) [AI 10대 자율감사] 전 파이프라인(모듈 2/3/4/6/7/8/9/10) 통합 감시·자가치유
+            # 3) [AI 12대 자율감사] 전 파이프라인(모듈 2/3/4/6/7/8/9/10/11/12) 통합 감시·자가치유
             audit_res = run_all_autonomous_audits(b, cwd)
             if audit_res["healed"]:
                 logger.warning(f"[{b}] 🛠 [AI 10대 자율감사] 자가 치유 수행: {' | '.join(audit_res['healed'])}")
+            active_ai_keys = {k for k, _ in audit_res["issues"]}
+            for ai_k in (
+                "ai_unexecuted_signal_trace",
+                "ai_sizing_preflight",
+                "ai_signal_gate_contract",
+                "ai_log_fd_pid_lock",
+                "ai_cooldown_reentry",
+                "ai_scan_indicator_health",
+                "ai_7zone_sync",
+                "ai_position_context",
+                "ai_ledger_seq_integrity",
+                "ai_self_heal_loop",
+            ):
+                if ai_k not in active_ai_keys:
+                    clear_proactive_alert(str(b), ai_k)
             if audit_res["issues"]:
                 issue_msgs = [msg for _, msg in audit_res["issues"]]
                 logger.warning(f"[{b}] 🚨 [AI 10대 자율감사] 이상 감지: {' | '.join(issue_msgs)}")
                 for key, msg in audit_res["issues"]:
-                    record_proactive_alert(str(b), key, "WARN", "AI 10대 자율감사 이상 감지", msg, "원인 분석 및 조치 결과 확인 필요")
+                    ai_sev = "CRITICAL" if key == "ai_self_heal_loop" else "WARN"
+                    record_proactive_alert(str(b), key, ai_sev, "AI 12대 자율감사 이상 감지", msg, "원인 분석 및 조치 결과 확인 필요")
                 if audit_res["needs_restart"]:
                     needs_restart = True
                     action_taken.extend(issue_msgs)
