@@ -1,5 +1,36 @@
 # Version History
 
+## v1.7.23
+
+Date: 2026-11-24
+
+### 변경 내용
+
+* **그룹 A 완료 — `8888` 중앙 워치독 자폭 청산·상태 오염 선제 감시 체계(모듈 13·14) 도입 + 오탐 재기동 차단 + `8407`/`8409` 근본 패치**:
+  * `core/autonomous_auditor.py`:
+    - **모듈 13 (`check_rapid_self_destruct_exits`)** 신설: 최근 24시간 내 진입 후 `≤120초` & `±2%` 미만 초단기 자폭 청산 조기 탐지
+    - **모듈 14 (`check_engine_states_pollution`)** 신설: `active_positions.json`에 없는 종목의 `engine_states.json` 유령 오염키 상시 감시(승인 보호 봇 `8401~8405, 8408, 8410`은 임의 수정 없이 즉시 경보, 일반 봇은 자동 정화)
+  * `watchdog_entry.py` & `watchdog_common.py`:
+    - `ai_rapid_self_destruct` / `ai_engine_states_pollution` / `ai_self_heal_loop` `CRITICAL` 즉시 Discord·Telegram(`_send_telegram`) 푸시 연동 + 정상 복구 시 자동 해제(Auto-Clear)
+    - `prune_expired_proactive_alerts(7200)`: 만료된 과거 `repeat_restart_*` / `structural_*` 경보 4건(`11-23` 네트워크 단절분) 자동 해제
+  * `core/audit_33.py`: 정상 Post-Only 메이커 거절(`-5022`), `[SKIP]`, `[마진모드 유지]`(`-4067`), `[MIN NOTIONAL ADJUST]`, `[INFO] Timeout` 로그를 오탐 재기동 대상에서 제외
+  * `extract_bot_metrics.py`: `_order_id(r)` 공백 시 `(symbol, direction, exit_time)` 복합키 fallback 도입으로 동일 초 분할 체결 1건 합산 정합화 (`8408`: `25W/32L` → `25W/31L`, `stats.json` 100% 일치)
+  * **`8407` (`v3.0.3`) · `8409` (`v3.0.2`)**: 과거 청산 심볼의 트레일링/BE 상태 잔존 차단(`position_state.py`, `engine.py`, `trader.py`, `trailing_stop_manager.py`) 및 `engine_states.json` 정화
+
+### 수정 파일
+
+* core/audit_33.py
+* core/autonomous_auditor.py
+* watchdog_common.py
+* watchdog_entry.py
+* extract_bot_metrics.py
+* ver.md (중앙 관제 이력 동기화: `8407 v3.0.3`, `8409 v3.0.2`)
+
+### 비고
+
+* 그룹 A(`8888, 8407, 8409`) 3중 검증 및 `/Users/l/project/8888/verify_all.py` 100% PASS 확인
+* 그룹 B(`8404, 8408, 8410` 2차 승인 대기) 및 그룹 C(`8401, 8402, 8403, 8405` 5단계 승인 중 2단계 설계 제시) 분리 보호 유지
+
 ## v1.7.22
 
 Date: 2026-11-21

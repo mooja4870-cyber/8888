@@ -693,6 +693,135 @@ def check_self_heal_loop_and_repeat_restarts(bot_id: int, cwd: str) -> Tuple[boo
     return False, "자가치유 루프·반복 재기동 없음"
 
 
+_APPROVAL_PROTECTED_BOTS = {8401, 8402, 8403, 8404, 8405, 8408, 8410}
+_ENGINE_STATE_POS_KEYS = (
+    "trailing_highs",
+    "trailing_lows",
+    "tp_breakout_done",
+    "breakeven_armed",
+    "be_guard_armed",
+    "pos_stop_prices",
+    "pos_peak_prices",
+)
+
+
+# ── 모듈 13: 초단기(≤120초) 비정상 자폭 청산 상시 감시 ────────────────────────
+def check_rapid_self_destruct_exits(bot_id: int, cwd: str) -> Tuple[bool, str]:
+    """최근 24시간 내 진입 후 120초 이내 ±2% 미만 미세손익 즉시 청산 패턴을 조기 적발한다."""
+    csv_path = os.path.join(cwd, "data", "trade_history.csv")
+    if not os.path.exists(csv_path):
+        return False, "초단기 자폭 청산 없음"
+
+    stats_data = _load_json(os.path.join(cwd, "data", "stats.json"), {}) or {}
+    perf_start = str(stats_data.get("perf_start_time") or "").strip()[:19].replace("T", " ")
+
+    now_kst = _now_kst()
+    cutoff_24h = now_kst - timedelta(hours=24)
+    last_entry_by_sym: Dict[str, Tuple[datetime, str]] = {}
+    seen_exits: Set[Tuple[str, str]] = set()
+    hits: List[Tuple[str, float, float]] = []
+
+    try:
+        with open(csv_path, "r", encoding="utf-8-sig", newline="") as f:
+            for r in csv.DictReader(f):
+                ts_str = str(r.get("시간") or "").strip()[:19].replace("T", " ")
+                if len(ts_str) < 19 or (perf_start and ts_str < perf_start):
+                    continue
+                try:
+                    dt = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S")
+                except ValueError:
+                    continue
+                sym = str(r.get("심볼") or "").strip()
+                cat = str(r.get("유형") or "").strip()
+                if not sym:
+                    continue
+                if cat in ("진입", "*진입"):
+                    last_entry_by_sym[sym] = (dt, ts_str)
+                elif "청산" in cat:
+                    oid = str(r.get("주문ID") or "").strip()
+                    dedup_key = (sym, oid if oid else ts_str)
+                    if dedup_key in seen_exits:
+                        continue
+                    seen_exits.add(dedup_key)
+                    prev = last_entry_by_sym.pop(sym, None)
+                    if not prev or dt < cutoff_24h:
+                        continue
+                    dur = (dt - prev[0]).total_seconds()
+                    try:
+                        pct = float(r.get("수익률(%)") or 0.0)
+                    except (TypeError, ValueError):
+                        pct = 0.0
+                    if 0 <= dur <= 120 and abs(pct) < 2.0:
+                        hits.append((sym, dur, pct))
+    except Exception as e:
+        return False, f"초단기 자폭 검사 스킵 ({e})"
+
+    if len(hits) >= 2:
+        last_sym, last_dur, last_pct = hits[-1]
+        return (
+            True,
+            f"초단기(≤120초) 비정상 자폭 청산 {len(hits)}건/24h 감지 "
+            f"(최근: {last_sym} {last_dur:.0f}초 {last_pct:+.2f}%) — 트레일링/BE 상태 오염 즉시 점검 필요",
+        )
+    if len(hits) == 1:
+        last_sym, last_dur, last_pct = hits[0]
+        return (
+            True,
+            f"초단기(≤120초) 조기 청산 1건/24h 감지 "
+            f"({last_sym} {last_dur:.0f}초 {last_pct:+.2f}%) — 조기 점검 필요",
+        )
+    return False, "초단기 자폭 청산 없음"
+
+
+# ── 모듈 14: 무포지션 engine_states.json 유령 오염키 상시 감시·정화 ───────────
+def check_engine_states_pollution(bot_id: int, cwd: str) -> Tuple[bool, str, bool]:
+    """active_positions.json에 없는 종목의 트레일링/BE 상태가 engine_states.json에 잔존하는지 점검한다."""
+    act_data = _load_json(os.path.join(cwd, "data", "active_positions.json"), {})
+    active_syms = set(act_data.keys()) if isinstance(act_data, dict) else set()
+    es_path = os.path.join(cwd, "data", "engine_states.json")
+    es = _load_json(es_path)
+    if not isinstance(es, dict):
+        return False, "engine_states.json 오염 없음", False
+
+    dead_syms: List[str] = []
+    dead_count = 0
+    for key in _ENGINE_STATE_POS_KEYS:
+        val = es.get(key)
+        if isinstance(val, dict):
+            bad = [s for s in val.keys() if s not in active_syms]
+            dead_count += len(bad)
+            dead_syms.extend(bad)
+        elif isinstance(val, list):
+            bad = [s for s in val if s not in active_syms]
+            dead_count += len(bad)
+            dead_syms.extend(bad)
+
+    if dead_count == 0:
+        return False, "engine_states.json 오염 없음", False
+
+    uniq_sample = sorted({s.split("/")[0] for s in dead_syms})
+    sample = ", ".join(uniq_sample[:3]) + (f" 외 {len(uniq_sample) - 3}종목" if len(uniq_sample) > 3 else "")
+
+    if bot_id in _APPROVAL_PROTECTED_BOTS:
+        return (
+            True,
+            f"engine_states.json 무포지션 유령 오염키 {dead_count}건 감지 ({sample}) — 승인 보호 봇 자동수정 차단, 즉시 점검 필요",
+            False,
+        )
+
+    for key in _ENGINE_STATE_POS_KEYS:
+        val = es.get(key)
+        if isinstance(val, dict):
+            es[key] = {k: v for k, v in val.items() if k in active_syms}
+        elif isinstance(val, list):
+            es[key] = [s for s in val if s in active_syms]
+    try:
+        _atomic_write_json(es_path, es)
+    except Exception as e:
+        return True, f"engine_states.json 유령 오염키 {dead_count}건 정화 실패 ({e})", False
+    return False, f"engine_states.json 유령 오염키 {dead_count}건 자동 정화 ({sample})", False
+
+
 def run_all_autonomous_audits(bot_id: int, cwd: str) -> Dict[str, Any]:
     """모듈 1(별도 상시)·모듈 5/10b(bot_sentinel) 외 통합 모듈을 실행해 보고/조치 데이터를 반환한다."""
     issues: List[Tuple[str, str]] = []
@@ -752,6 +881,16 @@ def run_all_autonomous_audits(bot_id: int, cwd: str) -> Dict[str, Any]:
     loop_err, loop_msg = check_self_heal_loop_and_repeat_restarts(bot_id, cwd)
     if loop_err:
         issues.append(("ai_self_heal_loop", loop_msg))
+
+    rapid_err, rapid_msg = check_rapid_self_destruct_exits(bot_id, cwd)
+    if rapid_err:
+        issues.append(("ai_rapid_self_destruct", rapid_msg))
+
+    poll_err, poll_msg, _ = check_engine_states_pollution(bot_id, cwd)
+    if poll_err:
+        issues.append(("ai_engine_states_pollution", poll_msg))
+    elif "정화" in poll_msg:
+        healed.append(poll_msg)
 
     return {
         "issues": issues,

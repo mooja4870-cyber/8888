@@ -377,6 +377,54 @@ def _send_discord(msg: str) -> None:
         pass
 
 
+def _load_telegram_creds() -> Tuple[str, str]:
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+    if token and chat_id:
+        return token, chat_id
+    for env_path in (os.path.join(BASE_8888, ".env"), os.path.join(BASE_PROJECT, "8401", ".env")):
+        if not os.path.exists(env_path):
+            continue
+        try:
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    s = line.strip()
+                    if not s or s.startswith("#") or "=" not in s:
+                        continue
+                    k, v = s.split("=", 1)
+                    k = k.strip()
+                    v = v.strip().strip('"').strip("'")
+                    if k == "TELEGRAM_BOT_TOKEN" and v and not token:
+                        token = v
+                    elif k == "TELEGRAM_CHAT_ID" and v and not chat_id:
+                        chat_id = v
+        except Exception:
+            pass
+        if token and chat_id:
+            break
+    return token, chat_id
+
+
+def _send_telegram(msg: str) -> None:
+    try:
+        import urllib.request
+        token, chat_id = _load_telegram_creds()
+        if not token or not chat_id:
+            return
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = json.dumps({"chat_id": chat_id, "text": msg}).encode("utf-8")
+        req = urllib.request.Request(
+            url,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=5):
+            pass
+    except Exception:
+        pass
+
+
 def load_proactive_alerts() -> dict:
     if not os.path.exists(PROACTIVE_ALERTS_FILE):
         return {"active": {}, "history": [], "updated": None}
@@ -466,6 +514,8 @@ def record_proactive_alert(
             msg += f"• 권고 조치 (보스 승인 대기): {recommendation}\n"
         msg += "• 원칙: 승인 없는 전략·설정 자동 변경 차단 상태"
         _send_discord(msg)
+        if severity == "CRITICAL":
+            _send_telegram(msg)
     return should_notify
 
 
@@ -483,6 +533,40 @@ def clear_proactive_alert(bot_id: str, alert_key: str) -> None:
                 _save_proactive_alerts_unlocked(data)
         finally:
             fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
+
+
+def prune_expired_proactive_alerts(max_age_sec: int = 7200) -> int:
+    """Remove expired repeat_restart_* / structural_* alerts after max_age_sec without recurrence."""
+    if not os.path.exists(PROACTIVE_ALERTS_FILE):
+        return 0
+    now_dt = dt.datetime.now()
+    removed = 0
+    with open(PROACTIVE_ALERTS_LOCK, "w") as lf:
+        fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
+        try:
+            data = load_proactive_alerts()
+            active = data.get("active") or {}
+            to_del = []
+            for k, v in active.items():
+                akey = str((v or {}).get("alert_key") or "")
+                if not (akey.startswith("repeat_restart_") or akey.startswith("structural_")):
+                    continue
+                ls = str((v or {}).get("last_seen") or "").strip()
+                try:
+                    last_dt = dt.datetime.strptime(ls[:19], "%Y-%m-%d %H:%M:%S")
+                    if (now_dt - last_dt).total_seconds() > max_age_sec:
+                        to_del.append(k)
+                except Exception:
+                    pass
+            for k in to_del:
+                active.pop(k, None)
+                removed += 1
+            if removed > 0:
+                data["updated"] = now_dt.strftime("%Y-%m-%d %H:%M:%S")
+                _save_proactive_alerts_unlocked(data)
+        finally:
+            fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
+    return removed
 
 
 def get_bot_processes(bots) -> dict:

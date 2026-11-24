@@ -65,13 +65,27 @@ def run_33_point_audit(bot_id: int, cwd: str) -> list:
                                 continue
                         except Exception:
                             pass
-                    if "cancelallorders() is not supported yet" in line.lower():
+                    low = line.lower()
+                    if (
+                        "cancelallorders() is not supported yet" in low
+                        or "minimum amount precision" in low
+                        or "최소 주문 단위" in line
+                        or "-5022" in low
+                        or "could not be executed as maker" in low
+                        or "[skip]" in low
+                        or "[마진모드 유지]" in line
+                        or "-4067" in low
+                        or "[min notional adjust]" in low
+                        or "[min amount adjust]" in low
+                        or "hover 차트 조회 실패" in line
+                        or "tickers 일괄 조회 실패" in line
+                        or "fetch_tickers" in low
+                        or ("[maker]" in low and any(k in line for k in ("취소하고 신호 폐기", "미체결", "canceled", "rejected")))
+                    ):
                         continue
-                    if "minimum amount precision" in line.lower() or "최소 주문 단위" in line:
-                        continue
-                    if "거절" in line or "실패" in line or "must be no smaller than" in line or "-4164" in line:
+                    if "거절" in line or "실패" in line or "must be no smaller than" in low or "-4164" in line:
                         rejects.append(ls)
-                    if "Timeout" in line or "timeout" in line:
+                    if "timeout" in low and "[info]" not in low:
                         timeouts.append(ls)
                     if "Exception" in line or "Error" in line:
                         if "asyncio" in line:

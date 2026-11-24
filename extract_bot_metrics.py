@@ -64,7 +64,12 @@ try:
 
     # ⚠️ 부분청산 처리: 같은 order_id의 모든 청산을 합산한 후 승패 판정
     def _order_id(r):
-        return r.get('order_id') or r.get('trade_id') or ''
+        oid = r.get('order_id') or r.get('trade_id') or ''
+        if oid:
+            return oid
+        et = _exit_dt(r)
+        et_key = et.strftime('%Y-%m-%d %H:%M:%S') if et != datetime.datetime.min else ''
+        return f"{r.get('symbol', '')}|{r.get('direction', '')}|{et_key}"
 
     def _group_by_order(rows):
         """order_id별 손익 합산. (order_id → 총손익) 딕셔너리 반환"""

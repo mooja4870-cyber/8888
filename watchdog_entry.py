@@ -10,7 +10,12 @@ import logging
 BASE_8888 = os.path.dirname(os.path.abspath(__file__))
 if BASE_8888 not in sys.path:
     sys.path.insert(0, BASE_8888)
-from watchdog_common import bot_restart_locked, record_proactive_alert, clear_proactive_alert
+from watchdog_common import (
+    bot_restart_locked,
+    record_proactive_alert,
+    clear_proactive_alert,
+    prune_expired_proactive_alerts,
+)
 from core.autonomous_auditor import (
     check_stale_code_sync,
     check_log_fd_and_pid_lock_integrity,
@@ -746,6 +751,8 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                 "ai_position_context",
                 "ai_ledger_seq_integrity",
                 "ai_self_heal_loop",
+                "ai_rapid_self_destruct",
+                "ai_engine_states_pollution",
             ):
                 if ai_k not in active_ai_keys:
                     clear_proactive_alert(str(b), ai_k)
@@ -753,8 +760,18 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                 issue_msgs = [msg for _, msg in audit_res["issues"]]
                 logger.warning(f"[{b}] 🚨 [AI 10대 자율감사] 이상 감지: {' | '.join(issue_msgs)}")
                 for key, msg in audit_res["issues"]:
-                    ai_sev = "CRITICAL" if key == "ai_self_heal_loop" else "WARN"
-                    record_proactive_alert(str(b), key, ai_sev, "AI 12대 자율감사 이상 감지", msg, "원인 분석 및 조치 결과 확인 필요")
+                    is_crit = key in ("ai_self_heal_loop", "ai_rapid_self_destruct", "ai_engine_states_pollution")
+                    ai_sev = "CRITICAL" if is_crit else "WARN"
+                    record_proactive_alert(
+                        str(b),
+                        key,
+                        ai_sev,
+                        "AI 자율감사 이상 감지" if not is_crit else "AI 선제 자폭/오염 긴급 경보",
+                        msg,
+                        "원인 분석 및 조치 결과 확인 필요",
+                        cooldown_sec=3600 if is_crit else 21600,
+                        notify_discord=True,
+                    )
                 if audit_res["needs_restart"]:
                     needs_restart = True
                     action_taken.extend(issue_msgs)
@@ -763,7 +780,7 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                     needs_restart = True
                     action_taken.extend(audit_res["healed"])
                 logger.info(
-                    f"[{b}] 🤖 [AI 10대 자율감사] 10/10 전수 정상 "
+                    f"[{b}] 🤖 [AI 10대 자율감사] 14/14 전수 정상 "
                     f"({audit_res['gate_summary']} | {audit_res['scan_summary']})"
                 )
         except Exception as e:
@@ -843,6 +860,13 @@ def main():
         do_config_check = (cycle % CONFIG_CHECK_CYCLES == 1) or (CONFIG_CHECK_CYCLES == 1)
         do_flat_check = (cycle % FLAT_BOT_CHECK_CYCLES == 0) or (cycle == 1)
         do_audit_33 = (cycle % AUDIT_33_CYCLES == 0)
+        if do_flat_check:
+            try:
+                pruned_cnt = prune_expired_proactive_alerts(7200)
+                if pruned_cnt > 0:
+                    logger.info(f"🧹 [Auto-Clear] 만료된 repeat_restart/structural 경보 {pruned_cnt}건 자동 해제")
+            except Exception as pe:
+                logger.debug(f"만료 경보 자동 해제 예외: {pe}")
         
         run_entry_recovery_global()
 
