@@ -1,5 +1,26 @@
 # Version History
 
+## v1.7.25
+
+Date: 2026-11-24
+
+### 변경 내용
+
+* **그룹 C (`8401 v2.3.9` · `8402 v2.5.4` · `8403 v2.4.4` · `8405 v3.0.4`) 5단계 최종 승인 완료 — 전 9개 실매매 봇(`8401~8405, 8407~8410`) 트레일링/BE 유령 상태 자폭 청산 근절 완료**:
+  * `8401` (`v2.3.9`), `8402` (`v2.5.4`), `8403` (`v2.4.4`), `8405` (`v3.0.4`) 모두 `PositionManager.clear_symbol_state()`, `QuantumEngine.clear_symbol_runtime_state()`, `load_engine_states()` 반전 조건 제거, 신규 진입 선행 초기화, `_prune_stale_symbols()` 반영 및 `data/engine_states.json` 유령 오염키 총 55건(`8401` 3 / `8402` 4 / `8403` 19 / `8405` 29) 정화(`8401/8402` `TRX/USDT:USDT` 실포지션 100% 보존)
+  * `8403` · `8405` `core/trailing_stop_manager.py`: `_check_timeout_and_be_guard()` 비활성 `_be_guard_armed` 정리 및 **`persisted_peak` 과거 고/저점 폴백 완전 제거**
+  * `data/proactive_alerts.json`: 해소된 `8401/8402/8403/8405` `ai_engine_states_pollution` 4건 정리 완료
+
+### 수정 파일
+
+* ver.md (중앙 관제 이력 동기화: `8401 v2.3.9`, `8402 v2.5.4`, `8403 v2.4.4`, `8405 v3.0.4`)
+
+### 비고
+
+* 그룹 A(`8888 v1.7.23`, `8407 v3.0.3`, `8409 v3.0.2`) · 그룹 B(`8404 v2.3.6`, `8408 v12.3.4`, `8410 v3.0.2`, `8888 v1.7.24`) · 그룹 C(`8401 v2.3.9`, `8402 v2.5.4`, `8403 v2.4.4`, `8405 v3.0.4`) 전수 배포 완료
+* 전 9개 활성 봇 `M1/M6/M14=False`, `bot_sentinel`, UI HTTP 200, 4대 워치독 생존 및 `/Users/l/project/8888/verify_all.py` 100% PASS 확인
+
+
 ## v1.7.24
 
 Date: 2026-11-24
