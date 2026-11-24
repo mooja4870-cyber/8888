@@ -13,6 +13,7 @@ import csv
 import json
 import math
 import os
+import re
 import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
@@ -424,6 +425,186 @@ def check_alpha_decay_and_market_regime(bots: List[int]) -> Dict[str, Any]:
     return {"alerts": alerts, "details": {"per_bot_alpha": per_bot, "btc_regime": btc_regime}}
 
 
+_ORDER_ACT_RE = re.compile(
+    r"(\[ORDER\]|\[MAKER\].*(지정가 체결 완료|부분 체결|미체결.*취소|신호 폐기)|주문 실패|주문 취소 완료|개별 주문 취소 실패)",
+    re.I,
+)
+_MAKER_FILL_RE = re.compile(r"\[MAKER\].*(지정가 체결 완료|부분 체결)", re.I)
+_MAKER_MISS_RE = re.compile(r"\[MAKER\].*(미체결.*취소|신호 폐기)", re.I)
+
+
+def _read_recent_log_lines(log_path: str, since_dt: datetime, max_bytes: int = 262144) -> List[str]:
+    if not os.path.exists(log_path):
+        return []
+    out: List[str] = []
+    try:
+        with open(log_path, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            sz = f.tell()
+            f.seek(max(0, sz - max_bytes))
+            chunk = f.read().decode("utf-8", errors="ignore")
+        for line in chunk.splitlines():
+            if len(line) >= 19:
+                try:
+                    ldt = datetime.strptime(line[:19], "%Y-%m-%d %H:%M:%S")
+                    if ldt < since_dt:
+                        continue
+                except ValueError:
+                    pass
+            out.append(line)
+    except Exception:
+        pass
+    return out
+
+
+def check_order_velocity_and_otr(bots: List[int]) -> Dict[str, Any]:
+    """[M30 - MiFID II RTS 6] Detect runaway order loops & excessive Order-to-Trade Ratio in 15m."""
+    alerts: List[Dict[str, str]] = []
+    per_bot: Dict[str, Any] = {}
+    now_dt = datetime.now()
+    cutoff_15m = now_dt - timedelta(minutes=15)
+
+    for b in bots:
+        bs = str(b)
+        bdir = os.path.join(BASE_PROJECT, bs)
+        if not os.path.isdir(bdir) or os.path.exists(os.path.join(bdir, ".stopped")):
+            continue
+        lines = _read_recent_log_lines(os.path.join(bdir, "bot_engine.log"), cutoff_15m, max_bytes=196608)
+        order_events = sum(1 for ln in lines if _ORDER_ACT_RE.search(ln))
+
+        fills_15m = 0
+        csv_path = os.path.join(bdir, "data", "trade_history.csv")
+        if os.path.exists(csv_path):
+            try:
+                with open(csv_path, "r", encoding="utf-8-sig", errors="replace") as f:
+                    for r in list(csv.DictReader(f))[-80:]:
+                        dt = _parse_dt(r.get("시간") or r.get("timestamp") or "")
+                        if dt and dt >= cutoff_15m:
+                            fills_15m += 1
+            except Exception:
+                pass
+
+        otr = round(order_events / max(fills_15m, 1), 1)
+        per_bot[bs] = {"order_events_15m": order_events, "fills_15m": fills_15m, "otr_15m": otr}
+
+        if order_events >= 60 or (order_events >= 25 and otr >= 25.0):
+            alerts.append({
+                "bot_id": bs,
+                "key": "otr_runaway_algo",
+                "severity": "CRITICAL",
+                "title": f"알고리즘 주문 폭주 의심 (15분 주문 {order_events}건, OTR {otr:.1f}:1)",
+                "details": f"최근 15분 실제 주문/취소 {order_events}회 / 체결 {fills_15m}회",
+                "recommendation": "무한 주문 루프 또는 RateLimit 위험 — 즉시 로그 확인 및 중단 검토 필요",
+            })
+        elif order_events >= 25 or (order_events >= 15 and otr >= 15.0):
+            alerts.append({
+                "bot_id": bs,
+                "key": "otr_runaway_algo",
+                "severity": "WARN",
+                "title": f"주문 빈도·OTR 상승 주의 (15분 {order_events}건, OTR {otr:.1f}:1)",
+                "details": f"최근 15분 주문/취소 {order_events}회 / 체결 {fills_15m}회",
+                "recommendation": "메이커 반복 취소/재시도 여부 관찰 권고",
+            })
+
+    return {"alerts": alerts, "details": per_bot}
+
+
+def check_maker_fill_ratio_and_adverse_selection(bots: List[int]) -> Dict[str, Any]:
+    """[M31 - Live vs Backtest Parity] Track 24h maker fill ratio & quick (<5m) adverse selection losses."""
+    alerts: List[Dict[str, str]] = []
+    per_bot: Dict[str, Any] = {}
+    now_dt = datetime.now()
+    cutoff_24h = now_dt - timedelta(hours=24)
+
+    for b in bots:
+        bs = str(b)
+        bdir = os.path.join(BASE_PROJECT, bs)
+        if not os.path.isdir(bdir) or os.path.exists(os.path.join(bdir, ".stopped")):
+            continue
+
+        lines_24h = _read_recent_log_lines(os.path.join(bdir, "bot_engine.log"), cutoff_24h, max_bytes=1048576)
+        fills = sum(1 for ln in lines_24h if _MAKER_FILL_RE.search(ln))
+        misses = sum(1 for ln in lines_24h if _MAKER_MISS_RE.search(ln))
+        attempts = fills + misses
+        fill_ratio_pct = round((fills / attempts) * 100.0, 1) if attempts > 0 else None
+
+        if attempts >= 8 and fill_ratio_pct is not None:
+            if fill_ratio_pct < 15.0:
+                alerts.append({
+                    "bot_id": bs,
+                    "key": "tca_maker_fill_low",
+                    "severity": "CRITICAL",
+                    "title": f"메이커 체결률 급락 ({fill_ratio_pct:.1f}%, {fills}/{attempts})",
+                    "details": f"최근 24시간 지정가 시도 {attempts}회 중 {fills}회만 체결 (백테스트 패리티 이탈)",
+                    "recommendation": "호가 오프셋·대기시간 조정 여부 점검 권고",
+                })
+            elif fill_ratio_pct < 30.0:
+                alerts.append({
+                    "bot_id": bs,
+                    "key": "tca_maker_fill_low",
+                    "severity": "WARN",
+                    "title": f"메이커 체결률 저조 ({fill_ratio_pct:.1f}%, {fills}/{attempts})",
+                    "details": f"최근 24시간 지정가 {attempts}회 중 {fills}회 체결",
+                    "recommendation": "좋은 신호 미체결·역선택 추이 관찰 권고",
+                })
+
+        # Adverse selection: recent closed trades losing >=1% within <=300s from entry
+        adv_rate_pct = None
+        csv_path = os.path.join(bdir, "data", "trade_history.csv")
+        if os.path.exists(csv_path):
+            stats = _load_json(os.path.join(bdir, "data", "stats.json"), {}) or {}
+            perf_dt = _parse_dt(stats.get("perf_start_time"))
+            last_entry = {}
+            pairs = []
+            try:
+                with open(csv_path, "r", encoding="utf-8-sig", errors="replace") as f:
+                    for r in csv.DictReader(f):
+                        dt = _parse_dt(r.get("시간") or r.get("timestamp") or "")
+                        if not dt or (perf_dt and dt < perf_dt):
+                            continue
+                        sym = str(r.get("심볼") or r.get("symbol") or "").strip()
+                        cat = str(r.get("유형") or r.get("category") or "").strip()
+                        if cat in ("진입", "*진입"):
+                            last_entry[sym] = dt
+                        elif "청산" in cat and sym in last_entry:
+                            dur = (dt - last_entry.pop(sym)).total_seconds()
+                            pct = _safe_float(r.get("수익률(%)"), 0.0)
+                            pairs.append((dur, pct))
+            except Exception:
+                pass
+            recent_pairs = pairs[-20:]
+            if len(recent_pairs) >= 15:
+                adv_cnt = sum(1 for dur, pct in recent_pairs if 0 <= dur <= 300 and pct <= -1.0)
+                adv_rate_pct = round((adv_cnt / len(recent_pairs)) * 100.0, 1)
+                if adv_rate_pct >= 60.0:
+                    alerts.append({
+                        "bot_id": bs,
+                        "key": "tca_adverse_selection",
+                        "severity": "CRITICAL",
+                        "title": f"체결 직후 역선택 손절 급증 ({adv_rate_pct:.0f}%)",
+                        "details": f"최근 {len(recent_pairs)}건 중 {adv_cnt}건이 진입 5분 내 -1% 이상 손절",
+                        "recommendation": "역선택(Adverse Selection) 우위 상실 의심 — 진입 필터 점검 필요",
+                    })
+                elif adv_rate_pct >= 40.0:
+                    alerts.append({
+                        "bot_id": bs,
+                        "key": "tca_adverse_selection",
+                        "severity": "WARN",
+                        "title": f"체결 직후 단기 역행 비율 상승 ({adv_rate_pct:.0f}%)",
+                        "details": f"최근 {len(recent_pairs)}건 중 {adv_cnt}건 5분 내 -1% 손절",
+                        "recommendation": "단기 역행 패턴 관찰 권고",
+                    })
+
+        per_bot[bs] = {
+            "maker_attempts_24h": attempts,
+            "maker_fills_24h": fills,
+            "maker_fill_ratio_pct": fill_ratio_pct,
+            "adverse_selection_5m_pct": adv_rate_pct,
+        }
+
+    return {"alerts": alerts, "details": per_bot}
+
+
 def compute_and_save_health_scorecard(
     bots: List[int],
     infra_summary: Optional[Dict[str, Any]] = None,
@@ -453,16 +634,22 @@ def compute_and_save_health_scorecard(
             process_score -= 6
 
     for k, v in active_alerts.items():
-        sev = str((v or {}).get("severity") or "WARN")
+        sev = str((v or {}).get("severity") or "WARN").upper()
+        if sev == "INFO":
+            continue
         akey = str((v or {}).get("alert_key") or k)
         pts = 6 if sev == "CRITICAL" else 2
-        if any(x in akey for x in ("unprotected", "liq", "protection", "orphan", "margin_mode", "auto_trading_off", "rapid_self_destruct", "engine_states_pollution")):
+        if any(x in akey for x in (
+            "unprotected", "liq", "protection", "orphan", "margin_mode",
+            "auto_trading_off", "rapid_self_destruct", "engine_states_pollution",
+            "sentinel_adl", "sentinel_basis", "sentinel_unauthorized", "sentinel_security",
+        )):
             protect_score = max(0, protect_score - pts)
-        elif any(x in akey for x in ("infra_",)):
+        elif any(x in akey for x in ("infra_", "host_", "feed_", "canary_", "security_")):
             infra_score = max(0, infra_score - pts)
-        elif any(x in akey for x in ("portfolio_",)):
+        elif any(x in akey for x in ("portfolio_", "blackswan_")):
             portfolio_score = max(0, portfolio_score - pts)
-        elif any(x in akey for x in ("alpha_", "tca_", "market_regime", "fee_ratio", "loss_streak", "peak_mdd", "config_gap")):
+        elif any(x in akey for x in ("alpha_", "tca_", "market_regime", "fee_ratio", "loss_streak", "peak_mdd", "config_gap", "otr_")):
             alpha_score = max(0, alpha_score - pts)
         else:
             process_score = max(0, process_score - pts)
@@ -531,15 +718,19 @@ def run_portfolio_risk_audit(
     infra_summary: Optional[Dict[str, Any]] = None,
     send_daily_briefing: bool = True,
 ) -> Dict[str, Any]:
-    """Run M16/M21/M22 + M26 scorecard and return unified alerts & summary."""
+    """Run M16/M21/M22/M30/M31 + M26 scorecard and return unified alerts & summary."""
     m16 = check_cross_bot_portfolio_exposure(bots)
     m21 = check_tca_execution_quality(bots)
     m22 = check_alpha_decay_and_market_regime(bots)
-    all_alerts = m16["alerts"] + m21["alerts"] + m22["alerts"]
+    m30 = check_order_velocity_and_otr(bots)
+    m31 = check_maker_fill_ratio_and_adverse_selection(bots)
+    all_alerts = m16["alerts"] + m21["alerts"] + m22["alerts"] + m30["alerts"] + m31["alerts"]
     summary = {
         "m16_exposure": m16["details"],
         "m21_tca": m21["details"],
         "m22_alpha_regime": m22["details"],
+        "m30_otr": m30["details"],
+        "m31_parity": m31["details"],
     }
     scorecard = compute_and_save_health_scorecard(
         bots,

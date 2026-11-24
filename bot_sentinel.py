@@ -21,7 +21,15 @@ from datetime import datetime
 
 SENTINEL_LIVE_CACHE = "/Users/l/project/8888/data/sentinel_live_cache.json"
 SENTINEL_LIVE_LOCK = "/tmp/watchdog_sentinel_live_cache.lock"
+API_SEC_CACHE = "/Users/l/project/8888/data/api_security_cache.json"
 _AUTH_KEYWORDS = ("-2015", "50111", "50113", "invalid api-key", "api-key", "401", "403", "permission", "ip")
+
+
+def _norm_base_coin(sym: str) -> str:
+    s = str(sym or "").split(":")[0].split("/")[0].strip().upper()
+    if s.startswith("1000") and len(s) > 4:
+        return s[4:]
+    return s
 
 
 def atomic_write_json(filepath, data):
@@ -167,6 +175,10 @@ async def audit_bot(b: int):
         "orphan_algo_orders": [],
         "stale_open_orders": [],
         "dust_positions": [],
+        "adl_warnings": [],
+        "basis_warnings": [],
+        "unauthorized_positions": [],
+        "security_warnings": [],
         "auth_error": "",
         "partial_exits_added": 0,
         "balance_diff": 0.0,
@@ -187,7 +199,33 @@ async def audit_bot(b: int):
             if cnt > 0:
                 ex_map[p["symbol"]] = p
 
-        # Build raw position risk map (liquidation price, margin mode, mgnRatio/marginRatio, notional)
+        # [M27] Binance per-symbol premiumIndex & account adlQuantile (fetched only when holding positions)
+        bnc_adl_map = {}
+        bnc_idx_map = {}
+        if ex_id == "binance" and ex_map:
+            try:
+                if hasattr(client.exchange, "fapiPrivateGetAdlQuantile"):
+                    qrows = await client._execute_with_retry(client.exchange.fapiPrivateGetAdlQuantile)
+                    for row in (qrows or []):
+                        sid = str(row.get("symbol") or "")
+                        aq = row.get("adlQuantile") or {}
+                        if sid and isinstance(aq, dict):
+                            bnc_adl_map[sid] = aq
+            except Exception:
+                pass
+            for sym in ex_map:
+                try:
+                    mkt_id = client.exchange.market(sym).get("id")
+                    prow = await client._execute_with_retry(client.exchange.fapiPublicGetPremiumIndex, {"symbol": mkt_id})
+                    if isinstance(prow, dict):
+                        ipx = _safe_float(prow.get("indexPrice"), 0.0)
+                        mpx = _safe_float(prow.get("markPrice"), 0.0)
+                        if ipx > 0:
+                            bnc_idx_map[sym] = (ipx, mpx)
+                except Exception:
+                    pass
+
+        # Build raw position risk map (liquidation price, margin mode, mgnRatio/marginRatio, notional, ADL, index basis)
         raw_risk_map = {}
         for rp in (raw_positions or []):
             amt = abs(_safe_float(rp.get("contracts") or rp.get("amount") or (rp.get("info") or {}).get("positionAmt"), 0.0))
@@ -195,6 +233,7 @@ async def audit_bot(b: int):
                 continue
             rsym = str(rp.get("symbol") or "")
             info = rp.get("info") or {}
+            side_val = str(rp.get("side") or ex_map.get(rsym, {}).get("side") or "").lower()
             mark_px = _safe_float(rp.get("markPrice") or info.get("markPx") or rp.get("lastPrice"), 0.0)
             liq_px = _safe_float(rp.get("liquidationPrice") or info.get("liqPx"), 0.0)
             entry_px = _safe_float(rp.get("entryPrice") or info.get("avgPx"), 0.0)
@@ -202,12 +241,44 @@ async def audit_bot(b: int):
             if notional <= 0 and rsym in ex_map:
                 notional = abs(_safe_float(ex_map[rsym].get("coins") or amt, 0.0)) * (mark_px or entry_px)
             mmode = str(rp.get("marginMode") or info.get("mgnMode") or "").lower()
+
+            adl_rank = None
+            idx_px = 0.0
+            if ex_id == "okx":
+                raw_adl = info.get("adl")
+                if raw_adl not in (None, ""):
+                    adl_rank = int(_safe_float(raw_adl, 0))
+                idx_px = _safe_float(info.get("idxPx"), 0.0)
+            elif ex_id == "binance":
+                try:
+                    mkt_id = client.exchange.market(rsym).get("id")
+                except Exception:
+                    mkt_id = rsym.split(":")[0].replace("/", "")
+                aq = bnc_adl_map.get(mkt_id) or {}
+                if aq:
+                    key_side = "LONG" if side_val == "long" else ("SHORT" if side_val == "short" else "BOTH")
+                    raw_q = aq.get(key_side)
+                    if raw_q in (None, "", "0") and aq.get("BOTH") not in (None, ""):
+                        raw_q = aq.get("BOTH")
+                    if raw_q not in (None, ""):
+                        adl_rank = int(_safe_float(raw_q, 0))
+                if rsym in bnc_idx_map:
+                    idx_px, p_mpx = bnc_idx_map[rsym]
+                    if mark_px <= 0:
+                        mark_px = p_mpx
+
+            eff_mark = mark_px or _safe_float(ex_map.get(rsym, {}).get("mark_price"), 0.0)
+            basis_pct = round((abs(eff_mark - idx_px) / idx_px) * 100.0, 3) if (eff_mark > 0 and idx_px > 0) else None
+
             raw_risk_map[rsym] = {
                 "symbol": rsym,
-                "side": str(rp.get("side") or ex_map.get(rsym, {}).get("side") or "").lower(),
+                "side": side_val,
                 "contracts": amt,
                 "entry_price": entry_px or _safe_float(ex_map.get(rsym, {}).get("entry_price"), 0.0),
-                "mark_price": mark_px or _safe_float(ex_map.get(rsym, {}).get("mark_price"), 0.0),
+                "mark_price": eff_mark,
+                "index_price": idx_px,
+                "basis_pct": basis_pct,
+                "adl_rank": adl_rank,
                 "liq_price": liq_px,
                 "notional_usdt": round(notional, 4),
                 "margin_usdt": round(_safe_float(ex_map.get(rsym, {}).get("margin") or rp.get("initialMargin"), 0.0), 4),
@@ -319,6 +390,16 @@ async def audit_bot(b: int):
                     report["auth_error"] = bnc_algo_err[:180]
 
         if ex_map:
+            allowed_bases = set()
+            if os.path.exists(cfg_file):
+                try:
+                    with open(cfg_file, "r", encoding="utf-8") as cf:
+                        wl = json.load(cf).get("SYMBOL_WHITELIST") or []
+                    if isinstance(wl, list):
+                        allowed_bases = {_norm_base_coin(s) for s in wl if s}
+                except Exception:
+                    pass
+
             now_dt = datetime.now()
             for sym, pinfo in ex_map.items():
                 rinfo = raw_risk_map.get(sym, {})
@@ -328,6 +409,29 @@ async def audit_bot(b: int):
                 liq_px = _safe_float(rinfo.get("liq_price"), 0.0)
                 notional = _safe_float(rinfo.get("notional_usdt"), 0.0)
                 mmode = str(rinfo.get("margin_mode") or "").lower()
+
+                # M29: Unauthorized off-whitelist symbol position check
+                if allowed_bases and _norm_base_coin(sym) not in allowed_bases:
+                    report["unauthorized_positions"].append(sym)
+
+                # M27: Mark vs Index basis divergence check
+                basis_pct = rinfo.get("basis_pct")
+                if basis_pct is not None:
+                    if basis_pct >= 2.0:
+                        report["basis_warnings"].append({"symbol": sym, "severity": "CRITICAL", "basis_pct": basis_pct})
+                    elif basis_pct >= 1.0:
+                        report["basis_warnings"].append({"symbol": sym, "severity": "WARN", "basis_pct": basis_pct})
+
+                # M27: Auto-Deleveraging (ADL) queue rank check
+                adl_rank = rinfo.get("adl_rank")
+                if adl_rank is not None:
+                    max_rank = 5 if ex_id == "okx" else 4
+                    if adl_rank >= max_rank:
+                        sev = "CRITICAL" if (basis_pct is not None and basis_pct >= 1.0) else "WARN"
+                        report["adl_warnings"].append({
+                            "symbol": sym, "severity": sev, "adl_rank": adl_rank,
+                            "max_rank": max_rank, "basis_pct": basis_pct if basis_pct is not None else 0.0,
+                        })
 
                 # M21: Dust check
                 if 0 < notional < 1.0:
@@ -542,6 +646,39 @@ async def audit_bot(b: int):
         report["balance_diff"] = drift
         if abs(drift) > 0.10 and len(ex_map) == 0:
             report["actions"].append(f"잔고 괴리 감지 (${drift:+.4f})")
+        if len(ex_map) == 0 and drift <= -0.50:
+            report["security_warnings"].append(f"무포지션 상태 설명불가 잔고 급감 (${drift:+.4f}) — 비인가 출금/이체 점검 필요")
+            report["actions"].append(f"보안 잔고급감 경보 (${drift:+.4f})")
+
+        # [M29] Binance API key withdrawal/transfer permission audit (cached 1h per bot)
+        if ex_id == "binance" and hasattr(client.exchange, "sapiGetAccountApiRestrictions"):
+            try:
+                sec_doc = {}
+                if os.path.exists(API_SEC_CACHE):
+                    with open(API_SEC_CACHE, "r", encoding="utf-8") as sf:
+                        loaded_sec = json.load(sf)
+                        if isinstance(loaded_sec, dict):
+                            sec_doc = loaded_sec
+                prev_sec = sec_doc.get(str(b)) or {}
+                now_sec = time.time()
+                if (now_sec - _safe_float(prev_sec.get("ts"), 0.0)) >= 3600:
+                    restr = await client._execute_with_retry(client.exchange.sapiGetAccountApiRestrictions)
+                    if isinstance(restr, dict):
+                        prev_sec = {
+                            "ts": now_sec,
+                            "ipRestrict": bool(restr.get("ipRestrict")),
+                            "enableWithdrawals": bool(restr.get("enableWithdrawals")),
+                            "enableInternalTransfer": bool(restr.get("enableInternalTransfer")),
+                            "enableFutures": bool(restr.get("enableFutures")),
+                        }
+                        sec_doc[str(b)] = prev_sec
+                        atomic_write_json(API_SEC_CACHE, sec_doc)
+                if prev_sec.get("enableWithdrawals"):
+                    report["security_warnings"].append("API 키 출금 권한(enableWithdrawals) 활성화 상태")
+                if prev_sec.get("enableInternalTransfer"):
+                    report["security_warnings"].append("API 키 내부이체 권한(enableInternalTransfer) 활성화 상태")
+            except Exception:
+                pass
 
         # Persist real-time live cache for M16/M20/M21 portfolio & funding checks
         try:

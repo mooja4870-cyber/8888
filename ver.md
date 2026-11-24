@@ -1,5 +1,35 @@
 # Version History
 
+## v1.10.0
+
+Date: 2026-11-24
+
+### 변경 내용
+
+* **최첨단 완전체 자율 워치독 "Aegis V7" (M27~M34) 구축 — 블랙스완·보안·로컬 Mac 운영·알림 카나리아·일일 백업 완성 (`8888` 한정, 개별 봇 무수정)**:
+  * **M27 (`bot_sentinel.py`, `watchdog_entry.py`)**: OKX(`info.adl`, `idxPx`/`markPx`) & Binance(`fapiPrivateGetAdlQuantile`, `premiumIndex`) 실측 기반 **ADL 우선순위 위험 경보** 및 **Mark-Index 베이시스 괴리(≥1%/2%)** 상시 감시
+  * **M28 (`core/security_ops_auditor.py`)**: Binance·OKX `USDC/USDT` 복수 소스 교차 조회 기반 **USDT 스테이블코인 디페깅(±0.5%/±1.5%)** 감시
+  * **M29 (`bot_sentinel.py`, `core/security_ops_auditor.py`)**: **화이트리스트 외 비인가 종목 보유**, Binance API **출금/내부이체 권한(`sapiGetAccountApiRestrictions`)**, 무포지션 설명불가 잔고 급감(`≤-$0.50`), `.env` 파일 쓰기/읽기 권한 감시
+  * **M30 (`core/portfolio_risk_auditor.py`)**: MiFID II RTS 6 표준 **15분 주문 폭주 및 OTR(주문/체결 비율 ≥15:1/25:1)** 감시
+  * **M31 (`core/portfolio_risk_auditor.py`)**: **24시간 메이커 지정가 체결률(`maker_fill_ratio_pct`)** 및 **진입 5분 내 -1% 역선택 손절 비율** 추적
+  * **M32 (`core/security_ops_auditor.py`)**: 전 9개 봇 `scan_results.json` 스캔 정체 및 **연속 3사이클 전 종목 가격 해시 동결(Frozen Market Feed)** 탐지
+  * **M33 (`watchdog_common.py`, `core/security_ops_auditor.py`, `watchdog_entry.py`)**: **로컬 Mac 24/7 특화** — 외부 인터넷 동시 단절 시 **봇 연쇄 헛재기동 억제 실드**(`NET_DOWN_FLAG_FILE`), **공인 IP 변경 감지**(`CRITICAL`), **AC 전원 자동절전(`pmset`)** 및 **Mac 절전/복귀 시계 점프** 감시
+  * **M34 (`core/security_ops_auditor.py`, `watchdog_common.py`)**: **Discord Webhook / Telegram `getMe` 무스팸 생존 카나리아**, **CSV 행 감소/0B 트렁케이션·JSON 손상 탐지**, **전 9개 봇·8888 핵심 데이터 일일 자동 백업(14일 보관, `backups/YYYY-MM-DD`)**
+
+### 수정 파일
+
+* bot_sentinel.py
+* core/portfolio_risk_auditor.py
+* core/security_ops_auditor.py
+* watchdog_common.py
+* watchdog_entry.py
+* ver.md
+
+### 비고
+
+* 개별 봇(`8401~8410`) 코드/설정 수정 0건, 4대 워치독 재기동·`Aegis V7 종합점검`·UI HTTP 200·`verify_all.py` 100% PASS 확인
+
+
 ## v1.9.0
 
 Date: 2026-11-24

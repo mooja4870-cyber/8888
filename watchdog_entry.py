@@ -13,6 +13,7 @@ if BASE_8888 not in sys.path:
 from watchdog_common import (
     bot_restart_locked,
     clear_proactive_alert,
+    is_external_network_down,
     is_maintenance_active,
     load_proactive_alerts,
     prune_expired_proactive_alerts,
@@ -26,6 +27,7 @@ from core.autonomous_auditor import (
 )
 from core.exchange_infra_auditor import run_exchange_infra_audit
 from core.portfolio_risk_auditor import run_portfolio_risk_audit
+from core.security_ops_auditor import run_security_ops_audit
 
 _ENTRY_LOG = os.path.join(BASE_8888, "watchdog_entry.log")
 _stdout_redirected = False
@@ -269,6 +271,10 @@ def audit_trade_reconciliation(b: int, cwd: str) -> None:
             orphan_algos = data.get("orphan_algo_orders") or []
             stale_oo = data.get("stale_open_orders") or []
             dust_pos = data.get("dust_positions") or []
+            adl_warns = data.get("adl_warnings") or []
+            basis_warns = data.get("basis_warnings") or []
+            unauth_pos = data.get("unauthorized_positions") or []
+            sec_warns = data.get("security_warnings") or []
             auth_err = str(data.get("auth_error") or "").strip()
 
             if auth_err:
@@ -372,6 +378,50 @@ def audit_trade_reconciliation(b: int, cwd: str) -> None:
                 )
             else:
                 clear_proactive_alert(str(b), "sentinel_dust_position")
+
+            if adl_warns:
+                crit_adl = any(str(w.get("severity")) == "CRITICAL" for w in adl_warns)
+                desc = " | ".join(f"{w.get('symbol')}(adl={w.get('adl_rank')}/{w.get('max_rank')}, basis={w.get('basis_pct')}%)" for w in adl_warns)
+                record_proactive_alert(
+                    str(b), "sentinel_adl_risk", "CRITICAL" if crit_adl else "WARN",
+                    "ADL(자동 디레버리징) 우선순위 고위험", desc,
+                    "거래소 강제 디레버리징 대상 근접 — 익절/청산 타이밍 예의주시 필요",
+                    cooldown_sec=3600 if crit_adl else 14400, notify_discord=True,
+                )
+            else:
+                clear_proactive_alert(str(b), "sentinel_adl_risk")
+
+            if basis_warns:
+                crit_b = any(str(w.get("severity")) == "CRITICAL" for w in basis_warns)
+                desc = " | ".join(f"{w.get('symbol')}(basis={w.get('basis_pct')}%)" for w in basis_warns)
+                record_proactive_alert(
+                    str(b), "sentinel_basis_divergence", "CRITICAL" if crit_b else "WARN",
+                    "Mark-Index 가격 베이시스 괴리 확대", desc,
+                    "선현물 급격한 괴리 — 강제청산/비정상 체결 주의",
+                    cooldown_sec=1800 if crit_b else 3600, notify_discord=True,
+                )
+            else:
+                clear_proactive_alert(str(b), "sentinel_basis_divergence")
+
+            if unauth_pos:
+                record_proactive_alert(
+                    str(b), "sentinel_unauthorized_position", "CRITICAL",
+                    "화이트리스트 외 비인가 종목 보유 감지", ", ".join(str(x) for x in unauth_pos),
+                    "비인가 매매·API 키 도용·수동 오조작 여부 즉시 확인 필요",
+                    cooldown_sec=1800, notify_discord=True,
+                )
+            else:
+                clear_proactive_alert(str(b), "sentinel_unauthorized_position")
+
+            if sec_warns:
+                record_proactive_alert(
+                    str(b), "sentinel_security_alert", "CRITICAL",
+                    "계정 보안 / 비거래 자금유출 경보", " | ".join(str(x) for x in sec_warns),
+                    "거래소 API 출금권한 및 입출금/이체 내역 즉시 점검 필요",
+                    cooldown_sec=1800, notify_discord=True,
+                )
+            else:
+                clear_proactive_alert(str(b), "sentinel_security_alert")
 
             loops = _track_sentinel_actions(str(b), actions)
             if loops:
@@ -936,6 +986,13 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
 
     # 3. 조치 (재기동)
     if needs_restart:
+        r_joined = " ".join(action_taken)
+        is_proc_or_cpu = (not bot_alive) or ("CPU" in r_joined) or ("M1" in r_joined) or ("코드 수정" in r_joined)
+        net_down, net_desc = is_external_network_down()
+        if net_down and not is_proc_or_cpu:
+            logger.warning(f"[{b}] 🌐 [M33 망 단절 실드] 외부망 단절로 재기동 보류 ({net_desc} | 사유: {r_joined[:100]})")
+            return
+
         logger.info(f"[{b}] 🛠 공유 락(flock) 기반 2-Step 안전 재부팅 시도...")
 
         restart_ok, restart_detail = bot_restart_locked(
@@ -967,11 +1024,14 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
             except Exception as e:
                 logger.error(f"[{b}] 체결 장부 무결성 감사 중 예외: {e}")
 
-_AEGIS_DOMAIN_PREFIXES = ("infra_", "portfolio_", "tca_", "alpha_", "market_regime_")
+_AEGIS_DOMAIN_PREFIXES = (
+    "infra_", "portfolio_", "tca_", "alpha_", "market_regime_",
+    "blackswan_", "security_", "feed_", "host_", "canary_", "otr_",
+)
 
 
 def _sync_aegis_alerts(alerts: list) -> None:
-    """Sync M16~M24 global/per-bot alerts and auto-clear any previously active resolved keys."""
+    """Sync M16~M34 global/per-bot alerts and auto-clear any previously active resolved keys."""
     detected = set()
     for a in (alerts or []):
         bid = str(a.get("bot_id") or "8888")
@@ -997,19 +1057,30 @@ def _sync_aegis_alerts(alerts: list) -> None:
         for k, entry in list(active.items()):
             bid = str((entry or {}).get("bot_id") or "")
             akey = str((entry or {}).get("alert_key") or "")
+            # Preserve event-based host_mac_sleep_wake alert once emitted until cooldown/manual clear or next sleep check
+            if akey == "host_mac_sleep_wake":
+                continue
             if akey.startswith(_AEGIS_DOMAIN_PREFIXES) and (bid, akey) not in detected:
                 clear_proactive_alert(bid, akey)
     except Exception:
         pass
 
 
-def _run_aegis_v6_global_audit(cycle: int) -> None:
-    """Execute Aegis V6 global modules (M16~M26): Exchange/Infra + Portfolio/Alpha/Scorecard."""
+def _run_aegis_v7_global_audit(cycle: int) -> None:
+    """Execute Aegis V7 global modules (M16~M34): Security/Ops + Exchange/Infra + Portfolio/OTR/Alpha/Scorecard."""
     include_listings = (cycle == 1) or (cycle % 15 == 0)
+    include_canary = (cycle == 1) or (cycle % 60 == 0)
+
+    try:
+        sec_res = run_security_ops_audit(BOT_LIST, include_canary=include_canary)
+    except Exception as e:
+        logger.error(f"🚨 [Aegis V7 Security/Ops] 감사 예외: {e}")
+        sec_res = {"alerts": [], "summary": {}}
+
     try:
         infra_res = run_exchange_infra_audit(BOT_LIST, include_listings=include_listings)
     except Exception as e:
-        logger.error(f"🚨 [Aegis V6 Infra] 감사 예외: {e}")
+        logger.error(f"🚨 [Aegis V7 Infra] 감사 예외: {e}")
         infra_res = {"alerts": [], "summary": {}}
 
     try:
@@ -1019,27 +1090,34 @@ def _run_aegis_v6_global_audit(cycle: int) -> None:
             send_daily_briefing=True,
         )
     except Exception as e:
-        logger.error(f"🚨 [Aegis V6 Portfolio] 감사 예외: {e}")
+        logger.error(f"🚨 [Aegis V7 Portfolio] 감사 예외: {e}")
         port_res = {"alerts": [], "scorecard": {}}
 
-    combined_alerts = (infra_res.get("alerts") or []) + (port_res.get("alerts") or [])
+    combined_alerts = (
+        (sec_res.get("alerts") or [])
+        + (infra_res.get("alerts") or [])
+        + (port_res.get("alerts") or [])
+    )
     _sync_aegis_alerts(combined_alerts)
 
     sc = port_res.get("scorecard") or {}
     m16 = ((port_res.get("summary") or {}).get("m16_exposure") or {})
     m24 = ((infra_res.get("summary") or {}).get("m24_host_resources") or {})
+    m28 = ((sec_res.get("summary") or {}).get("m28_usdt_peg") or {})
+    m33 = ((sec_res.get("summary") or {}).get("m33_host_ops") or {})
     rot = m24.get("rotated_logs") or []
     rot_txt = f" | 로그로테이션:{','.join(rot)}" if rot else ""
+    usdt_txt = f"${m28['usdt_usd_avg']:.4f}" if m28.get("usdt_usd_avg") else "N/A"
     logger.info(
-        f"🛡️ [Aegis V6 종합점검] 스코어 {sc.get('score', '?')}/100 ({sc.get('grade', '?')}) | "
+        f"🛡️ [Aegis V7 종합점검] 스코어 {sc.get('score', '?')}/100 ({sc.get('grade', '?')}) | "
         f"노출 ${m16.get('gross_notional', 0):.2f} (Net ${m16.get('net_notional', 0):+.2f}, {m16.get('total_positions', 0)}포) | "
-        f"신규경보 {len(combined_alerts)}건 | 디스크 {m24.get('disk_used_pct', '?')}%{rot_txt}"
+        f"USDT {usdt_txt} | IP {m33.get('public_ip', '?')} | 신규경보 {len(combined_alerts)}건 | 디스크 {m24.get('disk_used_pct', '?')}%{rot_txt}"
     )
 
 
 def main():
     logger.info("==========================================")
-    logger.info("🐶 Watchdog System Started (Aegis V6 + Profitability Guard Active)")
+    logger.info("🐶 Watchdog System Started (Aegis V7 Full Suite + Profitability Guard Active)")
     logger.info("==========================================")
     cycle = 0
     while True:
@@ -1069,14 +1147,30 @@ def main():
                 logger.error(f"[{bot}] 워치독 순찰 중 치명적 오류: {e}")
 
         if do_flat_check:
-            _run_aegis_v6_global_audit(cycle)
+            _run_aegis_v7_global_audit(cycle)
 
         try:
             update_watchdog_heartbeat("watchdog_entry", {"cycle": cycle, "phase": "done"})
         except Exception:
             pass
         logger.info(f"순찰 완료. {HEALTH_CHECK_SEC}초 후 다음 순찰 진행...")
+        sleep_t0 = time.time()
         time.sleep(HEALTH_CHECK_SEC)
+        elapsed = time.time() - sleep_t0
+        if elapsed > HEALTH_CHECK_SEC + 180:
+            logger.warning(f"🚨 [M33 Mac 절전/깨어남 감지] sleep({HEALTH_CHECK_SEC}s) 실제 경과 {elapsed:.0f}s")
+            record_proactive_alert(
+                "8888",
+                "host_mac_sleep_wake",
+                "WARN",
+                f"Mac 절전/중단 후 복귀 감지 ({elapsed:.0f}초 멈춤)",
+                f"예정 {HEALTH_CHECK_SEC}초 대기 중 {elapsed:.0f}초 경과 — 잠자기 또는 일시 정지 의심",
+                "macOS 전원/잠자기 설정 및 9개 봇 상태 확인 권고",
+                cooldown_sec=3600,
+                notify_discord=True,
+            )
+        elif do_flat_check:
+            clear_proactive_alert("8888", "host_mac_sleep_wake")
 
 if __name__ == "__main__":
     main()

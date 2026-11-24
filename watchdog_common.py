@@ -30,6 +30,7 @@ HEARTBEAT_FILE = os.path.join(BASE_8888, "data", "watchdog_heartbeat.json")
 HEARTBEAT_LOCK = "/tmp/watchdog_heartbeat.lock"
 MAINTENANCE_FLAG_FILE = "/tmp/watchdog_maintenance.json"
 MAX_MAINTENANCE_TTL_SEC = 600
+NET_DOWN_FLAG_FILE = "/tmp/watchdog_net_down.json"
 
 _ALNUM_RE = re.compile(r"[^a-z0-9가-힣]")
 _LOG_LOCK = threading.Lock()
@@ -549,6 +550,57 @@ def is_maintenance_active() -> Tuple[bool, str]:
     return False, ""
 
 
+def set_external_network_down(down: bool, reason: str = "", ttl_sec: int = 180) -> None:
+    """[M33] Persist external internet outage shield flag (auto-expires after ttl_sec)."""
+    try:
+        if not down:
+            if os.path.exists(NET_DOWN_FLAG_FILE):
+                os.remove(NET_DOWN_FLAG_FILE)
+            return
+        now = time.time()
+        payload = {
+            "down": True,
+            "reason": str(reason or "external network unreachable")[:160],
+            "ts": now,
+            "expires_ts": now + max(60, min(int(ttl_sec or 180), 600)),
+        }
+        tmp = NET_DOWN_FLAG_FILE + f".{os.getpid()}.tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False)
+        os.replace(tmp, NET_DOWN_FLAG_FILE)
+    except Exception:
+        pass
+
+
+def is_external_network_down() -> Tuple[bool, str]:
+    """[M33] Return (True, reason) while external internet outage shield is active."""
+    if not os.path.exists(NET_DOWN_FLAG_FILE):
+        return False, ""
+    try:
+        with open(NET_DOWN_FLAG_FILE, "r", encoding="utf-8") as f:
+            doc = json.load(f)
+        if time.time() <= float(doc.get("expires_ts") or 0.0):
+            return True, str(doc.get("reason") or "external network down")
+        os.remove(NET_DOWN_FLAG_FILE)
+    except Exception:
+        try:
+            os.remove(NET_DOWN_FLAG_FILE)
+        except Exception:
+            pass
+    return False, ""
+
+
+def _load_discord_webhook() -> str:
+    try:
+        wh_file = os.path.join(BASE_8888, "discord_webhook.txt")
+        if os.path.exists(wh_file):
+            with open(wh_file, "r", encoding="utf-8") as f:
+                return f.read().strip()
+    except Exception:
+        pass
+    return ""
+
+
 def _send_telegram(msg: str) -> None:
     try:
         import urllib.request
@@ -926,6 +978,15 @@ def run_log_watchdog(
                 notify_discord=True,
             )
             return False
+
+        # [M33] External network outage shield: suppress mass false restarts for live bots hit by ISP drop
+        rlow = str(reason or "").lower()
+        if ("프로세스 중단" not in rlow) and ("cpu 폭주" not in rlow):
+            net_down, net_desc = is_external_network_down()
+            if net_down:
+                _jump_offsets_to_eof(bot_name)
+                log(f"[{bot_name}] 🌐 [M33 망 단절 실드] 외부망 단절 중 헛재기동 억제 ({net_desc} | {reason[:90]})")
+                return False
 
         tripped, same_cnt, sig = record_restart_attempt_and_check_breaker(bot_name, reason)
         if tripped:
