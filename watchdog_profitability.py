@@ -37,6 +37,7 @@ from watchdog_common import (  # noqa: E402
     load_proactive_alerts,
     record_proactive_alert,
     setup_clean_logger,
+    update_watchdog_heartbeat,
 )
 
 ACTIVE_BOTS = ["8401", "8402", "8403", "8404", "8405", "8407", "8408", "8409", "8410"]
@@ -561,6 +562,13 @@ def run_once():
         _log(f"📊 수명·임계치 점검 완료 (경고/제안 {len(all_alerts_summary)}봇): " + " | ".join(all_alerts_summary))
     else:
         _log("✅ 전 봇 수명·임계치 점검 완료 — 이상 없음")
+    try:
+        update_watchdog_heartbeat(
+            "watchdog_profitability",
+            {"bots": len(status_bots), "alerts": len(all_alerts_summary)},
+        )
+    except Exception:
+        pass
     return payload
 
 

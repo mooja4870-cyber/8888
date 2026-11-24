@@ -12,15 +12,20 @@ if BASE_8888 not in sys.path:
     sys.path.insert(0, BASE_8888)
 from watchdog_common import (
     bot_restart_locked,
-    record_proactive_alert,
     clear_proactive_alert,
+    is_maintenance_active,
+    load_proactive_alerts,
     prune_expired_proactive_alerts,
+    record_proactive_alert,
+    update_watchdog_heartbeat,
 )
 from core.autonomous_auditor import (
     check_stale_code_sync,
     check_log_fd_and_pid_lock_integrity,
     run_all_autonomous_audits,
 )
+from core.exchange_infra_auditor import run_exchange_infra_audit
+from core.portfolio_risk_auditor import run_portfolio_risk_audit
 
 _ENTRY_LOG = os.path.join(BASE_8888, "watchdog_entry.log")
 _stdout_redirected = False
@@ -214,11 +219,7 @@ def _record_and_count_entry_errors(bot_id: str, events: list, window_sec: int = 
 
 def audit_trade_reconciliation(b: int, cwd: str) -> None:
     """
-    [보스 특별 지침] 거래소 체결 내역 vs 로컬 장부(trade_history.csv) 4대 무결성 상시 감사:
-    1) 유령 포지션(Ghost) 사냥 및 오프라인 SL/TP 자동 청산
-    2) 고아 포지션(Orphan) 감지 및 추적 복원
-    3) 분할 익절(Scale-out Partial Exit) 합산 누락 자동 복원
-    4) 장부 괴리율(Ledger Drift Guard) 정밀 모니터링
+    [보스 특별 지침] 거래소 체결 내역 vs 로컬 장부(trade_history.csv) 4대 + Aegis V6(M15/M21/M23) 무결성 상시 감사
     """
     sentinel_script = "/Users/l/project/8888/bot_sentinel.py"
     if not os.path.exists(sentinel_script):
@@ -232,9 +233,9 @@ def audit_trade_reconciliation(b: int, cwd: str) -> None:
             text=True,
             timeout=25
         )
-        if res.returncode == 0 and res.stdout.strip():
+        data = None
+        if res.stdout.strip():
             lines = [l.strip() for l in res.stdout.strip().split("\n") if l.strip()]
-            data = None
             for l in reversed(lines):
                 if l.startswith("{") and l.endswith("}"):
                     try:
@@ -242,46 +243,153 @@ def audit_trade_reconciliation(b: int, cwd: str) -> None:
                         break
                     except Exception:
                         pass
-            if data:
-                actions = data.get("actions", [])
-                diff = data.get("balance_diff", 0.0)
-                unprot = data.get("unprotected_positions") or []
-                if unprot:
-                    logger.warning(f"[{b}] 🚨 [보호주문 누락] 실 포지션 보호주문 미감지: {unprot}")
-                    record_proactive_alert(
-                        str(b),
-                        "sentinel_unprotected_position",
-                        "CRITICAL",
-                        "실 포지션 보호주문(SL/TP) 누락 감지",
-                        f"대상 심볼: {', '.join(unprot)}",
-                        "거래소 OCO / STOP_MARKET 주문 존재 여부 즉시 점검 필요",
-                    )
-                else:
-                    clear_proactive_alert(str(b), "sentinel_unprotected_position")
 
-                loops = _track_sentinel_actions(str(b), actions)
-                if loops:
-                    loop_desc = ", ".join(f"{k}({cnt}회/30m)" for k, cnt in loops)
-                    logger.error(f"[{b}] 🔁 [자가치유 핑퐁 루프 감지] {loop_desc}")
-                    record_proactive_alert(
-                        str(b),
-                        "self_heal_loop",
-                        "CRITICAL",
-                        "자가치유 무한 반복(핑퐁 루프) 감지",
-                        loop_desc,
-                        "서로 다른 치유/집계 모듈 충돌 가능 — 즉시 점검 필요",
-                        cooldown_sec=3600,
-                        notify_discord=True,
-                    )
-                else:
-                    clear_proactive_alert(str(b), "self_heal_loop")
-
-                if actions:
-                    logger.warning(f"[{b}] 🛡 센티넬 감사 조치: {', '.join(actions)} (잔고괴리: ${diff:+.4f})")
-                else:
-                    logger.info(f"[{b}] 📋 체결 장부 4대 무결성 정상 (잔고괴리: ${diff:+.4f})")
+        if data and data.get("error"):
+            auth_err = str(data.get("auth_error") or "").strip()
+            if auth_err:
+                logger.error(f"[{b}] 🔐 [M23 인증 오류] {auth_err}")
+                record_proactive_alert(
+                    str(b), "sentinel_auth_error", "CRITICAL",
+                    "거래소 API 인증/IP/권한 오류", auth_err,
+                    "거래소 API 키 만료 및 서버 IP 화이트리스트 즉시 점검 필요",
+                    cooldown_sec=3600, notify_discord=True,
+                )
             else:
-                logger.info(f"[{b}] 📋 체결 장부 4대 무결성 점검 완료")
+                logger.warning(f"[{b}] ⚠️ 센티넬 초기화 오류: {data.get('error')}")
+            return
+
+        if res.returncode == 0 and data:
+            actions = data.get("actions", [])
+            diff = data.get("balance_diff", 0.0)
+            unprot = data.get("unprotected_positions") or []
+            prot_errs = data.get("protection_check_errors") or []
+            prot_mis = data.get("protection_mismatches") or []
+            liq_warns = data.get("liq_warnings") or []
+            mm_warns = data.get("margin_mode_warnings") or []
+            orphan_algos = data.get("orphan_algo_orders") or []
+            stale_oo = data.get("stale_open_orders") or []
+            dust_pos = data.get("dust_positions") or []
+            auth_err = str(data.get("auth_error") or "").strip()
+
+            if auth_err:
+                record_proactive_alert(
+                    str(b), "sentinel_auth_error", "CRITICAL",
+                    "거래소 API 인증/IP/권한 오류", auth_err,
+                    "거래소 API 키 및 IP 화이트리스트 즉시 점검 필요",
+                    cooldown_sec=3600, notify_discord=True,
+                )
+            else:
+                clear_proactive_alert(str(b), "sentinel_auth_error")
+
+            if unprot:
+                logger.warning(f"[{b}] 🚨 [보호주문 누락] 실 포지션 보호주문 미감지: {unprot}")
+                record_proactive_alert(
+                    str(b), "sentinel_unprotected_position", "CRITICAL",
+                    "실 포지션 보호주문(SL/TP) 누락 감지",
+                    f"대상 심볼: {', '.join(unprot)}",
+                    "거래소 OCO / STOP_MARKET 주문 존재 여부 즉시 점검 필요",
+                    cooldown_sec=1800, notify_discord=True,
+                )
+            else:
+                clear_proactive_alert(str(b), "sentinel_unprotected_position")
+
+            if prot_mis:
+                logger.warning(f"[{b}] 🚨 [M15 보호주문 불일치] {prot_mis}")
+                record_proactive_alert(
+                    str(b), "sentinel_protection_mismatch", "CRITICAL",
+                    "보호주문 수량·방향·청산가 내측 정합 이상",
+                    " | ".join(str(x) for x in prot_mis),
+                    "포지션 전량 보호 및 SL 가격이 청산가 안쪽에 있는지 즉시 확인 필요",
+                    cooldown_sec=1800, notify_discord=True,
+                )
+            else:
+                clear_proactive_alert(str(b), "sentinel_protection_mismatch")
+
+            if prot_errs:
+                logger.warning(f"[{b}] ⚠️ [결함수정: 보호주문 조회실패] {prot_errs}")
+                record_proactive_alert(
+                    str(b), "sentinel_protection_check_error", "WARN",
+                    "보호주문 API 조회 실패 (Fail-Open 차단)",
+                    " | ".join(f"{x.get('symbol')}:{x.get('error')}" for x in prot_errs),
+                    "보호주문 존재 확인 불가 — API 상태 점검 필요",
+                    cooldown_sec=1800, notify_discord=True,
+                )
+            else:
+                clear_proactive_alert(str(b), "sentinel_protection_check_error")
+
+            if liq_warns:
+                crit_liq = any(str(w.get("severity")) == "CRITICAL" for w in liq_warns)
+                desc = " | ".join(
+                    f"{w.get('symbol')}(dist={w.get('liq_dist_pct','?')}%, mgn={w.get('okx_mgn_ratio', w.get('bnc_margin_ratio', '?'))})"
+                    for w in liq_warns
+                )
+                logger.warning(f"[{b}] 🚨 [M15 청산거리/마진 경보] {desc}")
+                record_proactive_alert(
+                    str(b), "sentinel_liquidation_risk", "CRITICAL" if crit_liq else "WARN",
+                    "청산가 근접 / 유지마진 위험", desc,
+                    "강제청산 위험 구간 접근 — 증거금 추가 또는 비중 축소 승인 검토 필요",
+                    cooldown_sec=1800 if crit_liq else 3600, notify_discord=True,
+                )
+            else:
+                clear_proactive_alert(str(b), "sentinel_liquidation_risk")
+
+            if mm_warns:
+                desc = " | ".join(f"{w.get('symbol')}(설정={w.get('expected')}, 실제={w.get('actual')})" for w in mm_warns)
+                record_proactive_alert(
+                    str(b), "sentinel_margin_mode_drift", "WARN",
+                    "마진 모드 이탈(Cross vs Isolated) 감지", desc,
+                    "거래소 포지션 마진 모드 확인 필요", cooldown_sec=3600, notify_discord=True,
+                )
+            else:
+                clear_proactive_alert(str(b), "sentinel_margin_mode_drift")
+
+            if orphan_algos:
+                desc = ", ".join(f"{x.get('instId')}({x.get('ordType')})" for x in orphan_algos[:5])
+                record_proactive_alert(
+                    str(b), "sentinel_orphan_algo", "WARN",
+                    f"무포지션 고아 알고주문 {len(orphan_algos)}건 잔류", desc,
+                    "청산 후 잔여 OCO/조건부 주문 확인 및 정리 권고", cooldown_sec=3600, notify_discord=True,
+                )
+            else:
+                clear_proactive_alert(str(b), "sentinel_orphan_algo")
+
+            if stale_oo:
+                desc = ", ".join(f"{x.get('symbol')}({x.get('age_min')}m)" for x in stale_oo[:5])
+                record_proactive_alert(
+                    str(b), "sentinel_stale_open_order", "WARN",
+                    f"장기 방치 미체결 지정가 {len(stale_oo)}건", desc,
+                    "10분 이상 미체결 주문의 증거금 점유 확인 권고", cooldown_sec=3600, notify_discord=True,
+                )
+            else:
+                clear_proactive_alert(str(b), "sentinel_stale_open_order")
+
+            if dust_pos:
+                desc = ", ".join(f"{x.get('symbol')}(${x.get('notional_usdt')})" for x in dust_pos[:5])
+                record_proactive_alert(
+                    str(b), "sentinel_dust_position", "WARN",
+                    f"미세 잔고(Dust) 포지션 {len(dust_pos)}건", desc,
+                    "최소주문금액 미만 잔고 정리 검토 권고", cooldown_sec=21600, notify_discord=True,
+                )
+            else:
+                clear_proactive_alert(str(b), "sentinel_dust_position")
+
+            loops = _track_sentinel_actions(str(b), actions)
+            if loops:
+                loop_desc = ", ".join(f"{k}({cnt}회/30m)" for k, cnt in loops)
+                logger.error(f"[{b}] 🔁 [자가치유 핑퐁 루프 감지] {loop_desc}")
+                record_proactive_alert(
+                    str(b), "self_heal_loop", "CRITICAL",
+                    "자가치유 무한 반복(핑퐁 루프) 감지", loop_desc,
+                    "서로 다른 치유/집계 모듈 충돌 가능 — 즉시 점검 필요",
+                    cooldown_sec=3600, notify_discord=True,
+                )
+            else:
+                clear_proactive_alert(str(b), "self_heal_loop")
+
+            if actions:
+                logger.warning(f"[{b}] 🛡 센티넬 감사 조치: {', '.join(actions)} (잔고괴리: ${diff:+.4f})")
+            else:
+                logger.info(f"[{b}] 📋 체결 장부·보호·청산거리 무결성 정상 (잔고괴리: ${diff:+.4f})")
         else:
             err = res.stderr.strip()[:100] if res.stderr else "unknown"
             logger.debug(f"[{b}] 센티넬 감사 경미한 오류: {err}")
@@ -577,23 +685,28 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
     allow_hot_restart_with_pos = False
     action_taken = []
     
-    # [Foolproof 방지책] AUTO_TRADING이 강제로 꺼져(false) 죽은 것처럼 보이는 현상 원천 차단
+    # [결함#3 수정 / 원칙 준수] AUTO_TRADING=False 감지 시 config.json 임의 덮어쓰기 차단 → 경보 전용 전환
     cfg_file = os.path.join(cwd, "config.json")
     if os.path.exists(cfg_file):
         try:
             with open(cfg_file, "r", encoding="utf-8") as f:
                 cfg = json.load(f)
             if not cfg.get("AUTO_TRADING", True):
-                logger.warning(f"[{b}] 🚨 AUTO_TRADING 꺼짐 감지 (수동 정지/비정상 상태) -> 강제 ON 복구 진행")
-                cfg["AUTO_TRADING"] = True
-                with open(cfg_file, "w", encoding="utf-8") as f:
-                    json.dump(cfg, f, indent=4, ensure_ascii=False)
-                
-                alert_msg = f"🚨 **[Foolproof 발동: {b}]**\\n봇이 비정상적으로 '자동매매 OFF(노란색)' 상태에 빠져 신규 진입이 차단되어 있었습니다.\\n-> 🟢 강제로 **자동매매 ON** 상태로 즉시 복구했습니다."
-                py_cmd = f"import sys; sys.path.insert(0, '{cwd}'); import core.alert as alert; alert.send_telegram_alert('{alert_msg}')"
-                subprocess.run(["python3", "-c", py_cmd], cwd=cwd)
+                logger.warning(f"[{b}] 🚨 AUTO_TRADING=False 감지 (자동매매 꺼짐) — config.json 임의 수정 차단, 긴급 경보 발송")
+                record_proactive_alert(
+                    str(b),
+                    "auto_trading_off",
+                    "CRITICAL",
+                    "자동매매 스위치 OFF 감지",
+                    "config.json AUTO_TRADING=False 상태 (신규 진입 중단)",
+                    "보스 의도적 OFF가 아니라면 UI 또는 승인 후 ON 전환 검토 필요",
+                    cooldown_sec=7200,
+                    notify_discord=True,
+                )
+            else:
+                clear_proactive_alert(str(b), "auto_trading_off")
         except Exception as e:
-            logger.error(f"[{b}] ⚠️ Foolproof AUTO_TRADING 검사 중 오류: {e}")
+            logger.error(f"[{b}] ⚠️ AUTO_TRADING 상태 점검 중 오류: {e}")
     
     # [33대 자체점검 수행]
     if do_audit_33:
@@ -628,10 +741,14 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
         try:
             stale_code, stale_reason = check_stale_code_sync(b, cwd)
             if stale_code:
-                logger.warning(f"[{b}] 🔄 [AI 자율감사 M1] {stale_reason} → 포지션 보존 안전 핫리로드 트리거")
-                needs_restart = True
-                allow_hot_restart_with_pos = True
-                action_taken.append(stale_reason)
+                maint_on, maint_desc = is_maintenance_active()
+                if maint_on:
+                    logger.info(f"[{b}] 🛠️ [정비 윈도우 활성] {stale_reason} → M1 자동 핫리로드 유예 ({maint_desc})")
+                else:
+                    logger.warning(f"[{b}] 🔄 [AI 자율감사 M1] {stale_reason} → 포지션 보존 안전 핫리로드 트리거")
+                    needs_restart = True
+                    allow_hot_restart_with_pos = True
+                    action_taken.append(stale_reason)
             fd_issue, fd_reason, fd_restart = check_log_fd_and_pid_lock_integrity(b, cwd)
             if fd_issue and fd_restart:
                 logger.warning(f"[{b}] 🔄 [AI 자율감사 M6] {fd_reason}")
@@ -850,13 +967,87 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
             except Exception as e:
                 logger.error(f"[{b}] 체결 장부 무결성 감사 중 예외: {e}")
 
+_AEGIS_DOMAIN_PREFIXES = ("infra_", "portfolio_", "tca_", "alpha_", "market_regime_")
+
+
+def _sync_aegis_alerts(alerts: list) -> None:
+    """Sync M16~M24 global/per-bot alerts and auto-clear any previously active resolved keys."""
+    detected = set()
+    for a in (alerts or []):
+        bid = str(a.get("bot_id") or "8888")
+        akey = str(a.get("key") or "")
+        if not akey:
+            continue
+        detected.add((bid, akey))
+        sev = str(a.get("severity") or "WARN").upper()
+        cd = 1800 if sev == "CRITICAL" else 14400
+        record_proactive_alert(
+            bid,
+            akey,
+            sev,
+            str(a.get("title") or akey),
+            str(a.get("details") or ""),
+            str(a.get("recommendation") or ""),
+            cooldown_sec=cd,
+            notify_discord=True,
+        )
+
+    try:
+        active = (load_proactive_alerts().get("active") or {})
+        for k, entry in list(active.items()):
+            bid = str((entry or {}).get("bot_id") or "")
+            akey = str((entry or {}).get("alert_key") or "")
+            if akey.startswith(_AEGIS_DOMAIN_PREFIXES) and (bid, akey) not in detected:
+                clear_proactive_alert(bid, akey)
+    except Exception:
+        pass
+
+
+def _run_aegis_v6_global_audit(cycle: int) -> None:
+    """Execute Aegis V6 global modules (M16~M26): Exchange/Infra + Portfolio/Alpha/Scorecard."""
+    include_listings = (cycle == 1) or (cycle % 15 == 0)
+    try:
+        infra_res = run_exchange_infra_audit(BOT_LIST, include_listings=include_listings)
+    except Exception as e:
+        logger.error(f"🚨 [Aegis V6 Infra] 감사 예외: {e}")
+        infra_res = {"alerts": [], "summary": {}}
+
+    try:
+        port_res = run_portfolio_risk_audit(
+            BOT_LIST,
+            infra_summary=infra_res.get("summary"),
+            send_daily_briefing=True,
+        )
+    except Exception as e:
+        logger.error(f"🚨 [Aegis V6 Portfolio] 감사 예외: {e}")
+        port_res = {"alerts": [], "scorecard": {}}
+
+    combined_alerts = (infra_res.get("alerts") or []) + (port_res.get("alerts") or [])
+    _sync_aegis_alerts(combined_alerts)
+
+    sc = port_res.get("scorecard") or {}
+    m16 = ((port_res.get("summary") or {}).get("m16_exposure") or {})
+    m24 = ((infra_res.get("summary") or {}).get("m24_host_resources") or {})
+    rot = m24.get("rotated_logs") or []
+    rot_txt = f" | 로그로테이션:{','.join(rot)}" if rot else ""
+    logger.info(
+        f"🛡️ [Aegis V6 종합점검] 스코어 {sc.get('score', '?')}/100 ({sc.get('grade', '?')}) | "
+        f"노출 ${m16.get('gross_notional', 0):.2f} (Net ${m16.get('net_notional', 0):+.2f}, {m16.get('total_positions', 0)}포) | "
+        f"신규경보 {len(combined_alerts)}건 | 디스크 {m24.get('disk_used_pct', '?')}%{rot_txt}"
+    )
+
+
 def main():
     logger.info("==========================================")
-    logger.info("🐶 Watchdog System Started (Profitability Guard Active)")
+    logger.info("🐶 Watchdog System Started (Aegis V6 + Profitability Guard Active)")
     logger.info("==========================================")
     cycle = 0
     while True:
         cycle += 1
+        try:
+            update_watchdog_heartbeat("watchdog_entry", {"cycle": cycle, "phase": "start"})
+        except Exception:
+            pass
         do_config_check = (cycle % CONFIG_CHECK_CYCLES == 1) or (CONFIG_CHECK_CYCLES == 1)
         do_flat_check = (cycle % FLAT_BOT_CHECK_CYCLES == 0) or (cycle == 1)
         do_audit_33 = (cycle % AUDIT_33_CYCLES == 0)
@@ -876,7 +1067,14 @@ def main():
                 check_and_fix_bot(bot, do_config_check=do_config_check, do_flat_check=do_flat_check, do_audit_33=do_audit_33)
             except Exception as e:
                 logger.error(f"[{bot}] 워치독 순찰 중 치명적 오류: {e}")
-        
+
+        if do_flat_check:
+            _run_aegis_v6_global_audit(cycle)
+
+        try:
+            update_watchdog_heartbeat("watchdog_entry", {"cycle": cycle, "phase": "done"})
+        except Exception:
+            pass
         logger.info(f"순찰 완료. {HEALTH_CHECK_SEC}초 후 다음 순찰 진행...")
         time.sleep(HEALTH_CHECK_SEC)
 

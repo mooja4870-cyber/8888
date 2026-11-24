@@ -1,5 +1,49 @@
 # Version History
 
+## v1.9.0
+
+Date: 2026-11-24
+
+### 변경 내용
+
+* **차세대 최첨단 자율 워치독 "Aegis V6" (M15~M26) 일괄 구축 및 기존 숨은 결함 4건 근본 보완 (`8888` 한정, 개별 봇 소스/설정 무수정)**:
+  * **기존 워치독 내부 숨은 결함 4건 수정**:
+    - `bot_sentinel.py`: 보호주문 API 조회 예외 시 `has_prot=True`로 은폐하던 **Fail-Open 결함 차단**(`protection_check_errors` 분리)
+    - `bot_sentinel.py`: Binance만 지원하던 무포지션 고아 알고주문 감시를 **OKX(`oco`/`conditional`) 무포지션 고아 알고주문 감지**(`orphan_algo_orders`)까지 확장(보호 봇 임의 취소 금지 원칙 준수)
+    - `core/audit_33.py` & `watchdog_entry.py`: `AUTO_TRADING=False` 감지 시 `config.json`을 임의 덮어쓰기하던 동작 제거 → **`auto_trading_off` CRITICAL 경보 전용**으로 전환
+    - `watchdog_common.py` (`rotate_log_copytruncate`): `O_APPEND`·리다이렉트 FD 단절 없이 10MB 상한/3세대 안전 로테이션 도입 (`watchdog_entry.log` 165MB, `app.log` 29MB, `streamlit_8888.log` 37MB 즉시 정리)
+  * **신규 P0 치명 리스크·계좌 생존 방어 5대 모듈 (M15~M19)**:
+    - **M15 (`bot_sentinel.py`)**: 포지션별 **청산거리(`abs(Mark-Liq)/Mark`) · 유지마진비율(OKX `mgnRatio`, Binance `marginRatio`) · 마진모드 이탈(`isolated` vs `cross`) · 보호주문 수량/방향/`SL↔청산가` 내측 정합성** 정밀 대조
+    - **M16 (`core/portfolio_risk_auditor.py`)**: 전 9개 봇 합산 **Gross/Net 순노출, 동일 종목·방향 쏠림(`≥3`/`≥5`봇), 24시간 합산 자산 급락(`-5%/-10%`)** 포트폴리오 리스크 감시
+    - **M17 (`core/exchange_infra_auditor.py`)**: **OKX `system/status` 거래 점검(`serviceType` 카피트레이딩 오탐 필터링)**, **상장폐지·계약 만기·최대 레버리지 하향·계약 규격 변경** 선제 감시
+    - **M18 (`core/exchange_infra_auditor.py`)**: **OKX·Binance 서버 시각 대비 `clock_drift` / `RTT` / 5분 내 `429 RateLimit` 스파이크** 계측 (Binance `+1000ms` 선행 거부 방어형 임계치 적용)
+    - **M19 (`watchdog_common.py`, `watchdog_keeper.sh`, `watchdog_profitability.py`)**: **Dead-Man's Switch**(4대 워치독 하트비트 침묵 시 강제 회수 후 부활 + Telegram/Discord CRITICAL) 및 **최대 600초 자동만료 TTL 정비 락** 신설
+  * **신규 P1·P2 체결·펀딩·알파·관측성 7대 모듈 (M20~M26)**:
+    - **M20 (`core/exchange_infra_auditor.py`)**: 보유 포지션 불리 **펀딩비(`≥0.05%`/`≥0.12%`) 및 단축 정산주기 출혈** 추적
+    - **M21 (`bot_sentinel.py`, `core/portfolio_risk_auditor.py`)**: **실체결 왕복 비용(`bps`) vs 백테스트 기준 대비 TCA 분석**, 10분+ 장기 방치 미체결 지정가 주문, `$1` 미만 Dust 포지션 탐지
+    - **M22 (`core/portfolio_risk_auditor.py`)**: **최근 30건 롤링 승률 Z-score & Profit Factor 조기 알파 감쇠 탐지** + **BTC 1h 변동성 레짐 급변 쇼크** 감시
+    - **M23 (`watchdog_common.py`, `bot_sentinel.py`, `core/exchange_infra_auditor.py`)**: API 인증/IP/권한 오류(`-2015`, `50111`, `50113`, `401/403`) 전용 `CRITICAL` 분류 및 `api_key_meta.json` 만료일 카운트다운 지원
+    - **M24 (`core/exchange_infra_auditor.py`)**: 디스크 사용률(`>85%/92%`), RSS 메모리(`>500/900MB`), 열린 FD(`>1024`), 10분+ 장기 상주 보조 스크립트 감시 및 `8888` 로그 전수 로테이션
+    - **M25 (`watchdog_common.py`)**: **`INFO`/`WARN`/`CRITICAL` 심각도별 통합 라우팅**, `curl`/TLS 안전 `_send_telegram`·`http_get_json` 폴백, **미해소 CRITICAL 2시간 주기 재에스컬레이션(최대 6회)** 구현
+    - **M26 (`core/portfolio_risk_auditor.py`)**: **0~100점 통합 건강 스코어카드 (`data/watchdog_scorecard.json`)** 상시 산출 및 매일 KST `08:00` 일일 브리핑(Discord+Telegram) 연동
+
+### 수정 파일
+
+* watchdog_common.py
+* watchdog_entry.py
+* watchdog_profitability.py
+* watchdog_keeper.sh
+* bot_sentinel.py
+* core/audit_33.py
+* core/exchange_infra_auditor.py
+* core/portfolio_risk_auditor.py
+* ver.md
+
+### 비고
+
+* 개별 봇(`8401~8410`) 코드/설정 수정 0건, 4대 워치독 재기동·하트비트·Aegis V6 실데이터 점검 및 `verify_all.py` 100% PASS 확인
+
+
 ## v1.7.25
 
 Date: 2026-11-24

@@ -105,28 +105,15 @@ def run_33_point_audit(bot_id: int, cwd: str) -> list:
         if s.connect_ex(('127.0.0.1', bot_id)) != 0:
             anomalies.append(f"UI 대시보드 포트 응답 없음 (E28)")
             
-    # 4. Config 검증 및 자가 교정
+    # 4. Config 검증 (읽기 전용: 임의 config.json 덮어쓰기 원천 차단, AUTO_TRADING=False 경보는 watchdog_entry.py 전담)
     if os.path.exists(conf_file):
         try:
             with open(conf_file, "r") as f:
                 conf = json.load(f)
-                
-            config_changed = False
-            
-            # AUTO_TRADING 꺼짐 감지 및 강제 교정
-            if conf.get("AUTO_TRADING") is False:
-                anomalies.append("AUTO_TRADING 꺼짐 (자동매매 불가 상태) -> 강제 ON 교정")
-                conf["AUTO_TRADING"] = True
-                config_changed = True
-                
             # 자산배분(복리) 오버헤드 감지
             if conf.get("EQUITY_SCALE_FACTOR", 1.0) > 1.0:
                 anomalies.append("자산배분(복리) 1.0 오버헤드 초과 (D22)")
-                
-            if config_changed:
-                with open(conf_file, "w") as f:
-                    json.dump(conf, f, indent=4)
-        except Exception as e:
+        except Exception:
             pass
 
     # 5. 장부(stats.json) 좀비 쿨다운 모순 상태 검증 및 자가 복구

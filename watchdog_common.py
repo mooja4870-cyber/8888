@@ -26,6 +26,10 @@ RESTART_STATE_FILE = "/tmp/watchdog_restart_state.json"
 RESTART_STATE_LOCK = "/tmp/watchdog_restart_state.lock"
 PROACTIVE_ALERTS_FILE = os.path.join(BASE_8888, "data", "proactive_alerts.json")
 PROACTIVE_ALERTS_LOCK = "/tmp/watchdog_proactive_alerts.lock"
+HEARTBEAT_FILE = os.path.join(BASE_8888, "data", "watchdog_heartbeat.json")
+HEARTBEAT_LOCK = "/tmp/watchdog_heartbeat.lock"
+MAINTENANCE_FLAG_FILE = "/tmp/watchdog_maintenance.json"
+MAX_MAINTENANCE_TTL_SEC = 600
 
 _ALNUM_RE = re.compile(r"[^a-z0-9가-힣]")
 _LOG_LOCK = threading.Lock()
@@ -82,13 +86,21 @@ TRANSIENT_HINTS = (
     "timestamp ahead error detected",
 )
 
-# Structural / exchange parameter errors that restarting the bot cannot fix
+# Structural / exchange parameter or auth/IP errors that restarting the bot cannot fix
 NON_RESTART_STRUCTURAL_HINTS = (
     "-4164",
     "order's notional must be no smaller than",
     "-4067",
     "position side cannot be changed",
     "마진모드 설정 실패",
+    "-2015",
+    "50111",
+    "50113",
+    "invalid api-key",
+    "ip not in whitelist",
+    "api-key format invalid",
+    "api key expired",
+    "permission denied",
 )
 
 _CIRCUIT_EXEMPT_PREFIXES = ("프로세스 중단", "cpu 폭주", "silent crash", "좀비")
@@ -405,6 +417,138 @@ def _load_telegram_creds() -> Tuple[str, str]:
     return token, chat_id
 
 
+def _build_ssl_context():
+    try:
+        import ssl
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        return None
+
+
+def http_get_json(url: str, timeout: float = 6.0):
+    """Fetch JSON over HTTPS with certifi SSL fallback + curl fallback for macOS Python runtimes."""
+    import urllib.request
+
+    ctx = _build_ssl_context()
+    req = urllib.request.Request(url, headers={"User-Agent": "8888-AegisWatchdog/6.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+            return json.loads(raw), ""
+    except Exception as ur_err:
+        try:
+            raw = subprocess.check_output(
+                ["curl", "-sS", "--max-time", str(int(max(2, round(timeout)))), url],
+                text=True,
+                stderr=subprocess.PIPE,
+                timeout=timeout + 2,
+            )
+            if raw and raw.strip():
+                return json.loads(raw), ""
+            return None, f"empty curl response ({ur_err})"
+        except Exception as c_err:
+            return None, f"{ur_err} | curl: {c_err}"
+
+
+def rotate_log_copytruncate(log_file: str, max_bytes: int = 10 * 1024 * 1024, keep: int = 3) -> bool:
+    """Safely rotate O_APPEND / stdout-redirected logs without breaking open file descriptors."""
+    try:
+        if not log_file or not os.path.exists(log_file):
+            return False
+        if os.path.getsize(log_file) <= max_bytes:
+            return False
+        import shutil
+        for idx in range(keep, 1, -1):
+            src = f"{log_file}.{idx - 1}"
+            dst = f"{log_file}.{idx}"
+            if os.path.exists(src):
+                os.replace(src, dst)
+        shutil.copy2(log_file, f"{log_file}.1")
+        with open(log_file, "r+", encoding="utf-8", errors="ignore") as f:
+            f.truncate(0)
+        return True
+    except Exception:
+        return False
+
+
+def update_watchdog_heartbeat(role_name: str, extra: Optional[dict] = None) -> None:
+    """[M19 Dead-Man's Switch] Persist periodic daemon heartbeat lease under flock."""
+    os.makedirs(os.path.dirname(HEARTBEAT_FILE), exist_ok=True)
+    now = time.time()
+    now_str = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(HEARTBEAT_LOCK, "w") as lf:
+        fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
+        try:
+            doc = {"heartbeats": {}, "updated": now_str}
+            if os.path.exists(HEARTBEAT_FILE):
+                try:
+                    with open(HEARTBEAT_FILE, "r", encoding="utf-8") as f:
+                        loaded = json.load(f)
+                        if isinstance(loaded, dict):
+                            doc = loaded
+                except Exception:
+                    pass
+            doc.setdefault("heartbeats", {})[str(role_name)] = {
+                "pid": os.getpid(),
+                "ts": now,
+                "ts_str": now_str,
+                "extra": extra or {},
+            }
+            doc["updated"] = now_str
+            tmp = HEARTBEAT_FILE + f".{os.getpid()}.tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(doc, f, indent=2, ensure_ascii=False)
+            os.replace(tmp, HEARTBEAT_FILE)
+        finally:
+            fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
+
+
+def set_maintenance_window(ttl_sec: int = 300, reason: str = "") -> dict:
+    """[M19] Activate auto-expiring maintenance window (clamped <= MAX_MAINTENANCE_TTL_SEC=600s)."""
+    ttl = max(30, min(int(ttl_sec or 300), MAX_MAINTENANCE_TTL_SEC))
+    now = time.time()
+    payload = {
+        "created_ts": now,
+        "expires_ts": now + ttl,
+        "ttl_sec": ttl,
+        "reason": str(reason or "manual maintenance")[:160],
+        "expires_at": dt.datetime.fromtimestamp(now + ttl).strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    tmp = MAINTENANCE_FLAG_FILE + f".{os.getpid()}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, ensure_ascii=False)
+    os.replace(tmp, MAINTENANCE_FLAG_FILE)
+    return payload
+
+
+def clear_maintenance_window() -> bool:
+    try:
+        if os.path.exists(MAINTENANCE_FLAG_FILE):
+            os.remove(MAINTENANCE_FLAG_FILE)
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def is_maintenance_active() -> Tuple[bool, str]:
+    """Return (active, reason); automatically deletes expired maintenance lock."""
+    if not os.path.exists(MAINTENANCE_FLAG_FILE):
+        return False, ""
+    try:
+        with open(MAINTENANCE_FLAG_FILE, "r", encoding="utf-8") as f:
+            doc = json.load(f)
+        exp = float(doc.get("expires_ts") or 0.0)
+        if time.time() <= exp:
+            rem = int(exp - time.time())
+            return True, f"{doc.get('reason', 'maintenance')} (남은 {rem}s)"
+        clear_maintenance_window()
+    except Exception:
+        clear_maintenance_window()
+    return False, ""
+
+
 def _send_telegram(msg: str) -> None:
     try:
         import urllib.request
@@ -412,15 +556,28 @@ def _send_telegram(msg: str) -> None:
         if not token or not chat_id:
             return
         url = f"https://api.telegram.org/bot{token}/sendMessage"
-        payload = json.dumps({"chat_id": chat_id, "text": msg}).encode("utf-8")
+        raw_payload = json.dumps({"chat_id": chat_id, "text": msg}).encode("utf-8")
         req = urllib.request.Request(
             url,
-            data=payload,
+            data=raw_payload,
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=5):
-            pass
+        try:
+            with urllib.request.urlopen(req, timeout=5, context=_build_ssl_context()):
+                return
+        except Exception:
+            subprocess.run(
+                [
+                    "curl", "-sS", "--max-time", "5", "-X", "POST",
+                    "-H", "Content-Type: application/json",
+                    "-d", raw_payload.decode("utf-8"),
+                    url,
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=7,
+            )
     except Exception:
         pass
 
@@ -441,7 +598,7 @@ def load_proactive_alerts() -> dict:
 
 
 def _save_proactive_alerts_unlocked(data: dict) -> None:
-    tmp = PROACTIVE_ALERTS_FILE + ".tmp"
+    tmp = PROACTIVE_ALERTS_FILE + f".{os.getpid()}.tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     os.replace(tmp, PROACTIVE_ALERTS_FILE)
@@ -456,16 +613,23 @@ def record_proactive_alert(
     recommendation: str = "",
     cooldown_sec: int = 21600,
     notify_discord: bool = True,
+    escalation_sec: int = 7200,
 ) -> bool:
     """
-    Record an active threshold/lifecycle breach for dashboard rendering + deduplicated Discord alert.
-    Never modifies bot configs or strategies autonomously; always proposes action for Boss approval.
+    [M25 Unified Routing]
+    Record an active threshold/lifecycle breach for dashboard rendering + severity-routed alerts:
+      - INFO: local registry only (no external spam unless explicitly requested)
+      - WARN: Discord alert respecting cooldown_sec
+      - CRITICAL: Discord + Telegram simultaneously, plus 2h unresolved re-escalation (up to 6x)
     """
     os.makedirs(os.path.dirname(PROACTIVE_ALERTS_FILE), exist_ok=True)
     key = f"{bot_id}:{alert_key}"
+    sev = str(severity or "WARN").upper()
     now = time.time()
     now_str = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     should_notify = False
+    is_escalation = False
+    esc_count = 0
 
     with open(PROACTIVE_ALERTS_LOCK, "w") as lf:
         fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
@@ -474,19 +638,36 @@ def record_proactive_alert(
             prev = data["active"].get(key) or {}
             last_notified = float(prev.get("last_notified_ts") or 0.0)
             first_seen = prev.get("first_seen") or now_str
-            should_notify = notify_discord and ((now - last_notified) >= cooldown_sec)
+            esc_count = int(prev.get("escalation_count") or 0)
+
+            allow_ext = notify_discord and (sev != "INFO")
+            cooldown_due = allow_ext and ((now - last_notified) >= cooldown_sec)
+            escalation_due = (
+                allow_ext
+                and sev == "CRITICAL"
+                and last_notified > 0
+                and ((now - last_notified) >= escalation_sec)
+                and esc_count < 6
+            )
+            should_notify = cooldown_due or escalation_due
+            if escalation_due and not cooldown_due:
+                is_escalation = True
+                esc_count += 1
+            elif cooldown_due and last_notified == 0:
+                esc_count = 0
 
             entry = {
                 "key": key,
                 "bot_id": str(bot_id),
                 "alert_key": alert_key,
-                "severity": severity,  # "CRITICAL" | "WARN" | "INFO"
+                "severity": sev,
                 "title": title,
                 "details": details,
                 "recommendation": recommendation,
                 "first_seen": first_seen,
                 "last_seen": now_str,
                 "last_notified_ts": now if should_notify else last_notified,
+                "escalation_count": esc_count,
             }
             data["active"][key] = entry
             data["updated"] = now_str
@@ -494,27 +675,30 @@ def record_proactive_alert(
                 data["history"].append({
                     "ts": now_str,
                     "bot_id": str(bot_id),
-                    "severity": severity,
+                    "severity": sev,
                     "title": title,
                     "details": details,
                     "recommendation": recommendation,
+                    "escalated": is_escalation,
                 })
-                data["history"] = data["history"][-100:]
+                data["history"] = data["history"][-150:]
             _save_proactive_alerts_unlocked(data)
         finally:
             fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
 
     if should_notify:
-        icon = "🚨" if severity == "CRITICAL" else "⚠️"
+        icon = "🚨" if sev == "CRITICAL" else "⚠️"
+        esc_tag = f"[미해소 에스컬레이션 #{esc_count}] " if is_escalation else ""
+        target_label = "중앙 관제(8888)" if str(bot_id) == "8888" else f"{bot_id}봇"
         msg = (
-            f"{icon} **[8888 선제 임계치 경보 / {bot_id}봇]** `{title}`\n"
+            f"{icon} **[{esc_tag}8888 선제 경보 / {target_label}]** `{title}`\n"
             f"• 관측 수치: {details}\n"
         )
         if recommendation:
             msg += f"• 권고 조치 (보스 승인 대기): {recommendation}\n"
         msg += "• 원칙: 승인 없는 전략·설정 자동 변경 차단 상태"
         _send_discord(msg)
-        if severity == "CRITICAL":
+        if sev == "CRITICAL":
             _send_telegram(msg)
     return should_notify
 
@@ -617,15 +801,9 @@ def run_log_watchdog(
     def _post_tag(msg: str) -> None:
         _send_discord(f"🚨 [{alert_tag}] {msg}")
 
-    # Log rotation check without colliding on active stdout redirect
+    # Log rotation check without breaking O_APPEND / stdout-redirected file descriptors
     def _maybe_rotate() -> None:
-        try:
-            if os.path.exists(log_file) and os.path.getsize(log_file) > max_log_size:
-                if os.path.exists(log_file + ".bak"):
-                    os.remove(log_file + ".bak")
-                os.rename(log_file, log_file + ".bak")
-        except Exception:
-            pass
+        rotate_log_copytruncate(log_file, max_bytes=max(max_log_size, 10 * 1024 * 1024), keep=3)
 
     log(f"{banner} (matched_sigs={matcher.keyword_count})")
     _post_tag(startup_notice)
@@ -817,6 +995,8 @@ def run_log_watchdog(
                     if _handle_issue(b, msg, fatal=fatal):
                         restarted = True
                         time.sleep(5)
+
+            update_watchdog_heartbeat(role_name, {"bots": len(bots)})
 
             if not restarted:
                 time.sleep(check_interval)
