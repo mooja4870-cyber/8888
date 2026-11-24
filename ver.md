@@ -1,5 +1,25 @@
 # Version History
 
+## v1.7.24
+
+Date: 2026-11-24
+
+### 변경 내용
+
+* **그룹 B (`8404 v2.3.6` · `8408 v12.3.4` · `8410 v3.0.2`) 2차 최종 승인 반영 — 트레일링/BE 유령 상태 자폭 청산 근절 및 `8404` 보호주문 재무장 폴백 완료**:
+  * `8404` (`v2.3.6`), `8408` (`v12.3.4`), `8410` (`v3.0.2`) 모두 `PositionManager.clear_symbol_state()`, `QuantumEngine.clear_symbol_runtime_state()`, `load_engine_states()` 논리 반전 수정, 신규 진입 선행 초기화, `_prune_stale_symbols()` 및 `engine_states.json` 유령 오염키(28건) 정화 완료
+  * `8404` `core/exchange.py`: `rearm_position_protection()` 재무장 전 기존 충돌 알고주문 선행 취소 및 OCO 실패 시 SL 단독(`conditional`) 긴급 폴백 보강
+  * `proactive_alerts.json`: `8404/8408/8410` `ai_engine_states_pollution` 오염 경보 해제 및 `8404/8408/8410` M1/M6/M14 전수 정상 확인
+
+### 수정 파일
+
+* ver.md (중앙 관제 이력 동기화: `8404 v2.3.6`, `8408 v12.3.4`, `8410 v3.0.2`)
+
+### 비고
+
+* 그룹 B 안전 재기동, `bot_sentinel`, UI HTTP 200 및 `/Users/l/project/8888/verify_all.py` 100% PASS 확인
+* 그룹 C(`8401, 8402, 8403, 8405` 5단계 승인 중 3단계 리스크 분석 대기) 분리 보호 유지
+
 ## v1.7.23
 
 Date: 2026-11-24
