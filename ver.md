@@ -1,5 +1,23 @@
 # Version History
 
+## v1.10.2
+
+Date: 2026-11-27
+
+### 변경 내용
+
+* **`8404` (`v2.3.7`) · `8408` (`v12.3.5`) 1번 개선(자동 순↔역 스위칭 해제 · 순방향 고정) 관제 이력 동기화**:
+  * 양 봇 `config.json`의 `USE_AUTO_MODE_SWITCH: false`, `DASHBOARD_META.auto_switch: false` 반영에 따른 `8888` 중앙 관제소 연동(`use_auto_mode_switch: False`, `USE_BLUEFROG: False`) 검증 완료
+
+### 수정 파일
+
+* ver.md
+
+### 비고
+
+* `8404` / `8408` 2차 승인 배포 및 전 봇 `verify_all.py` 100% PASS 확인
+
+
 ## v1.10.1
 
 Date: 2026-11-26
