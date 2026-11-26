@@ -167,8 +167,18 @@ def _save_json_atomic(path: str, data: dict) -> None:
     os.replace(tmp, path)
 
 
-def _track_sentinel_actions(bot_id: str, actions: list, window_sec: int = 1800) -> list:
-    """Record sentinel actions and return (bucket, count) pairs repeating >=3x within 30m."""
+def _track_sentinel_actions(
+    bot_id: str,
+    actions: list,
+    restored_trade_ids: list = None,
+    window_sec: int = 1800,
+) -> tuple:
+    """
+    Record sentinel actions and return (active_loops, triggered_now).
+    - Same trade_id restored >=2x within 30m -> real ping-pong conflict
+    - Real collision buckets (유령 포지션 정리, 고아 포지션 복원, 전적 장부 동기화 등) >=3x/30m -> real conflict
+    - Distinct normal trade restorations tracked in '누락 체결 대량 반복 복원' with high threshold (>=10x/30m)
+    """
     now = time.time()
     hist = _load_json_safe(_SENTINEL_HIST_FILE, {})
     bhist = hist.get(bot_id)
@@ -176,24 +186,65 @@ def _track_sentinel_actions(bot_id: str, actions: list, window_sec: int = 1800) 
         bhist = {}
 
     pruned = {}
-    for k, ts_list in bhist.items():
-        if isinstance(ts_list, list):
-            kept = [float(t) for t in ts_list if (now - float(t or 0.0)) <= window_sec]
+    pruned_tids = {}
+    for k, val in bhist.items():
+        if k == "_restored_trade_ids" and isinstance(val, dict):
+            for tid, ts_list in val.items():
+                if isinstance(ts_list, list):
+                    kept = [float(t) for t in ts_list if (now - float(t or 0.0)) <= window_sec]
+                    if kept:
+                        pruned_tids[str(tid)] = kept
+        elif isinstance(val, list):
+            # 구형 범용 누락체결 버킷은 _restored_trade_ids + 대량반복 버킷으로 대체
+            if k.startswith("누락 체결 ") and k.endswith("자동 복원"):
+                continue
+            kept = [float(t) for t in val if (now - float(t or 0.0)) <= window_sec]
             if kept:
                 pruned[k] = kept
+
+    triggered_buckets = set()
+    for tid in (restored_trade_ids or []):
+        tkey = str(tid).strip()
+        if not tkey:
+            continue
+        pruned_tids.setdefault(tkey, []).append(now)
+        if len(pruned_tids[tkey]) >= 2:
+            triggered_buckets.add(f"동일 체결 재복원({tkey})")
 
     for act in (actions or []):
         bucket = re.sub(r"\(.*?\)", "", str(act)).strip()[:60]
         if not bucket:
             continue
-        pruned.setdefault(bucket, []).append(now)
+        if bucket.startswith("누락 체결 ") and bucket.endswith("자동 복원"):
+            mass_bucket = "누락 체결 대량 반복 복원"
+            pruned.setdefault(mass_bucket, []).append(now)
+            if len(pruned[mass_bucket]) >= 10:
+                triggered_buckets.add(mass_bucket)
+        else:
+            pruned.setdefault(bucket, []).append(now)
+            if len(pruned[bucket]) >= 3:
+                triggered_buckets.add(bucket)
 
+    if pruned_tids:
+        pruned["_restored_trade_ids"] = pruned_tids
     hist[bot_id] = pruned
     try:
         _save_json_atomic(_SENTINEL_HIST_FILE, hist)
     except Exception:
         pass
-    return [(k, len(v)) for k, v in pruned.items() if len(v) >= 3]
+
+    active_loops = []
+    for tid, ts_list in pruned_tids.items():
+        if len(ts_list) >= 2:
+            active_loops.append((f"동일 체결 재복원({tid})", len(ts_list)))
+    for k, val in pruned.items():
+        if k == "_restored_trade_ids" or not isinstance(val, list):
+            continue
+        thresh = 10 if k == "누락 체결 대량 반복 복원" else 3
+        if len(val) >= thresh:
+            active_loops.append((k, len(val)))
+
+    return active_loops, bool(triggered_buckets)
 
 
 def _record_and_count_entry_errors(bot_id: str, events: list, window_sec: int = 3600) -> tuple:
@@ -423,10 +474,14 @@ def audit_trade_reconciliation(b: int, cwd: str) -> None:
             else:
                 clear_proactive_alert(str(b), "sentinel_security_alert")
 
-            loops = _track_sentinel_actions(str(b), actions)
+            restored_tids = data.get("restored_trade_ids") or []
+            loops, loop_triggered_now = _track_sentinel_actions(
+                str(b), actions, restored_trade_ids=restored_tids
+            )
             if loops:
                 loop_desc = ", ".join(f"{k}({cnt}회/30m)" for k, cnt in loops)
-                logger.error(f"[{b}] 🔁 [자가치유 핑퐁 루프 감지] {loop_desc}")
+                if loop_triggered_now:
+                    logger.error(f"[{b}] 🔁 [자가치유 핑퐁 루프 감지] {loop_desc}")
                 record_proactive_alert(
                     str(b), "self_heal_loop", "CRITICAL",
                     "자가치유 무한 반복(핑퐁 루프) 감지", loop_desc,

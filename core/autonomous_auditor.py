@@ -669,11 +669,22 @@ def check_self_heal_loop_and_repeat_restarts(bot_id: int, cwd: str) -> Tuple[boo
     hist = _load_json(hist_path, {}) or {}
     bot_hist = hist.get(bid) or {}
     if isinstance(bot_hist, dict):
+        tid_map = bot_hist.get("_restored_trade_ids")
+        if isinstance(tid_map, dict):
+            for tid, ts_list in tid_map.items():
+                if isinstance(ts_list, list):
+                    recent = [t for t in ts_list if (now - float(t or 0.0)) <= 1800]
+                    if len(recent) >= 2:
+                        return True, f"동일 체결 재복원 핑퐁 루프 감지: {tid} ({len(recent)}회/30m)"
         for bucket, ts_list in bot_hist.items():
-            if isinstance(ts_list, list):
-                recent = [t for t in ts_list if (now - float(t or 0.0)) <= 1800]
-                if len(recent) >= 3:
-                    return True, f"자가치유 핑퐁 루프 감지: {bucket} ({len(recent)}회/30m)"
+            if bucket == "_restored_trade_ids" or not isinstance(ts_list, list):
+                continue
+            if bucket.startswith("누락 체결 ") and bucket.endswith("자동 복원"):
+                continue
+            recent = [t for t in ts_list if (now - float(t or 0.0)) <= 1800]
+            thresh = 10 if bucket == "누락 체결 대량 반복 복원" else 3
+            if len(recent) >= thresh:
+                return True, f"자가치유 핑퐁 루프 감지: {bucket} ({len(recent)}회/30m)"
 
     rstate = _load_json("/tmp/watchdog_restart_state.json", {}) or {}
     brec = rstate.get(bid) or {}

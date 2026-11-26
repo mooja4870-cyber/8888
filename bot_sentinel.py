@@ -32,6 +32,37 @@ def _norm_base_coin(sym: str) -> str:
     return s
 
 
+def _read_csv_real_trade_ids(csv_path: str) -> set:
+    """CSV에 기록된 실측 체결ID 집합(심볼:정규화ID)을 반환한다. 임시 요약행(빈 체결ID)은 제외."""
+    ids = set()
+    if not csv_path or not os.path.exists(csv_path):
+        return ids
+    try:
+        with open(csv_path, "r", encoding="utf-8-sig") as f:
+            for r in csv.DictReader(f):
+                sym = str(r.get("심볼") or r.get("symbol") or "").strip()
+                raw_tid = str(r.get("체결ID") or r.get("trade_id") or "").strip()
+                if not raw_tid or raw_tid.lower() in ("nan", "none"):
+                    continue
+                for piece in raw_tid.split("|"):
+                    t = piece.strip()
+                    if not t or t.lower() in ("nan", "none"):
+                        continue
+                    if t.startswith("ID_"):
+                        t = t[3:]
+                    try:
+                        num = float(t)
+                        if num.is_integer():
+                            t = str(int(num))
+                    except (TypeError, ValueError):
+                        pass
+                    if t:
+                        ids.add(f"{sym}:{t}")
+    except Exception:
+        pass
+    return ids
+
+
 def atomic_write_json(filepath, data):
     dir_name = os.path.dirname(filepath)
     os.makedirs(dir_name, exist_ok=True)
@@ -181,6 +212,8 @@ async def audit_bot(b: int):
         "security_warnings": [],
         "auth_error": "",
         "partial_exits_added": 0,
+        "restored_trade_ids": [],
+        "placeholders_compacted": 0,
         "balance_diff": 0.0,
         "actions": [],
     }
@@ -302,12 +335,23 @@ async def audit_bot(b: int):
         # 1. 거래소 체결 대사 및 누락 체결 자동 복원 (Reconciliation)
         try:
             from core.engine import QuantumEngine
+            before_ids = _read_csv_real_trade_ids(csv_file)
             eng = QuantumEngine.get_instance()
             eng.client = client
             if hasattr(eng, "pnl_reconciler") and eng.pnl_reconciler:
-                sync_res = await eng.pnl_reconciler.sync_trades_async()
-                if sync_res and sync_res > 0:
-                    report["actions"].append(f"누락 체결 {sync_res}건 자동 복원")
+                await eng.pnl_reconciler.sync_trades_async()
+                compacted_after = 0
+                try:
+                    from core.history_helper import compact_local_trade_history
+                    compacted_after = int(compact_local_trade_history() or 0)
+                except Exception:
+                    pass
+                after_ids = _read_csv_real_trade_ids(csv_file)
+                added_ids = sorted(after_ids - before_ids)
+                report["restored_trade_ids"] = added_ids
+                report["placeholders_compacted"] = compacted_after
+                if added_ids:
+                    report["actions"].append(f"누락 체결 {len(added_ids)}건 자동 복원")
         except Exception:
             pass
 
@@ -739,13 +783,22 @@ async def audit_bot(b: int):
                 cur_l = st_data.get("total_losses", 0)
                 cur_trades = st_data.get("total_trades", 0)
 
-                if (cur_w != real_w or cur_l != real_l or cur_trades != real_trades) and real_trades > 0:
+                open_cnt = len(ex_map)
+                wl_mismatch = (cur_w != real_w or cur_l != real_l)
+                trades_corrupt = (cur_trades < real_trades) or (cur_trades > real_trades + open_cnt)
+
+                if wl_mismatch and real_trades > 0:
                     st_data["total_wins"] = real_w
                     st_data["total_losses"] = real_l
-                    st_data["total_trades"] = real_trades
+                    st_data["total_trades"] = real_trades + open_cnt
                     st_data["total_pnl_usdt"] = round(sum(order_pnls.values()), 4)
                     atomic_write_json(stats_file, st_data)
                     report["actions"].append(f"전적 장부 동기화({cur_w}W/{cur_l}L→{real_w}W/{real_l}L)")
+                elif trades_corrupt and real_trades > 0:
+                    st_data["total_trades"] = real_trades + open_cnt
+                    st_data["total_pnl_usdt"] = round(sum(order_pnls.values()), 4)
+                    atomic_write_json(stats_file, st_data)
+                    report["actions"].append(f"전적 거래수 동기화({cur_trades}→{real_trades + open_cnt})")
             except Exception:
                 pass
 

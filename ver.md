@@ -1,5 +1,28 @@
 # Version History
 
+## v1.10.1
+
+Date: 2026-11-26
+
+### 변경 내용
+
+* **`8408` / `8404` 자가치유 핑퐁 루프(오탐 및 모듈 충돌) 근본 해결 (`8888` 한정, 개별 봇 무수정)**:
+  * **`bot_sentinel.py` (임시행 이중 카운트 제거)**: `sync_trades_async()` 호출 전후의 실제 정규화 `체결ID` 집합을 비교하고, 동일 사이클 내 `compact_local_trade_history()`를 즉시 1회 추가 실행해 임시 요약행(Placeholder) 제거분(`removed`)이 다음 사이클에서 `누락 체결 1건 자동 복원`으로 재집계되던 현상을 차단. 신규 복원된 실제 `restored_trade_ids`만 추적.
+  * **`bot_sentinel.py` ↔ `core/stats.py` `total_trades` 충돌 해결**: 진입 시 `record_order()`가 `total_trades += 1`을 선반영하는 전 봇 공통 구조와 맞춰, `stats.json` 전적 감사 시 승패 불일치(`total_wins`/`total_losses`) 또는 `real_trades ~ real_trades + open_cnt` 범위 이탈 시에만 동기화해 매 진입 후 무의미한 `전적 장부 동기화(W/L→W/L)` 핑퐁을 근절.
+  * **`watchdog_entry.py` & `core/autonomous_auditor.py` (진짜 핑퐁 vs 정상 신규 체결 분리)**: 서로 다른 정상 신규 거래 복원을 동일 버킷으로 오인하던 규칙을 제거하고, **동일 `trade_id` 30분 내 2회 이상 재복원**·실제 충돌 액션(`유령/고아 포지션`, `전적 불일치`) `3회/30m`·대량 복원 폭주(`10회/30m`)만 진짜 핑퐁 루프로 적발하며 정상 사이클 `ERROR` 로그 스팸을 차단.
+
+### 수정 파일
+
+* bot_sentinel.py
+* watchdog_entry.py
+* core/autonomous_auditor.py
+* ver.md
+
+### 비고
+
+* 개별 봇(`8401~8410`) 코드/설정 수정 0건, `8408`/`8404` 센티넬 2연속 멱등성·`watchdog_entry.py` 1회차 순찰 정상·`verify_all.py` 100% PASS 확인
+
+
 ## v1.10.0
 
 Date: 2026-11-24
