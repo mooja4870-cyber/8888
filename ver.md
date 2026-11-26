@@ -1,5 +1,24 @@
 # Version History
 
+## v1.10.6
+
+Date: 2026-11-27
+
+### 변경 내용
+
+* **`M16` 전 봇 동일종목 집중 경보 임계치 합리화 (`8888` 한정, 개별 봇 무수정)**:
+  * `core/portfolio_risk_auditor.py`: QVT 동일 전략(`8401, 8402, 8409, 8410`) 4봇 동시 진입은 정상 포트폴리오 시그널이므로 집중 경보 임계치를 `WARN ≥ 3 / CRITICAL ≥ 5` → **`WARN ≥ 5 / CRITICAL ≥ 7`**로 상향
+
+### 수정 파일
+
+* core/portfolio_risk_auditor.py
+* ver.md
+
+### 비고
+
+* 실측 4봇 `TRUMP:short` 경보 0건 해소, `watchdog_entry.py` 재기동 및 `verify_all.py` 100% PASS 확인
+
+
 ## v1.10.5
 
 Date: 2026-11-27

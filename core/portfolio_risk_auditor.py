@@ -177,11 +177,11 @@ def check_cross_bot_portfolio_exposure(bots: List[int]) -> Dict[str, Any]:
     bias_pct = round((abs(net_notional) / gross_notional) * 100.0, 1) if gross_notional > 0 else 0.0
     fleet_lev = round(gross_notional / total_equity, 2) if total_equity > 0 else 0.0
 
-    # 1) Same symbol + direction crowding
-    crowded = {k: v for k, v in sym_side_bots.items() if len(v) >= 3}
+    # 1) Same symbol + direction crowding (QVT 동일전략 4봇 동시진입은 정상 → 5봇부터 WARN, 7봇부터 CRITICAL)
+    crowded = {k: v for k, v in sym_side_bots.items() if len(v) >= 5}
     for key, bot_list in crowded.items():
         cnt = len(bot_list)
-        if cnt >= 5:
+        if cnt >= 7:
             alerts.append({
                 "bot_id": "8888",
                 "key": f"portfolio_crowding_{key.replace('/', '_').replace(':', '_')}",
@@ -190,7 +190,7 @@ def check_cross_bot_portfolio_exposure(bots: List[int]) -> Dict[str, Any]:
                 "details": f"참여 봇: {', '.join(bot_list)} — 동반 손실 위험 높음",
                 "recommendation": "신규 동방향 진입 자제 및 상관 리스크 점검 권고",
             })
-        elif cnt >= 3:
+        elif cnt >= 5:
             alerts.append({
                 "bot_id": "8888",
                 "key": f"portfolio_crowding_{key.replace('/', '_').replace(':', '_')}",
