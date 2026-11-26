@@ -27,6 +27,7 @@ from watchdog_common import (
     BASE_8888,
     BASE_PROJECT,
     _load_discord_webhook,
+    _load_proactive_discord_webhook,
     _load_telegram_creds,
     http_get_json,
     set_external_network_down,
@@ -458,6 +459,20 @@ def check_alert_channels_and_backup_ledgers(
                     "title": "디스코드 웹훅 채널 장애",
                     "details": f"Webhook GET 실패 ({dc_err or dc_doc})",
                     "recommendation": "discord_webhook.txt 웹훅 URL 유효성 점검 필요 (Telegram 경보 활성)",
+                })
+        pro_url = _load_proactive_discord_webhook()
+        if pro_url and pro_url != dc_url:
+            pro_doc, pro_err = http_get_json(pro_url, timeout=5.0)
+            pro_ok = isinstance(pro_doc, dict) and bool(pro_doc.get("id"))
+            canary_res["proactive_discord_ok"] = pro_ok
+            if not pro_ok:
+                alerts.append({
+                    "bot_id": "8888",
+                    "key": "canary_proactive_discord_down",
+                    "severity": "CRITICAL",
+                    "title": "선제 경보 전용 디스코드 웹훅 장애",
+                    "details": f"Webhook GET 실패 ({pro_err or pro_doc})",
+                    "recommendation": "discord_webhook_proactive.txt 웹훅 URL 유효성 점검 필요",
                 })
 
     # 2) CSV truncation / 0-byte & JSON corruption audit across 9 bots

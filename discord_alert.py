@@ -336,8 +336,8 @@ def build_message(data, prev_total, prev_bots, history, title_prefix="전체", s
     return "```\n" + "\n".join(lines) + "\n```"
 
 
-def _post(content):
-    url = _load_webhook()
+def _post(content, webhook_url=None):
+    url = (webhook_url or "").strip() or _load_webhook()
     if not url:
         return False, "webhook URL 없음(discord_webhook.txt)"
     

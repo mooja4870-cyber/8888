@@ -1,5 +1,30 @@
 # Version History
 
+## v1.10.7
+
+Date: 2026-11-27
+
+### 변경 내용
+
+* **`8888 선제 경보` 전용 디스코드 웹훅 채널 분리 라우팅 (`8888` 한정, 개별 봇 무수정)**:
+  * `.gitignore`: `discord_webhook_proactive.txt` Git 추적 제외 등록 (시크릿 유출 원천 차단)
+  * `discord_alert.py` (`_post`): 선택적 `webhook_url` 인자 지원 추가 (기본 채널과 하위호환 유지)
+  * `watchdog_common.py` (`_load_proactive_discord_webhook`, `_send_discord`, `record_proactive_alert`): 모든 `8888 선제 경보`(WARN/CRITICAL/에스컬레이션)가 전용 웹훅(`discord_webhook_proactive.txt`)으로 발송되도록 분리 (미설정 시 기본 웹훅 폴백)
+  * `core/security_ops_auditor.py`: M34 알림 채널 생존 카나리아에 선제 경보 전용 웹훅 헬스체크(`canary_proactive_discord_down`) 추가
+
+### 수정 파일
+
+* .gitignore
+* discord_alert.py
+* watchdog_common.py
+* core/security_ops_auditor.py
+* ver.md
+
+### 비고
+
+* 신규 전용 웹훅 실전 발송 테스트·M34 카나리아 GET·4대 워치독 재기동·시크릿 미포함 검사·`verify_all.py` 100% PASS 확인
+
+
 ## v1.10.6
 
 Date: 2026-11-27

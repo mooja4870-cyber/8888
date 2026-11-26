@@ -380,14 +380,15 @@ def bot_restart_locked(
         lf.close()
 
 
-def _send_discord(msg: str) -> None:
+def _send_discord(msg: str, webhook_url: Optional[str] = None) -> bool:
     try:
         if BASE_8888 not in sys.path:
             sys.path.insert(0, BASE_8888)
         import discord_alert
-        discord_alert._post(msg)
+        ok, _ = discord_alert._post(msg, webhook_url=webhook_url)
+        return bool(ok)
     except Exception:
-        pass
+        return False
 
 
 def _load_telegram_creds() -> Tuple[str, str]:
@@ -601,6 +602,20 @@ def _load_discord_webhook() -> str:
     return ""
 
 
+def _load_proactive_discord_webhook() -> str:
+    """선제 경보 전용 웹훅(discord_webhook_proactive.txt)을 우선 반환, 미설정 시 기본 웹훅 폴백."""
+    try:
+        wh_file = os.path.join(BASE_8888, "discord_webhook_proactive.txt")
+        if os.path.exists(wh_file):
+            with open(wh_file, "r", encoding="utf-8") as f:
+                url = f.read().strip()
+            if url:
+                return url
+    except Exception:
+        pass
+    return _load_discord_webhook()
+
+
 def _send_telegram(msg: str) -> None:
     try:
         import urllib.request
@@ -749,7 +764,7 @@ def record_proactive_alert(
         if recommendation:
             msg += f"• 권고 조치 (보스 승인 대기): {recommendation}\n"
         msg += "• 원칙: 승인 없는 전략·설정 자동 변경 차단 상태"
-        _send_discord(msg)
+        _send_discord(msg, webhook_url=_load_proactive_discord_webhook())
         if sev == "CRITICAL":
             _send_telegram(msg)
     return should_notify
