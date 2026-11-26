@@ -1,5 +1,23 @@
 # Version History
 
+## v1.10.4
+
+Date: 2026-11-27
+
+### 변경 내용
+
+* **`8408` (`v12.3.7`) 3번 개선 B안(`EQUITY_SCALE_FACTOR=1.0` 정규화 및 `USE_EQUITY_OVERLAY=false`) 관제 이력 동기화**:
+  * 소액 계좌 바이낸스 `$5` 최소 명목가 미달 거절(`NOTIONAL_MIN_ERROR`) 및 정수 수량 2배 올림 보정 왜곡 해소를 위한 `8408` 비중 정규화 반영 확인
+
+### 수정 파일
+
+* ver.md
+
+### 비고
+
+* `8408` 2차 승인 배포 및 전 봇 `verify_all.py` 100% PASS 확인
+
+
 ## v1.10.3
 
 Date: 2026-11-27
