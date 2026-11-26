@@ -1,5 +1,23 @@
 # Version History
 
+## v1.10.3
+
+Date: 2026-11-27
+
+### 변경 내용
+
+* **`8404` (`v2.3.8`) · `8408` (`v12.3.6`) 2번 개선(본절 가드 트리거 `+1.5% → +2.2%`) 관제 이력 동기화**:
+  * 양 봇 `config.json` 및 `core/config.py`의 `BE_GUARD_TRIGGER_PCT=0.022` · `DASHBOARD_META.indicators` 반영에 따른 `8888` 중앙 관제소 연동(`be_guard_trigger_pct: 0.022`, `본절 2.2%`) 검증 완료
+
+### 수정 파일
+
+* ver.md
+
+### 비고
+
+* `8404` / `8408` 승인 배포 및 전 봇 `verify_all.py` 100% PASS 확인
+
+
 ## v1.10.2
 
 Date: 2026-11-27
