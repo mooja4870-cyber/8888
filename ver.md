@@ -1,5 +1,34 @@
 # Version History
 
+## v1.12.0
+
+Date: 2026-11-27
+
+### 변경 내용
+
+* **Aegis V8.5 — Profit-Adaptive Closed-Loop (수익성 향상 방향 사후 검증·자동 롤백·회복 복구·종목 정화)**:
+  * `core/auto_remediator.py`:
+    - **R8 (`evaluate_and_rollback_remediations`)**: `R3_alpha_tune`·`R10_symbol_prune` 자율 변경 시점의 기준 성과(`PF / Expectancy / Net PnL / Win Rate`)와 변경 전 설정(`prev_values`)을 스냅샷하고, 실제 반영(`activated_ts`) 이후 `>= 10`건 청산(또는 `72h` 경과 `>= 4`건) 표본이 누적되면 사후 수익성을 자동 채점. 기대값·수익팩터가 악화된 경우 `prev_values`로 자동 롤백 + 7일 동일 조치 재적용 차단 + 디스코드 사후 검증/롤백 보고
+    - **R9 (`remediate_recovery_scale_up`)**: R2/R3 방어 감축(`AUTO_COMPOUND_PCT`, `MAX_POSITIONS`, `AUTO_TRADING`) 전 기준치(`pre_defense_baseline`)를 보존하고, `Peak-MDD` 안전 회복(`abs_peak_dd < mdd_warn * 0.65`) 및 최근 10건 `PF >= 1.3`, 순익 `> 0` 확인 시 원래 기준치까지 단계적 자동 스케일업 (`24h` 쿨다운)
+    - **R10 (`remediate_bleeding_symbols`)**: 최근 14일 만성 손실 종목(`>= 4`건·승률 `<= 20%`·순손실 `<= -$0.30`)을 화이트리스트에서 자율 제외 (`SYMBOL_WHITELIST` 최소 `16`종목 하한 및 `active_positions.json` 보유 종목 보호, `24h` 쿨다운)
+    - **Deferred Apply (`flush_pending_restarts`)**: 보유 포지션 보호로 유예된 `config.json` 변경 사항을 `pending_restarts`로 추적하여, 포지션 청산 직후 공유 락 재기동(`bot_restart_locked`)으로 자동 반영 완결 및 `activated_ts` 기록
+  * `watchdog_profitability.py`: 매 5분 주기 `R8` 사후 검증·`R9` 회복 스케일업·`R10` 손실 종목 제외·`flush_pending_restarts` 전면 연동
+  * `watchdog_entry.py` & `core/portfolio_risk_auditor.py`: **M22 조기 알파 감쇠 → R3 자율 튜닝 직접 연계** 및 매 순찰(60s) `flush_pending_restarts` 연동, 잔여 승인 대기 문구 정리
+  * **실전 1회차 자율 작동 확인**: `8403`봇 `R10` 만성 손실 2종목(`APT/USDT:USDT`, `XPL/USDT:USDT`) 자율 제외(`25→23`종목) + 유예 중이던 `15m→1h`·복리 `28%` 안전 재기동(`PID 13220`) 즉시 반영 완료
+
+### 수정 파일
+
+* core/auto_remediator.py
+* core/portfolio_risk_auditor.py
+* watchdog_entry.py
+* watchdog_profitability.py
+* ver.md
+
+### 비고
+
+* `py_compile` + R8~R10·Deferred Apply 6종 격리 단위 테스트(`UNIT_TESTS_V85_ALL_6_PASSED`) + 4대 워치독 재기동·10개 포트 HTTP 200·`verify_all.py` 100% PASS 확인
+
+
 ## v1.11.0
 
 Date: 2026-11-27

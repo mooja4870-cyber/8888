@@ -28,6 +28,7 @@ from core.autonomous_auditor import (
 from core.exchange_infra_auditor import run_exchange_infra_audit
 from core.portfolio_risk_auditor import run_portfolio_risk_audit
 from core.security_ops_auditor import run_security_ops_audit
+from core.auto_remediator import flush_pending_restarts, remediate_fee_or_alpha_decay
 
 _ENTRY_LOG = os.path.join(BASE_8888, "watchdog_entry.log")
 _stdout_redirected = False
@@ -1180,6 +1181,34 @@ def _run_aegis_v7_global_audit(cycle: int) -> None:
         logger.error(f"🚨 [Aegis V7 Portfolio] 감사 예외: {e}")
         port_res = {"alerts": [], "scorecard": {}}
 
+    # [R3 직접 연계] M22 조기 알파 감쇠 감지 시 즉시 자율 튜닝(R3) 수행
+    try:
+        per_bot_alpha = (
+            ((port_res.get("summary") or {}).get("m22_alpha") or {}).get("per_bot_alpha") or {}
+        )
+        allowed_bot_strs = {str(x) for x in BOT_LIST}
+        for a in (port_res.get("alerts") or []):
+            if a.get("key") != "alpha_decay_early":
+                continue
+            bid = str(a.get("bot_id") or "")
+            if bid not in allowed_bot_strs:
+                continue
+            sample_n = int((per_bot_alpha.get(bid) or {}).get("sample_n") or 30)
+            r3 = remediate_fee_or_alpha_decay(
+                bid,
+                os.path.join(os.path.dirname(BASE_8888), bid),
+                f"M22조기알파감쇠({a.get('severity', 'WARN')})",
+                closed_all=max(sample_n, 25),
+                sample_days=0.0,
+            )
+            if r3.get("applied"):
+                a["recommendation"] = f"Level 2+ 자율 튜닝 완료: {', '.join(r3.get('actions') or [])}"
+                logger.info(f"🤖 [{bid}] M22 조기 알파 감쇠 → R3 자율 튜닝 완료: {', '.join(r3.get('actions') or [])}")
+            else:
+                a["recommendation"] = f"Level 2+ 자율 튜닝 대기/유예({r3.get('skipped')}) — 추이 지속 감시"
+    except Exception as e:
+        logger.error(f"⚠️ [M22→R3 자율 연계] 예외: {e}")
+
     combined_alerts = (
         (sec_res.get("alerts") or [])
         + (infra_res.get("alerts") or [])
@@ -1204,7 +1233,7 @@ def _run_aegis_v7_global_audit(cycle: int) -> None:
 
 def main():
     logger.info("==========================================")
-    logger.info("🐶 Watchdog System Started (Aegis V7 Full Suite + Profitability Guard Active)")
+    logger.info("🐶 Watchdog System Started (Aegis V8.5 Profit-Adaptive Closed-Loop Active)")
     logger.info("==========================================")
     cycle = 0
     while True:
@@ -1232,6 +1261,13 @@ def main():
                 check_and_fix_bot(bot, do_config_check=do_config_check, do_flat_check=do_flat_check, do_audit_33=do_audit_33)
             except Exception as e:
                 logger.error(f"[{bot}] 워치독 순찰 중 치명적 오류: {e}")
+
+        try:
+            def_res = flush_pending_restarts(BOT_LIST)
+            for item in def_res:
+                logger.info(f"🔄 [{item['bot_id']}] 포지션 청산 후 지연 설정 자동 반영 완료 ({item['playbook']}): {item['detail']}")
+        except Exception as e:
+            logger.error(f"⚠️ [Deferred Apply] 지연 재기동 처리 예외: {e}")
 
         if do_flat_check:
             _run_aegis_v7_global_audit(cycle)

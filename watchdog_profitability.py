@@ -41,9 +41,13 @@ from watchdog_common import (  # noqa: E402
     update_watchdog_heartbeat,
 )
 from core.auto_remediator import (  # noqa: E402
+    evaluate_and_rollback_remediations,
+    flush_pending_restarts,
+    remediate_bleeding_symbols,
     remediate_config_gaps,
     remediate_fee_or_alpha_decay,
     remediate_peak_mdd,
+    remediate_recovery_scale_up,
 )
 
 ACTIVE_BOTS = ["8401", "8402", "8403", "8404", "8405", "8407", "8408", "8409", "8410"]
@@ -507,6 +511,24 @@ def _eval_bot(bot_id, bot_baseline, live_ex_bots, latest_snap_bots, peak_assets_
     else:
         clear_proactive_alert(bot_id, "config_gap")
 
+    # 6) R9 Recovery Scale-Up (방어 축소 후 수익·MDD 회복 시 단계적 복구)
+    try:
+        r9 = remediate_recovery_scale_up(
+            bot_id, bot_dir, abs_peak_dd if peak_dd_pct is not None else None, mdd_warn
+        )
+        if r9.get("applied"):
+            _log(f"📈 [{bot_id}] R9 회복 스케일업 완료: {', '.join(r9.get('actions') or [])}")
+    except Exception as exc:
+        _log(f"⚠️ [{bot_id}] R9 회복 스케일업 예외: {exc}")
+
+    # 7) R10 Per-Symbol Bleed Pruner (최근 14일 만성 손실 종목 제외)
+    try:
+        r10 = remediate_bleeding_symbols(bot_id, bot_dir)
+        if r10.get("applied"):
+            _log(f"✂️ [{bot_id}] R10 손실 종목 제외 완료: {', '.join(r10.get('actions') or [])}")
+    except Exception as exc:
+        _log(f"⚠️ [{bot_id}] R10 손실 종목 제외 예외: {exc}")
+
     return {
         "bot_id": bot_id,
         "strategy_id": bot_baseline.get("strategy_id"),
@@ -561,6 +583,14 @@ def run_once():
 
     status_bots = {}
     all_alerts_summary = []
+
+    try:
+        r8_res = evaluate_and_rollback_remediations(ACTIVE_BOTS)
+        for item in r8_res:
+            _log(f"🔎 [{item['bot_id']}] R8 사후 검증({item['playbook']}): {item['status']}")
+    except Exception as exc:
+        _log(f"⚠️ R8 사후 검증 예외: {exc}")
+
     for bot_id in ACTIVE_BOTS:
         bot_bl = bots_baselines.get(bot_id)
         if not bot_bl:
@@ -572,6 +602,13 @@ def run_once():
         if res["active_alerts"]:
             titles = ", ".join(a["title"] for a in res["active_alerts"])
             all_alerts_summary.append(f"{bot_id}: {titles}")
+
+    try:
+        def_res = flush_pending_restarts(ACTIVE_BOTS)
+        for item in def_res:
+            _log(f"🔄 [{item['bot_id']}] 지연 설정 자동 반영 완료 ({item['playbook']}): {item['detail']}")
+    except Exception as exc:
+        _log(f"⚠️ 지연 설정 반영 예외: {exc}")
 
     payload = {
         "updated": now_dt.strftime("%Y-%m-%d %H:%M:%S"),
@@ -613,7 +650,7 @@ def main():
     lock_fd.write(f"{os.getpid()}\n")
     lock_fd.flush()
 
-    _log(f"🛡️ watchdog_profitability.py 가동 (PID {os.getpid()}, Aegis V8 Level 2+ 자율 적기 조치 모드, 주기 {CHECK_INTERVAL_SEC}s)")
+    _log(f"🛡️ watchdog_profitability.py 가동 (PID {os.getpid()}, Aegis V8.5 Profit-Adaptive Closed-Loop 모드, 주기 {CHECK_INTERVAL_SEC}s)")
     while True:
         try:
             run_once()

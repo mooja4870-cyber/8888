@@ -368,7 +368,7 @@ def check_alpha_decay_and_market_regime(bots: List[int]) -> Dict[str, Any]:
                 "severity": "CRITICAL",
                 "title": f"조기 알파 감쇠 심각 (최근 {n}건 PF {pf:.2f}, Z={z_score:+.2f})",
                 "details": f"실승률 {wr*100:.1f}% vs 백테스트 {p0*100:.1f}% (기대값 ${exp_usdt:+.4f}/건)",
-                "recommendation": "레짐 드리프트 또는 전략 우위 상실 가능 — 보스 승인 후 파라미터/방향 점검 필요",
+                "recommendation": "레짐 드리프트 또는 전략 우위 상실 가능 — Level 2+ 자율 튜닝(R3) 자동 연계 및 사후 검증 대상",
             })
         elif z_score <= -2.0 and pf < 0.85:
             alerts.append({
