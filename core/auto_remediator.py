@@ -1,7 +1,7 @@
 """
-core/auto_remediator.py — Aegis V8.5 Profit-Adaptive Closed-Loop 자율 적기 조치 엔진 (보스 위임 2026-11-27)
+core/auto_remediator.py — Aegis V9 Full Autonomous Alert Remediation 자율 적기 조치 엔진 (보스 위임 2026-11-27)
 
-워치독 감시 활동에서 포착된 문제점에 대해 보스 사전 승인 대기 없이
+워치독 감시 활동에서 포착된 모든 문제점 및 선제 경보에 대해 보스 사전 승인 대기 없이
 안전한 클램프·쿨다운·사전 백업(.auto_bak)·공유 락 재기동(bot_restart_locked)·
 디스코드 사후 보고·사후 수익성 검증 및 자동 롤백을 결합하여 수익성 향상 방향으로 자율 조치를 수행한다.
 
@@ -11,10 +11,16 @@ Playbooks:
   - R3: 수수료 적자/조기 알파 감쇠 시 단계적 파라미터·타임프레임 자율 튜닝 (24h 쿨다운)
   - R4: 생존 설정 누락(config_gap) 자동 복구 (12h 쿨다운)
   - R8: R3/R10 자율 변경 사후 수익성 검증 및 성과 악화 시 자동 롤백 + 7일 재적용 차단
-  - R9: R2/R3 방어 축소 이후 수익 회복 시 원래 기준치까지 단계적 복구 스케일업 (24h 쿨다운)
+  - R9: R2/R3/R11/R14 방어 축소 이후 수익 회복 시 원래 기준치까지 단계적 복구 스케일업 (24h 쿨다운)
   - R10: 최근 14일 만성 손실 종목 화이트리스트 자율 제외 (최소 16종목·보유포지션 보호, 24h 쿨다운)
+  - R11: 연패(WARN/CRITICAL)·수수료 주의 시 동적비중/쿨다운/동시보유·R3 자율 방어
+  - R12: .env 권한(chmod 600), 손상 JSON 복원, 좀비 스크립트 정리, 디스크 청소, 메모리/FD/피드 동결 재기동
+  - R13: 상장폐지·레버리지 상한 하향·과다 펀딩비 자율 방어
+  - R14: 포트폴리오 쏠림·24h 급락·USDT 디페깅·BTC 쇼크 시 전 봇 단계적 방어 및 회복 후 R9 복구
+  - R15: TCA 체결품질 저하 R3 연계 및 OTR 주문 폭주 즉시 제어
+  - R16: AI 14대 자율감사 이상 자동 완결 및 중복 경보 억제
   - Deferred Apply: 보유 포지션 청산 직후 유예된 config 재기동 자동 완결
-  - Helper: 외부 모듈(bot_sentinel R6/R7, autonomous_auditor R5) 이력 기록 및 보고
+  - Helper: 외부 모듈(bot_sentinel R6/R7, autonomous_auditor R5/R16) 이력 기록 및 보고
 """
 import copy
 import csv
@@ -24,6 +30,8 @@ import json
 import os
 import re
 import shutil
+import signal
+import subprocess
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -43,6 +51,18 @@ R8_MAX_WAIT_SEC = 72 * 3600
 R8_MIN_TRADES_AFTER_WAIT = 4
 R8_EXPIRE_SEC = 14 * 86400
 R8_BLOCK_SEC = 7 * 86400
+
+EXTERNAL_ONLY_ALERT_PREFIXES = (
+    "infra_api_auth_error",
+    "infra_api_key_expiry",
+    "infra_exchange_maintenance",
+    "infra_clock_latency_",
+    "host_external_network_down",
+    "host_public_ip_changed",
+    "host_ac_sleep_enabled",
+    "host_mac_sleep_wake",
+    "canary_",
+)
 
 
 def _safe_float(val: Any, default: float = 0.0) -> float:
@@ -1271,4 +1291,634 @@ def flush_pending_restarts(bots: List[Any]) -> List[Dict[str, Any]]:
             completed.append({"bot_id": str(bid), "playbook": pb, "detail": detail})
 
     return completed
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Aegis V9 Playbooks R11 ~ R15 + Universal Alert Dispatcher
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+def remediate_loss_streak_or_fee_warn(
+    bot_id: str,
+    cwd: str,
+    reason_tag: str,
+    is_kill: bool = False,
+    is_fee_warn: bool = False,
+    closed_all: int = 0,
+) -> Dict[str, Any]:
+    """[Playbook R11] 연패(주의/킬선) 및 수수료 비중 주의(WARN) 시 자율 방어·튜닝."""
+    if is_fee_warn:
+        return remediate_fee_or_alpha_decay(
+            bot_id, cwd, reason_tag, closed_all=max(int(closed_all or 0), 20)
+        )
+
+    playbook = "R11_loss_streak_kill" if is_kill else "R11_loss_streak_warn"
+    allowed, rem = _check_and_mark_cooldown(bot_id, playbook, cooldown_sec=43200, dry_run=True)
+    if not allowed:
+        return {"applied": False, "skipped": f"cooldown_{rem}s"}
+
+    cfg_path, cfg = _load_bot_config_with_backup(cwd)
+    if not cfg:
+        return {"applied": False, "skipped": "missing_config"}
+
+    orig_cfg = copy.deepcopy(cfg)
+    prev_values: Dict[str, Any] = {}
+    actions: List[str] = []
+
+    if not cfg.get("USE_DYNAMIC_REGIME", False):
+        prev_values["USE_DYNAMIC_REGIME"] = False
+        cfg["USE_DYNAMIC_REGIME"] = True
+        actions.append("USE_DYNAMIC_REGIME: False→True (연패 시드 50% 축소 활성)")
+
+    if _disable_auto_switch(cfg, actions):
+        for mk in ("USE_AUTO_MODE_SWITCH", "USE_BLUEFROG", "DASHBOARD_META"):
+            if mk in orig_cfg and orig_cfg.get(mk) != cfg.get(mk):
+                prev_values[mk] = copy.deepcopy(orig_cfg.get(mk))
+
+    cur_cd = float(cfg.get("COOLDOWN_HOURS", 4.0) or 4.0)
+    if cur_cd < 6.0:
+        prev_values["COOLDOWN_HOURS"] = orig_cfg.get("COOLDOWN_HOURS")
+        cfg["COOLDOWN_HOURS"] = 6.0
+        actions.append(f"COOLDOWN_HOURS: {cur_cd:.1f}h→6.0h (연패 과매매 억제)")
+
+    if is_kill:
+        cur_mp = int(float(cfg.get("MAX_POSITIONS", 2) or 2))
+        if cur_mp > 1:
+            prev_values["MAX_POSITIONS"] = orig_cfg.get("MAX_POSITIONS")
+            cfg["MAX_POSITIONS"] = 1
+            actions.append(f"MAX_POSITIONS: {cur_mp}→1 (최대 연패 방어)")
+
+        if cfg.get("USE_AUTO_COMPOUND"):
+            ex_id = str(cfg.get("EXCHANGE_ID", "")).lower()
+            min_cmp = 22.0 if ex_id == "binance" else 18.0
+            cur_cmp = float(cfg.get("AUTO_COMPOUND_PCT", 25.0) or 25.0)
+            new_cmp = max(min_cmp, round(cur_cmp * 0.80, 1))
+            if new_cmp < cur_cmp - 0.5:
+                prev_values["AUTO_COMPOUND_PCT"] = orig_cfg.get("AUTO_COMPOUND_PCT")
+                cfg["AUTO_COMPOUND_PCT"] = new_cmp
+                actions.append(f"AUTO_COMPOUND_PCT: {cur_cmp:.1f}%→{new_cmp:.1f}% (연패 킬선 비중 감축)")
+
+    if not actions:
+        return {"applied": False, "skipped": "already_hardened"}
+
+    sev = "CRITICAL" if is_kill else "WARN"
+    title = (
+        f"최대 연패 임계 방어 자율 조치 ({reason_tag})"
+        if is_kill
+        else f"연패 주의 구간 자율 방어 ({reason_tag})"
+    )
+    return _apply_and_restart(
+        bot_id,
+        cwd,
+        playbook,
+        title,
+        actions,
+        reason=f"{reason_tag} 감지에 따른 R11 자율 리스크 축소",
+        cfg_path=cfg_path,
+        cfg=cfg,
+        severity=sev,
+        force_restart_with_pos=False,
+        prev_values=prev_values,
+        eval_status="skipped_na",
+        record_defense_baseline_keys=["AUTO_COMPOUND_PCT", "MAX_POSITIONS"],
+    )
+
+
+def remediate_infra_or_security_alert(alert: Dict[str, Any], bots: List[Any]) -> Dict[str, Any]:
+    """[Playbook R12] .env 권한 600, 손상 JSON 복원, 좀비 정리, 디스크 청소, 메모리/FD/피드 동결 재기동."""
+    bid = str(alert.get("bot_id") or "8888")
+    key = str(alert.get("key") or "")
+    sev = str(alert.get("severity") or "WARN").upper()
+    details = str(alert.get("details") or "")
+    allowed_bots = {str(b) for b in bots}
+
+    # a) .env permission hardening
+    if key in ("security_env_writable", "security_env_readable"):
+        env_path = os.path.join(BASE_8888, ".env") if bid == "8888" else os.path.join(BASE_PROJECT, bid, ".env")
+        if not os.path.exists(env_path):
+            return {"applied": False, "skipped": "env_missing"}
+        try:
+            mode = os.stat(env_path).st_mode & 0o777
+            if (mode & 0o066) == 0:
+                return {"applied": False, "skipped": "already_600", "suppress_alert": (sev == "INFO")}
+            os.chmod(env_path, 0o600)
+            act = [f"chmod 600 {env_path} ({oct(mode)[2:]}→600)"]
+            _append_history_event(
+                bid,
+                "R12_env_chmod",
+                ".env API 키 파일 권한 600 자율 복구",
+                act,
+                reason=details or f".env 권한 {oct(mode)[2:]} 감지",
+                severity="INFO",
+                notify_discord=(sev == "CRITICAL"),
+                extra={"eval_status": "skipped_na"},
+            )
+            return {"applied": True, "actions": act, "suppress_alert": (sev == "INFO")}
+        except Exception as exc:
+            return {"applied": False, "skipped": f"chmod_err:{exc}"}
+
+    # b) JSON corruption auto-restore from backups
+    if key == "security_json_corrupted":
+        if bid not in allowed_bots:
+            return {"applied": False, "skipped": "unsupported_target"}
+        allowed, rem = _check_and_mark_cooldown(bid, "R12_json_restore", cooldown_sec=3600, dry_run=True)
+        if not allowed:
+            return {"applied": False, "skipped": f"cooldown_{rem}s"}
+        cwd = os.path.join(BASE_PROJECT, bid)
+        restored: List[str] = []
+        backup_root = os.path.join(BASE_8888, "backups")
+        for rel in ("config.json", "data/stats.json", "data/active_positions.json"):
+            jp = os.path.join(cwd, rel)
+            if not os.path.exists(jp):
+                continue
+            try:
+                with open(jp, "r", encoding="utf-8") as f:
+                    json.load(f)
+                continue
+            except Exception:
+                pass
+
+            cands = [jp + ".auto_bak", jp + ".bak"]
+            if os.path.isdir(backup_root):
+                for day_dir in sorted(os.listdir(backup_root), reverse=True):
+                    cands.append(os.path.join(backup_root, day_dir, bid, os.path.basename(rel)))
+            for cand in cands:
+                if not os.path.exists(cand):
+                    continue
+                try:
+                    with open(cand, "r", encoding="utf-8") as cf:
+                        json.load(cf)
+                    tmp = f"{jp}.restore.{os.getpid()}"
+                    shutil.copy2(cand, tmp)
+                    os.replace(tmp, jp)
+                    restored.append(f"{rel} 자동 복원 ({os.path.basename(cand)})")
+                    break
+                except Exception:
+                    continue
+
+        if not restored:
+            return {"applied": False, "skipped": "no_valid_backup"}
+
+        has_pos = _should_hold_restart_for_positions(cwd)
+        restarted = False
+        if not has_pos:
+            ok, detail = bot_restart_locked(
+                bid, cwd, source="aegis_v9_R12_json_restore", reason="손상 JSON 복원 후 안전 재기동", cooldown_sec=60
+            )
+            restarted = bool(ok)
+            if restarted:
+                restored.append(f"엔진 안전 재기동 완료 ({detail})")
+        _update_pending_restart(bid, restarted, "R12_json_restore", "손상 JSON 복원", cwd)
+        _append_history_event(
+            bid,
+            "R12_json_restore",
+            "손상 JSON 백업 자동 복원",
+            restored,
+            reason=details or "JSON 구문 손상 감지",
+            severity="WARN",
+            notify_discord=True,
+            extra={"eval_status": "skipped_na"},
+        )
+        return {"applied": True, "actions": restored}
+
+    # c) Orphan helper processes cleanup
+    if key == "infra_orphan_helpers":
+        allowed, rem = _check_and_mark_cooldown("8888", "R12_orphan_cleanup", cooldown_sec=1800, dry_run=True)
+        if not allowed:
+            return {"applied": False, "skipped": f"cooldown_{rem}s"}
+        pids = re.findall(r"PID\s+(\d+)", details)
+        killed: List[str] = []
+        for pid_s in pids:
+            try:
+                cmd = subprocess.check_output(["ps", "-p", pid_s, "-o", "command="], text=True, timeout=3).strip()
+                if "/Users/l/project/8888/lab/" in cmd or "/tmp/test_" in cmd:
+                    os.kill(int(pid_s), signal.SIGTERM)
+                    killed.append(f"PID {pid_s} 종료 ({cmd.split()[-1]})")
+            except Exception:
+                continue
+        if not killed:
+            return {"applied": False, "skipped": "no_safe_orphan_pid"}
+        _append_history_event(
+            "8888",
+            "R12_orphan_cleanup",
+            f"장기 상주 보조 스크립트 {len(killed)}건 자율 종료",
+            killed,
+            reason=details,
+            severity="INFO",
+            notify_discord=True,
+            extra={"eval_status": "skipped_na"},
+        )
+        return {"applied": True, "actions": killed}
+
+    # d) Disk cleanup
+    if key == "infra_disk_full":
+        allowed, rem = _check_and_mark_cooldown("8888", "R12_disk_cleanup", cooldown_sec=21600, dry_run=True)
+        if not allowed:
+            return {"applied": False, "skipped": f"cooldown_{rem}s"}
+        freed_bytes = 0
+        actions: List[str] = []
+        try:
+            for fn in os.listdir(BASE_8888):
+                if fn.endswith((".log.2", ".log.3")):
+                    fp = os.path.join(BASE_8888, fn)
+                    freed_bytes += os.path.getsize(fp)
+                    os.remove(fp)
+        except Exception:
+            pass
+        backup_root = os.path.join(BASE_8888, "backups")
+        if os.path.isdir(backup_root):
+            cutoff = (dt.datetime.now() - dt.timedelta(days=7)).strftime("%Y-%m-%d")
+            for name in sorted(os.listdir(backup_root)):
+                if re.match(r"^\d{4}-\d{2}-\d{2}$", name) and name < cutoff:
+                    full = os.path.join(backup_root, name)
+                    if os.path.isdir(full):
+                        try:
+                            for root, _, files in os.walk(full):
+                                for ff in files:
+                                    freed_bytes += os.path.getsize(os.path.join(root, ff))
+                            shutil.rmtree(full)
+                        except Exception:
+                            pass
+        for b in allowed_bots:
+            bak_lp = os.path.join(BASE_PROJECT, b, "bot_engine.log.bak")
+            try:
+                if os.path.exists(bak_lp) and os.path.getsize(bak_lp) > 10 * 1024 * 1024:
+                    freed_bytes += os.path.getsize(bak_lp)
+                    os.remove(bak_lp)
+            except Exception:
+                pass
+        if freed_bytes <= 0:
+            return {"applied": False, "skipped": "no_reclaimable_files"}
+        actions.append(f"구형 로그·백업 자동 정리 ({freed_bytes / (1024 * 1024):.1f}MB 확보)")
+        _append_history_event(
+            "8888",
+            "R12_disk_cleanup",
+            "디스크 용량 확보 자율 청소",
+            actions,
+            reason=details,
+            severity="WARN",
+            notify_discord=True,
+            extra={"eval_status": "skipped_na"},
+        )
+        return {"applied": True, "actions": actions}
+
+    # e) Memory leak / FD leak / Frozen feed / Stale scan -> safe restart (or defer)
+    if key in ("infra_memory_leak", "infra_fd_leak", "feed_stale_scan", "feed_frozen_prices"):
+        if key in ("infra_memory_leak", "feed_stale_scan", "feed_frozen_prices") and sev != "CRITICAL":
+            return {"applied": False, "skipped": f"{sev.lower()}_monitoring"}
+        if bid not in allowed_bots:
+            return {"applied": False, "skipped": "non_bot_target"}
+        cwd = os.path.join(BASE_PROJECT, bid)
+        if os.path.exists(os.path.join(cwd, ".stopped")):
+            return {"applied": False, "skipped": "bot_stopped"}
+
+        pb = f"R12_restart_{key}"
+        allowed, rem = _check_and_mark_cooldown(bid, pb, cooldown_sec=3600, dry_run=True)
+        if not allowed:
+            return {"applied": False, "skipped": f"cooldown_{rem}s"}
+
+        if _should_hold_restart_for_positions(cwd):
+            _update_pending_restart(bid, False, pb, f"{key} 해소 안전 재기동 예약", cwd)
+            actions = ["보유 포지션 보호 — 청산 직후 안전 재기동 자동 예약"]
+            _append_history_event(
+                bid,
+                pb,
+                f"{key} 감지 — 청산 후 재기동 예약",
+                actions,
+                reason=details,
+                severity=sev,
+                notify_discord=True,
+                extra={"eval_status": "skipped_na"},
+            )
+            return {"applied": True, "actions": actions}
+
+        ok, detail = bot_restart_locked(
+            bid, cwd, source=f"aegis_v9_{key}", reason=f"R12 {key} 자가복구", cooldown_sec=120
+        )
+        if not ok:
+            return {"applied": False, "skipped": detail}
+        _update_pending_restart(bid, True, pb, f"{key} 자가복구", cwd)
+        actions = [f"엔진 안전 재기동 완료 ({detail})"]
+        _append_history_event(
+            bid,
+            pb,
+            f"{key} 감지 — 엔진 안전 재기동 완료",
+            actions,
+            reason=details,
+            severity=sev,
+            notify_discord=True,
+            extra={"eval_status": "skipped_na"},
+        )
+        return {"applied": True, "actions": actions}
+
+    return {"applied": False, "skipped": "unsupported_r12_key"}
+
+
+def _extract_symbol_from_alert(alert: Dict[str, Any]) -> Optional[str]:
+    text = f"{alert.get('title') or ''} {alert.get('details') or ''}"
+    m = re.search(r"([A-Z0-9]+/USDT:USDT)", text)
+    if m:
+        return m.group(1)
+    m = re.search(r"([A-Z0-9]+)-USDT-SWAP", text)
+    if m:
+        return f"{m.group(1)}/USDT:USDT"
+    m = re.search(r"\b([A-Z0-9]{2,12})USDT\b", text)
+    if m:
+        return f"{m.group(1)}/USDT:USDT"
+    return None
+
+
+def remediate_delisting_or_funding(
+    bot_id: str, cwd: str, alert: Dict[str, Any]
+) -> Dict[str, Any]:
+    """[Playbook R13] 상장폐지·레버리지 상한 하향·극단적 불리 펀딩비 자율 방어."""
+    key = str(alert.get("key") or "")
+    sev = str(alert.get("severity") or "WARN").upper()
+    if os.path.exists(os.path.join(cwd, ".stopped")):
+        return {"applied": False, "skipped": "bot_stopped"}
+
+    if key in ("infra_delisting_risk", "infra_leverage_tier"):
+        pb = f"R13_{key}"
+        allowed, rem = _check_and_mark_cooldown(bot_id, pb, cooldown_sec=43200, dry_run=True)
+        if not allowed:
+            return {"applied": False, "skipped": f"cooldown_{rem}s"}
+        cfg_path, cfg = _load_bot_config_with_backup(cwd)
+        if not cfg:
+            return {"applied": False, "skipped": "missing_config"}
+        orig_cfg = copy.deepcopy(cfg)
+        prev_values: Dict[str, Any] = {}
+        actions: List[str] = []
+
+        sym = _extract_symbol_from_alert(alert)
+        act = _load_json(os.path.join(cwd, "data", "active_positions.json"), {})
+        open_syms = set(act.keys()) if isinstance(act, dict) else set()
+        wl = cfg.get("SYMBOL_WHITELIST")
+
+        if key == "infra_delisting_risk":
+            if sym and isinstance(wl, list) and sym in wl and sym not in open_syms and len(wl) > 10:
+                prev_values["SYMBOL_WHITELIST"] = list(wl)
+                cfg["SYMBOL_WHITELIST"] = [s for s in wl if s != sym]
+                actions.append(f"SYMBOL_WHITELIST에서 상폐/만기 위험 종목 {sym} 자동 제외")
+        else:
+            if sym and isinstance(wl, list) and sym in wl and sym not in open_syms and len(wl) > MIN_WHITELIST_SIZE:
+                prev_values["SYMBOL_WHITELIST"] = list(wl)
+                cfg["SYMBOL_WHITELIST"] = [s for s in wl if s != sym]
+                actions.append(f"레버리지 하향 종목 {sym} 화이트리스트 자동 제외")
+            else:
+                m = re.search(r"거래소 상한\s*([0-9.]+)x", str(alert.get("details") or ""))
+                if m:
+                    max_l = max(1, int(float(m.group(1))))
+                    cur_l = int(float(cfg.get("LEVERAGE", 3) or 3))
+                    if max_l < cur_l:
+                        prev_values["LEVERAGE"] = orig_cfg.get("LEVERAGE")
+                        cfg["LEVERAGE"] = max_l
+                        actions.append(f"LEVERAGE: {cur_l}x→{max_l}x (거래소 상한 일치)")
+
+        if not actions:
+            return {"applied": False, "skipped": "open_pos_or_no_safe_change"}
+
+        return _apply_and_restart(
+            bot_id,
+            cwd,
+            pb,
+            f"상장/레버리지 규격 리스크 자율 방어 ({sym or key})",
+            actions,
+            reason=str(alert.get("details") or key),
+            cfg_path=cfg_path,
+            cfg=cfg,
+            severity=sev,
+            force_restart_with_pos=False,
+            prev_values=prev_values,
+            eval_status="skipped_na",
+        )
+
+    if key == "infra_funding_drain":
+        if sev != "CRITICAL":
+            return {"applied": False, "skipped": "warn_monitoring"}
+        allowed, rem = _check_and_mark_cooldown(bot_id, "R13_funding_defense", cooldown_sec=43200, dry_run=True)
+        if not allowed:
+            return {"applied": False, "skipped": f"cooldown_{rem}s"}
+        cfg_path, cfg = _load_bot_config_with_backup(cwd)
+        if not cfg:
+            return {"applied": False, "skipped": "missing_config"}
+        cur_cd = float(cfg.get("COOLDOWN_HOURS", 4.0) or 4.0)
+        if cur_cd >= 6.0:
+            return {"applied": False, "skipped": "already_hardened"}
+        prev_values = {"COOLDOWN_HOURS": cfg.get("COOLDOWN_HOURS")}
+        cfg["COOLDOWN_HOURS"] = 6.0
+        actions = [f"COOLDOWN_HOURS: {cur_cd:.1f}h→6.0h (고율 불리 펀딩 종목 재진입 억제)"]
+        return _apply_and_restart(
+            bot_id,
+            cwd,
+            "R13_funding_defense",
+            "극단적 불리 펀딩비 재진입 차단 쿨다운 상향",
+            actions,
+            reason=str(alert.get("details") or key),
+            cfg_path=cfg_path,
+            cfg=cfg,
+            severity="WARN",
+            force_restart_with_pos=False,
+            prev_values=prev_values,
+            eval_status="skipped_na",
+        )
+
+    return {"applied": False, "skipped": "unsupported_r13_key"}
+
+
+def remediate_portfolio_or_blackswan(
+    alert: Dict[str, Any], bots: List[Any]
+) -> Dict[str, Any]:
+    """[Playbook R14] 포트폴리오 쏠림·24h 급락·USDT 디페깅·BTC 급변동 CRITICAL 시 전 봇 자율 방어."""
+    key = str(alert.get("key") or "")
+    sev = str(alert.get("severity") or "WARN").upper()
+    if sev != "CRITICAL":
+        return {"applied": False, "skipped": "warn_monitoring"}
+    if key not in ("portfolio_net_exposure", "portfolio_24h_drawdown", "blackswan_usdt_depeg", "market_regime_shock"):
+        return {"applied": False, "skipped": "unsupported_r14_key"}
+
+    pb = f"R14_{key}"
+    allowed, rem = _check_and_mark_cooldown("8888", pb, cooldown_sec=21600, dry_run=True)
+    if not allowed:
+        return {"applied": False, "skipped": f"cooldown_{rem}s"}
+
+    hardened: List[str] = []
+    for b in bots:
+        bid = str(b)
+        cwd = os.path.join(BASE_PROJECT, bid)
+        if os.path.exists(os.path.join(cwd, ".stopped")):
+            continue
+        cfg_path, cfg = _load_bot_config_with_backup(cwd)
+        if not cfg:
+            continue
+        orig_cfg = copy.deepcopy(cfg)
+        b_acts: List[str] = []
+
+        cur_mp = int(float(cfg.get("MAX_POSITIONS", 2) or 2))
+        if cur_mp > 1:
+            cfg["MAX_POSITIONS"] = 1
+            b_acts.append(f"MP {cur_mp}→1")
+
+        if cfg.get("USE_AUTO_COMPOUND"):
+            ex_id = str(cfg.get("EXCHANGE_ID", "")).lower()
+            min_cmp = 22.0 if ex_id == "binance" else 18.0
+            cur_cmp = float(cfg.get("AUTO_COMPOUND_PCT", 25.0) or 25.0)
+            new_cmp = max(min_cmp, round(cur_cmp * 0.80, 1))
+            if new_cmp < cur_cmp - 0.5:
+                cfg["AUTO_COMPOUND_PCT"] = new_cmp
+                b_acts.append(f"CMP {cur_cmp:.1f}%→{new_cmp:.1f}%")
+
+        if key == "blackswan_usdt_depeg" and cfg.get("AUTO_TRADING", True):
+            cfg["AUTO_TRADING"] = False
+            b_acts.append("AUTO_TRADING→False")
+
+        if not b_acts:
+            continue
+
+        _record_pre_defense_baseline(bid, orig_cfg, ["AUTO_COMPOUND_PCT", "MAX_POSITIONS", "AUTO_TRADING"])
+        _save_bot_config_with_backup(cfg_path, cfg)
+        _sync_ver_md(cwd, f"전 계좌 블랙스완/레짐 긴급 방어 ({key})", b_acts)
+
+        has_pos = _should_hold_restart_for_positions(cwd)
+        restarted = False
+        if not has_pos:
+            ok, _ = bot_restart_locked(
+                bid, cwd, source=f"aegis_v9_{pb}", reason=f"전 계좌 자율 방어({key})", cooldown_sec=60
+            )
+            restarted = bool(ok)
+        _update_pending_restart(bid, restarted, pb, f"R14 긴급 방어({key})", cwd)
+        state_lbl = "재기동완료" if restarted else "재기동예약"
+        hardened.append(f"{bid}({', '.join(b_acts)} / {state_lbl})")
+
+    if not hardened:
+        return {"applied": False, "skipped": "fleet_already_hardened"}
+
+    _append_history_event(
+        "8888",
+        pb,
+        f"전 계좌 시스템 방어 자율 발동 ({key})",
+        hardened,
+        reason=str(alert.get("details") or alert.get("title") or key),
+        severity="CRITICAL",
+        notify_discord=True,
+        extra={"eval_status": "skipped_na"},
+    )
+    return {"applied": True, "actions": hardened}
+
+
+def remediate_tca_or_otr(
+    bot_id: str, cwd: str, alert: Dict[str, Any]
+) -> Dict[str, Any]:
+    """[Playbook R15] TCA 체결 품질 저하(R3 연계) 및 OTR 주문 폭주 즉시 제어."""
+    key = str(alert.get("key") or "")
+    sev = str(alert.get("severity") or "WARN").upper()
+    if os.path.exists(os.path.join(cwd, ".stopped")):
+        return {"applied": False, "skipped": "bot_stopped"}
+
+    if key in ("tca_fee_slippage_spike", "tca_maker_fill_low", "tca_adverse_selection"):
+        if key == "tca_fee_slippage_spike" or sev == "CRITICAL":
+            return remediate_fee_or_alpha_decay(bot_id, cwd, f"R15_{key}", closed_all=25)
+        return {"applied": False, "skipped": "warn_monitoring"}
+
+    if key == "otr_runaway_algo":
+        if sev != "CRITICAL":
+            return {"applied": False, "skipped": "warn_monitoring"}
+        allowed, rem = _check_and_mark_cooldown(bot_id, "R15_otr_throttle", cooldown_sec=3600, dry_run=True)
+        if not allowed:
+            return {"applied": False, "skipped": f"cooldown_{rem}s"}
+        cfg_path, cfg = _load_bot_config_with_backup(cwd)
+        if not cfg:
+            return {"applied": False, "skipped": "missing_config"}
+        prev_values: Dict[str, Any] = {}
+        actions: List[str] = []
+        cur_cd = float(cfg.get("COOLDOWN_HOURS", 4.0) or 4.0)
+        if cur_cd < 6.0:
+            prev_values["COOLDOWN_HOURS"] = cfg.get("COOLDOWN_HOURS")
+            cfg["COOLDOWN_HOURS"] = 6.0
+            actions.append(f"COOLDOWN_HOURS: {cur_cd:.1f}h→6.0h (OTR 폭주 차단)")
+        else:
+            actions.append("OTR 주문 루프 해소를 위한 즉시 안전 재기동")
+        return _apply_and_restart(
+            bot_id,
+            cwd,
+            "R15_otr_throttle",
+            "OTR 주문 폭주 감지 — 즉시 억제 및 재기동",
+            actions,
+            reason=str(alert.get("details") or key),
+            cfg_path=cfg_path,
+            cfg=cfg,
+            severity="CRITICAL",
+            force_restart_with_pos=True,
+            prev_values=prev_values or None,
+            eval_status="skipped_na",
+        )
+
+    return {"applied": False, "skipped": "unsupported_r15_key"}
+
+
+def dispatch_aegis_alert_remediations(
+    alerts: List[Dict[str, Any]],
+    bots: List[Any],
+    portfolio_summary: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
+    """
+    [Universal Alert Dispatcher] M16~M34 전 선제 경보 항목을 해당 자율 조치 플레이북(R3/R12~R15)으로 라우팅하고,
+    수동 확인 권고 문구 대신 실제 자율 조치 결과 또는 외부 개입 필요 여부를 기록한다.
+    """
+    allowed_bots = {str(b) for b in bots}
+    per_bot_alpha = ((portfolio_summary or {}).get("m22_alpha") or {}).get("per_bot_alpha") or {}
+    kept_alerts: List[Dict[str, Any]] = []
+
+    for a in (alerts or []):
+        if not isinstance(a, dict):
+            continue
+        bid = str(a.get("bot_id") or "8888")
+        key = str(a.get("key") or "")
+        cwd = os.path.join(BASE_PROJECT, bid)
+        res: Optional[Dict[str, Any]] = None
+
+        if key == "alpha_decay_early" and bid in allowed_bots:
+            sample_n = int((per_bot_alpha.get(bid) or {}).get("sample_n") or 30)
+            res = remediate_fee_or_alpha_decay(
+                bid, cwd, f"M22조기알파감쇠({a.get('severity', 'WARN')})", closed_all=max(sample_n, 25)
+            )
+        elif key in (
+            "security_env_writable",
+            "security_env_readable",
+            "security_json_corrupted",
+            "infra_orphan_helpers",
+            "infra_disk_full",
+            "infra_memory_leak",
+            "infra_fd_leak",
+            "feed_stale_scan",
+            "feed_frozen_prices",
+        ):
+            res = remediate_infra_or_security_alert(a, bots)
+            if res.get("suppress_alert"):
+                continue
+        elif key in ("infra_delisting_risk", "infra_leverage_tier", "infra_funding_drain") and bid in allowed_bots:
+            res = remediate_delisting_or_funding(bid, cwd, a)
+        elif key in ("portfolio_net_exposure", "portfolio_24h_drawdown", "blackswan_usdt_depeg", "market_regime_shock"):
+            res = remediate_portfolio_or_blackswan(a, bots)
+        elif key in ("tca_fee_slippage_spike", "tca_maker_fill_low", "tca_adverse_selection", "otr_runaway_algo") and bid in allowed_bots:
+            res = remediate_tca_or_otr(bid, cwd, a)
+        elif key.startswith("portfolio_crowding_"):
+            a["recommendation"] = "Level 2+ 포트폴리오 집중 감시 중 (Peak-MDD/R14 방어 자동 연동)"
+            kept_alerts.append(a)
+            continue
+        elif any(key.startswith(pref) for pref in EXTERNAL_ONLY_ALERT_PREFIXES):
+            rec_old = str(a.get("recommendation") or "")
+            if "[외부 계정/OS 개입 필요]" not in rec_old:
+                a["recommendation"] = f"[외부 계정/OS 개입 필요] {rec_old}".strip()
+            kept_alerts.append(a)
+            continue
+
+        if res is not None:
+            if res.get("applied"):
+                a["recommendation"] = f"Level 2+ 자율 조치 완료: {', '.join(res.get('actions') or [])}"
+            else:
+                a["recommendation"] = f"Level 2+ 자율 감시 유지 ({res.get('skipped') or '정상 대기'})"
+        kept_alerts.append(a)
+
+    return kept_alerts
+
 

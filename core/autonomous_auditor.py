@@ -130,7 +130,7 @@ def check_unexecuted_signal_trace(bot_id: int, cwd: str) -> Tuple[bool, str, boo
             if stale:
                 estate["recently_entered"] = kept
                 _atomic_write_json(eng_state_file, estate)
-                return True, f"만료된 recently_entered 락 자동 해제 ({', '.join(stale)})", True
+                return False, f"만료된 recently_entered 락 자동 해제 ({', '.join(stale)})", True
 
     log_path = os.path.join(cwd, "bot_engine.log")
     if not os.path.exists(log_path):
@@ -772,14 +772,14 @@ def check_rapid_self_destruct_exits(bot_id: int, cwd: str) -> Tuple[bool, str]:
         return (
             True,
             f"초단기(≤120초) 비정상 자폭 청산 {len(hits)}건/24h 감지 "
-            f"(최근: {last_sym} {last_dur:.0f}초 {last_pct:+.2f}%) — 트레일링/BE 상태 오염 즉시 점검 필요",
+            f"(최근: {last_sym} {last_dur:.0f}초 {last_pct:+.2f}%) — Level 2+ 자율 정화·튜닝 연계 대상",
         )
     if len(hits) == 1:
         last_sym, last_dur, last_pct = hits[0]
         return (
             True,
             f"초단기(≤120초) 조기 청산 1건/24h 감지 "
-            f"({last_sym} {last_dur:.0f}초 {last_pct:+.2f}%) — 조기 점검 필요",
+            f"({last_sym} {last_dur:.0f}초 {last_pct:+.2f}%) — Level 2+ 자율 정화·튜닝 연계 대상",
         )
     return False, "초단기 자폭 청산 없음"
 
@@ -835,6 +835,9 @@ def run_all_autonomous_audits(bot_id: int, cwd: str) -> Dict[str, Any]:
     trace_err, trace_msg, trace_rst = check_unexecuted_signal_trace(bot_id, cwd)
     if trace_err:
         issues.append(("ai_unexecuted_signal_trace", trace_msg))
+        needs_restart = needs_restart or trace_rst
+    elif "자동 해제" in trace_msg:
+        healed.append(trace_msg)
         needs_restart = needs_restart or trace_rst
 
     size_err, size_msg = check_order_sizing_preflight(bot_id, cwd)

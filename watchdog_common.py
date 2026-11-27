@@ -1006,13 +1006,24 @@ def run_log_watchdog(
             sig = _error_signature(reason) or "structural"
             _jump_offsets_to_eof(bot_name)
             log(f"[{bot_name}] 🧩 구조적 주문/모드 오류 감지(재기동 생략, {sig}): {reason[:140]}")
+            rec_txt = "Level 2+ 자율 감시 지속 (구조적 규격 조건 추적)"
+            if any(k in rlow for k in ("notional", "최소 주문", "margin", "5 usdt", "min_amount")):
+                try:
+                    from core.auto_remediator import remediate_entry_sizing_error
+                    r1 = remediate_entry_sizing_error(bot_name, bot_dir, "NOTIONAL_MIN_ERROR")
+                    if r1.get("applied"):
+                        rec_txt = f"Level 2+ R1 자율 보정 완료: {', '.join(r1.get('actions') or [])}"
+                    else:
+                        rec_txt = f"Level 2+ R1 자율 보정 결과: {r1.get('skipped')}"
+                except Exception as re_exc:
+                    rec_txt = f"Level 2+ R1 자율 보정 예외: {re_exc}"
             record_proactive_alert(
                 bot_name,
                 f"structural_{sig}",
                 "CRITICAL",
                 f"구조적 주문/모드 오류 감지 ({sig})",
                 reason[:200],
-                "재기동으로 해결 불가한 파라미터/거래소 규격 오류 — 소스 패치 검토 필요",
+                rec_txt,
                 cooldown_sec=3600,
                 notify_discord=True,
             )

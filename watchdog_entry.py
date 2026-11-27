@@ -28,7 +28,13 @@ from core.autonomous_auditor import (
 from core.exchange_infra_auditor import run_exchange_infra_audit
 from core.portfolio_risk_auditor import run_portfolio_risk_audit
 from core.security_ops_auditor import run_security_ops_audit
-from core.auto_remediator import flush_pending_restarts, remediate_fee_or_alpha_decay
+from core.auto_remediator import (
+    dispatch_aegis_alert_remediations,
+    flush_pending_restarts,
+    record_external_remediation,
+    remediate_entry_sizing_error,
+    remediate_fee_or_alpha_decay,
+)
 
 _ENTRY_LOG = os.path.join(BASE_8888, "watchdog_entry.log")
 _stdout_redirected = False
@@ -990,10 +996,22 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                 else:
                     logger.info(f"[{b}] 🛡 무포지션 건전성: {flat_reason}")
 
-            # 3) [AI 12대 자율감사] 전 파이프라인(모듈 2/3/4/6/7/8/9/10/11/12) 통합 감시·자가치유
+            # 3) [AI 14대 자율감사] 전 파이프라인 통합 감시·자가치유·R16 자율 완결
             audit_res = run_all_autonomous_audits(b, cwd)
             if audit_res["healed"]:
-                logger.warning(f"[{b}] 🛠 [AI 10대 자율감사] 자가 치유 수행: {' | '.join(audit_res['healed'])}")
+                logger.warning(f"[{b}] 🛠 [AI 14대 자율감사] 자가 치유 완료: {' | '.join(audit_res['healed'])}")
+                try:
+                    record_external_remediation(
+                        str(b),
+                        "R16_ai_self_heal",
+                        "AI 자율감사 자가 치유 완료",
+                        list(audit_res["healed"]),
+                        reason="AI 14대 자율감사 자동 치유",
+                        severity="INFO",
+                        notify_discord=False,
+                    )
+                except Exception:
+                    pass
             active_ai_keys = {k for k, _ in audit_res["issues"]}
             for ai_k in (
                 "ai_unexecuted_signal_trace",
@@ -1013,17 +1031,41 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                     clear_proactive_alert(str(b), ai_k)
             if audit_res["issues"]:
                 issue_msgs = [msg for _, msg in audit_res["issues"]]
-                logger.warning(f"[{b}] 🚨 [AI 10대 자율감사] 이상 감지: {' | '.join(issue_msgs)}")
+                logger.warning(f"[{b}] 🚨 [AI 14대 자율감사] 이상 감지: {' | '.join(issue_msgs)}")
                 for key, msg in audit_res["issues"]:
                     is_crit = key in ("ai_self_heal_loop", "ai_rapid_self_destruct", "ai_engine_states_pollution")
                     ai_sev = "CRITICAL" if is_crit else "WARN"
+                    rec = "Level 2+ 자율 감시 지속 (자동 복구 조건 충족 시 즉시 조치)"
+                    if key == "ai_sizing_preflight":
+                        try:
+                            r1 = remediate_entry_sizing_error(str(b), cwd, "MARGIN_SETTING_ERROR")
+                            rec = (
+                                f"Level 2+ R1 자율 보정 완료: {', '.join(r1.get('actions') or [])}"
+                                if r1.get("applied")
+                                else f"Level 2+ R1 자율 보정 대기 ({r1.get('skipped')})"
+                            )
+                        except Exception as re_e:
+                            rec = f"Level 2+ R1 자율 보정 예외: {re_e}"
+                    elif key == "ai_rapid_self_destruct":
+                        try:
+                            r3 = remediate_fee_or_alpha_decay(str(b), cwd, "R16_초단기자폭", closed_all=25)
+                            rec = (
+                                f"Level 2+ R3 자율 튜닝 완료: {', '.join(r3.get('actions') or [])}"
+                                if r3.get("applied")
+                                else f"Level 2+ R3 자율 튜닝 대기 ({r3.get('skipped')})"
+                            )
+                        except Exception as re_e:
+                            rec = f"Level 2+ R3 자율 튜닝 예외: {re_e}"
+                    elif audit_res["needs_restart"]:
+                        rec = "Level 2+ 자율 조치: 공유 락 안전 재기동 자동 수행"
+
                     record_proactive_alert(
                         str(b),
                         key,
                         ai_sev,
                         "AI 자율감사 이상 감지" if not is_crit else "AI 선제 자폭/오염 긴급 경보",
                         msg,
-                        "원인 분석 및 조치 결과 확인 필요",
+                        rec,
                         cooldown_sec=3600 if is_crit else 21600,
                         notify_discord=True,
                     )
@@ -1035,7 +1077,7 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                     needs_restart = True
                     action_taken.extend(audit_res["healed"])
                 logger.info(
-                    f"[{b}] 🤖 [AI 10대 자율감사] 14/14 전수 정상 "
+                    f"[{b}] 🤖 [AI 14대 자율감사] 14/14 전수 정상 "
                     f"({audit_res['gate_summary']} | {audit_res['scan_summary']})"
                 )
         except Exception as e:
@@ -1181,39 +1223,17 @@ def _run_aegis_v7_global_audit(cycle: int) -> None:
         logger.error(f"🚨 [Aegis V7 Portfolio] 감사 예외: {e}")
         port_res = {"alerts": [], "scorecard": {}}
 
-    # [R3 직접 연계] M22 조기 알파 감쇠 감지 시 즉시 자율 튜닝(R3) 수행
-    try:
-        per_bot_alpha = (
-            ((port_res.get("summary") or {}).get("m22_alpha") or {}).get("per_bot_alpha") or {}
-        )
-        allowed_bot_strs = {str(x) for x in BOT_LIST}
-        for a in (port_res.get("alerts") or []):
-            if a.get("key") != "alpha_decay_early":
-                continue
-            bid = str(a.get("bot_id") or "")
-            if bid not in allowed_bot_strs:
-                continue
-            sample_n = int((per_bot_alpha.get(bid) or {}).get("sample_n") or 30)
-            r3 = remediate_fee_or_alpha_decay(
-                bid,
-                os.path.join(os.path.dirname(BASE_8888), bid),
-                f"M22조기알파감쇠({a.get('severity', 'WARN')})",
-                closed_all=max(sample_n, 25),
-                sample_days=0.0,
-            )
-            if r3.get("applied"):
-                a["recommendation"] = f"Level 2+ 자율 튜닝 완료: {', '.join(r3.get('actions') or [])}"
-                logger.info(f"🤖 [{bid}] M22 조기 알파 감쇠 → R3 자율 튜닝 완료: {', '.join(r3.get('actions') or [])}")
-            else:
-                a["recommendation"] = f"Level 2+ 자율 튜닝 대기/유예({r3.get('skipped')}) — 추이 지속 감시"
-    except Exception as e:
-        logger.error(f"⚠️ [M22→R3 자율 연계] 예외: {e}")
-
     combined_alerts = (
         (sec_res.get("alerts") or [])
         + (infra_res.get("alerts") or [])
         + (port_res.get("alerts") or [])
     )
+    try:
+        combined_alerts = dispatch_aegis_alert_remediations(
+            combined_alerts, BOT_LIST, portfolio_summary=port_res.get("summary")
+        )
+    except Exception as e:
+        logger.error(f"⚠️ [Aegis V9 통합 자율조치 디스패처] 예외: {e}")
     _sync_aegis_alerts(combined_alerts)
 
     sc = port_res.get("scorecard") or {}
@@ -1225,7 +1245,7 @@ def _run_aegis_v7_global_audit(cycle: int) -> None:
     rot_txt = f" | 로그로테이션:{','.join(rot)}" if rot else ""
     usdt_txt = f"${m28['usdt_usd_avg']:.4f}" if m28.get("usdt_usd_avg") else "N/A"
     logger.info(
-        f"🛡️ [Aegis V7 종합점검] 스코어 {sc.get('score', '?')}/100 ({sc.get('grade', '?')}) | "
+        f"🛡️ [Aegis V9 종합점검] 스코어 {sc.get('score', '?')}/100 ({sc.get('grade', '?')}) | "
         f"노출 ${m16.get('gross_notional', 0):.2f} (Net ${m16.get('net_notional', 0):+.2f}, {m16.get('total_positions', 0)}포) | "
         f"USDT {usdt_txt} | IP {m33.get('public_ip', '?')} | 신규경보 {len(combined_alerts)}건 | 디스크 {m24.get('disk_used_pct', '?')}%{rot_txt}"
     )
@@ -1233,7 +1253,7 @@ def _run_aegis_v7_global_audit(cycle: int) -> None:
 
 def main():
     logger.info("==========================================")
-    logger.info("🐶 Watchdog System Started (Aegis V8.5 Profit-Adaptive Closed-Loop Active)")
+    logger.info("🐶 Watchdog System Started (Aegis V9 Full Autonomous Remediation Active)")
     logger.info("==========================================")
     cycle = 0
     while True:

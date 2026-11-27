@@ -1,5 +1,36 @@
 # Version History
 
+## v1.13.0
+
+Date: 2026-11-28
+
+### 변경 내용
+
+* **Aegis V9 — 전 선제경보 100% 자율 조치화 (`R11~R16` + 통합 경보 디스패처, 보스 승인 대기 완전 철폐)**:
+  * `core/auto_remediator.py`:
+    - **R11 (`remediate_loss_streak_or_fee_warn`)**: `loss_streak`(주의/킬선) 시 동적비중(`USE_DYNAMIC_REGIME=True`)·자동스위칭 차단·쿨다운(`6.0h`) 상향 및 킬선 도달 시 `MAX_POSITIONS=1`·복리 비중 20% 방어 감축(`pre_defense_baseline` 저장 → 회복 시 R9 자동 복구), `fee_ratio WARN` 시 `R3` 자율 튜닝 연계
+    - **R12 (`remediate_infra_or_security_alert`)**: `.env` 권한(`chmod 600` 자율 복구·경미 알림 억제), 손상 JSON(`.auto_bak`/`.bak`/일일 백업) 자동 복원, 장기 상주 보조 스크립트(`lab/`·`test_`) 안전 종료, 디스크 용량 확보 청소, 메모리/FD 누수·스캔 정지·피드 동결 봇 안전 재기동(포지션 보유 시 `pending_restarts` 자동 예약)
+    - **R13 (`remediate_delisting_or_funding`)**: 상장폐지/계약만기 및 레버리지 상한 하향 종목 화이트리스트 자동 제외(미보유 확인)·레버리지 상한 동기화, 극단적 불리 펀딩비 시 재진입 억제(`COOLDOWN_HOURS=6.0h`)
+    - **R14 (`remediate_portfolio_or_blackswan`)**: `portfolio_net_exposure`·`portfolio_24h_drawdown`·`blackswan_usdt_depeg`·`market_regime_shock` `CRITICAL` 구간에서 전 봇 동시보유(`MAX_POSITIONS=1`)·비중 20% 감축 및 디페깅 시 `AUTO_TRADING=False` 긴급 방어(`pre_defense_baseline` 저장으로 안정화 후 R9 자동 복구)
+    - **R15 (`remediate_tca_or_otr`)**: 체결품질 저하(`tca_*`) `R3` 자율 튜닝 연계 및 `OTR` 주문 폭주(`CRITICAL`) 즉시 재기동·쿨다운 상향 차단
+    - **Universal Alert Dispatcher (`dispatch_aegis_alert_remediations`)**: M16~M34 전 경보 항목을 해당 플레이북에 자동 라우팅하고 `"확인 필요/권고/승인 요청"` 문구 일괄 제거 (거래소 웹사이트 API 키/외부망/Mac OS 권한 항목만 `[외부 계정/OS 개입 필요]` 명확 구분)
+  * `core/autonomous_auditor.py` (**R16**): `check_unexecuted_signal_trace`가 만료된 `recently_entered` 락을 자동 해제한 경우 `"이상 감지/확인 필요"` 경보에서 제외하고 `healed` 자가 치유 이력으로 전환
+  * `watchdog_entry.py`, `watchdog_profitability.py`, `watchdog_common.py`: R11~R16 및 통합 경보 디스패처 전면 연동, `watchdog_position`/`watchdog_exit` 구조적 규격 오류 `R1` 자율 보정 연계
+
+### 수정 파일
+
+* core/auto_remediator.py
+* core/autonomous_auditor.py
+* watchdog_common.py
+* watchdog_entry.py
+* watchdog_profitability.py
+* ver.md
+
+### 비고
+
+* `py_compile` + `R11~R16`·외부개입 태깅 8종 격리 단위 테스트(`UNIT_TESTS_AEGIS_V9_ALL_8_PASSED`) + `8403` 기존 `ai_unexecuted_signal_trace` 해소 정리 + 4대 워치독 재기동·하트비트·10개 포트 HTTP 200·`verify_all.py` 100% PASS 확인
+
+
 ## v1.12.0
 
 Date: 2026-11-27

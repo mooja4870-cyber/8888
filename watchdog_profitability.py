@@ -46,6 +46,7 @@ from core.auto_remediator import (  # noqa: E402
     remediate_bleeding_symbols,
     remediate_config_gaps,
     remediate_fee_or_alpha_decay,
+    remediate_loss_streak_or_fee_warn,
     remediate_peak_mdd,
     remediate_recovery_scale_up,
 )
@@ -412,11 +413,18 @@ def _eval_bot(bot_id, bot_baseline, live_ex_bots, latest_snap_bots, peak_assets_
         closed_7d >= 20 and (fd_7d or (fr_7d is not None and fr_7d >= fee_kill))
     ):
         pct_str = f"누적 {fr_all:.0f}%" if (fr_all is not None and fr_all >= fee_warn) else f"7d {fr_7d_txt}"
+        r11_fee = remediate_loss_streak_or_fee_warn(
+            bot_id, bot_dir, f"수수료주의({pct_str})", is_kill=False, is_fee_warn=True, closed_all=closed_all
+        )
         msg = (
             f"수수료 비중 주의 ({pct_str} | 7d {fr_7d_txt} Fee ${trade_stats['fees_7d']:.2f} / "
             f"누적 {fr_all_txt} Fee ${trade_stats['fees_all']:.2f})"
         )
-        rec = f"[{tier_label}] 수수료 잠식 심화. 메이커 지정가 비중 확대 또는 진입 필터 보강 검토 권고."
+        rec = (
+            f"Level 2+ R11/R3 자율 튜닝 완료: {', '.join(r11_fee['actions'])}"
+            if r11_fee.get("applied")
+            else f"Level 2+ R11/R3 자율 감시 유지 ({r11_fee.get('skipped')})"
+        )
         record_proactive_alert(
             bot_id, "fee_ratio", "WARN", f"수수료 비중 주의 ({pct_str})",
             msg, recommendation=rec, cooldown_sec=21600, notify_discord=True
@@ -431,16 +439,30 @@ def _eval_bot(bot_id, bot_baseline, live_ex_bots, latest_snap_bots, peak_assets_
     cur_ls = int(trade_stats["cur_loss_streak"])
     max_ls = int(trade_stats["max_loss_streak"])
     if cur_ls >= ls_kill:
+        r11_ls = remediate_loss_streak_or_fee_warn(
+            bot_id, bot_dir, f"{cur_ls}연패임계초과", is_kill=True, is_fee_warn=False, closed_all=closed_all
+        )
         msg = f"현재 {cur_ls}연패 진행 중 (역대 기대 한계 {ls_kill}연패 도달/초과)"
-        rec = f"[{tier_label}] 5년 백테스트 최대 연패 한계 도달. 레짐 이상 또는 전략 수명 종료 여부 점검 승인을 요청합니다."
+        rec = (
+            f"Level 2+ R11 연패 킬선 자율 방어 완료: {', '.join(r11_ls['actions'])}"
+            if r11_ls.get("applied")
+            else f"Level 2+ R11 연패 방어 적용 상태 유지 ({r11_ls.get('skipped')})"
+        )
         record_proactive_alert(
             bot_id, "loss_streak", "CRITICAL", f"최대 연패 임계 초과 ({cur_ls}연패)",
             msg, recommendation=rec, cooldown_sec=21600, notify_discord=True
         )
         active_alerts.append({"key": "loss_streak", "severity": "CRITICAL", "title": f"{cur_ls}연패 임계 초과"})
     elif cur_ls >= ls_warn:
+        r11_ls = remediate_loss_streak_or_fee_warn(
+            bot_id, bot_dir, f"{cur_ls}연패주의", is_kill=False, is_fee_warn=False, closed_all=closed_all
+        )
         msg = f"현재 {cur_ls}연패 진행 중 (주의 {ls_warn}연패 이상, 킬선 {ls_kill}연패)"
-        rec = f"[{tier_label}] 연패 비중 축소(USE_DYNAMIC_REGIME) 동작 여부 및 손실 진행 점검 권고."
+        rec = (
+            f"Level 2+ R11 연패 주의 자율 방어 완료: {', '.join(r11_ls['actions'])}"
+            if r11_ls.get("applied")
+            else f"Level 2+ R11 연패 방어 감시 유지 ({r11_ls.get('skipped')})"
+        )
         record_proactive_alert(
             bot_id, "loss_streak", "WARN", f"연패 주의 구간 ({cur_ls}연패)",
             msg, recommendation=rec, cooldown_sec=21600, notify_discord=True
@@ -454,7 +476,7 @@ def _eval_bot(bot_id, bot_baseline, live_ex_bots, latest_snap_bots, peak_assets_
     target_days = int(thresholds.get("review_target_days", 60))
     if sample_days >= target_days:
         msg = f"운용 표본 {sample_days:.1f}일 / 청산 {closed_all}건 (목표 검증 {target_days}일 도달)"
-        rec = f"[{tier_label}] 충분한 표본 확보 완료. 순/역 자동스위칭 및 전략 유지/개선 최종 판정 보고 권고."
+        rec = f"[{tier_label}] 충분한 표본 확보 완료 — R8 사후 검증 및 R9/R10 자율 최적화 자동 판정 가동 중."
         record_proactive_alert(
             bot_id, "sample_review", "WARN", f"표본 {sample_days:.0f}일 도달 (최종 검토 시점)",
             msg, recommendation=rec, cooldown_sec=86400, notify_discord=True
@@ -462,7 +484,7 @@ def _eval_bot(bot_id, bot_baseline, live_ex_bots, latest_snap_bots, peak_assets_
         active_alerts.append({"key": "sample_review", "severity": "WARN", "title": f"표본 {sample_days:.0f}일 도달"})
     elif sample_days >= min_days:
         msg = f"운용 표본 {sample_days:.1f}일 / 청산 {closed_all}건 (최소 {min_days}일 충족, 목표 {target_days}일)"
-        rec = f"[{tier_label}] 최소 표본 충족 — 백테스트 기대치 대비 중간 성과 비교 가능."
+        rec = f"[{tier_label}] 최소 표본 충족 — R8/R10 자율 성과 추적 활성 상태."
         record_proactive_alert(
             bot_id, "sample_review", "INFO", f"최소 표본 {min_days}일 충족 ({sample_days:.1f}일)",
             msg, recommendation=rec, cooldown_sec=86400, notify_discord=False
@@ -650,7 +672,7 @@ def main():
     lock_fd.write(f"{os.getpid()}\n")
     lock_fd.flush()
 
-    _log(f"🛡️ watchdog_profitability.py 가동 (PID {os.getpid()}, Aegis V8.5 Profit-Adaptive Closed-Loop 모드, 주기 {CHECK_INTERVAL_SEC}s)")
+    _log(f"🛡️ watchdog_profitability.py 가동 (PID {os.getpid()}, Aegis V9 Full Autonomous Remediation 모드, 주기 {CHECK_INTERVAL_SEC}s)")
     while True:
         try:
             run_once()
