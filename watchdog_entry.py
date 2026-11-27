@@ -326,7 +326,28 @@ def audit_trade_reconciliation(b: int, cwd: str) -> None:
             basis_warns = data.get("basis_warnings") or []
             unauth_pos = data.get("unauthorized_positions") or []
             sec_warns = data.get("security_warnings") or []
+            emerg_closed = data.get("emergency_closed") or []
+            rearmed_pos = data.get("rearmed_positions") or []
             auth_err = str(data.get("auth_error") or "").strip()
+
+            if emerg_closed or rearmed_pos:
+                try:
+                    from core.auto_remediator import record_external_remediation
+                    if rearmed_pos:
+                        record_external_remediation(
+                            str(b), "R6_rearm", "미보호 포지션(SL/TP) 자율 재무장 완료",
+                            [f"재무장 성공: {', '.join(rearmed_pos)}"],
+                            "거래소 보호주문 누락 감지로 즉시 SL/TP 재등록", severity="WARN",
+                        )
+                    if emerg_closed:
+                        record_external_remediation(
+                            str(b), "R7_emergency_close", "파국적 리스크 긴급 자율 강제청산 완료",
+                            [f"시장가 청산: {', '.join(emerg_closed)}"],
+                            "청산 임박 / 비인가 포지션 / 보호주문 재무장 불가로 계좌 생존 우선 청산",
+                            severity="CRITICAL",
+                        )
+                except Exception:
+                    pass
 
             if auth_err:
                 record_proactive_alert(
@@ -822,10 +843,11 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
             
             anomalies = audit_33.run_33_point_audit(b, cwd)
             if anomalies:
+                anom_desc = "; ".join(str(a) for a in anomalies[:3])
                 alert_msg = f"🚨 **[워치독 33대 자체점검 이상 감지: {b}]**\\n\\n발견된 문제:\\n" + "\\n".join([f"- {a}" for a in anomalies]) + "\\n\\n🛠 **즉각적인 적의조처(자동 재기동) 트리거 발동**"
-                logger.warning(f"[{b}] 🚨 33대 자체점검 이상 감지: {len(anomalies)}건 발견. 자동 복구 트리거 발동.")
+                logger.warning(f"[{b}] 🚨 33대 자체점검 이상 감지({len(anomalies)}건): {anom_desc} → 자동 복구 트리거 발동.")
                 needs_restart = True
-                action_taken.append("33대 자체점검 자동복구 트리거")
+                action_taken.append(f"33대 자체점검 복구({anom_desc[:45]})")
                 
                 py_cmd = f"import sys; sys.path.insert(0, '{cwd}'); import core.alert as alert; alert.send_telegram_alert('{alert_msg}')"
                 subprocess.run(["python3", "-c", py_cmd], cwd=cwd)
@@ -910,13 +932,24 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                         except Exception:
                             pass
                     if err_type == "STRENGTH_GATE_MISMATCH":
-                        rec = "strategy.py 시그널 강도와 trader.py _risk_check required_strength 게이트 불일치 — 코드/게이트 정합화 점검 권고"
+                        rec = "strategy.py 시그널 강도와 trader.py _risk_check required_strength 게이트 불일치 — 코드 정합화 필요"
+                    elif err_type in ("NOTIONAL_MIN_ERROR", "MARGIN_SETTING_ERROR"):
+                        try:
+                            from core.auto_remediator import remediate_entry_sizing_error
+                            r1 = remediate_entry_sizing_error(str(b), cwd, err_type)
+                        except Exception as re_err:
+                            r1 = {"applied": False, "skipped": str(re_err)}
+                        if r1.get("applied"):
+                            logger.warning(f"[{b}] 🤖 [Aegis V8 R1 자율 보정 완료]: {', '.join(r1.get('actions', []))}")
+                            action_taken.extend(r1.get("actions", []))
+                            rec = f"{err_type} 자율 보정 완료: {', '.join(r1.get('actions', []))}"
+                        else:
+                            rec = f"{err_type} 감지 (margin={cur_margin}, lev={cur_lev}, risk={cur_risk}, skip={r1.get('skipped')})"
                     else:
                         rec = (
                             f"{err_type} 반복 발생 (margin={cur_margin}, lev={cur_lev}, risk={cur_risk}) — "
-                            "보스 승인 후 최소 주문금액(>=5 USDT 명목가) 또는 증거금/리스크 한도 점검 권고"
+                            "최소 주문금액(>=5 USDT 명목가) 또는 증거금/리스크 한도 점검"
                         )
-                    logger.warning(f"[{b}] 📋 자동 설정 변경 차단됨 (승인 대기 보고): {rec}")
                     sev = "CRITICAL" if err_type in ("NOTIONAL_MIN_ERROR", "MARGIN_SETTING_ERROR", "ORDER_REJECTED") else "WARN"
                     record_proactive_alert(
                         str(b),
@@ -928,7 +961,6 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                         cooldown_sec=3600,
                         notify_discord=True,
                     )
-                    action_taken.append("설정 자동변경 차단·보고완료")
 
                 needs_restart = err_type not in (
                     "AVAILABLE_MARGIN_ERROR",
@@ -1033,7 +1065,7 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
     # [보스 지침] 이상이 감지되었으나 포지션 보호로 재기동이 유예된 경우 텔레그램 경보 발송
     if action_taken and not needs_restart and bot_alive:
         try:
-            alert_msg = f"⚠️ **[워치독 진입 이상 감지 (재기동 유예): {b}]**\\n\\n감지 내역: {', '.join(action_taken)}\\n상태: 포지션 보호를 위해 재기동 유예 (설정 자동변경 차단 · 승인 대기 보고 완료)."
+            alert_msg = f"⚠️ **[워치독 진입 이상 감지 (재기동 유예): {b}]**\\n\\n감지 내역: {', '.join(action_taken)}\\n상태: 보유 포지션 보호를 위해 재기동 유예."
             py_cmd = f"import sys; sys.path.insert(0, '{cwd}'); import core.alert as alert; alert.send_telegram_alert('{alert_msg}')"
             subprocess.run(["python3", "-c", py_cmd], cwd=cwd)
         except Exception as e:

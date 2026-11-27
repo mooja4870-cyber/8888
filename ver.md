@@ -1,5 +1,39 @@
 # Version History
 
+## v1.11.0
+
+Date: 2026-11-27
+
+### 변경 내용
+
+* **Aegis V8 — Level 2+ 완전 자율 적기 조치 엔진 구축 (보스 2026-11-27 명시적 위임 반영)**:
+  * `.agents/AGENTS.md`: `8401, 8402, 8403, 8405` 5회 승인 및 `8404, 8408, 8410` 2회 승인 장벽 전면 폐지 → 워치독 감시 활동 포착 이상에 대한 Level 2+ 즉시 자율 적기 조치·사후 투명 보고 체계 확립 (`ㄱㅇ`/`갓잇` 명시 통제 유지)
+  * `core/auto_remediator.py` (신설): 안전 클램프·쿨다운(`6h~24h`)·사전 백업(`.auto_bak`)·공유 락 재기동(`bot_restart_locked`)·디스코드 사후 보고(`send_autonomous_action_report`) 기반 R1~R4 자율 플레이북 구축
+    - **R1**: 진입 주문 규격 오류(`NOTIONAL_MIN_ERROR`/`MARGIN_SETTING_ERROR`) 자율 보정 (`6h`)
+    - **R2**: `Peak-MDD` 주의(비중 20% 감축·방향 고정·동시보유 상한) 및 킬선 초과(`AUTO_TRADING=False` 긴급 진입 차단) 자율 방어 (`12h`)
+    - **R3**: 누적 수수료 적자/알파 감쇠 시 24h 1스텝 안전 튜닝 사다리 (`5m→15m→1h` 타임프레임 상향, 자동스위칭 해제, `BE <= TS-0.2%` 클램핑 상향, 쿨다운/동시보유 축소)
+    - **R4**: 생존 설정 누락(`config_gap`) 자동 복구 (`12h`)
+  * `bot_sentinel.py` (**R6·R7**): 미보호 포지션 자동 보호주문 재무장(`rearm_position_protection`), OKX 무포지션 고아 알고주문 자율 청소(`privatePostTradeCancelAlgos`), 파국적 위험(청산임박 `<8%`·비인가 종목·재무장 불가 무방비) 긴급 자율 강제청산(`close_position`) 탑재
+  * `core/autonomous_auditor.py` (**R5**): `_APPROVAL_PROTECTED_BOTS` 차단 해제 → 전 9개 봇 `engine_states.json` 무포지션 유령 오염키 즉시 자율 정화
+  * `watchdog_common.py`, `watchdog_entry.py`, `watchdog_profitability.py`: 승인 대기 문구 제거 및 R1~R7 플레이북 전면 연동, `33대 자체점검` 상세 사유 로깅 보강, `config_gap` `AUTO_COMPOUND_PCT >= 0.25` 단위 오탐 버그 수정
+  * **즉시 현장 조치**: 전 9개 봇 `.env` 권한 `644 → 600` 보안 강화 완료
+
+### 수정 파일
+
+* .agents/AGENTS.md
+* core/auto_remediator.py
+* watchdog_common.py
+* watchdog_entry.py
+* watchdog_profitability.py
+* core/autonomous_auditor.py
+* bot_sentinel.py
+* ver.md
+
+### 비고
+
+* 단위 테스트(`UNIT_TESTS_V2_PASSED`), 4대 워치독 재기동·실전 1회차 자율 조치 이력·10개 포트 HTTP 200·`verify_all.py` 100% PASS 확인
+
+
 ## v1.10.7
 
 Date: 2026-11-27

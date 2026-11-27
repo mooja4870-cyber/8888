@@ -813,13 +813,6 @@ def check_engine_states_pollution(bot_id: int, cwd: str) -> Tuple[bool, str, boo
     uniq_sample = sorted({s.split("/")[0] for s in dead_syms})
     sample = ", ".join(uniq_sample[:3]) + (f" 외 {len(uniq_sample) - 3}종목" if len(uniq_sample) > 3 else "")
 
-    if bot_id in _APPROVAL_PROTECTED_BOTS:
-        return (
-            True,
-            f"engine_states.json 무포지션 유령 오염키 {dead_count}건 감지 ({sample}) — 승인 보호 봇 자동수정 차단, 즉시 점검 필요",
-            False,
-        )
-
     for key in _ENGINE_STATE_POS_KEYS:
         val = es.get(key)
         if isinstance(val, dict):
@@ -830,7 +823,7 @@ def check_engine_states_pollution(bot_id: int, cwd: str) -> Tuple[bool, str, boo
         _atomic_write_json(es_path, es)
     except Exception as e:
         return True, f"engine_states.json 유령 오염키 {dead_count}건 정화 실패 ({e})", False
-    return False, f"engine_states.json 유령 오염키 {dead_count}건 자동 정화 ({sample})", False
+    return False, f"engine_states.json 유령 오염키 {dead_count}건 자율 정화 ({sample})", False
 
 
 def run_all_autonomous_audits(bot_id: int, cwd: str) -> Dict[str, Any]:

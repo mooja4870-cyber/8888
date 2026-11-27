@@ -214,6 +214,8 @@ async def audit_bot(b: int):
         "partial_exits_added": 0,
         "restored_trade_ids": [],
         "placeholders_compacted": 0,
+        "rearmed_positions": [],
+        "emergency_closed": [],
         "balance_diff": 0.0,
         "actions": [],
     }
@@ -616,6 +618,55 @@ async def audit_bot(b: int):
 
             if report["unprotected_positions"]:
                 report["actions"].append(f"보호주문(SL/TP) 누락 감지: {', '.join(report['unprotected_positions'])}")
+                # [Aegis V8 R6] 미보호 포지션 자율 보호주문 재무장 시도
+                if hasattr(client, "rearm_position_protection"):
+                    still_unprot = []
+                    for usym in list(report["unprotected_positions"]):
+                        up = ex_map.get(usym) or {}
+                        ur = raw_risk_map.get(usym) or {}
+                        uside = str(ur.get("side") or up.get("side") or "").lower()
+                        uentry = _safe_float(up.get("entry_price") or up.get("entryPrice") or ur.get("mark_price"), 0.0)
+                        rearm_ok = False
+                        if uside in ("long", "short") and uentry > 0:
+                            try:
+                                rearm_ok = bool(await client.rearm_position_protection(usym, uside, uentry))
+                            except Exception:
+                                rearm_ok = False
+                        if rearm_ok:
+                            report["rearmed_positions"].append(usym)
+                            report["actions"].append(f"보호주문(SL/TP) 자율 재무장 완료: {usym}")
+                        else:
+                            still_unprot.append(usym)
+                    report["unprotected_positions"] = still_unprot
+
+            # [Aegis V8 R7] 파국적 리스크(청산임박 <8% / 비인가 종목 / 재무장 불가 무방비) 긴급 자율 강제청산
+            emerg_reasons = {}
+            for usym in report["unprotected_positions"]:
+                emerg_reasons.setdefault(usym, []).append("SL/TP 재무장 불가 무방비")
+            for bsym in report["unauthorized_positions"]:
+                emerg_reasons.setdefault(bsym, []).append("비인가 종목")
+            for lw in report["liq_warnings"]:
+                if str(lw.get("severity")) == "CRITICAL" and lw.get("symbol"):
+                    emerg_reasons.setdefault(lw["symbol"], []).append(
+                        f"청산임박(dist={lw.get('liq_dist_pct', '?')}%, mgn={lw.get('okx_mgn_ratio', lw.get('bnc_margin_ratio', '?'))})"
+                    )
+            if emerg_reasons and hasattr(client, "close_position"):
+                for esym, ereas in emerg_reasons.items():
+                    ep = ex_map.get(esym) or {}
+                    er = raw_risk_map.get(esym) or {}
+                    eside = str(er.get("side") or ep.get("side") or "").lower()
+                    if eside not in ("long", "short"):
+                        continue
+                    try:
+                        closed = bool(await client.close_position(esym, eside))
+                        if closed:
+                            report["emergency_closed"].append(f"{esym}({eside}: {', '.join(ereas)})")
+                            report["actions"].append(f"긴급 자율 강제청산 완료: {esym}({', '.join(ereas)})")
+                            local_act.pop(esym, None)
+                            atomic_write_json(act_file, local_act)
+                    except Exception:
+                        pass
+
             if report["protection_mismatches"]:
                 report["actions"].append(f"보호주문 정합 이상: {', '.join(report['protection_mismatches'])}")
             if report["protection_check_errors"]:
@@ -639,15 +690,32 @@ async def audit_bot(b: int):
                 atomic_write_json(act_file, local_act)
                 report["actions"].append("포지션 트레일링 컨텍스트 보정")
         else:
-            # Flat: check orphan algo orders cleanly
+            # Flat: check & autonomously clean orphan algo orders cleanly
             if ex_id == "okx" and okx_pending_algos:
-                for a in okx_pending_algos:
-                    report["orphan_algo_orders"].append({
-                        "instId": a.get("instId"),
-                        "algoId": a.get("algoId"),
-                        "ordType": a.get("ordType"),
-                    })
-                report["actions"].append(f"OKX 무포지션 고아 알고주문 {len(okx_pending_algos)}건 감지")
+                cancel_payload = [
+                    {"algoId": a.get("algoId"), "instId": a.get("instId")}
+                    for a in okx_pending_algos[:10]
+                    if a.get("algoId") and a.get("instId")
+                ]
+                okx_cleaned = 0
+                if cancel_payload:
+                    try:
+                        await client._execute_with_retry(
+                            client.exchange.privatePostTradeCancelAlgos, cancel_payload
+                        )
+                        okx_cleaned = len(cancel_payload)
+                    except Exception:
+                        okx_cleaned = 0
+                if okx_cleaned > 0:
+                    report["actions"].append(f"OKX 무포지션 고아 알고주문 {okx_cleaned}건 자율 청소")
+                if len(okx_pending_algos) > okx_cleaned:
+                    for a in okx_pending_algos[okx_cleaned:]:
+                        report["orphan_algo_orders"].append({
+                            "instId": a.get("instId"),
+                            "algoId": a.get("algoId"),
+                            "ordType": a.get("ordType"),
+                        })
+                    report["actions"].append(f"OKX 무포지션 고아 알고주문 {len(report['orphan_algo_orders'])}건 잔류")
             elif ex_id == "binance" and hasattr(client, "sweep_orphan_algo"):
                 try:
                     swept = await client.sweep_orphan_algo([])

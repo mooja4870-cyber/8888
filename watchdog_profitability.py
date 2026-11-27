@@ -10,10 +10,11 @@
      config.json을 수정하거나 강제 재기동하지 않고, data/lifecycle_status.json 기록 +
      data/proactive_alerts.json 등록 + Discord 사전 승인 제안 알림만 발송한다.
 
-[보스 특별 규칙 준수]
-  - 개별 봇 폴더(8401~8410)의 *.py, config.json, Lock 파일은 절대 쓰기/삭제 금지 (Read-Only).
-  - 8401, 8402, 8403, 8405: 5단계 명시적 승인(5-Step Approval) 대상
-  - 8404, 8408, 8410: 2단계 명시적 승인(2-Step Approval) 대상
+[보스 위임 운영 원칙 — Aegis V8 Level 2+ 완전 자율 적기 조치 (2026-11-27)]
+  - 기존 5단계/2단계 다단계 승인 장벽은 전면 해제되었다.
+  - Peak-MDD·수수료 적자·생존 설정 누락(config_gap) 등 감지 시 `core/auto_remediator.py`를 통해
+    안전 클램프·쿨다운·사전 백업(.auto_bak)·공유 락 재기동을 거쳐 즉시 자율 적기 조치를 수행하고
+    디스코드(discord_webhook_proactive.txt)로 사후 투명 보고한다.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 import argparse
@@ -38,6 +39,11 @@ from watchdog_common import (  # noqa: E402
     record_proactive_alert,
     setup_clean_logger,
     update_watchdog_heartbeat,
+)
+from core.auto_remediator import (  # noqa: E402
+    remediate_config_gaps,
+    remediate_fee_or_alpha_decay,
+    remediate_peak_mdd,
 )
 
 ACTIVE_BOTS = ["8401", "8402", "8403", "8404", "8405", "8407", "8408", "8409", "8410"]
@@ -282,7 +288,7 @@ def _eval_bot(bot_id, bot_baseline, live_ex_bots, latest_snap_bots, peak_assets_
     backtest = bot_baseline.get("backtest", {})
     thresholds = bot_baseline.get("thresholds", {})
     tier = int(bot_baseline.get("approval_tier", 2))
-    tier_label = "5회 승인 필수" if tier >= 5 else "2회 승인 필수"
+    tier_label = "Level 2+ 자율 조치"
 
     seed = _safe_float(stats.get("seed_money"), 0.0)
     perf_start_str = stats.get("perf_start_time")
@@ -334,28 +340,35 @@ def _eval_bot(bot_id, bot_baseline, live_ex_bots, latest_snap_bots, peak_assets_
     mdd_warn = float(thresholds.get("peak_mdd_warn_pct", 12.0))
     mdd_kill = float(thresholds.get("peak_mdd_kill_pct", 20.0))
     if peak_dd_pct is not None and abs_peak_dd >= mdd_kill:
+        r2 = remediate_peak_mdd(bot_id, bot_dir, peak_dd_pct, True, mdd_warn, mdd_kill)
         msg = (
             f"전고점(${peak_asset:.2f}, {peak_ts or '?'}) 대비 현재자산 ${current_asset:.2f} "
             f"({peak_dd_pct:.2f}% / 허용 킬선 -{mdd_kill:.1f}% 초과)"
         )
-        rec = (
-            f"[{tier_label}] 봇 진입 일시중단 또는 전략·비중({bot_baseline.get('strategy_id')}) "
-            f"파라미터 전면 재조정 승인을 요청합니다."
+        act_note = (
+            f"자율 긴급방어 완료: {', '.join(r2['actions'])}"
+            if r2.get("applied")
+            else f"자율 방어 이미 적용됨/대기({r2.get('skipped')})"
         )
         record_proactive_alert(
             bot_id, "peak_mdd", "CRITICAL", f"Peak-MDD 한계 초과 ({peak_dd_pct:.1f}%)",
-            msg, recommendation=rec, cooldown_sec=21600, notify_discord=True
+            msg, recommendation=act_note, cooldown_sec=21600, notify_discord=True
         )
         active_alerts.append({"key": "peak_mdd", "severity": "CRITICAL", "title": f"Peak-MDD 한계 초과 ({peak_dd_pct:.1f}%)"})
     elif peak_dd_pct is not None and abs_peak_dd >= mdd_warn:
+        r2 = remediate_peak_mdd(bot_id, bot_dir, peak_dd_pct, False, mdd_warn, mdd_kill)
         msg = (
             f"전고점(${peak_asset:.2f}) 대비 현재자산 ${current_asset:.2f} "
             f"({peak_dd_pct:.2f}% / 주의 -{mdd_warn:.1f}%, 킬선 -{mdd_kill:.1f}%)"
         )
-        rec = f"[{tier_label}] 추가 하락 시 킬선(-{mdd_kill:.1f}%) 도달 예정. 비중 축소 및 리스크 한도 검토 권고."
+        act_note = (
+            f"자율 비중축소 완료: {', '.join(r2['actions'])}"
+            if r2.get("applied")
+            else f"자율 방어 이미 적용됨/대기({r2.get('skipped')})"
+        )
         record_proactive_alert(
             bot_id, "peak_mdd", "WARN", f"Peak-MDD 주의 구간 ({peak_dd_pct:.1f}%)",
-            msg, recommendation=rec, cooldown_sec=21600, notify_discord=True
+            msg, recommendation=act_note, cooldown_sec=21600, notify_discord=True
         )
         active_alerts.append({"key": "peak_mdd", "severity": "WARN", "title": f"Peak-MDD 주의 구간 ({peak_dd_pct:.1f}%)"})
     else:
@@ -376,11 +389,16 @@ def _eval_bot(bot_id, bot_baseline, live_ex_bots, latest_snap_bots, peak_assets_
 
     if closed_all >= 20 and (fd_all or (fr_all is not None and fr_all >= fee_kill)):
         lbl = "Gross<=0 적자" if fd_all else f"{fr_all:.0f}%"
+        r3 = remediate_fee_or_alpha_decay(bot_id, bot_dir, f"수수료적자({lbl})", closed_all, sample_days)
         msg = (
             f"누적 수수료 비중 {fr_all_txt} (누적 Gross ${trade_stats['gross_pnl_all']:+.2f}/Fee ${trade_stats['fees_all']:.2f}, "
             f"7d {fr_7d_txt} Gross ${trade_stats['gross_pnl_7d']:+.2f}/Fee ${trade_stats['fees_7d']:.2f})"
         )
-        rec = f"[{tier_label}] 수익 대비 수수료 잠식 >=100%. 타임프레임 상향·필터 강화 또는 전략 교체 검토를 요청합니다."
+        rec = (
+            f"자율 튜닝 완료: {', '.join(r3['actions'])}"
+            if r3.get("applied")
+            else f"수익 대비 수수료 잠식 >=100% (자율 튜닝 대기/유예: {r3.get('skipped')})"
+        )
         record_proactive_alert(
             bot_id, "fee_ratio", "CRITICAL", f"누적 수수료 적자 ({lbl})",
             msg, recommendation=rec, cooldown_sec=21600, notify_discord=True
@@ -467,15 +485,20 @@ def _eval_bot(bot_id, bot_baseline, live_ex_bots, latest_snap_bots, peak_assets_
 
     risk_pct = _safe_float(cfg.get("RISK_PER_TRADE_PCT"), 0.0)
     comp_pct = _safe_float(cfg.get("AUTO_COMPOUND_PCT"), 0.0)
-    if risk_pct == 0.0 and comp_pct >= 0.25:
-        gaps.append(f"M4 리스크사이징 미적용(RISK_PER_TRADE_PCT=0, AUTO_COMPOUND_PCT={comp_pct})")
+    if risk_pct == 0.0 and not bool(cfg.get("USE_AUTO_COMPOUND", False)) and comp_pct <= 0.0:
+        gaps.append("포지션 사이징 비활성(RISK_PER_TRADE_PCT=0 & USE_AUTO_COMPOUND=False)")
 
     if bot_id in ("8402", "8410") and int(_safe_float(cfg.get("MAX_POSITIONS"), 3)) > 2:
         gaps.append(f"MAX_POSITIONS={int(_safe_float(cfg.get('MAX_POSITIONS'), 3))}(8401 동급 2개 일치 필요)")
 
     if gaps:
+        r4 = remediate_config_gaps(bot_id, bot_dir, thresholds, ref_cap)
         msg = "생존 안전장치 미비 항목: " + " | ".join(gaps)
-        rec = f"[{tier_label}] 봇 소스/설정 임의 수정은 금지되어 있습니다. Phase 3 승인 절차로 반영 요청 중."
+        rec = (
+            f"자율 복구 완료: {', '.join(r4['actions'])}"
+            if r4.get("applied")
+            else f"생존 설정 점검 결과 ({r4.get('skipped')})"
+        )
         record_proactive_alert(
             bot_id, "config_gap", "WARN", f"생존 설정 미비 {len(gaps)}건 감지",
             msg, recommendation=rec, cooldown_sec=43200, notify_discord=True
@@ -590,7 +613,7 @@ def main():
     lock_fd.write(f"{os.getpid()}\n")
     lock_fd.flush()
 
-    _log(f"🛡️ watchdog_profitability.py 가동 (PID {os.getpid()}, Read-Only 사전감시 모드, 주기 {CHECK_INTERVAL_SEC}s)")
+    _log(f"🛡️ watchdog_profitability.py 가동 (PID {os.getpid()}, Aegis V8 Level 2+ 자율 적기 조치 모드, 주기 {CHECK_INTERVAL_SEC}s)")
     while True:
         try:
             run_once()

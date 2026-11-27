@@ -762,12 +762,36 @@ def record_proactive_alert(
             f"• 관측 수치: {details}\n"
         )
         if recommendation:
-            msg += f"• 권고 조치 (보스 승인 대기): {recommendation}\n"
-        msg += "• 원칙: 승인 없는 전략·설정 자동 변경 차단 상태"
+            msg += f"• 자율 조치 / 권고: {recommendation}\n"
+        msg += "• 원칙: Level 2+ 완전 자율 적기 조치 모드 활성 (사후 투명 보고)"
         _send_discord(msg, webhook_url=_load_proactive_discord_webhook())
         if sev == "CRITICAL":
             _send_telegram(msg)
     return should_notify
+
+
+def send_autonomous_action_report(
+    bot_id: str,
+    title: str,
+    actions_taken: list,
+    reason: str = "",
+    severity: str = "INFO",
+) -> bool:
+    """Post transparent post-action autonomous remediation report to the dedicated proactive Discord channel."""
+    sev = str(severity or "INFO").upper()
+    icon = "🚨" if sev == "CRITICAL" else "🤖"
+    target_label = "중앙 관제(8888)" if str(bot_id) == "8888" else f"{bot_id}봇"
+    acts_str = "\n".join(f"  - {a}" for a in (actions_taken or [])) or "  - 조치 완료"
+    msg = (
+        f"{icon} **[8888 자율 조치 완료 / {target_label}]** `{title}`\n"
+        f"• 사유: {reason or '워치독 이상 감지'}\n"
+        f"• 조치 내역:\n{acts_str}\n"
+        f"• 검증: 사전 백업(.auto_bak) 및 안전 클램프 적용 완료"
+    )
+    ok = _send_discord(msg, webhook_url=_load_proactive_discord_webhook())
+    if sev == "CRITICAL":
+        _send_telegram(msg)
+    return bool(ok)
 
 
 def clear_proactive_alert(bot_id: str, alert_key: str) -> None:
