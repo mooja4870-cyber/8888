@@ -1,5 +1,37 @@
 # Version History
 
+## v1.15.0
+
+Date: 2026-11-28
+
+### 변경 내용
+
+* **QVT 4개 봇(`8401·8402·8409·8410`) 음(-) 기대값 전략 전면 퇴역 & 저상관(`corr=0.110`) 5년 검증 `4h` 듀얼 전략 교체 (안 B)**:
+  * **Pair A (`8401` OKX / `8409` Binance → `EMA 추세 눌림목 V2 (4h)`, `8401 v3.0.0`, `8409 v4.0.0`)**:
+    - 5년 21종목 백테스트(12bps RT, M4 1%+Dynamic Regime): `N=1110, WR 68.6%, PF 1.18, +70.3%, MDD 26.8%, MaxL 6, FeeR 35%`, 16bps 스트레스 `PF 1.13 (+52.8%)`, `8405 Don20` 대비 상관 `0.237`
+    - BTC 4h EMA200 fail-closed 게이트 + `EMA20>50>200` + `ADX≥20` + `Vol≥1.0x` + 20EMA 눌림 + 동적 `SL ATR×2.0 / TP ATR×4.5 (1:2.25)` + `BE +2.0% / TS +3.0%/1.2%`
+  * **Pair B (`8402` OKX / `8410` Binance → `ROC16 모멘텀 돌파 (4h)`, `8402 v3.0.0`, `8410 v4.0.0`)**:
+    - 5년 21종목 백테스트(12bps RT, M4 1%+Dynamic Regime): `N=1176, WR 70.4%, PF 1.25, +122.2%, MDD 22.2%, MaxL 5, FeeR 27%`, 5개년 구간 전승 `[+20, +6, 0, +46, +20]`, 16bps 스트레스 `PF 1.21 (+99.4%)`, `EMA_PullbackV2` 대비 상관 `0.110`
+    - BTC 4h EMA200 fail-closed 게이트 + `ROC(16)` 30봉 돌파(`|ROC|>3%`) + `ADX≥22` + `Vol≥1.2x` + `M4 1%` + `SL ATR×2.0 / TP ATR×4.5`
+  * **`8888` 중앙 관제소·검증·디스코드 전수 동기화**:
+    - `strategy_baselines.json`: `8401/8409 (EMA_PullbackV2_4h_M4)` & `8402/8410 (ROC16_Momentum_4h_M4)` 5년 베이스라인·임계값 갱신 (`previous_strategy_id: QVT_Pullback_1h`)
+    - `app.py`: `read_bot_config` 손익비(`rr_str`) `SL_ATR_MULT`/`TP_ATR_MULT` 기반 동적 계산(`1:2.25 (ATR×4.5)`) 반영
+    - `discord_alert.py`: `BOT_DEFAULTS` 및 유형1 그룹 타이틀(`유형1 4h 추세눌림·ROC모멘텀`) 갱신
+    - `verify_all.py`: `8401/8402/8409/8410` 신규 `core/config.py` 필드 선언 검증 추가
+
+### 수정 파일
+
+* app.py
+* discord_alert.py
+* strategy_baselines.json
+* verify_all.py
+* ver.md
+
+### 비고
+
+* `py_compile` + 캐시 OHLCV 실측 단위테스트(`8401/8402/8409/8410` Long/Short·fail-closed·round-trip) + `M4`/`M35` 전 9봇 CLEAN + 포지션(`AR/ENA/BNB`) 보존 안전 핫재기동 + `8888` 포함 10개 UI HTTP 200 + `verify_all.py` 100% PASS
+
+
 ## v1.14.0
 
 Date: 2026-11-28

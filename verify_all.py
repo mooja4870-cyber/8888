@@ -132,14 +132,25 @@ def verify_all():
                     pass
 
                 # (3) core/config.py 필수 필드 선언 검사 (키 유실 방지)
-                if bot_id in ['8403', '8404', '8405', '8407', '8409', '8410']:
+                if bot_id in ['8401', '8402', '8403', '8404', '8405', '8407', '8409', '8410']:
                     core_cfg_file = os.path.join(bot_path, 'core', 'config.py')
                     if os.path.exists(core_cfg_file):
                         try:
                             with open(core_cfg_file, 'r', encoding='utf-8') as f:
                                 core_cfg_text = f.read()
                             check_keys = ['DASHBOARD_META']
-                            if bot_id == '8404':
+                            if bot_id in ['8401', '8409']:
+                                check_keys += [
+                                    'PB_ADX_MIN', 'PB_VOL_MULT', 'PB_TOUCH_TOL',
+                                    'SL_ATR_MULT', 'TP_ATR_MULT', 'USE_BTC_TREND_FILTER',
+                                ]
+                            elif bot_id in ['8402', '8410']:
+                                check_keys += [
+                                    'ROC_LEN', 'ROC_LOOKBACK', 'ROC_MIN_PCT',
+                                    'ROC_ADX_MIN', 'ROC_VOL_MULT', 'SL_ATR_MULT',
+                                    'TP_ATR_MULT', 'USE_BTC_TREND_FILTER',
+                                ]
+                            elif bot_id == '8404':
                                 check_keys += ['KC_PERIOD', 'KC_MULT', 'HURST_MR_THRESH', 'HURST_TREND_THRESH']
                             elif bot_id == '8403':
                                 check_keys += ['ALLOW_ADX_COUNTER', 'USE_DYNAMIC_REGIME']

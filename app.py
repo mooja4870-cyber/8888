@@ -767,13 +767,16 @@ def read_bot_config(folder):
             rr_str = f"1:{_rr_ratio:g} (ATR×{_don_tp:g})"
         elif folder in ["8404", "8408"]:
             rr_str = "MR 1.5R+ / BBTS 1:3"
-        elif folder in ["8402", "8410"]:
-            rr_str = "1:1.9 (TP 2.8%)"
+        elif folder in ["8401", "8402", "8409", "8410"]:
+            _sl_m = float(cfg.get("SL_ATR_MULT", 2.0) or 2.0)
+            _tp_m = float(cfg.get("TP_ATR_MULT", 4.5) or 4.5)
+            _rr_r = round(_tp_m / _sl_m, 2) if _sl_m > 0 else 2.25
+            rr_str = f"1:{_rr_r:g} (ATR×{_tp_m:g})"
         elif "SMA" in tp_str or "BB Mid" in tp_str:
             rr_str = "SMA(동적)"
-        elif "(1:3)" in tp_str or "(1:3.0)" in tp_str or folder in ["8401", "8409"]:
+        elif "(1:3)" in tp_str or "(1:3.0)" in tp_str:
             rr_str = "1:3.0"
-        elif "(1:2)" in tp_str or "(1:2.0)" in tp_str or folder in ["8402"]:
+        elif "(1:2)" in tp_str or "(1:2.0)" in tp_str:
             rr_str = "1:2.0"
         else:
             rr_str = "1:2.0"
