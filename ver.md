@@ -1,5 +1,36 @@
 # Version History
 
+## v1.14.0
+
+Date: 2026-11-28
+
+### 변경 내용
+
+* **QVT 4개 봇(`8401·8402·8409·8410`) 실행 정합성·손익비 치명 버그 3종 수리 및 워치독 영구 감시(`M35`·`R17`) 탑재**:
+  * **개별 봇 일괄 수리 및 로컬 버전 배포**:
+    - `8401 v2.3.10` / `8402 v2.5.5`: `core/engine.py` `HARD SL/TP GUARD`에서 레버리지 반영 ROE(`pnl_pct`) 대비 `lev` 곱셈 누락으로 가격 `0.75%`/`1.4%`에서 조기 강제청산되던 버그 수정 (`base_sl * lev * 150.0` 적용)
+    - `8401·8402·8409·8410` 공통 (`8409 v3.0.3`, `8410 v3.0.3`): `core/trader.py` `DYNAMIC_SL_CAP_PCT` 클램핑 시 `dynamic_tp_pct`까지 동반 삭감(`* ratio`)하던 로직 제거 → `2.8%` 목표 TP 온전 보존
+    - `8401·8409` `config.json`: `DYNAMIC_SL_CAP_PCT: 0.015→0.025` 동기화; `8409·8410` `BE_GUARD_TRIGGER_PCT: 0.012→0.016` 및 `DASHBOARD_META`·`core/config.py` 동기화; `8410/data/active_positions.json` `BNB/USDT:USDT` 구형 태그 `DualBB→QVT_Pullback` 정화
+  * `core/autonomous_auditor.py` (**M35 `check_execution_parity_and_sl_tp_integrity`**):
+    - 전 봇 대상 `HARD GUARD` 레버리지 누락·실측 ROE 조기 강제청산, `SL_CAP` TP 삭감 버그, `SL_CAP < MAX_SL` 설정 불일치를 매 순찰 자동 적발하고 이종 전략 태그(`DualBB`) 잔존 시 즉시 자동 치유
+  * `core/auto_remediator.py` (**R17 `remediate_execution_parity_defects` & `sync_peer_be_guard`**):
+    - `SL_CAP` 불일치 즉시 보정 및 동일 전략군 피어 봇 간 `BE_GUARD_TRIGGER_PCT` 자동 정렬
+  * `watchdog_entry.py`, `watchdog_profitability.py`, `.agents/AGENTS.md`: `M35`·`R17`·피어 BE 동기화 연동 및 전 봇 수익성 결함 즉시 자율 수정 원칙 명문화
+
+### 수정 파일
+
+* .agents/AGENTS.md
+* core/autonomous_auditor.py
+* core/auto_remediator.py
+* watchdog_entry.py
+* watchdog_profitability.py
+* ver.md
+
+### 비고
+
+* `py_compile` + `LIVE_9_BOTS_M35_CLEAN` + `UNIT_TESTS_M35_R17_PASSED` + QVT 4봇(`8401·8402·8409·8410`) 포지션 보존 안전 핫재기동 + 4대 워치독 하트비트 + 10개 포트 HTTP 200 + `verify_all.py` 100% PASS 확인
+
+
 ## v1.13.0
 
 Date: 2026-11-28

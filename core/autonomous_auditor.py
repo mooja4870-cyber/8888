@@ -11,6 +11,7 @@ import ast
 import csv
 import json
 import os
+import re
 import subprocess
 import time
 from datetime import datetime, timedelta, timezone
@@ -899,6 +900,12 @@ def run_all_autonomous_audits(bot_id: int, cwd: str) -> Dict[str, Any]:
     elif "정화" in poll_msg:
         healed.append(poll_msg)
 
+    parity_err, parity_issue, parity_healed = check_execution_parity_and_sl_tp_integrity(bot_id, cwd)
+    if parity_healed:
+        healed.append(parity_healed)
+    if parity_err:
+        issues.append(("ai_execution_parity", parity_issue))
+
     return {
         "issues": issues,
         "healed": healed,
@@ -906,3 +913,102 @@ def run_all_autonomous_audits(bot_id: int, cwd: str) -> Dict[str, Any]:
         "gate_summary": gate_msg,
         "scan_summary": scan_msg,
     }
+
+
+# ── 모듈 15: 실행 정합성 · 레버리지 HARD GUARD · SL_CAP TP 삭감 · 태그 오염 감사 ─
+def check_execution_parity_and_sl_tp_integrity(bot_id: int, cwd: str) -> Tuple[bool, str, str]:
+    """
+    1) HARD GUARD 레버리지 곱셈 누락(STOP_LOSS_PCT * 150.0) 및 실측 조기 HARD_SL 발동 탐지
+    2) core/trader.py _sl_cap 블록 내 TP 동반 삭감(dynamic_tp_pct * ratio) 및 config SL_CAP<MAX_SL 불일치 탐지
+    3) active_positions.json에 잔존한 이종 전략 태그(예: QVT 봇의 DualBB) 자동 치유
+    """
+    issues: List[str] = []
+    healed_parts: List[str] = []
+
+    cfg = _load_json(os.path.join(cwd, "config.json"), {}) or {}
+    lev = max(float(cfg.get("LEVERAGE", 3) or 3), 1.0)
+    stop_loss_pct = float(cfg.get("STOP_LOSS_PCT", 0.015) or 0.015)
+
+    # Check A: HARD GUARD leverage bug in engine.py & recent post-mtime HARD_SL hits
+    eng_path = os.path.join(cwd, "core", "engine.py")
+    if os.path.exists(eng_path):
+        try:
+            eng_txt = open(eng_path, "r", encoding="utf-8", errors="ignore").read()
+            if re.search(r"sl_limit\s*=[^\n]*STOP_LOSS_PCT[^\n]*\*\s*150\.0", eng_txt):
+                issues.append("engine.py HARD GUARD 레버리지(lev) 곱셈 누락 (ROE 조기 강제청산 위험)")
+            else:
+                lp = os.path.join(cwd, "bot_engine.log")
+                if os.path.exists(lp):
+                    eng_mt = datetime.fromtimestamp(os.path.getmtime(eng_path))
+                    with open(lp, "rb") as lf:
+                        lf.seek(0, os.SEEK_END)
+                        lf.seek(max(0, lf.tell() - 32768))
+                        tail = lf.read().decode("utf-8", errors="ignore")
+                    for ln in tail.splitlines():
+                        m = re.search(r"\[HARD GUARD\].*HARD_SL.*?\(-([0-9.]+)%\)", ln)
+                        if m and len(ln) >= 19:
+                            try:
+                                ldt = datetime.strptime(ln[:19], "%Y-%m-%d %H:%M:%S")
+                                if ldt < eng_mt:
+                                    continue
+                            except ValueError:
+                                pass
+                            hit_pct = float(m.group(1))
+                            expected_roe = stop_loss_pct * lev * 100.0
+                            if hit_pct < expected_roe * 0.90:
+                                issues.append(
+                                    f"HARD_SL ROE 조기 발동 감지 (-{hit_pct:.2f}% < 기대 -{expected_roe:.2f}%)"
+                                )
+                                break
+        except Exception:
+            pass
+
+    # Check B: TP-chopping SL cap in trader.py + config SL_CAP vs MAX_SL mismatch
+    trd_path = os.path.join(cwd, "core", "trader.py")
+    if os.path.exists(trd_path):
+        try:
+            trd_txt = open(trd_path, "r", encoding="utf-8", errors="ignore").read()
+            if re.search(
+                r"if\s+_sl_cap\s*>\s*0\s+and\s+dynamic_sl_pct\s*>\s*_sl_cap:[\s\S]{0,220}dynamic_tp_pct\s*=\s*dynamic_tp_pct\s*\*\s*ratio",
+                trd_txt,
+            ):
+                issues.append("trader.py DYNAMIC_SL_CAP_PCT 클램핑 시 TP 동반 삭감(*ratio) 버그")
+        except Exception:
+            pass
+
+    cap_val = cfg.get("DYNAMIC_SL_CAP_PCT")
+    max_sl = cfg.get("MAX_SL_PCT")
+    sl_str = str(((cfg.get("DASHBOARD_META") or {}).get("sl_str")) or "")
+    if cap_val is not None and max_sl is not None:
+        try:
+            f_cap, f_max = float(cap_val), float(max_sl)
+            if f_cap < f_max - 1e-4 and ("캡1.5%" not in sl_str) and (f"{f_max * 100:.1f}%" in sl_str):
+                issues.append(f"DYNAMIC_SL_CAP_PCT({f_cap:.3f}) < MAX_SL_PCT({f_max:.3f}) 불일치")
+        except (TypeError, ValueError):
+            pass
+
+    # Check C: active_positions.json stale foreign strategy_type auto-heal
+    strat_path = os.path.join(cwd, "core", "strategy.py")
+    ap_path = os.path.join(cwd, "data", "active_positions.json")
+    if os.path.exists(strat_path) and os.path.exists(ap_path):
+        try:
+            st_txt = open(strat_path, "r", encoding="utf-8", errors="ignore").read()
+            sm = re.search(r'STRATEGY_NAME\s*=\s*["\']([^"\']+)["\']', st_txt)
+            strat_name = sm.group(1).strip() if sm else ""
+            meta_strat = str(((cfg.get("DASHBOARD_META") or {}).get("strategy")) or "")
+            if strat_name and ("DualBB" not in strat_name) and ("DualBB" not in meta_strat):
+                ap = _load_json(ap_path, {})
+                if isinstance(ap, dict) and ap:
+                    changed = False
+                    for sym, pinfo in ap.items():
+                        if isinstance(pinfo, dict) and pinfo.get("strategy_type") == "DualBB":
+                            pinfo["strategy_type"] = strat_name
+                            changed = True
+                            healed_parts.append(f"{sym} 태그 DualBB→{strat_name} 정화")
+                    if changed:
+                        _atomic_write_json(ap_path, ap)
+        except Exception:
+            pass
+
+    return bool(issues), "; ".join(issues) if issues else "실행 정합성 정상", "; ".join(healed_parts)
+

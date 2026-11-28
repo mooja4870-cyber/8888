@@ -1922,3 +1922,126 @@ def dispatch_aegis_alert_remediations(
     return kept_alerts
 
 
+def remediate_execution_parity_defects(
+    bot_id: str, cwd: str, detail_msg: str
+) -> Dict[str, Any]:
+    """[Playbook R17] 실행 정합성 결함(DYNAMIC_SL_CAP_PCT < MAX_SL_PCT 등) 자율 보정."""
+    if os.path.exists(os.path.join(cwd, ".stopped")):
+        return {"applied": False, "skipped": "bot_stopped"}
+
+    allowed, rem = _check_and_mark_cooldown(bot_id, "R17_exec_parity", cooldown_sec=21600, dry_run=True)
+    if not allowed:
+        return {"applied": False, "skipped": f"cooldown_{rem}s"}
+
+    cfg_path, cfg = _load_bot_config_with_backup(cwd)
+    if not cfg:
+        return {"applied": False, "skipped": "missing_config"}
+
+    orig_cfg = copy.deepcopy(cfg)
+    prev_values: Dict[str, Any] = {}
+    actions: List[str] = []
+
+    cap_val = cfg.get("DYNAMIC_SL_CAP_PCT")
+    max_sl = cfg.get("MAX_SL_PCT")
+    sl_str = str(((cfg.get("DASHBOARD_META") or {}).get("sl_str")) or "")
+    if cap_val is not None and max_sl is not None:
+        f_cap = float(cap_val)
+        f_max = float(max_sl)
+        if f_cap < f_max - 1e-4 and ("캡1.5%" not in sl_str) and (f"{f_max*100:.1f}%" in sl_str):
+            prev_values["DYNAMIC_SL_CAP_PCT"] = orig_cfg.get("DYNAMIC_SL_CAP_PCT")
+            cfg["DYNAMIC_SL_CAP_PCT"] = f_max
+            actions.append(f"DYNAMIC_SL_CAP_PCT: {f_cap:.3f}→{f_max:.3f} (설계 SL 상한 일치)")
+
+    if not actions:
+        return {"applied": False, "skipped": "requires_code_fix_or_already_synced"}
+
+    return _apply_and_restart(
+        bot_id,
+        cwd,
+        "R17_exec_parity",
+        "실행 정합성(SL_CAP) 불일치 자율 보정",
+        actions,
+        reason=detail_msg,
+        cfg_path=cfg_path,
+        cfg=cfg,
+        severity="WARN",
+        force_restart_with_pos=False,
+        prev_values=prev_values,
+        eval_status="skipped_na",
+    )
+
+
+def sync_peer_be_guard(bots: List[Any], baselines_doc: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    """동일 전략군(strategy_id + timeframe) 내 검증 상향된 BE_GUARD_TRIGGER_PCT를 후행 피어 봇에 동기화한다."""
+    synced: List[Dict[str, Any]] = []
+    if not baselines_doc:
+        baselines_doc = _load_json(os.path.join(BASE_8888, "strategy_baselines.json"), {}) or {}
+    bl_bots = baselines_doc.get("bots") or {}
+
+    # Group non-stopped bots by (strategy_id, timeframe)
+    groups: Dict[Tuple[str, str], List[Tuple[str, str, Dict[str, Any]]]] = {}
+    for b in bots:
+        bid = str(b)
+        cwd = os.path.join(BASE_PROJECT, bid)
+        if os.path.exists(os.path.join(cwd, ".stopped")):
+            continue
+        cfg = _load_json(os.path.join(cwd, "config.json"), {}) or {}
+        if not isinstance(cfg, dict) or not cfg:
+            continue
+        sid = str((bl_bots.get(bid) or {}).get("strategy_id") or "")
+        tf = str(cfg.get("TIMEFRAME") or "").strip()
+        if not sid or not tf:
+            continue
+        groups.setdefault((sid, tf), []).append((bid, cwd, cfg))
+
+    for (sid, tf), members in groups.items():
+        if len(members) < 2:
+            continue
+        be_vals = [float(c.get("BE_GUARD_TRIGGER_PCT", 0.0) or 0.0) for _, _, c in members if "BE_GUARD_TRIGGER_PCT" in c]
+        if len(be_vals) < 2:
+            continue
+        max_be = max(be_vals)
+        min_be = min(be_vals)
+        if max_be - min_be < 0.002:
+            continue
+
+        for bid, cwd, cfg in members:
+            if "BE_GUARD_TRIGGER_PCT" not in cfg:
+                continue
+            cur_be = float(cfg.get("BE_GUARD_TRIGGER_PCT", 0.0) or 0.0)
+            ts_act = float(cfg.get("TRAILING_ACTIVATE_PCT", 0.03) or 0.03)
+            safe_target = min(max_be, round(ts_act - 0.002, 3))
+            if cur_be >= safe_target - 1e-4:
+                continue
+            allowed, _ = _check_and_mark_cooldown(bid, "R17_peer_be_sync", cooldown_sec=86400, dry_run=True)
+            if not allowed:
+                continue
+            cfg_path, latest_cfg = _load_bot_config_with_backup(cwd)
+            if not latest_cfg:
+                continue
+            prev_vals = {"BE_GUARD_TRIGGER_PCT": latest_cfg.get("BE_GUARD_TRIGGER_PCT")}
+            if "DASHBOARD_META" in latest_cfg:
+                prev_vals["DASHBOARD_META"] = copy.deepcopy(latest_cfg["DASHBOARD_META"])
+            latest_cfg["BE_GUARD_TRIGGER_PCT"] = safe_target
+            _sync_meta_be(latest_cfg, safe_target)
+            res = _apply_and_restart(
+                bid,
+                cwd,
+                "R17_peer_be_sync",
+                f"동일 전략군({sid}) BE가드 자율 동기화",
+                [f"BE_GUARD_TRIGGER_PCT: +{cur_be*100:.1f}%→+{safe_target*100:.1f}% (피어 기준 일치)"],
+                reason=f"동일 전략군({sid}/{tf}) 피어 봇 BE가드 기준(+{safe_target*100:.1f}%) 정렬",
+                cfg_path=cfg_path,
+                cfg=latest_cfg,
+                severity="INFO",
+                force_restart_with_pos=False,
+                prev_values=prev_vals,
+                eval_status="skipped_na",
+            )
+            if res.get("applied"):
+                synced.append({"bot_id": bid, "strategy_id": sid, "be": safe_target})
+
+    return synced
+
+
+

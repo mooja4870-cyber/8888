@@ -49,6 +49,7 @@ from core.auto_remediator import (  # noqa: E402
     remediate_loss_streak_or_fee_warn,
     remediate_peak_mdd,
     remediate_recovery_scale_up,
+    sync_peer_be_guard,
 )
 
 ACTIVE_BOTS = ["8401", "8402", "8403", "8404", "8405", "8407", "8408", "8409", "8410"]
@@ -624,6 +625,13 @@ def run_once():
         if res["active_alerts"]:
             titles = ", ".join(a["title"] for a in res["active_alerts"])
             all_alerts_summary.append(f"{bot_id}: {titles}")
+
+    try:
+        peer_sync = sync_peer_be_guard(ACTIVE_BOTS, baselines_doc=baselines_doc)
+        for item in peer_sync:
+            _log(f"🔗 [{item['bot_id']}] 피어 BE가드 동기화({item['strategy_id']}): BE +{item['be']*100:.1f}%")
+    except Exception as exc:
+        _log(f"⚠️ 피어 BE가드 동기화 예외: {exc}")
 
     try:
         def_res = flush_pending_restarts(ACTIVE_BOTS)

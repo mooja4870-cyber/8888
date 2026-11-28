@@ -33,6 +33,7 @@ from core.auto_remediator import (
     flush_pending_restarts,
     record_external_remediation,
     remediate_entry_sizing_error,
+    remediate_execution_parity_defects,
     remediate_fee_or_alpha_decay,
 )
 
@@ -1026,14 +1027,15 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                 "ai_self_heal_loop",
                 "ai_rapid_self_destruct",
                 "ai_engine_states_pollution",
+                "ai_execution_parity",
             ):
                 if ai_k not in active_ai_keys:
                     clear_proactive_alert(str(b), ai_k)
             if audit_res["issues"]:
                 issue_msgs = [msg for _, msg in audit_res["issues"]]
-                logger.warning(f"[{b}] 🚨 [AI 14대 자율감사] 이상 감지: {' | '.join(issue_msgs)}")
+                logger.warning(f"[{b}] 🚨 [AI 15대 자율감사] 이상 감지: {' | '.join(issue_msgs)}")
                 for key, msg in audit_res["issues"]:
-                    is_crit = key in ("ai_self_heal_loop", "ai_rapid_self_destruct", "ai_engine_states_pollution")
+                    is_crit = key in ("ai_self_heal_loop", "ai_rapid_self_destruct", "ai_engine_states_pollution", "ai_execution_parity")
                     ai_sev = "CRITICAL" if is_crit else "WARN"
                     rec = "Level 2+ 자율 감시 지속 (자동 복구 조건 충족 시 즉시 조치)"
                     if key == "ai_sizing_preflight":
@@ -1056,6 +1058,16 @@ def check_and_fix_bot(b: int, do_config_check: bool = True, do_flat_check: bool 
                             )
                         except Exception as re_e:
                             rec = f"Level 2+ R3 자율 튜닝 예외: {re_e}"
+                    elif key == "ai_execution_parity":
+                        try:
+                            r17 = remediate_execution_parity_defects(str(b), cwd, msg)
+                            rec = (
+                                f"Level 2+ R17 자율 보정 완료: {', '.join(r17.get('actions') or [])}"
+                                if r17.get("applied")
+                                else f"Level 2+ R17 코드/정합성 점검 ({r17.get('skipped')})"
+                            )
+                        except Exception as re_e:
+                            rec = f"Level 2+ R17 자율 보정 예외: {re_e}"
                     elif audit_res["needs_restart"]:
                         rec = "Level 2+ 자율 조치: 공유 락 안전 재기동 자동 수행"
 
