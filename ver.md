@@ -1,5 +1,34 @@
 # Version History
 
+## v1.17.0
+
+Date: 2026-11-28
+
+### 변경 내용
+
+* **Aegis V10.5 — 역대 실전 운영 사고 사각지대 6대 감시·자율복구(`M45~M50` + `R24~R29`) 일괄 구축**:
+  * **신규 감시 모듈 (`core/historical_incident_auditor.py`, 5분 주기 실행)**:
+    - **M45 (개별 봇 UI 생존·로그 구문·Passive Overwrite 감시)**: 프록시 우회(`_DIRECT_OPENER`) 로컬 HTTP 200 검증, `streamlit_server.log` SyntaxError/IndentationError 탐지 및 `app.py` 구형 세션 캐시 역덮어쓰기 패턴 감지
+    - **M46 (계정/자아 무결성 · 타거래소 오기입 심볼 감사)**: `.env` API 키 SHA256 10자리 지문 비교(원문 비노출)로 OKX 서브계정 중복·거래소 키 불일치 탐지 및 타거래소 미상장 `SYMBOL_WHITELIST` 항목 적발
+    - **M47 (플릿 레지스트리 · `seed_money` · `peak_assets` 고점 동기화)**: 활성 `84xx` 디렉토리 대비 `BOT_LIST`/`ACTIVE_BOTS`/`strategy_baselines.json` 등록 누락, `seed_money<=0`, `peak_assets.json` ATH 갱신 지연 탐지
+    - **M48 (설정 위험 · 장기 정지 고착 감사)**: `USE_WEBSOCKET=True`, 소액(`<$20`) 계좌 `EQUITY_SCALE_FACTOR<1.0`, 드로다운 회복 후 `AUTO_TRADING=False` 방치 탐지
+    - **M49 (스캐너 부분 침묵 장애 감시)**: `scan_results.json` 종목수 `<50%` 급감 또는 `volume_m==0` 50%+ 표기 오류 탐지
+    - **M50 (`8888` 중앙 관제 앱 · `[DISCORD 1MIN]` 루프 감시)**: `/api/alpha_report` HTTP 200 응답, `app.py`/`discord_alert.py` 수정 후 미재기동 상태 및 `[DISCORD 1MIN] ok=True` >10분 중단 탐지
+  * **Level 2+ 자율 복구 플레이북 & 워치독 연동 (`core/auto_remediator.py`, `watchdog_entry.py`)**:
+    - **R24~R29 (`dispatch_historical_incident_remediations`)**: UI 단독 안전 재기동(`R24`, `bot.py` 무중단), 미보유 타거래소 심볼 제외(`R25`), `peak_assets.json` 상향 동기화(`R26`), 위험 설정 정규화(`R27`), 스캐너 침묵 봇 안전 재기동(`R28`), `8888/app.py` 안전 재기동(`R29`) 및 `core/auto_remediator.py` 내 `dispatch_aegis_alert_remediations` 중복 블록 정화
+    - `watchdog_entry.py`: `_sync_hist_alerts` 전용 동기화로 1분 `Aegis` 정리 루프와의 키 충돌 차단
+
+### 수정 파일
+
+* core/historical_incident_auditor.py
+* core/auto_remediator.py
+* watchdog_entry.py
+* ver.md
+
+### 비고
+
+* 단위 테스트(`M45~M50` + `R25~R27`) 및 실측 감사(`0.06s`, 전 9개 봇 UI HTTP 200 / `errors={}`) 통과, `verify_all.py` 100% PASS 검증 완료
+
 ## v1.16.0
 
 Date: 2026-11-28

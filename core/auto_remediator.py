@@ -2502,5 +2502,265 @@ def dispatch_alpha_profitability_remediations(
     return kept
 
 
+# ── [Aegis V10.5 Playbooks R24 ~ R29: Historical Incident Self-Healing] ──────────────
+def remediate_bot_ui_only(bot_id: str, cwd: str, alert: Dict[str, Any]) -> Dict[str, Any]:
+    """[Playbook R24] Restart ONLY the bot's Streamlit UI process without disturbing bot.py."""
+    if os.path.exists(os.path.join(cwd, ".stopped")) or not str(bot_id).isdigit():
+        return {"applied": False, "skipped": "bot_stopped_or_invalid"}
+
+    pb = "R24_ui_only_restart"
+    allowed, rem = _check_and_mark_cooldown(bot_id, pb, cooldown_sec=900, dry_run=True)
+    if not allowed:
+        return {"applied": False, "skipped": f"cooldown_{rem}s"}
+
+    py_bin = os.path.join(cwd, "venv", "bin", "python3")
+    if not os.path.exists(py_bin):
+        py_bin = "/usr/bin/python3"
+    app_py = os.path.join(cwd, "app.py")
+    if not os.path.exists(app_py):
+        return {"applied": False, "skipped": "app_py_missing"}
+
+    try:
+        lsof_res = subprocess.run(["lsof", f"-tiTCP:{bot_id}", "-sTCP:LISTEN"], capture_output=True, text=True, timeout=3)
+        for p in lsof_res.stdout.splitlines():
+            p = p.strip()
+            if p.isdigit():
+                try:
+                    os.kill(int(p), signal.SIGTERM)
+                except Exception:
+                    pass
+        time.sleep(1.0)
+        ui_log = os.path.join(cwd, "streamlit_server.log")
+        with open(ui_log, "a", encoding="utf-8") as lf:
+            proc = subprocess.Popen(
+                [py_bin, "-m", "streamlit", "run", "app.py", "--server.port", str(bot_id), "--server.headless", "true"],
+                cwd=cwd,
+                stdout=lf,
+                stderr=lf,
+                start_new_session=True,
+            )
+        _check_and_mark_cooldown(bot_id, pb, cooldown_sec=900, dry_run=False)
+        acts = [f"Streamlit UI 단독 재기동 완료 (PID {proc.pid}, 포트 {bot_id}, bot.py 무중단)"]
+        _append_history_event(str(bot_id), pb, "M45 개별 봇 UI 단독 복구", acts, str(alert.get("details") or pb), severity="WARN", notify_discord=True, extra={"eval_status": "skipped_na"})
+        return {"applied": True, "actions": acts}
+    except Exception as exc:
+        return {"applied": False, "skipped": f"ui_restart_err:{exc}"}
+
+
+def remediate_cross_exchange_symbols(bot_id: str, cwd: str, alert: Dict[str, Any]) -> Dict[str, Any]:
+    """[Playbook R25] Prune cross-exchange/unlisted symbols from SYMBOL_WHITELIST safely."""
+    if os.path.exists(os.path.join(cwd, ".stopped")):
+        return {"applied": False, "skipped": "bot_stopped"}
+
+    pb = "R25_cross_exchange_prune"
+    allowed, rem = _check_and_mark_cooldown(bot_id, pb, cooldown_sec=43200, dry_run=True)
+    if not allowed:
+        return {"applied": False, "skipped": f"cooldown_{rem}s"}
+
+    bad_syms = ((alert.get("meta") or {}).get("bad_symbols") if isinstance(alert.get("meta"), dict) else None) or []
+    cfg_path, cfg = _load_bot_config_with_backup(cwd)
+    if not cfg or not bad_syms:
+        return {"applied": False, "skipped": "no_bad_symbols"}
+
+    wl = cfg.get("SYMBOL_WHITELIST")
+    if not isinstance(wl, list) or len(wl) <= MIN_WHITELIST_SIZE:
+        return {"applied": False, "skipped": "whitelist_min_floor"}
+
+    act = _load_json(os.path.join(cwd, "data", "active_positions.json"), {})
+    open_syms = set(act.keys()) if isinstance(act, dict) else set()
+    to_remove = [s for s in bad_syms if s in wl and s not in open_syms][: max(0, len(wl) - MIN_WHITELIST_SIZE)]
+    if not to_remove:
+        return {"applied": False, "skipped": "held_or_min_floor"}
+
+    prev_values = {"SYMBOL_WHITELIST": list(wl)}
+    cfg["SYMBOL_WHITELIST"] = [s for s in wl if s not in set(to_remove)]
+    actions = [f"타거래소/미상장 종목 제외: {', '.join(to_remove)} ({len(wl)}→{len(cfg['SYMBOL_WHITELIST'])}개)"]
+    return _apply_and_restart(
+        bot_id, cwd, pb, "M46 타거래소 미상장 심볼 자율 정리", actions,
+        reason=str(alert.get("details") or pb), cfg_path=cfg_path, cfg=cfg,
+        severity="WARN", force_restart_with_pos=False, prev_values=prev_values, eval_status="skipped_na",
+    )
+
+
+def remediate_peak_assets_drift(alert: Dict[str, Any]) -> Dict[str, Any]:
+    """[Playbook R26] Synchronize lagging peak_assets.json upward to live ATH balance."""
+    pb = "R26_peak_assets_sync"
+    allowed, rem = _check_and_mark_cooldown("8888", pb, cooldown_sec=3600, dry_run=True)
+    if not allowed:
+        return {"applied": False, "skipped": f"cooldown_{rem}s"}
+
+    peak_lag = ((alert.get("meta") or {}).get("peak_lag") if isinstance(alert.get("meta"), dict) else None) or {}
+    if not peak_lag:
+        return {"applied": False, "skipped": "no_peak_lag"}
+
+    peak_path = os.path.join(BASE_8888, "peak_assets.json")
+    peak_doc = _load_json(peak_path, {}) or {}
+    now_str = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    updated_list: List[str] = []
+
+    for bid, live_bal in peak_lag.items():
+        val = _safe_float(live_bal, 0.0)
+        cur = _safe_float((peak_doc.get(bid) or {}).get("peak_asset"), 0.0)
+        if val > cur:
+            peak_doc[bid] = {"peak_asset": round(val, 2), "peak_ts": now_str}
+            updated_list.append(f"{bid}: ${cur:.2f}→${val:.2f}")
+
+    if not updated_list:
+        return {"applied": False, "skipped": "already_synced"}
+
+    _atomic_write_json(peak_path, peak_doc)
+    _check_and_mark_cooldown("8888", pb, cooldown_sec=3600, dry_run=False)
+    _append_history_event("8888", pb, "M47 peak_assets 고점 자동 동기화", updated_list, str(alert.get("details") or pb), severity="INFO", notify_discord=False, extra={"eval_status": "skipped_na"})
+    return {"applied": True, "actions": updated_list}
+
+
+def remediate_config_hazards(bot_id: str, cwd: str, alert: Dict[str, Any]) -> Dict[str, Any]:
+    """[Playbook R27] Auto-heal USE_WEBSOCKET=True, small-account EQUITY_SCALE_FACTOR<1.0, stale halt."""
+    if os.path.exists(os.path.join(cwd, ".stopped")):
+        return {"applied": False, "skipped": "bot_stopped"}
+
+    pb = "R27_config_hazard_fix"
+    allowed, rem = _check_and_mark_cooldown(bot_id, pb, cooldown_sec=43200, dry_run=True)
+    if not allowed:
+        return {"applied": False, "skipped": f"cooldown_{rem}s"}
+
+    hazards = ((alert.get("meta") or {}).get("hazards") if isinstance(alert.get("meta"), dict) else None) or []
+    cfg_path, cfg = _load_bot_config_with_backup(cwd)
+    if not cfg or not hazards:
+        return {"applied": False, "skipped": "no_hazards"}
+
+    orig_cfg = copy.deepcopy(cfg)
+    prev_values: Dict[str, Any] = {}
+    actions: List[str] = []
+
+    if "use_websocket_true" in hazards and cfg.get("USE_WEBSOCKET") is True:
+        prev_values["USE_WEBSOCKET"] = True
+        cfg["USE_WEBSOCKET"] = False
+        actions.append("USE_WEBSOCKET: True→False (WS 크래시 부채 차단)")
+
+    if "small_account_equity_scale_lt1" in hazards and _safe_float(cfg.get("EQUITY_SCALE_FACTOR"), 1.0) < 0.99:
+        prev_values["EQUITY_SCALE_FACTOR"] = orig_cfg.get("EQUITY_SCALE_FACTOR")
+        cfg["EQUITY_SCALE_FACTOR"] = 1.0
+        actions.append(f"EQUITY_SCALE_FACTOR: {orig_cfg.get('EQUITY_SCALE_FACTOR')}→1.0 (소액 최소주문 충돌 방지)")
+
+    if "stale_auto_trading_false" in hazards and cfg.get("AUTO_TRADING") is False:
+        prev_values["AUTO_TRADING"] = False
+        cfg["AUTO_TRADING"] = True
+        actions.append("AUTO_TRADING: False→True (정상 회복 후 장기 정지 해제)")
+
+    if not actions:
+        return {"applied": False, "skipped": "already_clean"}
+
+    return _apply_and_restart(
+        bot_id, cwd, pb, "M48 위험 설정(WS/스케일/장기정지) 자율 정규화", actions,
+        reason=str(alert.get("details") or pb), cfg_path=cfg_path, cfg=cfg,
+        severity="WARN", force_restart_with_pos=False, prev_values=prev_values, eval_status="skipped_na",
+    )
+
+
+def remediate_scanner_silent_drop(bot_id: str, cwd: str, alert: Dict[str, Any]) -> Dict[str, Any]:
+    """[Playbook R28] Safely restart bot experiencing silent scanner drop (<50% results or 0-vol)."""
+    if os.path.exists(os.path.join(cwd, ".stopped")):
+        return {"applied": False, "skipped": "bot_stopped"}
+
+    pb = "R28_scanner_silent_heal"
+    allowed, rem = _check_and_mark_cooldown(bot_id, pb, cooldown_sec=1800, dry_run=True)
+    if not allowed:
+        return {"applied": False, "skipped": f"cooldown_{rem}s"}
+
+    has_pos = _should_hold_restart_for_positions(cwd)
+    if has_pos:
+        _update_pending_restart(str(bot_id), False, pb, "M49 스캐너 침묵 복구 재기동 예약", cwd)
+        return {"applied": False, "skipped": "deferred_active_position"}
+
+    ok, detail = bot_restart_locked(str(bot_id), cwd, source=f"aegis_v105_{pb}", reason="M49 스캐너 부분 침묵 복구", cooldown_sec=120)
+    if not ok:
+        return {"applied": False, "skipped": detail}
+    _check_and_mark_cooldown(bot_id, pb, cooldown_sec=1800, dry_run=False)
+    acts = [f"스캐너 부분 침묵 감지로 엔진 안전 재기동 완료 ({detail})"]
+    _append_history_event(str(bot_id), pb, "M49 스캐너 부분 침묵 자율 복구", acts, str(alert.get("details") or pb), severity="WARN", notify_discord=True, extra={"eval_status": "skipped_na"})
+    return {"applied": True, "actions": acts}
+
+
+def remediate_8888_app_liveness(alert: Dict[str, Any]) -> Dict[str, Any]:
+    """[Playbook R29] Safely restart 8888/app.py on HTTP down, stale code, or [DISCORD 1MIN] stall."""
+    pb = "R29_8888_app_restart"
+    allowed, rem = _check_and_mark_cooldown("8888", pb, cooldown_sec=900, dry_run=True)
+    if not allowed:
+        return {"applied": False, "skipped": f"cooldown_{rem}s"}
+
+    app_py = os.path.join(BASE_8888, "app.py")
+    app_log = os.path.join(BASE_8888, "app.log")
+    app_pid = os.path.join(BASE_8888, "app.pid")
+    try:
+        res = subprocess.run(["pgrep", "-f", ".*8888/app.py"], capture_output=True, text=True, timeout=3)
+        for p in res.stdout.splitlines():
+            p = p.strip()
+            if p.isdigit() and int(p) != os.getpid():
+                try:
+                    os.kill(int(p), signal.SIGTERM)
+                except Exception:
+                    pass
+        time.sleep(1.5)
+        with open(app_log, "a", encoding="utf-8") as lf:
+            proc = subprocess.Popen(["/usr/bin/python3", app_py], cwd=BASE_8888, stdout=lf, stderr=lf, start_new_session=True)
+        with open(app_pid, "w", encoding="utf-8") as pf:
+            pf.write(str(proc.pid))
+        _check_and_mark_cooldown("8888", pb, cooldown_sec=900, dry_run=False)
+        reason_tag = ((alert.get("meta") or {}).get("reason") if isinstance(alert.get("meta"), dict) else None) or "liveness"
+        acts = [f"8888/app.py 안전 재기동 완료 (PID {proc.pid}, 사유: {reason_tag})"]
+        _append_history_event("8888", pb, "M50 8888 관제앱·디스코드 루프 자율 복구", acts, str(alert.get("details") or pb), severity=str(alert.get("severity") or "WARN"), notify_discord=True, extra={"eval_status": "skipped_na"})
+        return {"applied": True, "actions": acts}
+    except Exception as exc:
+        return {"applied": False, "skipped": f"8888_restart_err:{exc}"}
+
+
+def dispatch_historical_incident_remediations(
+    alerts: List[Dict[str, Any]],
+    bots: List[Any],
+) -> List[Dict[str, Any]]:
+    """[Aegis V10.5 Dispatcher] Route all `hist_*` alerts (M45~M50) to playbooks R24~R29."""
+    allowed_bots = {str(b) for b in bots}
+    kept: List[Dict[str, Any]] = []
+
+    for a in (alerts or []):
+        if not isinstance(a, dict):
+            continue
+        bid = str(a.get("bot_id") or "8888")
+        key = str(a.get("key") or "")
+        cwd = os.path.join(BASE_PROJECT, bid)
+        res: Optional[Dict[str, Any]] = None
+
+        if key == "hist_ui_down" and bid in allowed_bots:
+            res = remediate_bot_ui_only(bid, cwd, a)
+        elif key == "hist_cross_exchange_symbol" and bid in allowed_bots:
+            res = remediate_cross_exchange_symbols(bid, cwd, a)
+        elif key == "hist_registry_or_peak_drift" and isinstance(a.get("meta"), dict) and a["meta"].get("peak_lag"):
+            res = remediate_peak_assets_drift(a)
+        elif key == "hist_config_hazard" and bid in allowed_bots:
+            res = remediate_config_hazards(bid, cwd, a)
+        elif key == "hist_scanner_silent_drop" and bid in allowed_bots:
+            res = remediate_scanner_silent_drop(bid, cwd, a)
+        elif key == "hist_8888_app_stale_or_discord_halt":
+            res = remediate_8888_app_liveness(a)
+        elif key == "hist_duplicate_api_key":
+            if str(a.get("severity") or "").upper() != "INFO":
+                rec = str(a.get("recommendation") or "")
+                if "[외부 계정/OS 개입 필요]" not in rec:
+                    a["recommendation"] = f"[외부 계정/OS 개입 필요] {rec}".strip()
+            kept.append(a)
+            continue
+
+        if res is not None:
+            if res.get("applied"):
+                a["recommendation"] = f"Level 2+ 자율 조치 완료: {', '.join(res.get('actions') or [])}"
+            else:
+                a["recommendation"] = f"Level 2+ 자율 감시 유지 ({res.get('skipped') or '정상 대기'})"
+        kept.append(a)
+
+    return kept
+
+
+
 
 

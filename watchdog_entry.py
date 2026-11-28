@@ -26,10 +26,12 @@ from core.autonomous_auditor import (
     run_all_autonomous_audits,
 )
 from core.exchange_infra_auditor import run_exchange_infra_audit
+from core.historical_incident_auditor import run_historical_incident_audit
 from core.portfolio_risk_auditor import run_portfolio_risk_audit
 from core.security_ops_auditor import run_security_ops_audit
 from core.auto_remediator import (
     dispatch_aegis_alert_remediations,
+    dispatch_historical_incident_remediations,
     flush_pending_restarts,
     record_external_remediation,
     remediate_entry_sizing_error,
@@ -1208,8 +1210,40 @@ def _sync_aegis_alerts(alerts: list) -> None:
         pass
 
 
+def _sync_hist_alerts(alerts: list) -> None:
+    """Sync M45~M50 `hist_*` alerts cleanly without interference from 1-min Aegis cycle."""
+    detected = set()
+    for a in (alerts or []):
+        bid = str(a.get("bot_id") or "8888")
+        akey = str(a.get("key") or "")
+        if not akey.startswith("hist_"):
+            continue
+        detected.add((bid, akey))
+        sev = str(a.get("severity") or "WARN").upper()
+        cd = 1800 if sev == "CRITICAL" else 14400
+        record_proactive_alert(
+            bid,
+            akey,
+            sev,
+            str(a.get("title") or akey),
+            str(a.get("details") or ""),
+            str(a.get("recommendation") or ""),
+            cooldown_sec=cd,
+            notify_discord=(sev != "INFO"),
+        )
+    try:
+        active = (load_proactive_alerts().get("active") or {})
+        for _, entry in list(active.items()):
+            bid = str((entry or {}).get("bot_id") or "")
+            akey = str((entry or {}).get("alert_key") or "")
+            if akey.startswith("hist_") and (bid, akey) not in detected:
+                clear_proactive_alert(bid, akey)
+    except Exception:
+        pass
+
+
 def _run_aegis_v7_global_audit(cycle: int) -> None:
-    """Execute Aegis V7 global modules (M16~M34): Security/Ops + Exchange/Infra + Portfolio/OTR/Alpha/Scorecard."""
+    """Execute Aegis V7/V10.5 global modules (M16~M34, M45~M50)."""
     include_listings = (cycle == 1) or (cycle % 15 == 0)
     include_canary = (cycle == 1) or (cycle % 60 == 0)
 
@@ -1261,6 +1295,19 @@ def _run_aegis_v7_global_audit(cycle: int) -> None:
         f"노출 ${m16.get('gross_notional', 0):.2f} (Net ${m16.get('net_notional', 0):+.2f}, {m16.get('total_positions', 0)}포) | "
         f"USDT {usdt_txt} | IP {m33.get('public_ip', '?')} | 신규경보 {len(combined_alerts)}건 | 디스크 {m24.get('disk_used_pct', '?')}%{rot_txt}"
     )
+
+    # Aegis V10.5 Historical Blind-Spot Audit (M45~M50 + R24~R29) every 5 minutes
+    if cycle == 1 or cycle % 5 == 0:
+        try:
+            hist_res = run_historical_incident_audit(BOT_LIST)
+            hist_alerts = dispatch_historical_incident_remediations(hist_res.get("alerts") or [], BOT_LIST)
+            _sync_hist_alerts(hist_alerts)
+            logger.info(
+                f"🛡️ [Aegis V10.5 역대사고사각감사 M45~M50] {hist_res.get('elapsed_sec', 0):.2f}s | "
+                f"경보 {len(hist_alerts)}건 | 오류 {len(hist_res.get('errors') or {})}건"
+            )
+        except Exception as e:
+            logger.error(f"⚠️ [Aegis V10.5 역대사고사각감사] 예외: {e}")
 
 
 def main():
