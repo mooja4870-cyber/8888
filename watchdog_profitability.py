@@ -41,6 +41,7 @@ from watchdog_common import (  # noqa: E402
     update_watchdog_heartbeat,
 )
 from core.auto_remediator import (  # noqa: E402
+    dispatch_alpha_profitability_remediations,
     evaluate_and_rollback_remediations,
     flush_pending_restarts,
     remediate_bleeding_symbols,
@@ -51,6 +52,7 @@ from core.auto_remediator import (  # noqa: E402
     remediate_recovery_scale_up,
     sync_peer_be_guard,
 )
+from core.alpha_profitability_suite import run_alpha_profitability_suite  # noqa: E402
 
 ACTIVE_BOTS = ["8401", "8402", "8403", "8404", "8405", "8407", "8408", "8409", "8410"]
 CHECK_INTERVAL_SEC = 300
@@ -591,7 +593,39 @@ def _eval_bot(bot_id, bot_baseline, live_ex_bots, latest_snap_bots, peak_assets_
     }
 
 
-def run_once():
+def _sync_prof_alerts(alerts):
+    """Sync M36~M44 `prof_*` alerts cleanly without touching other alert namespaces."""
+    detected = set()
+    for a in (alerts or []):
+        bid = str(a.get("bot_id") or "8888")
+        akey = str(a.get("key") or "")
+        if not akey.startswith("prof_"):
+            continue
+        detected.add((bid, akey))
+        sev = str(a.get("severity") or "WARN").upper()
+        cd = 1800 if sev == "CRITICAL" else 14400
+        record_proactive_alert(
+            bid,
+            akey,
+            sev,
+            str(a.get("title") or akey),
+            str(a.get("details") or ""),
+            str(a.get("recommendation") or ""),
+            cooldown_sec=cd,
+            notify_discord=True,
+        )
+    try:
+        active = load_proactive_alerts().get("active") or {}
+        for _, entry in list(active.items()):
+            bid = str((entry or {}).get("bot_id") or "")
+            akey = str((entry or {}).get("alert_key") or "")
+            if akey.startswith("prof_") and (bid, akey) not in detected:
+                clear_proactive_alert(bid, akey)
+    except Exception:
+        pass
+
+
+def run_once(run_alpha_suite: bool = True):
     now_dt = datetime.now()
     baselines_doc = _load_json(BASELINES_PATH, {}) or {}
     bots_baselines = baselines_doc.get("bots", {})
@@ -626,6 +660,31 @@ def run_once():
             titles = ", ".join(a["title"] for a in res["active_alerts"])
             all_alerts_summary.append(f"{bot_id}: {titles}")
 
+    alpha_suite_summary = {}
+    if run_alpha_suite:
+        try:
+            suite_rep = run_alpha_profitability_suite(ACTIVE_BOTS, baselines_doc=baselines_doc)
+            prof_alerts = dispatch_alpha_profitability_remediations(
+                suite_rep.get("alerts") or [], ACTIVE_BOTS, suite_report=suite_rep
+            )
+            _sync_prof_alerts(prof_alerts)
+            m42 = suite_rep.get("m42_corr_hrp") or {}
+            alpha_suite_summary = {
+                "updated": suite_rep.get("updated"),
+                "elapsed_sec": suite_rep.get("elapsed_sec"),
+                "alerts_count": len(prof_alerts),
+                "avg_corr": m42.get("avg_corr"),
+                "hrp_weights": m42.get("hrp_weights"),
+                "errors": suite_rep.get("errors") or {},
+            }
+            _log(
+                f"🧠 [Aegis V10 알파수익감사 M36~M44] {suite_rep.get('elapsed_sec', 0):.2f}s | "
+                f"경보 {len(prof_alerts)}건 | 플릿평균상관 ρ={m42.get('avg_corr', 0):.3f} | "
+                f"오류 {len(suite_rep.get('errors') or {})}건"
+            )
+        except Exception as exc:
+            _log(f"⚠️ Aegis V10 알파수익감사(M36~M44) 예외: {exc}")
+
     try:
         peer_sync = sync_peer_be_guard(ACTIVE_BOTS, baselines_doc=baselines_doc)
         for item in peer_sync:
@@ -644,6 +703,7 @@ def run_once():
         "updated": now_dt.strftime("%Y-%m-%d %H:%M:%S"),
         "baselines_version": (baselines_doc.get("_meta") or {}).get("version", "1.0.0"),
         "bots": status_bots,
+        "alpha_suite_summary": alpha_suite_summary,
         "proactive_alerts_snapshot": load_proactive_alerts().get("active", {}),
     }
     _atomic_save_json(LIFECYCLE_STATUS_PATH, payload)
@@ -655,7 +715,7 @@ def run_once():
     try:
         update_watchdog_heartbeat(
             "watchdog_profitability",
-            {"bots": len(status_bots), "alerts": len(all_alerts_summary)},
+            {"bots": len(status_bots), "alerts": len(all_alerts_summary), "alpha_alerts": alpha_suite_summary.get("alerts_count", 0)},
         )
     except Exception:
         pass
@@ -668,7 +728,7 @@ def main():
     args = parser.parse_args()
 
     if args.once:
-        run_once()
+        run_once(run_alpha_suite=True)
         return
 
     lock_fd = open(LOCK_PATH, "w", encoding="utf-8")
@@ -680,10 +740,12 @@ def main():
     lock_fd.write(f"{os.getpid()}\n")
     lock_fd.flush()
 
-    _log(f"🛡️ watchdog_profitability.py 가동 (PID {os.getpid()}, Aegis V9 Full Autonomous Remediation 모드, 주기 {CHECK_INTERVAL_SEC}s)")
+    _log(f"🛡️ watchdog_profitability.py 가동 (PID {os.getpid()}, Aegis V10 알파수익감사 M36~M44 + R1~R23 완전자율, 주기 {CHECK_INTERVAL_SEC}s)")
+    cycle = 0
     while True:
+        cycle += 1
         try:
-            run_once()
+            run_once(run_alpha_suite=(cycle == 1 or cycle % 2 == 1))
         except Exception as exc:
             _log(f"❌ 점검 루프 예외: {exc}")
         time.sleep(CHECK_INTERVAL_SEC)

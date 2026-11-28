@@ -1,5 +1,45 @@
 # Version History
 
+## v1.16.0
+
+Date: 2026-11-28
+
+### 변경 내용
+
+* **Aegis V10 — 문헌 기반 수익성·미시구조 9대 통합 감시·자율 조치 스위트(`M36~M44` + `R18~R23`) 일괄 구축**:
+  * **Phase 1 (`core/profitability_phase1_auditor.py`)**:
+    - **M36 (실거래 MAE/MFE · E-Ratio · 청산효율)**: 체결 쌍(`load_paired_trades`) 보유 구간 실제 OHLCV(15m/1h) 대조로 `MAE`, `MFE`, `E-Ratio`, `Exit Efficiency`, 조기 본절 비율 정밀 산출
+    - **M37 (Implementation Shortfall · Spread/ATR)**: Binance/OKX 전 종목 실시간 호가 스프레드(`Spread/ATR`) 및 로그 신호가 대비 실체결 슬리피지(`IS bps`) 추적
+    - **M38 (CUSUM · Reflected SPRT 조기 알파 감쇠)**: `strategy_effective_since` 에포크 필터 기반 `R-multiple` 하향 `CUSUM` + 가우시안 `SPRT` 순차 변화점 탐지
+  * **Phase 2 (`core/profitability_phase2_auditor.py`)**:
+    - **M39 (누적 펀딩비 캐리 · 00/08/16 UTC 정산 휩쏘)**: 8시간 UTC 정산 경계 통과 횟수 기반 누적 펀딩비 손익 분리 및 정산 `±5분` 진입 휩쏘 성과 감사
+    - **M40 (세션·주말 유동성 계절성)**: Asia/Europe/US/Late UTC 4개 세션 및 Weekday/Weekend 성과·PF 분해
+    - **M43 (양방향 기대값 비대칭 · BTC 4h EMA200 정렬)**: 60일 LONG/SHORT 동시 표본(`N≥12` 양방향) 비교로 진성 편향 적자만 정밀 포착
+  * **Phase 3 (`core/profitability_phase3_auditor.py`)**:
+    - **M41 (OI · Perp-Spot Basis 과열)**: 실시간 마크/인덱스 베이시스(`bps`) 및 7일 OI Z-score 누적으로 추격돌파 봇 과열 경고(평균회귀 봇 분리)
+    - **M42 (실시간 상관관계 급등 · 순수 NumPy HRP)**: 다중 봇 일간 수익률 상관($\bar{\rho}$) 및 단일연결 계층적 리스크 패리티(HRP) 동적 `RISK_PER_TRADE_PCT` 권장 가중치 산출
+    - **M44 (Shadow Signal 기회비용 · Post-Exit Drift)**: 필터 탈락 시그널 및 청산 후 `+4h/+12h/+24h` 가격 표류 추적
+  * **통합 오케스트레이터 & Level 2+ 자율 조치(`core/alpha_profitability_suite.py`, `core/auto_remediator.py`, `watchdog_profitability.py`, `app.py`)**:
+    - **R18~R23** 안전 클램프·24h 쿨다운·상호배타 핑퐁방지·사이클당 1봇 1변이 제한 및 `R8` 사후 검증 연동(`R18/R21/R23`), `/api/alpha_report` JSON 엔드포인트 노출
+    - `strategy_baselines.json`: `8401·8402·8409·8410` 신규 `4h` 전략 에포크(`strategy_effective_since: 2026-11-28 11:52:00`) 명시
+
+### 수정 파일
+
+* core/profitability_phase1_auditor.py
+* core/profitability_phase2_auditor.py
+* core/profitability_phase3_auditor.py
+* core/alpha_profitability_suite.py
+* core/auto_remediator.py
+* watchdog_profitability.py
+* app.py
+* strategy_baselines.json
+* ver.md
+
+### 비고
+
+* `py_compile` + `M36~M44`/`R18~R23` 격리 단위테스트 + 실전 9봇 `--once` 5.53s 0오류 완료 + `8888` 포함 10개 포트 HTTP 200 + `/api/alpha_report` HTTP 200 + 4대 워치독 하트비트 정상 + `verify_all.py` 100% PASS
+
+
 ## v1.15.0
 
 Date: 2026-11-28

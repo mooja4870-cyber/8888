@@ -892,7 +892,7 @@ def evaluate_and_rollback_remediations(bots: List[Any]) -> List[Dict[str, Any]]:
             continue
         if ev.get("eval_status") != "pending":
             continue
-        if pb not in ("R3_alpha_tune", "R10_symbol_prune"):
+        if pb not in ("R3_alpha_tune", "R10_symbol_prune", "R18_mae_mfe_tune", "R21_dir_skew", "R23_shadow_relax"):
             continue
         prev_vals = ev.get("prev_values")
         if not isinstance(prev_vals, dict) or not prev_vals:
@@ -2042,6 +2042,465 @@ def sync_peer_be_guard(bots: List[Any], baselines_doc: Optional[Dict[str, Any]] 
                 synced.append({"bot_id": bid, "strategy_id": sid, "be": safe_target})
 
     return synced
+
+
+# ── [Aegis V10 Playbooks R18 ~ R23: 9-Module Profitability Suite Remediations] ─────
+def remediate_mae_mfe_exit_efficiency(
+    bot_id: str, cwd: str, m36_info: Dict[str, Any], detail_msg: str = ""
+) -> Dict[str, Any]:
+    """[Playbook R18] M36 MAE/MFE 청산효율 저하 시 본절가드/트레일링 발동선 미세 상향 (R8 추적)."""
+    if os.path.exists(os.path.join(cwd, ".stopped")):
+        return {"applied": False, "skipped": "bot_stopped"}
+
+    pb = "R18_mae_mfe_tune"
+    allowed, rem = _check_and_mark_cooldown(bot_id, pb, cooldown_sec=86400, dry_run=True)
+    if not allowed:
+        return {"applied": False, "skipped": f"cooldown_{rem}s"}
+
+    cfg_path, cfg = _load_bot_config_with_backup(cwd)
+    if not cfg:
+        return {"applied": False, "skipped": "missing_config"}
+
+    orig_cfg = copy.deepcopy(cfg)
+    prev_values: Dict[str, Any] = {}
+    actions: List[str] = []
+    block_sigs: List[str] = []
+
+    premature = _safe_float(m36_info.get("premature_be_ratio"), 0.0)
+    avg_eff = _safe_float(m36_info.get("avg_exit_efficiency"), 0.5)
+
+    if cfg.get("USE_BE_GUARD") and "BE_GUARD_TRIGGER_PCT" in cfg and not _is_action_blocked(bot_id, f"{pb}:BE_GUARD_TRIGGER_PCT"):
+        cur_be = _safe_float(cfg.get("BE_GUARD_TRIGGER_PCT"), 0.016)
+        if cur_be < 0.025 and (premature >= 0.45 or avg_eff < 0.35):
+            new_be = min(0.025, round(cur_be + 0.002, 4))
+            if new_be > cur_be + 1e-4:
+                prev_values["BE_GUARD_TRIGGER_PCT"] = orig_cfg.get("BE_GUARD_TRIGGER_PCT")
+                if "DASHBOARD_META" in orig_cfg:
+                    prev_values["DASHBOARD_META"] = copy.deepcopy(orig_cfg["DASHBOARD_META"])
+                cfg["BE_GUARD_TRIGGER_PCT"] = new_be
+                _sync_meta_be(cfg, new_be)
+                block_sigs.append("BE_GUARD_TRIGGER_PCT")
+                actions.append(f"BE_GUARD_TRIGGER_PCT: +{cur_be*100:.1f}%→+{new_be*100:.1f}% (조기본절 완화)")
+
+    if not actions and cfg.get("USE_TRAILING_STOP") and "TRAILING_ACTIVATE_PCT" in cfg and not _is_action_blocked(bot_id, f"{pb}:TRAILING_ACTIVATE_PCT"):
+        cur_ts = _safe_float(cfg.get("TRAILING_ACTIVATE_PCT"), 0.018)
+        if cur_ts < 0.040 and avg_eff < 0.35:
+            new_ts = min(0.040, round(cur_ts + 0.003, 4))
+            if new_ts > cur_ts + 1e-4:
+                prev_values["TRAILING_ACTIVATE_PCT"] = orig_cfg.get("TRAILING_ACTIVATE_PCT")
+                cfg["TRAILING_ACTIVATE_PCT"] = new_ts
+                block_sigs.append("TRAILING_ACTIVATE_PCT")
+                actions.append(f"TRAILING_ACTIVATE_PCT: +{cur_ts*100:.1f}%→+{new_ts*100:.1f}% (수익 뻗음 여유 확대)")
+
+    if not actions:
+        return {"applied": False, "skipped": "already_tuned_or_blocked"}
+
+    base_metrics = _compute_window_metrics(cwd, since_ts=time.time() - 7 * 86400)
+    return _apply_and_restart(
+        bot_id,
+        cwd,
+        pb,
+        "M36 청산효율 기반 BE/TS 발동선 자율 최적화",
+        actions,
+        reason=detail_msg or "M36 MAE/MFE 청산효율 저하",
+        cfg_path=cfg_path,
+        cfg=cfg,
+        severity="WARN",
+        force_restart_with_pos=False,
+        prev_values=prev_values,
+        baseline_metrics=base_metrics,
+        eval_status="pending",
+        block_sigs=block_sigs,
+    )
+
+
+def remediate_illiquid_spread_symbols(
+    bot_id: str, cwd: str, bad_symbols: List[Dict[str, Any]], detail_msg: str = ""
+) -> Dict[str, Any]:
+    """[Playbook R19] M37 고스프레드·저유동성 비보유 종목 화이트리스트 자율 제외."""
+    if os.path.exists(os.path.join(cwd, ".stopped")):
+        return {"applied": False, "skipped": "bot_stopped"}
+
+    pb = "R19_spread_prune"
+    allowed, rem = _check_and_mark_cooldown(bot_id, pb, cooldown_sec=86400, dry_run=True)
+    if not allowed:
+        return {"applied": False, "skipped": f"cooldown_{rem}s"}
+
+    cfg_path, cfg = _load_bot_config_with_backup(cwd)
+    if not cfg:
+        return {"applied": False, "skipped": "missing_config"}
+
+    wl = cfg.get("SYMBOL_WHITELIST")
+    if not isinstance(wl, list) or len(wl) <= MIN_WHITELIST_SIZE:
+        return {"applied": False, "skipped": "whitelist_min_floor"}
+
+    act = _load_json(os.path.join(cwd, "data", "active_positions.json"), {})
+    open_syms = set(act.keys()) if isinstance(act, dict) else set()
+
+    prune_candidates = [
+        x["symbol"] for x in (bad_symbols or [])
+        if isinstance(x, dict) and x.get("symbol") in wl and x.get("symbol") not in open_syms
+    ]
+    max_rm = max(0, len(wl) - MIN_WHITELIST_SIZE)
+    to_remove = prune_candidates[: min(2, max_rm)]
+    if not to_remove:
+        return {"applied": False, "skipped": "no_safe_unheld_illiquid_symbol"}
+
+    prev_values = {"SYMBOL_WHITELIST": list(wl)}
+    cfg["SYMBOL_WHITELIST"] = [s for s in wl if s not in set(to_remove)]
+    actions = [f"고스프레드/저유동성 종목 제외: {', '.join(to_remove)} ({len(wl)}→{len(cfg['SYMBOL_WHITELIST'])}개)"]
+
+    return _apply_and_restart(
+        bot_id,
+        cwd,
+        pb,
+        "M37 고스프레드·저유동성 종목 자율 제외",
+        actions,
+        reason=detail_msg or "M37 Spread/ATR 과다",
+        cfg_path=cfg_path,
+        cfg=cfg,
+        severity="WARN",
+        force_restart_with_pos=False,
+        prev_values=prev_values,
+        eval_status="skipped_na",
+    )
+
+
+def remediate_cusum_sprt_edge_decay(
+    bot_id: str, cwd: str, m38_info: Dict[str, Any], sev: str = "WARN", detail_msg: str = ""
+) -> Dict[str, Any]:
+    """[Playbook R20] M38 CUSUM/SPRT 조기 알파 감쇠 감지 시 비중 축소·동적레짐 방어."""
+    if os.path.exists(os.path.join(cwd, ".stopped")):
+        return {"applied": False, "skipped": "bot_stopped"}
+
+    pb = "R20_cusum_decay"
+    allowed, rem = _check_and_mark_cooldown(bot_id, pb, cooldown_sec=86400, dry_run=True)
+    if not allowed:
+        return {"applied": False, "skipped": f"cooldown_{rem}s"}
+
+    cfg_path, cfg = _load_bot_config_with_backup(cwd)
+    if not cfg:
+        return {"applied": False, "skipped": "missing_config"}
+
+    orig_cfg = copy.deepcopy(cfg)
+    prev_values: Dict[str, Any] = {}
+    actions: List[str] = []
+
+    if not cfg.get("USE_DYNAMIC_REGIME", False):
+        prev_values["USE_DYNAMIC_REGIME"] = orig_cfg.get("USE_DYNAMIC_REGIME", False)
+        cfg["USE_DYNAMIC_REGIME"] = True
+        actions.append("USE_DYNAMIC_REGIME: False→True (연패 시드 방어 활성)")
+
+    if cfg.get("USE_AUTO_COMPOUND"):
+        ex_id = str(cfg.get("EXCHANGE_ID", "")).lower()
+        min_cmp = 22.0 if ex_id == "binance" else 18.0
+        cur_cmp = _safe_float(cfg.get("AUTO_COMPOUND_PCT"), 25.0)
+        new_cmp = max(min_cmp, round(cur_cmp * 0.80, 1))
+        if new_cmp < cur_cmp - 0.5:
+            prev_values["AUTO_COMPOUND_PCT"] = orig_cfg.get("AUTO_COMPOUND_PCT")
+            cfg["AUTO_COMPOUND_PCT"] = new_cmp
+            actions.append(f"AUTO_COMPOUND_PCT: {cur_cmp:.1f}%→{new_cmp:.1f}% (CUSUM/SPRT 감쇠 방어)")
+    elif "RISK_PER_TRADE_PCT" in cfg:
+        cur_r = _safe_float(cfg.get("RISK_PER_TRADE_PCT"), 0.01)
+        new_r = max(0.006, round(cur_r * 0.75, 4))
+        if new_r < cur_r - 0.0005:
+            prev_values["RISK_PER_TRADE_PCT"] = orig_cfg.get("RISK_PER_TRADE_PCT")
+            cfg["RISK_PER_TRADE_PCT"] = new_r
+            actions.append(f"RISK_PER_TRADE_PCT: {cur_r*100:.2f}%→{new_r*100:.2f}% (M4 알파감쇠 선제 감축)")
+
+    if sev == "CRITICAL" and int(_safe_float(cfg.get("MAX_POSITIONS"), 2)) > 1:
+        cur_mp = int(_safe_float(cfg.get("MAX_POSITIONS"), 2))
+        prev_values["MAX_POSITIONS"] = orig_cfg.get("MAX_POSITIONS")
+        cfg["MAX_POSITIONS"] = 1
+        actions.append(f"MAX_POSITIONS: {cur_mp}→1 (CRITICAL 감쇠 동시노출 축소)")
+
+    if not actions:
+        return {"applied": False, "skipped": "already_at_defensive_floor"}
+
+    def_keys = [k for k in ("AUTO_COMPOUND_PCT", "RISK_PER_TRADE_PCT", "MAX_POSITIONS") if k in prev_values]
+    return _apply_and_restart(
+        bot_id,
+        cwd,
+        pb,
+        f"M38 CUSUM/SPRT 알파 감쇠 선제 방어 ({sev})",
+        actions,
+        reason=detail_msg or f"CUSUM={m38_info.get('cusum')} SPRT={m38_info.get('sprt')}",
+        cfg_path=cfg_path,
+        cfg=cfg,
+        severity=sev,
+        force_restart_with_pos=False,
+        prev_values=prev_values,
+        eval_status="skipped_na",
+        record_defense_baseline_keys=def_keys or None,
+    )
+
+
+def remediate_funding_seasonality_or_skew(
+    bot_id: str, cwd: str, alert: Dict[str, Any], suite_report: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """[Playbook R21] M39 펀딩 유출 · M40 취약세션 · M43 방향 비대칭 자율 보정."""
+    if os.path.exists(os.path.join(cwd, ".stopped")):
+        return {"applied": False, "skipped": "bot_stopped"}
+
+    key = str(alert.get("key") or "")
+    pb = "R21_dir_skew" if key == "prof_dir_expectancy_skew" else f"R21_{key}"
+    allowed, rem = _check_and_mark_cooldown(bot_id, pb, cooldown_sec=86400, dry_run=True)
+    if not allowed:
+        return {"applied": False, "skipped": f"cooldown_{rem}s"}
+
+    cfg_path, cfg = _load_bot_config_with_backup(cwd)
+    if not cfg:
+        return {"applied": False, "skipped": "missing_config"}
+
+    orig_cfg = copy.deepcopy(cfg)
+    prev_values: Dict[str, Any] = {}
+    actions: List[str] = []
+    block_sigs: List[str] = []
+    eval_st = "skipped_na"
+
+    if key in ("prof_funding_carry_drain", "prof_session_seasonality"):
+        cur_cd = _safe_float(cfg.get("COOLDOWN_HOURS"), 4.0)
+        target_cd = 6.0 if key == "prof_funding_carry_drain" else min(8.0, cur_cd + 2.0)
+        if cur_cd < target_cd - 0.1:
+            prev_values["COOLDOWN_HOURS"] = orig_cfg.get("COOLDOWN_HOURS")
+            cfg["COOLDOWN_HOURS"] = target_cd
+            actions.append(f"COOLDOWN_HOURS: {cur_cd:.1f}h→{target_cd:.1f}h ({key} 재진입 억제)")
+    elif key == "prof_dir_expectancy_skew":
+        m43_bot = (((suite_report or {}).get("m43_dir_skew") or {}).get("per_bot") or {}).get(str(bot_id)) or {}
+        weak_side = m43_bot.get("weak_side")
+        is_trend_bot = str(bot_id) in ("8401", "8402", "8405", "8407", "8409", "8410")
+        if weak_side == "short" and (not is_trend_bot) and not _is_action_blocked(bot_id, f"{pb}:ASYMMETRIC_SHORT_TP"):
+            cur_asym = _safe_float(cfg.get("ASYMMETRIC_SHORT_TP"), 1.0)
+            if cur_asym > 0.85:
+                prev_values["ASYMMETRIC_SHORT_TP"] = orig_cfg.get("ASYMMETRIC_SHORT_TP", 1.0)
+                cfg["ASYMMETRIC_SHORT_TP"] = 0.85
+                block_sigs.append("ASYMMETRIC_SHORT_TP")
+                actions.append(f"ASYMMETRIC_SHORT_TP: {cur_asym:.2f}→0.85 (비추세 봇 숏 손익비 보수화)")
+                eval_st = "pending"
+        if not cfg.get("USE_DYNAMIC_REGIME", False):
+            prev_values["USE_DYNAMIC_REGIME"] = orig_cfg.get("USE_DYNAMIC_REGIME", False)
+            cfg["USE_DYNAMIC_REGIME"] = True
+            actions.append("USE_DYNAMIC_REGIME: False→True (편향 연패 방어)")
+
+    if not actions:
+        return {"applied": False, "skipped": "already_hardened_or_no_safe_change"}
+
+    base_metrics = _compute_window_metrics(cwd, since_ts=time.time() - 7 * 86400) if eval_st == "pending" else None
+    return _apply_and_restart(
+        bot_id,
+        cwd,
+        pb,
+        f"펀딩/세션/방향 비대칭 자율 보정 ({key})",
+        actions,
+        reason=str(alert.get("details") or key),
+        cfg_path=cfg_path,
+        cfg=cfg,
+        severity="WARN",
+        force_restart_with_pos=False,
+        prev_values=prev_values,
+        baseline_metrics=base_metrics,
+        eval_status=eval_st,
+        block_sigs=block_sigs or None,
+    )
+
+
+def remediate_corr_spike_and_hrp_budget(
+    alert: Dict[str, Any], bots: List[Any], m42_info: Dict[str, Any]
+) -> Dict[str, Any]:
+    """[Playbook R22] M42 플릿 상관관계 CRITICAL 급등 시 전 봇 리스크 예산 동시 압축."""
+    sev = str(alert.get("severity") or "WARN").upper()
+    if sev != "CRITICAL":
+        return {"applied": False, "skipped": "warn_hrp_monitoring_only"}
+
+    pb = "R22_corr_spike"
+    allowed, rem = _check_and_mark_cooldown("8888", pb, cooldown_sec=86400, dry_run=True)
+    if not allowed:
+        return {"applied": False, "skipped": f"cooldown_{rem}s"}
+
+    hardened: List[str] = []
+    for b in bots:
+        bid = str(b)
+        cwd = os.path.join(BASE_PROJECT, bid)
+        if os.path.exists(os.path.join(cwd, ".stopped")):
+            continue
+        cfg_path, cfg = _load_bot_config_with_backup(cwd)
+        if not cfg:
+            continue
+        orig_cfg = copy.deepcopy(cfg)
+        b_acts: List[str] = []
+
+        cur_mp = int(_safe_float(cfg.get("MAX_POSITIONS"), 2))
+        if cur_mp > 1:
+            cfg["MAX_POSITIONS"] = 1
+            b_acts.append(f"MP {cur_mp}→1")
+
+        if cfg.get("USE_AUTO_COMPOUND"):
+            ex_id = str(cfg.get("EXCHANGE_ID", "")).lower()
+            min_cmp = 22.0 if ex_id == "binance" else 18.0
+            cur_cmp = _safe_float(cfg.get("AUTO_COMPOUND_PCT"), 25.0)
+            new_cmp = max(min_cmp, round(cur_cmp * 0.80, 1))
+            if new_cmp < cur_cmp - 0.5:
+                cfg["AUTO_COMPOUND_PCT"] = new_cmp
+                b_acts.append(f"CMP {cur_cmp:.1f}%→{new_cmp:.1f}%")
+        elif "RISK_PER_TRADE_PCT" in cfg:
+            cur_r = _safe_float(cfg.get("RISK_PER_TRADE_PCT"), 0.01)
+            new_r = max(0.006, round(cur_r * 0.80, 4))
+            if new_r < cur_r - 0.0005:
+                cfg["RISK_PER_TRADE_PCT"] = new_r
+                b_acts.append(f"M4 {cur_r*100:.2f}%→{new_r*100:.2f}%")
+
+        if not b_acts:
+            continue
+
+        _record_pre_defense_baseline(bid, orig_cfg, ["AUTO_COMPOUND_PCT", "RISK_PER_TRADE_PCT", "MAX_POSITIONS"])
+        _save_bot_config_with_backup(cfg_path, cfg)
+        _sync_ver_md(cwd, f"M42 상관급등(ρ={m42_info.get('avg_corr')}) 리스크 압축", b_acts)
+        has_pos = _should_hold_restart_for_positions(cwd)
+        restarted = False
+        if not has_pos:
+            ok, _ = bot_restart_locked(bid, cwd, source=f"aegis_v10_{pb}", reason="M42 상관급등 방어", cooldown_sec=60)
+            restarted = bool(ok)
+        _update_pending_restart(bid, restarted, pb, "R22 상관급등 리스크 압축", cwd)
+        hardened.append(f"{bid}({', '.join(b_acts)})")
+
+    if not hardened:
+        return {"applied": False, "skipped": "fleet_already_compressed"}
+
+    _append_history_event(
+        "8888",
+        pb,
+        f"M42 플릿 상관급등(ρ={m42_info.get('avg_corr')}) 리스크 동시 압축",
+        hardened,
+        reason=str(alert.get("details") or pb),
+        severity="CRITICAL",
+        notify_discord=True,
+        extra={"eval_status": "skipped_na"},
+    )
+    return {"applied": True, "actions": hardened}
+
+
+def remediate_oi_crowding_or_shadow_filter(
+    bot_id: str, cwd: str, alert: Dict[str, Any]
+) -> Dict[str, Any]:
+    """[Playbook R23] M41 OI/베이시스 과열 쿨다운 보수화 및 M44 과도 쿨다운 필터 완화."""
+    if os.path.exists(os.path.join(cwd, ".stopped")):
+        return {"applied": False, "skipped": "bot_stopped"}
+
+    key = str(alert.get("key") or "")
+    pb = "R23_shadow_relax" if key == "prof_shadow_opp_cost" else "R23_oi_crowding"
+    allowed, rem = _check_and_mark_cooldown(bot_id, pb, cooldown_sec=86400, dry_run=True)
+    if not allowed:
+        return {"applied": False, "skipped": f"cooldown_{rem}s"}
+
+    cfg_path, cfg = _load_bot_config_with_backup(cwd)
+    if not cfg:
+        return {"applied": False, "skipped": "missing_config"}
+
+    orig_cfg = copy.deepcopy(cfg)
+    prev_values: Dict[str, Any] = {}
+    actions: List[str] = []
+    block_sigs: List[str] = []
+    eval_st = "skipped_na"
+
+    if key == "prof_oi_basis_crowding":
+        cur_cd = _safe_float(cfg.get("COOLDOWN_HOURS"), 4.0)
+        if cur_cd < 6.0:
+            prev_values["COOLDOWN_HOURS"] = orig_cfg.get("COOLDOWN_HOURS")
+            cfg["COOLDOWN_HOURS"] = 6.0
+            actions.append(f"COOLDOWN_HOURS: {cur_cd:.1f}h→6.0h (OI/베이시스 과열 추격 억제)")
+    elif key == "prof_shadow_opp_cost" and not _is_action_blocked(bot_id, f"{pb}:COOLDOWN_HOURS"):
+        meta = alert.get("meta") if isinstance(alert.get("meta"), dict) else {}
+        if not meta.get("opp_hit") or meta.get("dominant_filter") != "쿨다운":
+            return {"applied": False, "skipped": "drift_or_non_cooldown_monitor_only"}
+        # Mutual exclusion: do not relax cooldown if a defensive cooldown tightening ran within 24h
+        hist_doc = _ensure_history_shape(_load_json(HISTORY_FILE, {}))
+        now_ts = time.time()
+        for def_pb in ("R2_mdd_warn", "R2_mdd_kill", "R3_alpha_tune", "R11_loss_streak_warn", "R11_loss_streak_kill", "R21_prof_session_seasonality", "R21_prof_funding_carry_drain"):
+            last_def = _safe_float((hist_doc.get("cooldowns") or {}).get(f"{bot_id}:{def_pb}"), 0.0)
+            if (now_ts - last_def) < 86400:
+                return {"applied": False, "skipped": f"cooldown_hardened_recently_{def_pb}"}
+        cur_cd = _safe_float(cfg.get("COOLDOWN_HOURS"), 4.0)
+        if cur_cd > 4.0:
+            new_cd = max(4.0, round(cur_cd - 2.0, 1))
+            prev_values["COOLDOWN_HOURS"] = orig_cfg.get("COOLDOWN_HOURS")
+            cfg["COOLDOWN_HOURS"] = new_cd
+            block_sigs.append("COOLDOWN_HOURS")
+            actions.append(f"COOLDOWN_HOURS: {cur_cd:.1f}h→{new_cd:.1f}h (M44 탈락 알파 회수)")
+            eval_st = "pending"
+
+    if not actions:
+        return {"applied": False, "skipped": "no_safe_adjustment"}
+
+    base_metrics = _compute_window_metrics(cwd, since_ts=time.time() - 7 * 86400) if eval_st == "pending" else None
+    return _apply_and_restart(
+        bot_id,
+        cwd,
+        pb,
+        f"OI 과열/섀도우 알파 기회비용 보정 ({key})",
+        actions,
+        reason=str(alert.get("details") or key),
+        cfg_path=cfg_path,
+        cfg=cfg,
+        severity="WARN",
+        force_restart_with_pos=False,
+        prev_values=prev_values,
+        baseline_metrics=base_metrics,
+        eval_status=eval_st,
+        block_sigs=block_sigs or None,
+    )
+
+
+def dispatch_alpha_profitability_remediations(
+    alerts: List[Dict[str, Any]],
+    bots: List[Any],
+    suite_report: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
+    """[Aegis V10 Alpha Dispatcher] M36~M44(`prof_*`) 경보를 R18~R23 플레이북에 자율 라우팅."""
+    allowed_bots = {str(b) for b in bots}
+    rep = suite_report or {}
+    kept: List[Dict[str, Any]] = []
+    mutated_bots = set()
+
+    for a in (alerts or []):
+        if not isinstance(a, dict):
+            continue
+        bid = str(a.get("bot_id") or "8888")
+        key = str(a.get("key") or "")
+        sev = str(a.get("severity") or "WARN").upper()
+        cwd = os.path.join(BASE_PROJECT, bid)
+        res: Optional[Dict[str, Any]] = None
+
+        if bid in mutated_bots and bid in allowed_bots:
+            a["recommendation"] = "Level 2+ 금회 사이클 이미 1건 자율 조치 완료 (핑퐁 방지)"
+            kept.append(a)
+            continue
+
+        if key == "prof_mae_mfe_exit_eff" and bid in allowed_bots:
+            m36_info = ((rep.get("m36_mae_mfe") or {}).get("per_bot") or {}).get(bid) or {}
+            res = remediate_mae_mfe_exit_efficiency(bid, cwd, m36_info, detail_msg=str(a.get("details") or ""))
+        elif key == "prof_slippage_spread_atr" and bid in allowed_bots:
+            bad_syms = (((rep.get("m37_slippage_spread") or {}).get("per_bot") or {}).get(bid) or {}).get("illiquid_symbols") or []
+            res = remediate_illiquid_spread_symbols(bid, cwd, bad_syms, detail_msg=str(a.get("details") or ""))
+        elif key == "prof_cusum_sprt_decay" and bid in allowed_bots:
+            m38_info = ((rep.get("m38_cusum_sprt") or {}).get("per_bot") or {}).get(bid) or {}
+            res = remediate_cusum_sprt_edge_decay(bid, cwd, m38_info, sev=sev, detail_msg=str(a.get("details") or ""))
+        elif key in ("prof_funding_carry_drain", "prof_session_seasonality", "prof_dir_expectancy_skew") and bid in allowed_bots:
+            res = remediate_funding_seasonality_or_skew(bid, cwd, a, suite_report=rep)
+        elif key == "prof_corr_spike_hrp":
+            res = remediate_corr_spike_and_hrp_budget(a, bots, rep.get("m42_corr_hrp") or {})
+        elif key in ("prof_oi_basis_crowding", "prof_shadow_opp_cost") and bid in allowed_bots:
+            res = remediate_oi_crowding_or_shadow_filter(bid, cwd, a)
+
+        if res is not None:
+            if res.get("applied"):
+                mutated_bots.add(bid)
+                a["recommendation"] = f"Level 2+ 자율 조치 완료: {', '.join(res.get('actions') or [])}"
+            else:
+                a["recommendation"] = f"Level 2+ 자율 감시 유지 ({res.get('skipped') or '정상 대기'})"
+        kept.append(a)
+
+    return kept
+
 
 
 

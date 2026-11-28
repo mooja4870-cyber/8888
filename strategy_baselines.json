@@ -39,7 +39,8 @@
         "recommend_daily_loss_limit_pct_of_seed": 0.06,
         "require_dynamic_regime": true
       },
-      "previous_strategy_id": "QVT_Pullback_1h"
+      "previous_strategy_id": "QVT_Pullback_1h",
+      "strategy_effective_since": "2026-11-28 11:52:00"
     },
     "8402": {
       "strategy_id": "ROC16_Momentum_4h_M4",
@@ -74,7 +75,8 @@
         "recommend_daily_loss_limit_pct_of_seed": 0.06,
         "require_dynamic_regime": true
       },
-      "previous_strategy_id": "QVT_Pullback_1h"
+      "previous_strategy_id": "QVT_Pullback_1h",
+      "strategy_effective_since": "2026-11-28 11:52:00"
     },
     "8403": {
       "strategy_id": "BB_MR_15m",
@@ -278,7 +280,8 @@
         "recommend_daily_loss_limit_pct_of_seed": 0.06,
         "require_dynamic_regime": true
       },
-      "previous_strategy_id": "QVT_Pullback_1h"
+      "previous_strategy_id": "QVT_Pullback_1h",
+      "strategy_effective_since": "2026-11-28 11:52:00"
     },
     "8410": {
       "strategy_id": "ROC16_Momentum_4h_M4",
@@ -313,7 +316,8 @@
         "recommend_daily_loss_limit_pct_of_seed": 0.06,
         "require_dynamic_regime": true
       },
-      "previous_strategy_id": "QVT_Pullback_1h"
+      "previous_strategy_id": "QVT_Pullback_1h",
+      "strategy_effective_since": "2026-11-28 11:52:00"
     }
   }
 }

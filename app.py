@@ -2028,6 +2028,15 @@ class Handler(BaseHTTPRequestHandler):
             tf = (parse_qs(urlparse(self.path).query).get("tf") or ["1h"])[0]
             body = json.dumps(asset_chart(tf), ensure_ascii=False).encode()
             ctype = "application/json; charset=utf-8"
+        elif self.path.startswith("/api/alpha_report"):
+            rep_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "alpha_profitability_report.json")
+            try:
+                with open(rep_path, "r", encoding="utf-8") as rf:
+                    rep_obj = json.load(rf)
+            except Exception:
+                rep_obj = {"updated": None, "modules": ["M36", "M37", "M38", "M39", "M40", "M41", "M42", "M43", "M44"], "status": "not_generated_yet"}
+            body = json.dumps(rep_obj, ensure_ascii=False).encode()
+            ctype = "application/json; charset=utf-8"
 
         elif self.path == "/" or self.path.startswith("/index"):
             with open(HTML_PATH, encoding="utf-8") as f:
